@@ -550,7 +550,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, e
 		}
 		// 带期限物品一律按「永不过期」下发。**默认开启**（DFO_MAX_ITEM_PERIOD=0 才关）：
-		// 三个 .cmd 入口都设了这个变量，但一键启动器自己拉起 launch_local.py、
+		// 三个 .cmd 入口都设了这个变量，但外部一键启动器自己拉起旧脚本编排、
 		// 从不设置它 ⇒ 走一键启动器时整条兜底不生效，脚本声明过期限的模板
 		// （银增幅书到期日 2022-11-08 之类）就会带着 0 下发，客户端显示
 		// 「剩余期限已过」并拒绝使用（错误码 31730）。

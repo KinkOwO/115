@@ -604,7 +604,7 @@ func gatewayStep(in planInput, out string) PlanStep {
 		return PlanStep{Step: step, Target: "(跳过)",
 			Detail: "--storage-only：起库后直接返回，不起网关"}
 	}
-	detail := fmt.Sprintf("-fixture %s -output %s；由 helper channel_probe.py 拉起（cwd=server\\）",
+	detail := fmt.Sprintf("-fixture %s -output %s；由本进程（Go）直接拉起（cwd=server\\）",
 		filepath.Join(out, "channelinfo.bin"), out)
 	if in.catalogs == "" {
 		detail += "；JSON 模式：继承环境里的 DFO_PVF_* 会被全部清除"
@@ -636,7 +636,7 @@ func clientStep(in planInput, out string) PlanStep {
 	return PlanStep{
 		Step:   step,
 		Target: filepath.Join(in.probeDir, "probe.exe"),
-		Detail: fmt.Sprintf("%s %s 55 %s %s %s（由 helper 拉起；payload 为 _next37→_next34 降级后的 7001 形态）",
+		Detail: fmt.Sprintf("%s %s 55 %s %s %s（由 Go 宿主拉起，probe.exe 仅作显式回退；payload 为 _next37→_next34 降级后的 7001 形态）",
 			in.client, filepath.Join(out, "client.log"), mode,
 			filepath.Join(out, "breakpoints.txt"), probePayload7001),
 	}

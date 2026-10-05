@@ -317,7 +317,7 @@ loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除�
 ## 1. 执行模型与技术栈
 
 - **服务端主体**：Go 1.26（模块根目录位于 `server/work/dfo-lan/`，通过 `go.mod` / `go.sum` 管理依赖）。
-- **服务启动编排**：Python 3.11.9 便携版（`tools/python/python.exe`），调用 `launch_local.py` 与 `channel_probe.py`。
+- **服务启动编排**：**仓库内 Go 启动器**（`server/work/dfo-lan/bin/dfolauncher.exe`，源码 `cmd/dfolauncher` + `internal/launcher`）。2026-10-05 起启动链**不再需要 Python**：`launch_local.py`、`channel_probe.py`、`bootstrap_local.py`、`stop_environment.py` 已删除，入口只走 `scripts\storage-route.ps1` → `dfolauncher launch`。
 - **数据持久化**：PostgreSQL 16.4 便携版（端口 25438），连接配置 `runtime/storage/local.json`，数据目录 `runtime/storage/pgdata/`。
 
 ## 2. 服务入口与端点约定
@@ -327,7 +327,7 @@ loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除�
 | `127.0.0.1:7001`          | Channel 频道目录与刷新服务（HTTP / 专有协议）                |
 | `127.0.0.2:<动态端口>`    | Game 游戏接入网关（TCP，由 probe 协同引导连接）              |
 | `scripts/启动游戏.cmd`     | 玩家与完整测试入口（需管理员权限，自动拉起存储、服务与客户端） |
-| `scripts/启动服务端.cmd`   | 纯服务端调试入口（调用 `launch_local.py --server-only`）     |
+| `scripts/启动服务端.cmd`   | 纯服务端调试入口（`storage-route.ps1 server-*` → `dfolauncher launch --server-only`）     |
 | `scripts/停止游戏环境.cmd` | 安全关闭客户端、游戏服务、PostgreSQL (做 checkpoint) |
 | `server/Build-Server.ps1` | 服务端编译脚本（执行测试、vet 并编译候选版）                 |
 
@@ -347,7 +347,7 @@ loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除�
 | `internal/database/`             | PostgreSQL 数据库事务 (pgxpool)、角色存档持久化  |
 | `internal/catalog/`             | 游戏规则驱动目录与静态数据索引解析                           |
 | `configs/`                      | 导出的全量 JSON 规则配置（任务、地图、装备、掉落等）         |
-| `scripts/`                      | 本地启动与初始化脚本（`launch_local.py`、`bootstrap_local.py`） |
+| `scripts/`                      | PVF 导出/审计等开发工具与 `Generate-SQL.ps1`；**启动编排已全部收进 Go**（`cmd/dfolauncher` + `internal/launcher`） |
 | `runtime/storage/`              | 本地存储：`pgdata/`、`local.json`（严禁入库） |
 | `runtime/roles_*/`              | 运行会话追踪日志（`run.json`、`events.jsonl`、`helper.err`） |
 | `reference/analysis-tools/*.py` | 分析辅助脚本                                                 |

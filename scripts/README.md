@@ -10,14 +10,13 @@
 | --- | --- | --- |
 | `check-commit-hygiene.ps1` | **提交前门禁**：检出「本地缓存/构建产物入库」与目录规范违规；退出码 2 = 需业主二次确认（根 `AGENTS.md` §0.3.1） | 任何提交前手动跑：`pwsh -NoProfile -File scripts/check-commit-hygiene.ps1` |
 | `storage-route.ps1` / `storage-route.cmd` | **双库双路线切换器 + Go 启动链调用**：`show` 看当前路线、`use sqlite`/`use postgres` 切换、`stop-postgres` 停 PG、`preflight-postgres` 只做起库预检、`clear-guard` 清过期 SQLite 管理租约、`chain-info` 报告 Go 启动器与强制开关、`selftest` 自检，以及四个入口实际调用的 `game-*`/`server-*`（逻辑见 `server/work/dfo-lan/docs/sqlite-operations.md` §1.2） | 四个路线启动入口内部调用；也可手动 `scripts\storage-route.cmd show` |
-| `configure_env.py` | 配置本机环境（写 `server/work/dfo-lan/runtime/storage/local.json`、探测客户端目录） | `scripts\配置环境.cmd` |
-| `storage_profile.py` | 存储引擎判定规则的 **Python 真源**（显式 driver > 有 DSN 选 PostgreSQL > 只有 sqlite_path 选 SQLite），被 `configure_env.py`、`stop_environment.py`、`gm.py` 导入 | 上面几个脚本 |
-| `stop_environment.py` | 安全停止环境（PG `pg_ctl stop -m fast` 做 checkpoint、清理进程与端口，按 driver 分叉） | `scripts\停止游戏环境.cmd` |
+| `configure_env.py` | **已删除（2026-10-05，去 Python）**：环境配置改由启动链自己写 `runtime/storage/local.json`（`storage-route.ps1 use …` + `dfolauncher init-storage`） | — |
 | `build_publish_zip.py` | 打发布包 | 根 `build-publish.ps1:59` |
-| `test_environment_storage.py` | 上面两个脚本的单元测试（用 tempfile + mock，不碰真实环境） | 手动：`python scripts/test_environment_storage.py` |
 
-两个脚本都用 `__file__` 定位仓库根（`stop_environment.py` 取上一级，
-`configure_env.py` 逐级向上找同时含 `server/` 与 `tools/` 的目录），因此**移动本目录层级时必须同步改这两处**。
+> **2026-10-05：本目录的 Python 运行脚本已全部移除**（`configure_env.py`、`storage_profile.py`、
+> `stop_environment.py`、`test_environment_storage.py`）。启动/停止/存储判定全部由仓库内 Go 启动器
+> （`server\work\dfo-lan\bin\dfolauncher.exe`）承担；仍保留的 Python 只有 `gm.py`（GM 命令行，
+> 它的 `set`/`history` 子命令尚无 Go 等价物）与 `build_publish_zip.py`（打包，属另一条工作）。
 
 ### 写 `.cmd` 的硬要求（2026-10-05 实机踩坑后定）
 
@@ -70,17 +69,17 @@
 
 - 移动而不是删除：只是把 `tools` 挪到仓库外，随时可用 `还原tools.cmd` 移回来。
 - 移走后：`检查环境.cmd` / `停止游戏环境.cmd` 仍可用（走 `bin\dfolauncher.exe`）；
-  `启动游戏.cmd` / `启动服务端.cmd` 仍需要 Python 编排（`channel_probe.py`），
-  先看 `docs/runtime-without-tools-plan.md`；PostgreSQL 档会失去便携 PG，SQLite 档不需要它。
+  **启动链也已不依赖 `tools\`**（2026-10-05 起只走仓库内 Go 启动器）；
+  PostgreSQL 档会失去便携 PG（`postgres_bin` 指向哪台都行，改路线档即可），SQLite 档不需要它。
 
 #### 停止环境时的 SQLite 管理租约（2026-10-05）
 
 - 强杀服务端会留下 `<db>.admin-guard` 租约，60 秒 TTL 内新服务端会被拒（实机：
-  「已有 GM 写入正在进行…由进程 13248 持有」）。**停止链现在自己收**：SQLite 档下
-  `dfolauncher stop`（Go，优先）与 `stop_environment.py`（兜底）都在强杀之后读租约里记录的 pid，
+  「已有 GM 写入正在进行…由进程 13248 持有」）。**停止链自己收**：SQLite 档下
+  `dfolauncher stop` 在强杀之后读租约里记录的 pid，
   只在平台明确回答「该 pid 不存在」时删除；pid 还活着或问不出来一律保留并说明原因。
 - 没走过停止链（崩溃）时手动清一次：`scripts\storage-route.cmd clear-guard`（同一套判据）。
-- 租约里读不出 pid（空文件/内容异常）时两条路都不删——等 TTL，或由你确认后手工删除。
+- 租约里读不出 pid（空文件/内容异常）时都不删——等 TTL，或由你确认后手工删除。
 
 #### PG 路线起库不再「卡住」（2026-10-05）
 
@@ -103,11 +102,11 @@
      这些只是历史对照/审计用途，**不是运行输入**；
   2. **运行配置（路径被写死）**：`server/work/dfo-lan/runtime/storage/local.json`、
      `server/launcher.local.json`、`server/work/dfo-lan/configs/pvf-default.json`
-     —— 被 `launch_local.py`、`configure_env.py`、`channel_probe.py` 按固定路径读写；
+     —— 被 Go 启动器（`storage-route.ps1` + `dfolauncher`）按固定路径读写；
   3. `gm-tool/configs/` 是 GM 工具自己的配置。
 - **组件自带脚本目录**保持原位，它们各自被本组件的构建/启动链按路径引用：
-  - `server/work/dfo-lan/scripts/`（服务端编排：`launch_local.py`、`bootstrap_local.py`、`Generate-SQL.ps1`、`test_postgres_storage.py` 等）
-  - `server/work/dfo_probe_tools/`（启动链必需：`channel_probe.py` + `probe.exe`）
+  - `server/work/dfo-lan/scripts/`（PVF 导出/审计等开发工具 + `Generate-SQL.ps1`；启动编排已全部收进 Go）
+  - `server/work/dfo_probe_tools/`（`probe.exe`；`channel_probe.py` 已于 2026-10-05 删除）
   - `gm-tool/scripts/`
 
 - `incremental-package/` 是**另一条并行工作**的在建子目录，不属于本目录的整理范围，请勿改动。

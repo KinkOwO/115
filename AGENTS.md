@@ -19,7 +19,7 @@
 9. **DLL 日志硬规则**：若经用户明确要求编写或调试 DLL，每个 DLL 产生的日志、诊断文本默认必须解析自身模块路径，写入该 DLL 所在目录；不得依赖进程当前目录或将日志写入客户端游戏根目录。
 10. **参考资料**：参考旧项目 `../90dof`、`../usdof`、`../ServerS4A21`、`../dfo115`，不能假设协议相同，必须实际分析。
 11. **新 codec 先过身份门禁**：完整走完 IDA 逆向链和客户端原生向量验证，再命名算法或下结论。
-12. **服务端技术栈门禁**：Go 1.26；PostgreSQL 16.4（端口 25438）；日常启动由 Python 3.11.9 脚本编排。
+12. **服务端技术栈门禁**：Go 1.26；PostgreSQL 16.4（端口 25438）；日常启动由**仓库内 Go 启动器**编排（`bin/dfolauncher.exe`；2026-10-05 起已不用 Python）。
 13. **一次只验证一个假设**：改动后必须通过测试与 vet；测试/候选/实机流程见 `server/AGENTS.md` §4。
 14. **玩法规则由 PVF 脚本驱动**：等级动作、条件、奖励、数量、材料、费用、概率与内容关联，以当前 PVF 原生脚本为唯一内容定义；Go 负责解析、校验与执行，不再维护平行玩法表。新增或修改玩法前必须走 §0.2 的来源与重复规则检查。
 15. **提交前必须过门禁并二次确认（强制，2026-10-04 业主定调）**：任何 AI 在 `git add` / `git commit` 之前，必须先跑 `pwsh -NoProfile -File scripts/check-commit-hygiene.ps1`。脚本一旦报出**本地缓存/构建产物入库**、**不符合 §0.4/§0.5 规范**或**与当前环境不匹配（§0.3.4）**，AI 必须**立即停止提交**，把违规条目逐条报告给业主并**取得业主明确的二次确认**后才能继续；不得用 `-Force`、`--no-verify`、`git add -A` 或任何方式绕过。完整流程见 §0.3。
@@ -102,8 +102,8 @@
 | 存储档 | 活动 `runtime/storage/local.json` 的路径必须在本机存在；与已跟踪 `local.example.json` 的 `driver` 不一致时，**若该 driver 有自己的路线档**（`runtime/storage/local.<driver>.json`，双库双路线切换器的产物）则只提示 | 示例档 driver=postgres，活动档 driver=sqlite |
 | 配置里的路径 | 示例/本地配置中写的相对路径必须在本机存在 | 示例档 `postgres_bin=tools/pg/pgsql/bin`，而 tools 已移出仓库 |
 | profile 程序 | `configs/pvf-default.json.binary`、`server/launcher.local.json.server_binary` 指向的程序必须存在 | 缺 `bin/wireprobe-pvf.exe` 时启动找不到程序 |
-| 启动链配置 | `channel_probe.py` 引用的 `configs/channel.local*.json` 必须存在 | next37 档引用的频道档没落地 → 该档启动失败 |
-| 脚本引用 | 改动过的 `.cmd`/`.ps1` 不得引用「仓库内 `tools\`」（本机 tools 在仓库外，该分支不可解析） | 新脚本写 `tools\python\python.exe` |
+| 启动链配置 | 启动链（Go：`internal/launcher/gateway.go`）引用的 `configs/channel.local*.json` 必须存在 | next37 档引用的频道档没落地 → 该档启动失败 |
+| 脚本引用 | 改动过的 `.cmd`/`.ps1` 不得引用「仓库内 `tools\`」（本机 tools 在仓库外，该分支不可解析） | 新脚本写 `tools\python\python.exe`（2026-10-05 起启动链已无 Python 分支） |
 | 脚本编码 | `.ps1` 必须 UTF-8 **带 BOM**；`.cmd` 必须 CRLF | 用会丢 BOM 的编辑器改门禁脚本 → PS 5.1 按 GBK 解码，脚本直接语法崩（当日实际踩到） |
 
 环境不匹配的两条出路：**改环境**（补文件/改配置，使两边一致）或**改提交**（不入库/换档位）。两条都要在提交信息里说明。

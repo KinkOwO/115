@@ -50,26 +50,24 @@ pwsh -NoProfile -File ./server/Build-Server.ps1
 
 归档元数据候选在已确认物品缓存基础上，本机单次准备33.14→26.18秒，保留堆基本持平；首次建立两类缓存51.10秒，元数据文件约162MiB。关闭会话后用--source-build两轮验证，gateway.err热轮同时出现archive metadata cache hit及derived item cache hit；DFO_PVF_CACHE_DIR='-'同时禁用两种缓存。旧源码8d6f979a备份work/dfo-lan/.tmp/pvf-phase4b/bin/wireprobe-handoff-source.confirmed-before.exe，详细证据及剩余范围见../docs/todo/pvf/PVF启动与内存优化实施计划.md。上文第四批首段记录为历史验证轮次。
 
-1. 解压到固定目录，如 `D:/DFO-dev`。准备 Windows x64 上可用的 Python 3.10+、PostgreSQL。继续编译还需要 Go 1.26（本包用1.26.5验证）。数据库工具需包含 `initdb.exe`、`pg_ctl.exe`、`createdb.exe`。
+1. 解压到固定目录，如 `D:/DFO-dev`。准备 Windows x64 上可用的 **PostgreSQL**（`initdb.exe`、`pg_ctl.exe`、`createdb.exe`）。继续编译还需要 Go 1.26（本包用 1.26.5 验证）；**运行不再需要 Python**（2026-10-05 起启动链全部是 Go）。
 2. 向项目提供者取得**完整的、当前能运行的隔离客户端目录**：原工作区 `work/dfo_probe_client`，包括资源和配套文件。可以放到解压目录的同名位置，也可放在其他磁盘。仅复制DFO.exe、PVF、sk.dat三个文件不够。配套校验值见 `client-requirements.json`。
 3. 将 `launcher.example.json` 复制为 `launcher.local.json`。编辑 `client_dir` 为客户端目录，相对路径以解压根目录为基准，或填写绝对路径。Windows JSON路径建议用 `/`。
-4. 仅在朋友自己的电脑上初始化**新库**。从解压根目录打开 PowerShell，修改下方工具路径再运行：
+4. 仅在朋友自己的电脑上初始化**新库**（Go 启动器的 `init-storage`）：
 
 ```powershell
-py -3 work/dfo-lan/scripts/bootstrap_local.py --postgres-bin 'D:/tools/pgsql/bin'
+.\bin\dfolauncher.exe init-storage --postgres-bin 'D:/tools/pgsql/bin'
 ```
 
 这会在本包 `work/dfo-lan/runtime/storage` 内建立新PG数据目录和随机密码配置，PG端口25438。已有 `local.json` 或 `pgdata` 就拒绝初始化。初始化中途失败请查日志和现有数据，不要直接删除目录反复重试。
 
-5. 先检查，再启动：
+5. 先检查，再启动（`launch --check` 只读，打印 Storage / Binary / Data mode / Client 四行）：
 
 ```powershell
-py -3 work/dfo-lan/scripts/launch_local.py --check
+.\bin\dfolauncher.exe launch --check
 ```
 
-检查通过后，右键根目录 `Start-DFO.cmd`，以管理员身份运行。脚本启动已有本地存储和默认PVF服务端，然后打开客户端。服务端启动时迁移表结构并建立开发账号 `probe`；角色由客户端创建。不会带入原机6666或LanTest01的存档。
-
-若 `py` 不在PATH，可用 `python` 替代上述命令。双击入口支持 `DFO_PYTHON` 环境变量指向Python.exe；否则依次尝试 `py -3`、`python`。
+检查通过后，以管理员身份运行 `scripts\启动游戏.cmd`（或按存档类型选 `启动游戏-SQLite.cmd` / `启动游戏-PostgreSQL.cmd`）。入口会切好存储档、按需起 PostgreSQL，然后用 Go 启动器拉起网关与客户端。服务端启动时迁移表结构并建立开发账号 `probe`；角色由客户端创建。不会带入原机6666或LanTest01的存档。
 
 ## 修改源码与测试
 

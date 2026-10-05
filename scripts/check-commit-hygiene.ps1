@@ -312,13 +312,17 @@ try {
         }
         catch { }
     }
-    # (c) 启动链引用的频道配置档必须存在
-    $probePath = Join-Path $RepoRoot 'server\work\dfo_probe_tools\channel_probe.py'
-    if (Test-Path -LiteralPath $probePath) {
-        $probeText = Get-Content -LiteralPath $probePath -Raw -Encoding UTF8
-        foreach ($m in [regex]::Matches($probeText, 'channel\.local\d+\.json')) {
+    # (c) 启动链引用的频道配置档必须存在。
+    # 真源从 Python（channel_probe.py，2026-10-05 已删）换成 Go 编排：
+    # internal/launcher/gateway.go 决定下发哪个 channel.local*.json。
+    $chainSources = @(Get-ChildItem -LiteralPath (Join-Path $RepoRoot 'server\work\dfo-lan\internal\launcher') -Filter '*.go' -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -notmatch '_test\.go$' })
+    foreach ($source in $chainSources) {
+        $chainText = Get-Content -LiteralPath $source.FullName -Raw -Encoding UTF8
+        foreach ($m in [regex]::Matches($chainText, 'channel\.local\d+\.json')) {
             if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot ('server\work\dfo-lan\configs\' + $m.Value)))) {
-                $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo_probe_tools/channel_probe.py'; Why = "启动链引用的 configs/$($m.Value) 不存在（该档位启动会失败）"; Clause = '§0.3.4 环境匹配' }
+                $rel = $source.FullName.Substring($RepoRoot.Length + 1) -replace '\\', '/'
+                $needConfirm += [pscustomobject]@{ Path = $rel; Why = "启动链引用的 configs/$($m.Value) 不存在（该档位启动会失败）"; Clause = '§0.3.4 环境匹配' }
             }
         }
     }

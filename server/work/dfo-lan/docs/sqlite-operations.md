@@ -19,8 +19,8 @@
 
 ### 1.1 没有 `driver` 时的唯一规则（2026-10-05 收口）
 
-`driver` 可以省略，但省略时的选择**只有一条规则**，服务端、Go 启动器与两个 Python
-存档档（`launch_local.py` / `stop_environment.py`）按同一次序判定：
+`driver` 可以省略，但省略时的选择**只有一条规则**，服务端与 Go 启动器按同一次序判定
+（2026-10-05 起 Python 那三个镜像已随脚本删除）：
 
 | 次序 | 配置里有什么 | 选中 | 说明 |
 | --- | --- | --- | --- |
@@ -30,11 +30,9 @@
 | 4 | 三个都没有 | PostgreSQL（并报配置不完整） | 不发明一个库出来 |
 
 规则的真源是 `internal/database.EngineForConfig`；镜像在
-`internal/launcher.StorageConfig.DriverName`、`scripts/storage_profile.py`、
-`server/work/dfo-lan/scripts/launch_local.py` 与 `gm-tool/scripts/gmweb.py`，
+`internal/launcher.StorageConfig.DriverName`（Go 启动器）与 `gm-tool/scripts/gmweb.py`，
 两边各有同一张表的用例（`internal/database/engine_selection_test.go`、
-`internal/launcher/launcher_test.go`、`scripts/test_environment_storage.py`、
-`scripts/test_postgres_storage.py`）。
+`internal/launcher/launcher_test.go`）。
 
 > **为什么要写死到这一步**：次序 2 与 3 曾经相反（有 `sqlite_path` 就选 SQLite），
 > 于是「PostgreSQL 在跑、配置里还留着上一次试 SQLite 的 `sqlite_path`」这种混合档会让
