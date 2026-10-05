@@ -112,8 +112,9 @@ const (
 //     opening some other file instead is how a PostgreSQL save went invisible;
 //  3. otherwise SQLitePath selects SQLite - the shape the 20261004 upgrade package's
 //     migration tool writes, with no driver field at all, so that package keeps working;
-//  4. a configuration that names neither stays on PostgreSQL, whose open path reports the
-//     incomplete configuration instead of inventing one.
+//  4. a configuration that names neither falls back to **SQLite** (2026-10-05 业主口径「默认 sqlite」，
+//     与启动器 internal/config.StorageDriver 的兜底一致)；SQLite 那条打开路径会以
+//     "sqlite storage configuration incomplete" 明确报错，不会凭空发明一个库。
 func EngineForConfig(c Config) (string, error) {
 	if driver := strings.ToLower(strings.TrimSpace(c.Driver)); driver != "" {
 		switch driver {
@@ -129,7 +130,7 @@ func EngineForConfig(c Config) (string, error) {
 	if strings.TrimSpace(c.SQLitePath) != "" {
 		return DriverSQLite, nil
 	}
-	return DriverPostgres, nil
+	return DriverSQLite, nil
 }
 
 // Open builds the Store for the configured engine.

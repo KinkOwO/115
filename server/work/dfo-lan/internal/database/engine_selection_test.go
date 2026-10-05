@@ -74,7 +74,7 @@ func TestEngineForConfigSelectsTheSameEngineEverywhere(t *testing.T) {
 		},
 		{name: "DSN alone selects postgres", cfg: Config{PostgresDSN: "postgres://u@127.0.0.1:25438/dfo_lan"}, driver: "postgres"},
 		{name: "sqlite_path alone selects sqlite", cfg: Config{SQLitePath: "C:/saves/dfolan.sqlite3"}, driver: "sqlite"},
-		{name: "neither stays on postgres", cfg: Config{}, driver: "postgres"},
+		{name: "neither falls back to sqlite (2026-10-05 default)", cfg: Config{}, driver: "sqlite"},
 		{name: "blank DSN does not count as a DSN", cfg: Config{PostgresDSN: "   ", SQLitePath: "C:/saves/dfolan.sqlite3"}, driver: "sqlite"},
 	}
 	for _, tc := range cases {
