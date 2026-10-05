@@ -62,14 +62,14 @@
 
 全链（服务端 / 启动器 / Web GM / GM 命令行）只读**同一份活动档**
 `runtime/storage/local.json`，所以「切换路线」＝把该路线的档写成活动档。
-`scripts\存储档.cmd` 负责这件事（逻辑在 `scripts\存储档.ps1`，只写配置档，不启动任何程序）：
+`scripts\storage-route.cmd` 负责这件事（逻辑在 `scripts\storage-route.ps1`，只写配置档，不启动任何程序）：
 
 ```powershell
-scripts\存储档.cmd show                 # 当前路线、连的是哪个库、另一条路线档在不在
-scripts\存储档.cmd use sqlite           # 切到 SQLite 路线（无需 PostgreSQL）
-scripts\存储档.cmd use postgres         # 切到 PostgreSQL 路线
-scripts\存储档.cmd stop-postgres        # 停掉本仓库 pgdata 上的 PostgreSQL
-scripts\存储档.cmd selftest             # 自检（临时目录里跑，不碰本机真实配置）
+scripts\storage-route.cmd show                 # 当前路线、连的是哪个库、另一条路线档在不在
+scripts\storage-route.cmd use sqlite           # 切到 SQLite 路线（无需 PostgreSQL）
+scripts\storage-route.cmd use postgres         # 切到 PostgreSQL 路线
+scripts\storage-route.cmd stop-postgres        # 停掉本仓库 pgdata 上的 PostgreSQL
+scripts\storage-route.cmd selftest             # 自检（临时目录里跑，不碰本机真实配置）
 ```
 
 四个启动入口在切好路线后交给统一入口，因此提权、探针、客户端编排仍只有一套实现：
@@ -88,7 +88,11 @@ scripts\存储档.cmd selftest             # 自检（临时目录里跑，不�
   搬运存档用 `dfo-tool sqliteconvert`（只支持 PostgreSQL → SQLite 单向）。
 - PostgreSQL 路线的入口会调 `bin\dfolauncher.exe start-storage` 起库（`driver=sqlite` 时它是空操作，
   见 `internal/launcher.StartStoragePlan`）；停止仍由 `scripts\停止游戏环境.cmd` 按活动档的 driver 决定，
-  所以「已切回 SQLite 但 PostgreSQL 还在跑」时用 `存储档.cmd stop-postgres` 收尾。
+  所以「已切回 SQLite 但 PostgreSQL 还在跑」时用 `storage-route.cmd stop-postgres` 收尾。
+- **四个入口的 `.cmd` 只有 8 行纯 ASCII**：路线切换、中文提示与调用中文名统一入口
+  （`启动游戏.cmd` / `启动服务端.cmd`）都在 BOM 的 `storage-route.ps1` 里。原因是实测的 cmd 解析坑：
+  UTF-8 中文进执行行（尤其 `-File "scripts\<中文>.ps1"`）或裸 LF 行尾，会被 cmd 按控制台代码页拆成
+  乱码命令（`'hell' is not recognized ...`），整条启动链误判失败。规则与证据见根 `AGENTS.md` §0.4.2。
 
 ## 2. 首次在 SQLite 上启动
 

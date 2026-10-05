@@ -16,11 +16,11 @@
   引擎判定与 `internal/database.EngineForConfig` 同一条规则（显式 driver > 有 DSN 选 PostgreSQL >
   只有 sqlite_path 选 SQLite），见 `server/work/dfo-lan/docs/sqlite-operations.md` §1.1。
 
-  用法（也可用同目录的 `存储档.cmd`）：
-    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\存储档.ps1 show
-    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\存储档.ps1 use sqlite
-    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\存储档.ps1 use postgres
-    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\存储档.ps1 stop-postgres
+  用法（也可用同目录的 `storage-route.cmd`）：
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\storage-route.ps1 show
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\storage-route.ps1 use sqlite
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\storage-route.ps1 use postgres
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\storage-route.ps1 stop-postgres
 
   退出码：0 = 成功；1 = 失败（调用方应当停止启动，不要带着半套配置去拉起服务端）。
 
@@ -227,7 +227,7 @@ function Use-Route([string]$route) {
 
     if ($route -eq 'sqlite') {
         if (Test-Port '127.0.0.1' 25438) {
-            Write-Host '[提示] PostgreSQL 仍在监听 25438（上一条 PG 路线遗留）；要停它就运行：scripts\存储档.cmd stop-postgres' -ForegroundColor Yellow
+            Write-Host '[提示] PostgreSQL 仍在监听 25438（上一条 PG 路线遗留）；要停它就运行：scripts\storage-route.cmd stop-postgres' -ForegroundColor Yellow
         }
     }
 }
@@ -260,7 +260,7 @@ function Show-Current() {
     $active = Read-JsonFile $ActiveFile
     if ($null -eq $active) {
         Write-Host "[路线] 活动档不存在：$ActiveFile" -ForegroundColor Yellow
-        Write-Host '  用 scripts\存储档.cmd use sqlite 或 use postgres 建立第一条路线。'
+        Write-Host '  用 scripts\storage-route.cmd use sqlite 或 use postgres 建立第一条路线。'
         return
     }
     $table = ConvertTo-OrderedTable $active
@@ -341,6 +341,14 @@ function Invoke-SelfTest() {
         if (-not $rejected) { throw '未知路线没有被拒绝' }
         $checks++
 
+        # 6. 交接目标必须存在：这两个中文名只写在本文件里（.cmd 执行行保持纯 ASCII），
+        #    所以文件名打错时只有走到 Invoke-Entry 才发现——自检把它提前抓出来。
+        foreach ($entry in @('启动游戏.cmd', '启动服务端.cmd')) {
+            $target = Join-Path $PSScriptRoot $entry
+            if (-not (Test-Path -LiteralPath $target)) { throw "统一入口不存在：$target" }
+            $checks++
+        }
+
         Write-Host ("[自检] OK：{0} 项检查通过（临时目录 {1}；本机真实配置未改动）" -f $checks, $tempRoot) -ForegroundColor Green
         return $true
     }
@@ -360,8 +368,53 @@ function Invoke-SelfTest() {
     }
 }
 
+# 切换路线后，把控制权交给统一入口（提权、探针、客户端编排都在那里）。
+# 中文文件名只出现在**本文件**里：PowerShell 按 UTF-8 BOM 正确解码，而 .cmd 的执行行
+# 保持纯 ASCII（cmd.exe 用控制台代码页解码批处理文本，UTF-8 中文进执行行会破坏解析，
+# 2026-10-05 业主实机踩到 `'hell' is not recognized`）。
+function Invoke-Entry([string]$route, [string]$entry, [string[]]$extra) {
+    Use-Route $route
+    if ($route -eq 'postgres') {
+        # 起库：Go 启动器的 start-storage 按 driver 分叉，SQLite 档下它是空操作。
+        # 失败不阻断——统一入口还会自己处理并给出更具体的错误。
+        $launcher = Join-Path $RepoRoot 'server\work\dfo-lan\bin\dfolauncher.exe'
+        if (Test-Path -LiteralPath $launcher) {
+            Write-Host '[存储] 检查并拉起 PostgreSQL...' -ForegroundColor Cyan
+            & $launcher start-storage --root $RepoRoot
+        }
+    }
+    $target = Join-Path $PSScriptRoot $entry
+    if (-not (Test-Path -LiteralPath $target)) { throw "找不到统一入口：$target" }
+    Write-Host ''
+    Write-Host ("[启动] 调用统一入口 {0} ..." -f $entry) -ForegroundColor Cyan
+    & $target @extra
+    # 把子入口的退出码原样带出去（非 0 时入口自己已经打印了原因并 pause）。
+    exit $LASTEXITCODE
+}
+
+function Show-Help() {
+    Write-Host ''
+    Write-Host 'DFO 115us 存储路线（双库双路线）' -ForegroundColor Cyan
+    Write-Host '  两条路线各有自己的存档，活动档 = server\work\dfo-lan\runtime\storage\local.json'
+    Write-Host ''
+    Write-Host '  启动入口（双击即可，也可带参数，如 --source-build）：'
+    Write-Host '    scripts\启动游戏-SQLite.cmd        游戏全链，SQLite 存档（不需要 PostgreSQL）'
+    Write-Host '    scripts\启动游戏-PostgreSQL.cmd    游戏全链，PostgreSQL 存档（自动起库）'
+    Write-Host '    scripts\启动服务端-SQLite.cmd      只起服务端，SQLite'
+    Write-Host '    scripts\启动服务端-PostgreSQL.cmd  只起服务端，PostgreSQL'
+    Write-Host ''
+    Write-Host '  切换与检查：'
+    Write-Host '    scripts\storage-route.cmd show              当前路线 / 连的是哪个库'
+    Write-Host '    scripts\storage-route.cmd use sqlite|postgres'
+    Write-Host '    scripts\storage-route.cmd stop-postgres     停掉 pgdata 上的 PostgreSQL'
+    Write-Host '    scripts\storage-route.cmd selftest          自检（临时目录，不碰真实配置）'
+    Write-Host ''
+    Write-Host '  说明见 server\work\dfo-lan\docs\sqlite-operations.md §1.2。' -ForegroundColor DarkGray
+}
+
 try {
-    $verb = if ($Rest.Count -ge 1) { $Rest[0].Trim().ToLower() } else { 'show' }
+    $verb = if ($Rest.Count -ge 1) { $Rest[0].Trim().ToLower() } else { 'help' }
+    $extra = if ($Rest.Count -ge 2) { @($Rest[1..($Rest.Count - 1)]) } else { @() }
     switch ($verb) {
         'show' { Show-Current }
         'use' {
@@ -372,14 +425,18 @@ try {
         'selftest' {
             if (-not (Invoke-SelfTest)) { exit 1 }
         }
-        'help' {
-            Write-Host '用法: 存储档.cmd [show | use sqlite | use postgres | stop-postgres | selftest]'
-        }
-        default { throw "未知动作 '$verb'；用 show / use <路线> / stop-postgres / selftest。" }
+        'game-sqlite' { Invoke-Entry 'sqlite' '启动游戏.cmd' $extra }
+        'game-postgres' { Invoke-Entry 'postgres' '启动游戏.cmd' $extra }
+        'server-sqlite' { Invoke-Entry 'sqlite' '启动服务端.cmd' $extra }
+        'server-postgres' { Invoke-Entry 'postgres' '启动服务端.cmd' $extra }
+        'help' { Show-Help }
+        default { Show-Help; throw "未知动作 '$verb'。" }
     }
     exit 0
 }
 catch {
     Write-Host ("[失败] " + $_.Exception.Message) -ForegroundColor Red
-    exit 1
+    # 退出码 3 = 本脚本自己的失败（切换路线 / 起库 / 找不到统一入口）。四个入口据此 pause，
+    # 让业主看得到原因；成功路径由 Invoke-Entry 直接 exit 子入口的退出码，不走这里。
+    exit 3
 }

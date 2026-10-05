@@ -1,21 +1,18 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0.."
-title DFO 115us 启动（SQLite 路线）
-
-rem 双库双路线入口之一：把活动存储档切成 SQLite 路线（单文件、不需要 PostgreSQL），
-rem 再交给统一入口 启动游戏.cmd。另一条路线见 启动游戏-PostgreSQL.cmd。
-rem 两条路线的存档互相独立：SQLite 库文件 ↔ PostgreSQL 库。
-echo [路线] SQLite（存档在 runtime\storage\dfolan.sqlite3；活动档 = runtime\storage\local.sqlite.json）
-powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\存储档.ps1" use sqlite
-if errorlevel 1 (
+rem Route: SQLite (single database file, no PostgreSQL needed).
+rem This file is deliberately pure ASCII: the Chinese messages and the Chinese-named
+rem entry scripts are handled inside scripts\storage-route.ps1 (UTF-8 with BOM), because
+rem cmd.exe decodes batch text with the console code page and UTF-8 Chinese inside an
+rem executable line breaks the parser on some consoles.
+rem Route profiles: runtime\storage\local.sqlite.json / local.postgres.json
+rem See server\work\dfo-lan\docs\sqlite-operations.md section 1.2.
+powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\storage-route.ps1" game-sqlite %*
+set "RC=%ERRORLEVEL%"
+if "%RC%"=="3" (
     echo.
-    echo 路线切换失败：没有启动任何程序。修好上面的问题再重试。
+    echo Route switch failed - nothing was launched. See the message above.
     pause
-    exit /b 1
 )
-
-echo.
-echo [启动] 调用统一入口 启动游戏.cmd ...
-call "%~dp0启动游戏.cmd" %*
-exit /b %ERRORLEVEL%
+exit /b %RC%

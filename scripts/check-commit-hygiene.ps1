@@ -201,12 +201,21 @@ try {
                     }
                 }
                 else {
+                    # .cmd：BOM 会让首行 `@echo off` 解析失败；裸 LF 会让中文执行行被
+                    # cmd.exe 按控制台代码页解码后错位拆分，把乱码片段当命令执行
+                    # （2026-10-05 业主实机：`'hell' is not recognized`、`'�在' is not recognized`）。
+                    $hasBom = ($raw.Length -ge 3 -and $raw[0] -eq 0xEF -and $raw[1] -eq 0xBB -and $raw[2] -eq 0xBF)
+                    if ($hasBom) {
+                        $blocked += [pscustomobject]@{ Path = $it.Path; Why = '.cmd 带 UTF-8 BOM：首行 `@echo off` 被 BOM 污染，脚本会带着一片解析错误继续跑（§0.4.2 要求 .cmd 不带 BOM）'; Clause = '§0.3.4 环境匹配' }
+                    }
                     $crlf = 0; $lone = 0
                     for ($i = 0; $i -lt $raw.Length; $i++) {
                         if ($raw[$i] -eq 10) { if ($i -gt 0 -and $raw[$i - 1] -eq 13) { $crlf++ } else { $lone++ } }
                     }
-                    if ($crlf -eq 0 -and $lone -gt 0) {
-                        $needConfirm += [pscustomobject]@{ Path = $it.Path; Why = ("本机 .cmd 约定 CRLF，此文件有 $lone 行是裸 LF"); Clause = '§0.3.4 环境匹配' }
+                    if ($lone -gt 0) {
+                        $why = if ($crlf -eq 0) { ".cmd 全部是裸 LF（共 $lone 行）：中文执行行会被 cmd 拆成乱码命令" }
+                        else { ".cmd 混用 CRLF/LF（裸 LF $lone 行）：cmd 按行解析批处理，混行尾同样会拆坏中文执行行" }
+                        $needConfirm += [pscustomobject]@{ Path = $it.Path; Why = $why; Clause = '§0.3.4 环境匹配' }
                     }
                 }
             }
@@ -216,7 +225,7 @@ try {
     # ---- 4b. 环境匹配（§0.3.4）：提交内容与「本机正在跑的这一套环境」是否对得上 ----
     # 只报事实对不上（路径不存在 / 档位不一致），不猜意图。
     # (a) 存储档：活动档引用的路径必须在本机存在；与已跟踪示例档 driver 不一致时，
-    #     若该 driver 有自己的路线档（双库双路线，见 scripts\存储档.ps1）则只提示。
+    #     若该 driver 有自己的路线档（双库双路线，见 scripts\storage-route.ps1）则只提示。
     $activeCfg = Join-Path $RepoRoot 'server\work\dfo-lan\runtime\storage\local.json'
     $exampleCfg = Join-Path $RepoRoot 'server\work\dfo-lan\runtime\storage\local.example.json'
     if (Test-Path -LiteralPath $activeCfg) {
@@ -249,7 +258,7 @@ try {
             $exaDriver = if ($exa.driver) { [string]$exa.driver } elseif ($exa.sqlite_path) { 'sqlite' } else { 'postgres' }
             if ((Test-Path -LiteralPath $activeCfg) -and $actDriver -and ($exaDriver -ne $actDriver)) {
                 # 双库双路线（2026-10-05 业主定调）：本机可以合法地停在任一条路线上，示例档只对应其中一条。
-                # 路线的证据是 scripts\存储档.ps1 管的那份档：local.<活动 driver>.json 存在 ⇒ 这是切换后的
+                # 路线的证据是 scripts\storage-route.ps1 管的那份档：local.<活动 driver>.json 存在 ⇒ 这是切换后的
                 # 正常状态，只提示；连它都不存在，才说明活动档既不是示例档、也不是任何一条已建好的路线。
                 $routeFile = Join-Path $RepoRoot ("server\work\dfo-lan\runtime\storage\local.{0}.json" -f $actDriver)
                 if (Test-Path -LiteralPath $routeFile) {
