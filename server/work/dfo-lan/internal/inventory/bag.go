@@ -185,7 +185,27 @@ type Bag struct {
 	// Old saves start at zero. Successive opening operations get distinct receipts.
 	AvatarSocketSeq uint64 `json:"avatar_socket_seq,omitempty"`
 	AvatarRecastSeq uint64 `json:"avatar_recast_seq,omitempty"`
+
+	// tutorialActive 由 ReadBag 从角色 state 现算（不落库、不序列化）：当前角色是否还在
+	// Starter Boost 训练轨道里。封存门禁 = 行的来源标记 TutorialLocked && 本字段为真，
+	// 所以出关后同一件装备自动恢复出售/丢弃/寄件/入仓。
+	tutorialActive bool
 }
+
+// inBoostTraining 是训练轨道探测谓词，由装配层（cmd/wireprobe/main.go）注入，
+// 避免 inventory 反向依赖 boostup 包。nil = 活动关闭，一切照旧。
+var inBoostTraining func(state json.RawMessage) bool
+
+func SetInBoostTraining(fn func(json.RawMessage) bool) { inBoostTraining = fn }
+
+// TutorialSealed 判定行是否处于封存中：来源在训练期内 **且** 当前仍在训练轨道。
+// 包内三处门禁（出售/寄件/入仓）与装配层（CMD18 丢弃、开箱直落）共用这一个口径。
+func (b Bag) TutorialSealed(row BagEquipment) bool {
+	return row.TutorialLocked && b.tutorialActive
+}
+
+// TutorialMode 报告该背包读出时角色是否仍在训练轨道（给不经 AddEquipment 的建装路径盖同一个锁）。
+func (b Bag) TutorialMode() bool { return b.tutorialActive }
 
 // WeaponSlot 是穿戴容器（list 3）里的武器槽。[equipment type] 的序号空间里
 // weapon = 12，装备外观块（0x145639840）与主副手互换都用同一个槽号。
@@ -219,6 +239,9 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 	}
 	if fields == nil {
 		return b, fmt.Errorf("character state is not an object")
+	}
+	if inBoostTraining != nil {
+		b.tutorialActive = inBoostTraining(state)
 	}
 	if p, ok := fields["inventory"]; ok {
 		if e := json.Unmarshal(p, &b); e != nil {

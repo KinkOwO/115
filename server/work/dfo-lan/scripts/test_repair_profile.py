@@ -29,7 +29,7 @@ class RepairProfileTests(unittest.TestCase):
     def test_default_profile_keeps_full_scope_without_exports(self):
         project = pathlib.Path(__file__).resolve().parent.parent
         binary, required, env = load_profile(project / 'configs/pvf-default.json', project)
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 55)
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 56)
         self.assertEqual(env['DFO_PVF_VERIFY_BASELINES'], '0')
         self.assertEqual(binary, project / 'bin/wireprobe-pvf.exe')
         self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))
@@ -50,7 +50,7 @@ class RepairProfileTests(unittest.TestCase):
         project = pathlib.Path(__file__).resolve().parent.parent
         binary, required, env = load_profile(project / 'docs/repair-profile.example.json', project)
         self.assertEqual(binary, project / 'bin/wireprobe-handoff-source.exe')
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 55)
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 56)
         self.assertNotIn('DFO_SKILL_CATALOG', env)
         self.assertNotIn('DFO_ODYSSEY_DUNGEON_CATALOG', env)
         self.assertEqual(env['DFO_ODYSSEY_TEMPORARY_CREDITS'], '0')

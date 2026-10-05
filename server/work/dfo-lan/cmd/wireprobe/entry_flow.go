@@ -141,6 +141,13 @@ type entryPayloads struct {
 	SynopsisRead    []byte
 	CubeContract    []byte
 	OathSystemInfo  []byte
+	// Starter Boost 662 进城恢复：BoostGifts 是 NOTI2265 礼物可领集合，
+	// BoostTraining 是 NOTI2638 训练进度。活动关闭时两者为 nil，preparePackets
+	// 跳帧，普通角色进城序列与改动前逐字节一致。
+	// 2265 必须排在 enter_gameworld_complete(124) 之前（先建事件行），2638 必须排在
+	// 124 之后（任务面板对象这时才存在）—— 见 TestBoostGiftEntryOrderingAndPerRoleRestore。
+	BoostGifts    []byte
+	BoostTraining []byte
 	// Peers carries the USERINFO of every actor already standing in the scene.
 	// It is emitted after this actor's own placement but before the area list,
 	// because the client only places actors it already knows.
@@ -274,15 +281,16 @@ func (p entryPayloads) packets() []outboundPacket {
 		// here even though s4 does not repeat it).
 		{"weekly_dungeon_info_sent", 0, 706, weeklyDungeonInfoTable},
 		// The NOTI108 EVENT_INFO table. Official post-selection order is
-		// 706 -> 108 -> STAMINA(4) -> 537, and the body is the fixed 54-byte
-		// raw table (event_info_generated.go) established by the round-11
-		// differential probe experiment (next79 §15-§16): zlib containers
-		// and multi-record raw tables both trigger CMD217
-		// ENUM_CMDPACKET_OVERFLOW_INFO and freeze this client, while this
-		// exact body parses AND the legion-tab gate then opens Ispins
-		// (probe V3 verdict, live 2026-10-02 16:00). The table carries the
-		// Ispins Legion Open event (776) the gate looks up.
-		{"event_info_sent", 0, 108, eventInfoTable},
+		// 706 -> 108 -> STAMINA(4) -> 537. The body comes from
+		// event_info_generated.go: the 2026-10-04 legion/raid gate round grew
+		// the round-11 probe's single-record body (54 B, "Ispins Legion Open"
+		// 776) into the full 19-record gate table (1144 B). Still RAW only -
+		// zlib containers trigger CMD217 ENUM_CMDPACKET_OVERFLOW_INFO and
+		// freeze this client (probe V2/V5), and an over-long raw body froze it
+		// too (probe V4), so the frame keeps the empty tail.
+		// event_info_variant.go exposes DFO_EVENT_INFO_VARIANT for the 662
+		// entry investigation; unset = exactly this table.
+		{"event_info_sent", 0, 108, townEventInfoTable},
 		{"dungeon_enter_count_info_sent", 0, 537, dungeonEnterCountInfo},
 		{"entry_basic_probe_sent", 0, 2, p.Basic},
 		{"entry_addition_sent", 0, 2, p.Addition},
@@ -335,9 +343,13 @@ func (p entryPayloads) packets() []outboundPacket {
 		out = append(out, outboundPacket{"entry_peer_info_sent", 0, 2, info})
 	}
 	out = append(out,
+		outboundPacket{"boost_gift_states_restored", 0, 2265, p.BoostGifts},
 		outboundPacket{"town_entry_probe_sent", 0, 24, p.Area},
 		outboundPacket{"fatigue_sent", 0, 36, p.Fatigue},
 		outboundPacket{"enter_gameworld_complete_sent", 0, 124, p.Complete},
+		// 训练进度帧排在 124 之后：任务面板对象在进城完成前不存在，早到的 2638
+		// 会被丢掉，客户端的活动关卡停在旧值（实机第三关「面板不刷新」同一坑）。
+		outboundPacket{"boost_training_progress_restored", 0, 2638, p.BoostTraining},
 		// NOTI398 displayValue=0 collapses the top-left Liberation Trace panel
 		// (see docs/protocol/next52-liberation-trace-booster-gage-398.md). It
 		// must follow 124: the panel object is not initialized before it. The

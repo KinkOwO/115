@@ -336,6 +336,9 @@ func (b Bag) Sell(r BagRules, list byte, slot uint16, count, unitPrice uint32) (
 				if count != 1 {
 					return b, 0, 0, fmt.Errorf("equipment sale requires quantity one")
 				}
+				if b.TutorialSealed(eq) {
+					return b, 0, 0, fmt.Errorf("training-reward equipment cannot be sold")
+				}
 				template := eq.Template
 				b.Equipment = append([]BagEquipment(nil), b.Equipment...)
 				b.Equipment = append(b.Equipment[:i], b.Equipment[i+1:]...)

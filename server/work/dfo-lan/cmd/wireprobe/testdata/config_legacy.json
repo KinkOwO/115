@@ -9,6 +9,8 @@
     "AttunementRewards": "",
     "BagRules": "configs/inventory.compat90.json",
     "BleedingMineRewards": "",
+    "BoostUpChallenge": false,
+    "BoostUpEvent": true,
     "BoosterCatalog": "",
     "BoosterGageHide": true,
     "Boxes": "",
@@ -165,13 +167,15 @@
         "DFO_OATH_INJECT": "env/oath-inject",
         "DFO_OMEN_HOLD": "9",
         "DFO_OMEN_INFO": "env/omen-info",
-        "DFO_SCALE_DEATH_FROM_HP": "1"
+        "DFO_SCALE_DEATH_FROM_HP": "1",
+        "DFO_BOOSTUP_EVENT": "0"
       },
       "overrides": {
         "AdvertiseHost": "env/advertise-host",
         "AttunementFixedTilt": 9,
         "AttunementRebalance": true,
         "AttunementRewards": "env/attunement-rewards",
+        "BoostUpEvent": false,
         "BoosterCatalog": "env/booster-catalog",
         "BoosterGageHide": false,
         "EquipmentCatalog": "env/equipment-catalog",

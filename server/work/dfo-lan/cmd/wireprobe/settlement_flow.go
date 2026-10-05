@@ -10,6 +10,7 @@ import (
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -102,7 +103,7 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 		return nil, e
 	}
 	rewards := protocol.ClearRewardState{BaseExperience: receipt.Base, ScoreExperience: receipt.Score, MonsterExperience: receipt.MonsterExperience}
-	if w.loot != nil && w.loot.CardPolicy != nil {
+	if w.loot != nil && w.loot.CardPolicy != nil && !w.isBoostGuideRun() {
 		if w.cardPlan == nil {
 			var seed uint32
 			if e = binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
@@ -148,7 +149,19 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 		}
 	}
 	w.role, w.level = role, experience[0]
+	// Starter Boost 662：引导通关在结算里推进训练关卡（源里的 [guide] dungeon）。
+	// 结算已经提交，补帧失败只记日志——不能让进度校验把玩家卡在已通关的副本里。
+	var boostPlan []outboundPacket
+	if w.boostup != nil && w.isBoostGuideRun() {
+		p, boostErr := w.completeBoostGuide()
+		if boostErr != nil {
+			log.Printf("boost guide settlement progress role=%d: %v", w.role.ID, boostErr)
+		} else {
+			boostPlan = p
+		}
+	}
 	plan := []outboundPacket{{"dungeon_play_result", 0, 34, notice}, {"dungeon_clear_experience", 0, 37, experience}, {"dungeon_clear_reward", 0, 35, reward}}
+	plan = append(plan, boostPlan...)
 	if len(itemUpdate) != 0 {
 		plan = append(plan, outboundPacket{"tower_inventory_reward", 0, 14, itemUpdate})
 	}

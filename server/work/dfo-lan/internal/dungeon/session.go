@@ -77,7 +77,7 @@ type Session struct {
 	// BossCheck/完成判定的「房间归属」守卫，目标仍必须是房内真实存在的源领主
 	// （rank3 / APC，team≠0），不会把任意小怪当 boss 放行。只由军团阶段入场
 	// 路径（cmd/wireprobe ispins_flow）置位，普通副本恒为零值。
-	ArenaBoss                  bool
+	ArenaBoss bool
 	// sceneDiagnostic 记录最近一次场景换图走了哪条判定分支，仅供排查（见 SceneDiagnostic）。
 	sceneDiagnostic string
 	// layerRecord 是客户端主动进当前层图时带来的换图记录（见 SceneEntryRecord）。
@@ -89,6 +89,26 @@ type Session struct {
 }
 
 func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, accepted map[uint16]bool) (*Session, error) {
+	return selectRun(c, r, level, accepted, false)
+}
+
+// SelectGuide 只放开「普通选图不许进 [tutorial dungeon]」这一条：662 新手成长活动的
+// 引导副本在源里就是教程房（`[tutorial dungeon]`），但它不是出生教学——不走 tutorial
+// 路线、不置 inTutorial。选项校验、迷宫选择、疲劳与结算字段全部沿用同一条 Select
+// 路径，且这里反向要求该副本确实是教程房，不能被用来绕过任何普通副本的门禁。
+// 调用方必须先按源核对「本职业本关的引导房 ID」才允许走到这里。
+func SelectGuide(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, accepted map[uint16]bool) (*Session, error) {
+	d, ok := c.Dungeons[r.ID]
+	if !ok {
+		return nil, fmt.Errorf("dungeon absent from imported source")
+	}
+	if !d.Tutorial {
+		return nil, fmt.Errorf("dungeon %d is not a source tutorial dungeon", r.ID)
+	}
+	return selectRun(c, r, level, accepted, true)
+}
+
+func selectRun(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, accepted map[uint16]bool, allowTutorial bool) (*Session, error) {
 	d, ok := c.Dungeons[r.ID]
 	if !ok {
 		return nil, fmt.Errorf("dungeon absent from imported source")
@@ -110,7 +130,7 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 	if d.ID == 100003126 && r.Extra <= 100 {
 		extraValid = true
 	}
-	if d.Tutorial || !extraValid || r.Mode > 1 || r.Flag != 0 || r.Party != 65535 || r.Reserved != 0 || r.Tail != 0 || r.Options != [2]byte{} || r.Event != 0 {
+	if (!allowTutorial && d.Tutorial) || !extraValid || r.Mode > 1 || r.Flag != 0 || r.Party != 65535 || r.Reserved != 0 || r.Tail != 0 || r.Options != [2]byte{} || r.Event != 0 {
 		return nil, fmt.Errorf("unsupported dungeon option")
 	}
 	if r.Mode == 1 {

@@ -44,6 +44,12 @@ func observedGameRequest(id uint16) bool {
 		return true
 	case 1722, 1725, 1811, 1852, 1881, 1950, 1951, 1960, 2015, 2047, 2062, 2079, 2139, 2177, 2179, 2258, 2259, 2261:
 		return true
+	case 643, 680:
+		// Starter Boost 662 的两条领奖线路：643 领取创建礼盒、680 领取本关奖励
+		// （681 查看引导已在上面登记）。不登记的话第 BodySampleLimit(8) 次之后正文
+		// 不再落盘、并挂上误导性的 unimplemented_sample —— 2026-10-04 21:58 实机
+		// 会话里 643 就是这样被标出来的（处理与采样已解耦，故只损诊断、不掉功能）。
+		return true
 	case 1654, 2274:
 		// 蔚蓝号（Azure Main，channel 102 / town 213 / dungeon 100004131）实机取证命令。
 		// 证据：2026-10-03 官服抓包 E:/迅雷下载/20261003-214424/decoded/F16-c2s.txt。

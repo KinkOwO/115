@@ -35,22 +35,26 @@ type fameSetPoint struct {
 }
 
 type fameRules struct {
-	Sources           map[string]string          `json:"sources"`
-	Version           int                        `json:"version"`
-	Source            string                     `json:"source"`
-	Tables            map[string]map[int]int64   `json:"tables"`
-	Refine            map[int]int                `json:"refine"`
-	Refine115         map[int]int                `json:"refine_115"`
-	Items             map[uint32]fameSourceValue `json:"items"`
-	Sets              map[int][]fameThreshold    `json:"sets"`
-	ItemPoints        map[uint32][]fameSetPoint  `json:"item_points"`
-	Expanded          []fameThreshold            `json:"expanded"`
-	Awakening         map[uint32]map[byte]int64  `json:"awakening"`
-	MemoryRestore     map[byte]int64             `json:"memory_restore"`
-	MemoryActivate    map[byte]int64             `json:"memory_activate"`
-	MemoryRuminations map[byte]int64             `json:"memory_ruminations"`
-	SoleQuality       map[uint32]map[byte]int64  `json:"sole_quality"`
-	SolePenalty       map[uint32]map[int]int64   `json:"sole_penalty"`
+	Sources    map[string]string          `json:"sources"`
+	Version    int                        `json:"version"`
+	Source     string                     `json:"source"`
+	Tables     map[string]map[int]int64   `json:"tables"`
+	Refine     map[int]int                `json:"refine"`
+	Refine115  map[int]int                `json:"refine_115"`
+	Items      map[uint32]fameSourceValue `json:"items"`
+	Sets       map[int][]fameThreshold    `json:"sets"`
+	ItemPoints map[uint32][]fameSetPoint  `json:"item_points"`
+	// Groups 是 equipmentgrouping.etc `[ability group]` 的原始成员关系（模板 -> 分组号）。
+	// ItemPoints 只留派生结果，分组号在解析时被丢弃；按 `[equip grouping]` 计数的玩法需要
+	// 分组身份，所以补这个导出量，而不是另写第二个 equipmentgrouping 解析器。只有 PVF 直读填充。
+	Groups            map[uint32][]int32        `json:"groups,omitempty"`
+	Expanded          []fameThreshold           `json:"expanded"`
+	Awakening         map[uint32]map[byte]int64 `json:"awakening"`
+	MemoryRestore     map[byte]int64            `json:"memory_restore"`
+	MemoryActivate    map[byte]int64            `json:"memory_activate"`
+	MemoryRuminations map[byte]int64            `json:"memory_ruminations"`
+	SoleQuality       map[uint32]map[byte]int64 `json:"sole_quality"`
+	SolePenalty       map[uint32]map[int]int64  `json:"sole_penalty"`
 }
 
 type FameRules = fameRules
@@ -106,6 +110,9 @@ type FameBreakdown struct {
 	Total uint32        `json:"total"`
 	Items []FameItem    `json:"items"`
 	Sets  map[int]int64 `json:"sets"`
+	// SetPointTotals 是每个套装的**原始积分**（Sets 已经是过阈值表后的名望值）。
+	// 按积分档位判定的玩法需要原始量，因此这里一并导出，避免调用方重算一遍源表。
+	SetPointTotals map[int]int `json:"set_point_totals,omitempty"`
 }
 
 func fameInt(d inventory.EquipmentDefinition, key string) (int, error) {
@@ -407,6 +414,7 @@ func (s *Service) EquipmentFameBreakdown(raw json.RawMessage) (FameBreakdown, er
 		result.Sets[set] = value
 		total += value
 	}
+	result.SetPointTotals = points
 	if total < 0 || total > math.MaxInt32 {
 		return result, fmt.Errorf("角色名望超出客户端范围")
 	}
