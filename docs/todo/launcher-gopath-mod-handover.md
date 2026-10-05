@@ -98,4 +98,38 @@ dfolauncher.exe    24,857,600 B  44CC249ED83F52F2…
 9f46d144  补全 gopath-mod 依赖缓存（模块图 51 个模块全覆盖）+ 分片存储 + 编译时自动拼装
 35f6d704 / c341d960 / 96705938 / 2777f332   gopath-mod 分片 1/4 … 4/4（逐片提交逐片推送）
 34872d9f  离线包加回 tools（自带编译能力），打包前自动拼装依赖缓存整包
+c8058562  本交接文档
+81fb00cc  重打 configs 发布包（按跟踪集）+ 清掉 27 个陈旧产出物
 ```
+
+## 7. 顺带交接：4 个本地化 patch 的字节（本仓库已不再分发）
+
+背景：按业主定调「这边不要」，本仓库把这 4 个本地化 patch 从 `configs/` **删除**，并**按当前跟踪集重打**了
+`tools/tools-server-configs.zip`（条目 69 → 68，sha256 `6e5b2483…` → `8161129f…`，见主仓库提交 `81fb00cc`）。
+它们**从未被正式跟踪过**（git 历史里没有「加入」记录），过去只是被卷进了 configs 包；启动器侧对它们的
+引用与通配均为 **0**。
+
+| 文件 | 大小 | sha256 |
+| --- | --- | --- |
+| `cera-contract-format.patch.json` | 215 B | `d7ad544396c965220ab5cde842017b6bb80432530de3931054608ef7820cc6a8` |
+| `character.names.patch.json` | 9,178 B | `df7c090caae3fa79e186546efdf03350083da81595249e95ca813881532a1708` |
+| `item.names.client.patch.json` | 71,362 B | `82d425429af107fd9cb9fbf802b62c4023c346067ed66d0bac31baff5418c884` |
+| `pvf.localization.patch.json` | 14,148 B | `d179b2599270c808058065ee4d17f0584bd5dedd16fd68bd772df0c19f1e2969` |
+
+**取字节的两条路**（两条路的内容已逐字节核对一致）：
+
+1. **从 git 历史里的旧 configs 包取出**（推荐：任何 clone 都能取，不依赖额外载体）：
+
+   ```powershell
+   git show c8058562:tools/tools-server-configs.zip > old-configs.zip
+   # 解开后取 configs/ 下的这 4 个 *.patch.json
+   ```
+
+   注意：`c8058562` 是重打之前最后一个含它们的提交；**`81fb00cc` 起的新包不再含它们**。
+2. 业主机上留了一份稳定副本：`<主仓库>\.tmp\localization-patches-handover\`
+   （`.tmp/` 被 `.gitignore` 覆盖，不入库）。
+
+**给接收方的建议**：这 4 个是**本地化工具链的产出物**（不是输入）。最稳妥的做法是让那套工具
+（启动器仓库的 `tools/translate_*.py`、`pack_localization*.py` 等）**自己携带或重新生成**，
+而不是长期靠人肉搬运；若确定要纳入版本管理，请放在工具自己所属的仓库里（本仓库口径为「这边不要」）。
+
