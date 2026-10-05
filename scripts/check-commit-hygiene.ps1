@@ -115,15 +115,27 @@ try {
     }
     $items = $items | Sort-Object Path -Unique
 
+    # 已被 git 跟踪的路径：修改它们属于正常改动，不是「把运行期产物入库」。
+    # （历史遗留被跟踪的 runtime 产物例如 pgdata/postgresql.conf 仍会提示，但不阻断。）
+    # 必须用 core.quotePath=false：默认输出会把非 ASCII 路径转义并加引号，取不到原始路径。
+    $tracked = @{}
+    foreach ($t in (git -c core.quotePath=false ls-files)) { if ($t) { $tracked[$t.Trim()] = $true } }
+
     # ---- 4. 逐条判定 ----
-    $blocked = @(); $needConfirm = @()
+    $blocked = @(); $needConfirm = @(); $notes = @()
     foreach ($it in $items) {
         $p = $it.Path.Replace('\', '/')
         $isNew = ($it.Kind -eq 'A' -or $it.Kind -eq 'R')
+        $isTracked = $tracked.ContainsKey($it.Path)
 
         foreach ($rule in $denyPatterns) {
             if ($p -match $rule.Re) {
-                $blocked += [pscustomobject]@{ Path = $it.Path; Why = $rule.Why; Clause = '§0.3.1 缓存/本地产物' }
+                if ($isTracked) {
+                    $notes += [pscustomobject]@{ Path = $it.Path; Why = "$($rule.Why)；该路径已被跟踪，建议 git rm --cached（或补 .gitignore）后另行提交"; Clause = '§0.3.1 缓存/本地产物' }
+                }
+                else {
+                    $blocked += [pscustomobject]@{ Path = $it.Path; Why = $rule.Why; Clause = '§0.3.1 缓存/本地产物' }
+                }
                 break
             }
         }
@@ -209,15 +221,26 @@ try {
     if (Test-Path -LiteralPath $activeCfg) {
         try {
             $act = Get-Content -LiteralPath $activeCfg -Raw -Encoding UTF8 | ConvertFrom-Json
-            $actDriver = if ($act.driver) { [string]$act.driver } elseif ($act.sqlite_path) { 'sqlite' } else { 'postgres' }
+            $actDriver = if ($act.driver) { [string]$act.driver } elseif ($act.postgres_dsn) { 'postgres' } elseif ($act.sqlite_path) { 'sqlite' } else { 'postgres' }
             if ($actDriver -eq 'sqlite' -and $act.sqlite_path) {
                 $liveDb = [string]$act.sqlite_path
                 if (-not (Test-Path -LiteralPath $liveDb)) {
                     $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = "本机存储档 driver=sqlite，但 sqlite_path=$liveDb 不存在（当前环境起不来）"; Clause = '§0.3.4 环境匹配' }
                 }
             }
+            # 没有 driver 却同时写了 postgres_dsn 与 sqlite_path：引擎选择是「DSN 优先」，
+            # 但两份配置混在一个文件里，最容易被读成另一个库（2026-10-05 pgsql 端无法登录）。
+            if (-not $act.driver -and $act.postgres_dsn -and $act.sqlite_path) {
+                $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = '同时写了 postgres_dsn 与 sqlite_path 却没有 driver（按唯一规则选 PostgreSQL；建议显式写 driver 或删掉不用的那个键）'; Clause = '§0.3.4 环境匹配' }
+            }
+            if ($act.driver -and $act.driver -eq 'postgres' -and $act.sqlite_path) {
+                $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = 'driver=postgres 但档里还留着 SQLite 专有键 sqlite_path（配置环境会清理；手工改的建议删掉）'; Clause = '§0.3.4 环境匹配' }
+            }
         }
-        catch { }
+        catch {
+            # 读不动（含非法 JSON / BOM 之外的问题）本身就是环境不匹配，要报出来而不是吞掉。
+            $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = "本机存储档无法解析（$($_.Exception.Message)）；服务端会因此启动失败"; Clause = '§0.3.4 环境匹配' }
+        }
     }
     if (Test-Path -LiteralPath $exampleCfg) {
         try {
@@ -287,6 +310,7 @@ try {
             paths       = $items.Count
             blocked     = $blocked
             needConfirm = $needConfirm
+            notes       = $notes
             verdict     = if ($blocked.Count -or $needConfirm.Count) { 'confirm-required' } else { 'pass' }
         } | ConvertTo-Json -Depth 5
     }
@@ -311,6 +335,11 @@ try {
             Write-Host ''
             Write-Host ("[需确认] 可能不该入库或需业主裁决（{0}）" -f $needOther.Count) -ForegroundColor Yellow
             foreach ($c in $needOther) { Write-Host ("   - {0}`n       {1}  [{2}]" -f $c.Path, $c.Why, $c.Clause) -ForegroundColor Yellow }
+        }
+        if ($notes.Count) {
+            Write-Host ''
+            Write-Host ("[提示] 已被跟踪的运行期产物（不阻断，建议按提示清理）（{0}）" -f $notes.Count) -ForegroundColor DarkGray
+            foreach ($n in $notes) { Write-Host ("   - {0}`n       {1}  [{2}]" -f $n.Path, $n.Why, $n.Clause) -ForegroundColor DarkGray }
         }
         Write-Host ''
         if ($blocked.Count -or $needConfirm.Count) {

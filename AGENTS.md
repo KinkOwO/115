@@ -108,6 +108,12 @@
 
 环境不匹配的两条出路：**改环境**（补文件/改配置，使两边一致）或**改提交**（不入库/换档位）。两条都要在提交信息里说明。
 
+> **「已跟踪」豁免（2026-10-05 补）**：门禁的缓存/产物规则只对**新增**文件判违规。若路径**已被 git 跟踪**
+> （例如历史遗留的 `server/work/dfo-lan/runtime/storage/local.example.json`、
+> `runtime/storage/pgdata/postgresql.conf`），修改它属于正常编辑，门禁只输出 `[提示]` 并建议
+> `git rm --cached` + 补 `.gitignore`，**不阻断提交**——因为此时门禁已无法阻止它入库，真正要做的是清理跟踪关系。
+> 判定用 `git -c core.quotePath=false ls-files`（不能用 `-z`：NUL 分隔在 PowerShell 里会粘成一个字符串）。
+
 ### 0.4 代码目录规范（强制，2026-10-04 定）
 
 #### 0.4.1 落位铁规
