@@ -1018,6 +1018,13 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, e
 		}
 		lootService.CardPolicy = &cards
+		// 维纳斯终局翻牌第一排随机装备位池子（115 级魔法/神器常规部位）。
+		flipGearPool, e := legion.LoadVenusFlipGearPool(startup.VenusFlipGear)
+		if e != nil {
+			return nil, nil, e
+		}
+		venusFlipGearPool = flipGearPool.Templates
+		log.Printf("loaded venus flip gear pool: %d templates from %s", len(flipGearPool.Templates), startup.VenusFlipGear)
 		if pvfCatalogs.Boxes != nil || startup.Boxes != "" {
 			boxes, boxErr := pvfCatalogs.LoadBoxes(startup.Boxes, lootService.Catalog.Source.Checksum)
 			if boxErr != nil {

@@ -369,6 +369,16 @@ func (s *Session) MarkSceneCompleted() {
 	s.completed = true
 }
 
+// MarkCompleted 给由自有投影驱动通关的副本置完成标志（美神维纳斯军团本终点
+// 关：清怪投影确认终点 boss 全灭后调用，让上层的完成/翻牌门禁放行）。与
+// MarkSceneCompleted 同理：这类副本没有走通用 BossCheck 的完成路径。
+func (s *Session) MarkCompleted() {
+	if s == nil || s.Tournament != nil {
+		return
+	}
+	s.completed = true
+}
+
 func (s *Session) Completed() bool { return s != nil && s.completed }
 
 // A source closing scene without a boss identity can enable dungeon clear

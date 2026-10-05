@@ -83,6 +83,7 @@ type Config struct {
 	BagRules                      string `koanf:"bag-rules" default:"configs/inventory.compat90.json" help:"separate bag slot and missing stack limit policy"`
 	Boxes                         string `koanf:"boxes" help:"deprecated path; requires the prepared native PVF boxes domain"`
 	CardRules                     string `koanf:"card-rules" default:"configs/cards.compat90.json" help:"separate compatible free-card policy"`
+	VenusFlipGear                 string `koanf:"venus-flip-gear" default:"configs/venus-flip-gear.generated.json" env:"DFO_VENUS_FLIP_GEAR" help:"venus terminal flip random-gear pool (row 1 slots 1-5, legion 106)"`
 	SkillCatalog                  string `koanf:"skill-catalog" help:"deprecated skill JSON path; requires the native PVF skills domain"`
 	ChannelRefreshConfig          string `koanf:"channel-refresh-config" help:"separate local channel directory service for native refresh"`
 	ChannelIdentity               bool   `koanf:"channel-identity" default:"false" help:"candidate: synchronize NOTI2435 and all actor contexts with the connected channel"`

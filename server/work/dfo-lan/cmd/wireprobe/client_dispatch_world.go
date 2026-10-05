@@ -506,6 +506,12 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 			}
 		case 2015:
 			plan, e = client.worldState.elvenmereTeleport(requestData.plaintext)
+		case 2059:
+			// 维纳斯阶段本的 phase-change 免费复活（CMD2059）由 venusPhaseRevive
+			// 应答；其余副本该命令从未出现，保持静默。
+			if plan = client.worldState.venusPhaseRevive(requestData.plaintext); len(plan) == 0 {
+				return dispatchHandled
+			}
 		case 2062:
 			pending, plan, e = client.worldState.directMoveDungeon(requestData.plaintext)
 		}

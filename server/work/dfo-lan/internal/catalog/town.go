@@ -89,6 +89,9 @@ func ImportTownArea(a *pvf.Archive, townID, areaID uint32) (TownArea, error) {
 	if err != nil {
 		return c, err
 	}
+	// 地板 = [virtual movable area]（4 值组 x y w h ×N）。[town movable area]
+	// 是**门/传送区**（6 值组 = 矩形 + 门通向的城镇/区号），不是地板——把门区
+	// 当地板会把出生点放到传送门上（2026-10-05 实机：维纳斯旅馆出生在门口）。
 	var cells []int32
 	active = false
 	for _, t := range ts {
@@ -104,7 +107,17 @@ func ImportTownArea(a *pvf.Archive, townID, areaID uint32) (TownArea, error) {
 		}
 	}
 	if len(cells) == 0 || len(cells)%4 != 0 {
-		return c, fmt.Errorf("map walkable rectangles not recovered")
+		// 赛丽亚旅馆房间的地板定义在 [import script] 引用的
+		// `Common/Gate_Seria.map` 里——该文件在本归档缺失（客户端资源缺口，
+		// 与 Venus Orb.obj 同类；归档内 gate_seria 零命中）。旅馆房间布局
+		// 全内容统一（同 Seria_Room 动画/NPC 布点），回退用归档内已知的
+		// 同布局地板定义：monsterfighters seriagate/gate.map 的 virtual 段
+		// （伊斯官服出生点 545,254 即其第一矩形中心——赛丽亚正前方）。
+		shared, e := seriaRoomWalkable(a)
+		if e != nil {
+			return c, fmt.Errorf("map walkable rectangles not recovered")
+		}
+		cells = shared
 	}
 	for i := 0; i < len(cells); i += 4 {
 		if cells[i+2] <= 0 || cells[i+3] <= 0 {
@@ -165,6 +178,38 @@ func (c TownArea) Allows(level byte, x, y uint16) bool {
 		}
 	}
 	return false
+}
+
+// seriaRoomWalkable 返回官方赛丽亚旅馆房间的通用地板（virtual movable area）。
+// Venus_Seria.map 这类旅馆地图把地板定义放在 [import script]
+// `Common/Gate_Seria.map` 里，而该文件在本归档缺失（资源缺口）——房间布局
+// 全内容统一（同 Seria_Room 动画/NPC 布点），用归档内已知的同布局定义
+// （contents/2023/monsterfighters/map/seriagate/gate.map，伊斯官服出生点
+// 545,254 即其第一矩形中心）。
+func seriaRoomWalkable(a *pvf.Archive) ([]int32, error) {
+	const shared = "contents/2023/monsterfighters/map/seriagate/gate.map"
+	if _, ok := a.FindFile(shared); !ok {
+		return nil, fmt.Errorf("shared seria-room floor %s absent", shared)
+	}
+	ts, err := a.Tokens(shared)
+	if err != nil {
+		return nil, err
+	}
+	var cells []int32
+	mode := false
+	for _, t := range ts {
+		if t.Type == 3 {
+			mode = t.Text == "[virtual movable area]"
+			continue
+		}
+		if mode && t.Type == 0 {
+			cells = append(cells, t.Value)
+		}
+	}
+	if len(cells) == 0 || len(cells)%4 != 0 {
+		return nil, fmt.Errorf("shared seria-room floor %s has no walkable rectangles", shared)
+	}
+	return cells, nil
 }
 
 func LoadTownArea(path string) (TownArea, error) {
