@@ -244,6 +244,18 @@ func LaunchServer(ctx context.Context, root string, opts LaunchOptions, console 
 	fmt.Fprintln(console, listening)
 	appendLogFile(run.HelperOut, listening)
 
+	// launch_local.py 在 --server-only 下还会补这两行（客户端模式那边由 LaunchClient 打印同格式）。
+	// 尤其是 `Logs: <目录>`：启动器就是靠它定位本次会话目录的；缺了它，那边只能用"runtime 下最新的
+	// roles_*"来推定（能跑，但日志措辞绕、也可能在并发会话时指错目录）。2026-10-05 跨仓库对齐。
+	if pid := child.pid(); pid > 0 {
+		started := fmt.Sprintf("Game server started successfully (PID: %d). Port %d is active.", pid, GatewayPort)
+		fmt.Fprintln(console, started)
+		appendLogFile(run.HelperOut, started)
+	}
+	logsLine := "Logs: " + run.Session.Out
+	fmt.Fprintln(console, logsLine)
+	appendLogFile(run.HelperOut, logsLine)
+
 	// 10. 等网关退出。Ctrl+C 与 Python 的 KeyboardInterrupt 一样：不再等，按 0 收场
 	//     （控制台的 CTRL_C_EVENT 本来就会发给同组的网关，不需要我们代它自杀）。
 	signals := make(chan os.Signal, 1)
