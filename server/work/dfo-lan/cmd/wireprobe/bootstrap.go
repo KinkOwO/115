@@ -492,6 +492,17 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		resources.add(func() { s.Close() })
 		gameStore = s
+		// 启动日志必须写明**实际打开的引擎与库**：pgsql 端「登录后账号不见了」这类
+		// 报告，根因常常是启动器与服务端对同一份 local.json 选了不同的库
+		// （见 internal/database.EngineForConfig）。这里读的是活动连接自己的结论，
+		// PostgreSQL 报库名、SQLite 报文件路径，不再是推断。
+		if driver, driverErr := database.EngineForConfig(cfg); driverErr == nil {
+			target := "(unknown)"
+			if name, nameErr := s.DatabaseName(ctx); nameErr == nil {
+				target = name
+			}
+			log.Printf("storage: engine=%s target=%s config=%s", driver, target, startup.CharacterStorage)
+		}
 
 		// 兜底自愈：会话位置隔离修复之前，特殊征讨频道（月湖 215 / Azure 213 / 军团
 		// 239 等）的会话位置曾被写进普通频道共享行，玩家切回普通频道会被客户端以
@@ -539,7 +550,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, e
 		}
 		// 带期限物品一律按「永不过期」下发。**默认开启**（DFO_MAX_ITEM_PERIOD=0 才关）：
-		// 三个 .cmd 入口都设了这个变量，但一键启动器自己拉起 launch_local.py、
+		// 三个 .cmd 入口都设了这个变量，但外部一键启动器自己拉起旧脚本编排、
 		// 从不设置它 ⇒ 走一键启动器时整条兜底不生效，脚本声明过期限的模板
 		// （银增幅书到期日 2022-11-08 之类）就会带着 0 下发，客户端显示
 		// 「剩余期限已过」并拒绝使用（错误码 31730）。

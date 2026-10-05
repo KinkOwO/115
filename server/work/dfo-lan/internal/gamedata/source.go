@@ -31,7 +31,7 @@ type Options struct {
 	ArchivePath string
 	// ExpectedChecksum 为空 = 自动派生：信任内层归档自身算出的 SHA256。
 	// 非空 = 显式校验（发布 / 审计场景钉死某一版）。
-	// 为什么允许为空：内层 PVF 是本地按需生成的产物（见 scripts/ensure_inner_pvf.py），
+	// 为什么允许为空：内层 PVF 是本地按需生成的产物（见 internal/launcher/innerpvf.go），
 	// 手写常量会与文件脱钩 —— 自愈更新了文件、常量没更新就启动失败（next142 的事故）。
 	// 自动派生不额外读一遍归档：OpenReadOnly完整流式计算一次SHA256并复用它。
 	ExpectedChecksum string

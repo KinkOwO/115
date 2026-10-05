@@ -65,7 +65,7 @@
 
 ## 4. 实机调试与网络安全隔离
 
-- 客户端测试必须经 `scripts\启动游戏.cmd` / `launch_local.py` 启动；启动器用 `probe.exe` 安装 WFP 规则，强制客户端只连回环（127.0.0.1 / 127.0.0.2）。
+- 客户端测试必须经 `scripts\启动游戏-SQLite.cmd` / `scripts\启动游戏-PostgreSQL.cmd`（内部走仓库内 Go 启动器 `dfolauncher launch`）启动；WFP 规则由 Go 隔离实现安装，强制客户端只连回环（127.0.0.1 / 127.0.0.2）。
 - **严禁无人值守**代替用户操作客户端；流程见 `server/AGENTS.md` §4。
 
 ## 5. 分析复用原则

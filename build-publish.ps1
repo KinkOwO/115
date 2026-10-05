@@ -1,8 +1,8 @@
-# build-publish.ps1 - DFO 115us ?????????(????,???????)
+﻿# build-publish.ps1 - DFO 115us ?????????(????,???????)
 # ??: ????.cmd                       ???? git ????
 #       ????.cmd -Branch release/minimal-publish   ????
 #       ????.cmd -OutDir D:\out        ??????(???????)
-# ??: git ???? -> ?? tools/{python,pg}(?? pgAdmin 4) ->
+# ??: git ???? -> ?? tools/{pg}(?? pgAdmin 4) ->
 #       launcher.local.json ??(????) -> Python ?? zip(???/UTF-8) -> ??????
 [CmdletBinding()]
 param(
@@ -36,11 +36,11 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'git archive ??' }
     [IO.Compression.ZipFile]::ExtractToDirectory($tar, $work)
 
-    # 2. ????????(python/pg),?? pgAdmin 4
+    # 2. ????????(pg),?? pgAdmin 4
     Write-Host '[2/5] ????????...'
     $tools = Join-Path $ROOT 'tools'
     New-Item -ItemType Directory -Path (Join-Path $work 'tools') | Out-Null
-    foreach ($d in @('python','pg')) {
+    foreach ($d in @('pg')) {
         $src = Join-Path $tools $d
         if (-not (Test-Path $src)) { Write-Warning "???????? tools\$d (??)"; continue }
         Copy-Item $src (Join-Path $work "tools\$d") -Recurse -Force
@@ -54,8 +54,13 @@ try {
 
     # 4. Python ?? zip ??(???????UTF-8 ????? ./ ??)
     Write-Host '[4/5] ??? zip...'
-    $py = Join-Path $ROOT 'tools\python\python.exe'
-    if (-not (Test-Path $py)) { throw '?? tools\python\python.exe' }
+    # Python 是 GM 工具专属依赖，已移出 tools\（启动链不需要它）：优先整合包外的 gm-tool\python，其次 PATH 上的 python。
+    $py = Join-Path (Split-Path -Parent $ROOT) 'gm-tool\python\python.exe'
+    if (-not (Test-Path $py)) {
+        $cmdPy = Get-Command python -ErrorAction SilentlyContinue
+        if ($cmdPy) { $py = $cmdPy.Source }
+        else { throw '找不到 Python 解释器：gm-tool\python\python.exe 不存在，PATH 上也没有 python（Python 是 GM 工具专属依赖，已移出 tools\）' }
+    }
     $pyScript = Join-Path $ROOT 'scripts\build_publish_zip.py'
     & $py $pyScript $work $zipOut
     if ($LASTEXITCODE -ne 0) { throw 'zip ????' }
@@ -69,7 +74,6 @@ try {
         # portable tree nor (once the launcher is fully Go) the Python runtime, and the
         # check must not demand files the package deliberately omits.
         if (Test-Path (Join-Path $ROOT 'tools\pg')) { $need += 'tools/pg/pgsql/bin/initdb.exe' }
-        if (Test-Path (Join-Path $ROOT 'tools\python')) { $need += 'tools/python/python.exe' }
         $miss = @()
         foreach ($n in $need) {
             $hit = $z.Entries | Where-Object { $_.FullName -eq $n }

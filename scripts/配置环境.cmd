@@ -1,10 +1,14 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0.."
-title DFO 115us 环境配置向导
+title DFO 115us Environment Setup
 
+rem ASCII-only by design: cmd.exe decodes batch text with the console code page, so any
+rem non-ASCII byte here can be split into bogus commands (see AGENTS.md 0.4.2). The
+rem Chinese report and prompts come from scripts\configure_env.py, which Python decodes
+rem correctly as UTF-8.
 echo ========================================================
-echo          DFO 115us 本地/局域网服务端环境配置
+echo          DFO 115us local/LAN server environment setup
 echo ========================================================
 echo.
 
@@ -16,7 +20,7 @@ if exist "tools\python\python.exe" (
 
 if errorlevel 1 (
     echo.
-    echo [错误] 环境配置未能成功完成。
+    echo [ERROR] Environment setup did not complete. See the message above.
     pause
     exit /b 1
 )

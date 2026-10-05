@@ -122,11 +122,10 @@ func Check(root string, opts CheckOptions) (CheckReport, error) {
 		report.DataMode = "PVF direct"
 	}
 
-	probeHelper := filepath.Join(probe, "channel_probe.py")
-	required := []Dependency{
-		{Label: "probe helper", Path: probeHelper},
-		{Label: "probe startup catalog", Path: filepath.Join(probe, "catalog_startup.py")},
-	}
+	// 2026-10-05 业主决策："最小预装环境、没有 python、不留回退" —— 依赖清单里不再有 .py 文件
+	// （channel_probe.py / catalog_startup.py 是 Python 编排的必需品，Go 编排不用它们）。
+	// probe.exe 保留：原生工具、不是环境依赖；Go 宿主装 WFP 过滤器失败时的回退路径要用它。
+	required := []Dependency{}
 	if !opts.ServerOnly {
 		required = append(required,
 			Dependency{Label: "probe runtime", Path: filepath.Join(probe, "probe.exe")},

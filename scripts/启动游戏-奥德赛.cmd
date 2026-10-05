@@ -15,7 +15,8 @@ set DFO_ODYSSEY_MODE=1
 set DFO_CONTRACT_PURCHASE_CRASH_FIX=1
 set DFO_MAX_ITEM_PERIOD=1
 set DFO_QUEST_VISIBLE_NPC_RELAX=1
-rem 默认使用 configs/pvf-default.json；保留奥德赛模式，--json-mode 显式回退。
+rem Default profile: configs/pvf-default.json; odyssey mode kept, --json-mode is the
+rem explicit legacy fallback. Chinese notes for this file live in scripts\README.md.
 echo Starting DFO 115us Game Client and Server (PVF Direct + Arad Odyssey Mode)...
 rem Prefer the Go launcher: the session orchestration is Go, so this path needs no
 rem Python runtime. DFO_ROOT is explicit because the launcher sits beside the repository

@@ -126,3 +126,50 @@ func TestLoadStorageConfig(t *testing.T) {
 		t.Errorf("loaded %+v, want the sqlite profile", cfg)
 	}
 }
+
+// Driver selection must match the server's engineForConfig key for key. The case that
+// matters is the mixed configuration: PostgreSQL is running, so the server must not be
+// reading a leftover SQLite file (2026-10-05, pgsql 端无法登录).
+func TestDriverNameMatchesTheServerRule(t *testing.T) {
+	cases := []struct {
+		name string
+		cfg  StorageConfig
+		want string
+	}{
+		{name: "explicit sqlite", cfg: StorageConfig{Driver: "Sqlite "}, want: "sqlite"},
+		{name: "explicit postgres", cfg: StorageConfig{Driver: "postgres"}, want: "postgres"},
+		{name: "unknown driver is reported as written", cfg: StorageConfig{Driver: "mysql"}, want: "mysql"},
+		{
+			name: "a DSN outranks a leftover sqlite_path",
+			cfg:  StorageConfig{PostgresDSN: "postgres://u@127.0.0.1:25438/dfo_lan", SQLitePath: "leftover.sqlite3"},
+			want: "postgres",
+		},
+		{name: "DSN alone", cfg: StorageConfig{PostgresDSN: "postgres://u@127.0.0.1:25438/dfo_lan"}, want: "postgres"},
+		{name: "sqlite_path alone", cfg: StorageConfig{SQLitePath: "save.sqlite3"}, want: "sqlite"},
+		{name: "neither", cfg: StorageConfig{}, want: "postgres"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.cfg.DriverName(); got != tc.want {
+				t.Fatalf("DriverName() = %q, want %q (config %+v)", got, tc.want, tc.cfg)
+			}
+		})
+	}
+
+	// The mixed configuration must also produce the PostgreSQL stop plan: no pg-*
+	// action was ever planned for a SQLite profile, which is how the disagreement
+	// used to hide - the database was never stopped because the file needs no stop.
+	plan, err := StopPlan(StorageConfig{PostgresDSN: "postgres://u@127.0.0.1:25438/dfo_lan", SQLitePath: "leftover.sqlite3"})
+	if err != nil {
+		t.Fatalf("mixed plan: %v", err)
+	}
+	found := false
+	for _, action := range plan {
+		if strings.HasPrefix(action.Kind, "pg-") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("the mixed configuration planned no PostgreSQL action; it was treated as a SQLite profile")
+	}
+}

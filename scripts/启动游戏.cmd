@@ -3,41 +3,38 @@ chcp 65001 >nul
 cd /d "%~dp0.."
 title DFO 115us Game Launcher (Scenario Mode)
 
-net session >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Requesting Administrator privileges for WFP network isolation...
-    powershell -Command "Start-Process cmd -ArgumentList '/c \"\"%~f0\" %*\"' -Verb RunAs"
-    exit /b
-)
+rem Elevation is done inside scripts\storage-route.ps1 (see its Invoke-ElevatedSelf):
+rem doing it here routed this file's Chinese name through cmd -> powershell -Command, which
+rem decodes UTF-8 bytes as GBK, so the elevated cmd never found the file (2026-10-05).
 
 set DFO_SHOP_OPEN_ALL=1
-rem 不再设置 DFO_ODYSSEY_MODE：游戏模式按角色存档投影（建号请求 options[10]，
-rem 剧情 0 / 奥德赛 2），与客户端自己读的 per-character 标记一致。
-rem 需要整档强制时才用 启动游戏-奥德赛.cmd（=1），或在启动器设置里选强制档。
+rem Game mode comes from the per-character save projection (create request options[10]:
+rem story 0 / odyssey 2), which is what the client reads itself. DFO_ODYSSEY_MODE is
+rem deliberately not set here; force the whole profile with the Odyssey entry or the
+rem launcher setting. Chinese notes for this file live in scripts\README.md.
 set DFO_CONTRACT_PURCHASE_CRASH_FIX=1
 set DFO_MAX_ITEM_PERIOD=1
 set DFO_QUEST_VISIBLE_NPC_RELAX=1
 set DFO_QUEST_NPC_DISTANCE_MULTIPLIER=5
-rem 默认使用 configs/pvf-default.json；保留剧情模式，--json-mode 显式回退。
+rem Default profile: configs/pvf-default.json; story mode kept, --json-mode is the
+rem explicit legacy fallback.
 echo Starting DFO 115us Game Client and Server (PVF Direct + Scenario Mode)...
-rem Prefer the Go launcher: the session orchestration is Go, so this path needs no
-rem Python runtime. DFO_ROOT is explicit because the launcher sits beside the repository
-rem and would otherwise infer the wrong tree.
-set "DFO_ROOT=%~dp0.."
-rem tools\ was moved out of the repository, so expose the moved Go toolchain on PATH for
-rem the source build (serverbuild looks at tools\go first, then PATH).
-set "PATH=%~dp0..\..\tools\go\bin;%PATH%"
-if exist "..\115us-dfolauncher\bin\dfolauncher-cli.exe" (
-    "..\115us-dfolauncher\bin\dfolauncher-cli.exe" --launch %*
-) else if exist "tools\python\python.exe" (
-    "tools\python\python.exe" "server\work\dfo-lan\scripts\launch_local.py" %*
-) else (
-    python "server\work\dfo-lan\scripts\launch_local.py" %*
+rem Go only (owner's rule 2026-10-05): no external launcher, no Python, no fallback.
+rem storage-route.ps1 keeps the currently active storage route and calls the in-repo
+rem Go launcher with the Go-forced switches; the two route entries are the same path
+rem with an explicit route. Chinese notes for this file live in scripts\README.md.
+if not exist "server\work\dfo-lan\bin\dfolauncher.exe" (
+    echo ERROR: server\work\dfo-lan\bin\dfolauncher.exe is missing.
+    echo Build it once on a dev machine:  cd server\work\dfo-lan ^&^& go build -trimpath -o bin\dfolauncher.exe .\cmd\dfolauncher
+    pause
+    exit /b 1
 )
-if errorlevel 1 (
+powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\storage-route.ps1" game-current %*
+set "RC=%ERRORLEVEL%"
+if not "%RC%"=="0" (
     echo.
     echo Game launch failed. Please inspect logs.
     pause
-    exit /b 1
+    exit /b %RC%
 )
 pause

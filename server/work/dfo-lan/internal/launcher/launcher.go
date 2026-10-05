@@ -25,17 +25,29 @@ import (
 type StorageConfig struct {
 	Driver       string `json:"driver"`
 	SQLitePath   string `json:"sqlite_path"`
+	PostgresDSN  string `json:"postgres_dsn"`
 	PostgresBin  string `json:"postgres_bin"`
 	PostgresData string `json:"postgres_data"`
 }
 
-// Driver reports the effective driver, defaulting to PostgreSQL as the server does.
+// DriverName reports the effective driver, mirroring the server's
+// engineForConfig (internal/database): an explicit driver wins, a named DSN means
+// PostgreSQL, and only a configuration that names nothing but sqlite_path is SQLite.
+//
+// The two rules must stay identical. When they drift, the launcher starts one engine while
+// the server reads the other - a running PostgreSQL and an empty SQLite file, which reaches
+// the player as "my account is gone" (2026-10-05, pgsql 端无法登录).
 func (c StorageConfig) DriverName() string {
-	driver := strings.ToLower(strings.TrimSpace(c.Driver))
-	if driver == "" {
+	if driver := strings.ToLower(strings.TrimSpace(c.Driver)); driver != "" {
+		return driver
+	}
+	if strings.TrimSpace(c.PostgresDSN) != "" {
 		return "postgres"
 	}
-	return driver
+	if strings.TrimSpace(c.SQLitePath) != "" {
+		return "sqlite"
+	}
+	return "postgres"
 }
 
 // postgresImages are the server processes the launcher owns. They are killed by image
@@ -63,9 +75,9 @@ const (
 // Action is one planned step. Keeping them as data (rather than executing inline) is
 // what lets --dry-run show exactly what a real run would do.
 type Action struct {
-	Kind   string // "kill" | "pg-stop" | "pg-force"
+	Kind   string // "kill" | "pg-stop" | "pg-force" | "lease-clear"
 	Target string
-	Path   string // pg-stop: the data directory to stop
+	Path   string // pg-stop: the data directory to stop; lease-clear: the lease file
 	Detail string
 }
 
@@ -85,6 +97,20 @@ func StopPlan(cfg StorageConfig) ([]Action, error) {
 		plan = append(plan, Action{Kind: "kill", Target: image, Detail: "game server or probe process"})
 	}
 	if cfg.DriverName() != "postgres" {
+		// Last, and only after the kills above: a forced stop leaves the SQLite admin
+		// lease behind, and the next start is refused until its 60s TTL runs out. If a
+		// lease is present, plan to clear it once we know its recorded holder is gone
+		// (see adminlease.go - the executor re-checks at run time, because a clean
+		// shutdown may already have removed it).
+		if path, applicable := AdminLeasePath(cfg); applicable {
+			if _, err := os.Stat(path); err == nil {
+				plan = append(plan, Action{
+					Kind:   "lease-clear",
+					Path:   path,
+					Detail: "clear the SQLite admin lease if its recorded holder is gone",
+				})
+			}
+		}
 		return plan, nil
 	}
 
@@ -113,10 +139,10 @@ func StopPlan(cfg StorageConfig) ([]Action, error) {
 
 // StopReport records what actually happened, so the caller can print an honest summary.
 type StopReport struct {
-	Executed    []Action
-	PostgresUp  bool
-	GatewayUp   bool
-	DryRun      bool
+	Executed   []Action
+	PostgresUp bool
+	GatewayUp  bool
+	DryRun     bool
 }
 
 // PortListening reports whether something accepts connections on the loopback port.
@@ -164,6 +190,24 @@ func Stop(ctx context.Context, cfg StorageConfig, dryRun bool, logf func(string,
 				}
 				logf("port %d still open, force-terminating %s", PostgresPort, action.Target)
 				killByImage(ctx, action.Target)
+			}
+		case "lease-clear":
+			// Re-inspected here rather than trusting the plan: the server may have shut
+			// down cleanly during the kills above and removed its own lease already.
+			state, present, err := InspectAdminLease(cfg)
+			if err != nil {
+				logf("admin lease: %v", err)
+				continue
+			}
+			if !present {
+				continue
+			}
+			if dryRun {
+				logf("would clear %s if holder pid %d is gone (lease age %s)", state.Path, state.Pid, state.Age.Round(time.Second))
+				continue
+			}
+			if _, _, err := ClearStaleAdminLease(cfg, logf); err != nil {
+				logf("admin lease: %v", err)
 			}
 		}
 		report.Executed = append(report.Executed, action)

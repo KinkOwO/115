@@ -3,7 +3,7 @@
 状态：**方案**。业主目标为「把 `tools/` 目录整体移除，仍能启动游戏」（= 目标 B：真正不再需要
 Python / PostgreSQL 进程），取代「把依赖改装到系统」的折中方案 A。
 
-上位文档：[mod-sqlite-redis-minimal-plan.md](mod-sqlite-redis-minimal-plan.md)（四目标总交接，§2.3 环境最小化）、
+上位文档（原 `mod-sqlite-redis-minimal-plan.md`，2026-10-05 清理历史文档时删除，内容见 git 历史）（四目标总交接，§2.3 环境最小化）、
 [sqlite-dual-engine-design.md](sqlite-dual-engine-design.md)（W1 的详细设计与 S0–S5）。
 
 ---
@@ -130,7 +130,7 @@ build-publish.ps1:41-46,57-58,67 ─→ 打包时复制 tools\{python,pg}，用 
 
 ## 6. W2 规格（已产出）
 
-见 **[python-orchestration-port-spec.md](python-orchestration-port-spec.md)**：`launch_local.py` 与
+见 **`python-orchestration-port-spec.md`**（2026-10-05 已删除，内容见 git 历史）：`launch_local.py` 与
 `channel_probe.py` 的逐项可观察契约（CLI/配置/进程端口编排/超时/环境变量/产物/失败文案），
 **`channelinfo.bin` 的逐字节布局**（varint+protobuf 式编码、`rol2(x^0xB5)` 混淆、非 IEEE 的
 `crc32.MakeTable(0x4DB89129)` + 折叠 `^0x18`、16 字节 header），`probe.exe` 的 argv 与退出码语义，

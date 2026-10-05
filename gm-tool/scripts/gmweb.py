@@ -26,10 +26,42 @@ def load_storage(path):
     return json.loads(pathlib.Path(path).read_text(encoding='utf-8-sig'))
 
 
+def storage_driver(cfg):
+    """Which engine this local.json selects.
+
+    Mirror of the server's internal/database.EngineForConfig (and of
+    server/work/dfo-lan/scripts/launch_local.py): an explicit driver wins, a named DSN
+    means PostgreSQL, and only a config that names nothing but sqlite_path is SQLite -
+    the shape the SQLite upgrade package's migration tool writes. Without this the launch
+    died with a bare KeyError on a SQLite profile while the server would have opened the
+    file happily (2026-10-05, 双库兼容)."""
+    driver = str(cfg.get('driver', '') or '').strip().lower()
+    if driver:
+        return driver
+    if str(cfg.get('postgres_dsn', '') or '').strip():
+        return 'postgres'
+    if str(cfg.get('sqlite_path', '') or '').strip():
+        return 'sqlite'
+    return 'postgres'
+
+
 def start_storage(storage_file, cfg):
     storage_dir = storage_file.resolve().parent
-    pg = urlparse(cfg['postgres_dsn'])
-    if not listening(pg.hostname, pg.port):
+    driver = storage_driver(cfg)
+    if driver == 'sqlite':
+        # A SQLite profile has no service: the engine opens (and creates) the file itself.
+        path = str(cfg.get('sqlite_path', '') or '')
+        if not path:
+            raise RuntimeError('Storage driver "sqlite" requires sqlite_path in local.json.')
+        print('Storage: sqlite profile, database file %s (no PostgreSQL to start).' % path)
+        return
+    if driver != 'postgres':
+        raise RuntimeError('Unsupported storage driver %r in local.json.' % driver)
+    dsn = str(cfg.get('postgres_dsn', '') or '').strip()
+    if not dsn:
+        raise RuntimeError('Storage driver "postgres" requires postgres_dsn in local.json.')
+    pg = urlparse(dsn)
+    if not listening(pg.hostname or '127.0.0.1', pg.port or 5432):
         data = pathlib.Path(cfg.get('postgres_data', '')).resolve()
         pgctl = pathlib.Path(cfg.get('postgres_bin', '')) / 'pg_ctl.exe'
         if not (data / 'PG_VERSION').exists() or not pgctl.exists():
@@ -37,7 +69,7 @@ def start_storage(storage_file, cfg):
         with (storage_dir / 'launcher-postgres.log').open('ab') as log:
             r = subprocess.run([str(pgctl), '-D', str(data), '-l', str(storage_dir / 'postgres.log'),
                                 '-w', '-t', '30', 'start'], stdout=log, stderr=log, creationflags=FLAGS, timeout=40)
-        if r.returncode or not listening(pg.hostname, pg.port):
+        if r.returncode or not listening(pg.hostname or '127.0.0.1', pg.port or 5432):
             raise RuntimeError('PostgreSQL did not start; inspect launcher-postgres.log.')
 
 

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 
+	"dfolan/internal/toolcmd/accountlist"
 	"dfolan/internal/toolcmd/audit36"
 	"dfolan/internal/toolcmd/charactercheck"
 	"dfolan/internal/toolcmd/dbq"
@@ -23,6 +24,7 @@ import (
 	"dfolan/internal/toolcmd/pvfinspect"
 	"dfolan/internal/toolcmd/questchain"
 	"dfolan/internal/toolcmd/questrepair"
+	"dfolan/internal/toolcmd/setlevel"
 	"dfolan/internal/toolcmd/shieldaudit"
 	"dfolan/internal/toolcmd/skillaudit"
 	"dfolan/internal/toolcmd/sqliteconvert"
@@ -39,6 +41,7 @@ type command struct {
 
 // Keep commands sorted by name. Implementations register flags only when run.
 var commands = []command{
+	{"accountlist", "maintenance", "[options]", true, 0, accountlist.Run},
 	{"audit36", "audit", "[options]", true, 0, audit36.Run},
 	{"charactercheck", "maintenance", "(temporary-schema storage regression; no options)", false, 0, charactercheck.Run},
 	{"dbq", "maintenance", "[options]", true, 0, dbq.Run},
@@ -55,6 +58,7 @@ var commands = []command{
 	{"pvfinspect", "pvf", "[options]", true, 0, pvfinspect.Run},
 	{"questchain", "catalog", "[options]", true, 0, questchain.Run},
 	{"questrepair", "maintenance", "[options]", true, 0, questrepair.Run},
+	{"setlevel", "maintenance", "[options]", true, 0, setlevel.Run},
 	{"shieldaudit", "audit", "[options]", true, 0, shieldaudit.Run},
 	{"skillaudit", "audit", "[options]", true, 0, skillaudit.Run},
 	{"sqliteconvert", "maintenance", "[options]", true, 0, sqliteconvert.Run},

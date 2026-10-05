@@ -115,15 +115,27 @@ try {
     }
     $items = $items | Sort-Object Path -Unique
 
+    # 已被 git 跟踪的路径：修改它们属于正常改动，不是「把运行期产物入库」。
+    # （历史遗留被跟踪的 runtime 产物例如 pgdata/postgresql.conf 仍会提示，但不阻断。）
+    # 必须用 core.quotePath=false：默认输出会把非 ASCII 路径转义并加引号，取不到原始路径。
+    $tracked = @{}
+    foreach ($t in (git -c core.quotePath=false ls-files)) { if ($t) { $tracked[$t.Trim()] = $true } }
+
     # ---- 4. 逐条判定 ----
-    $blocked = @(); $needConfirm = @()
+    $blocked = @(); $needConfirm = @(); $notes = @()
     foreach ($it in $items) {
         $p = $it.Path.Replace('\', '/')
         $isNew = ($it.Kind -eq 'A' -or $it.Kind -eq 'R')
+        $isTracked = $tracked.ContainsKey($it.Path)
 
         foreach ($rule in $denyPatterns) {
             if ($p -match $rule.Re) {
-                $blocked += [pscustomobject]@{ Path = $it.Path; Why = $rule.Why; Clause = '§0.3.1 缓存/本地产物' }
+                if ($isTracked) {
+                    $notes += [pscustomobject]@{ Path = $it.Path; Why = "$($rule.Why)；该路径已被跟踪，建议 git rm --cached（或补 .gitignore）后另行提交"; Clause = '§0.3.1 缓存/本地产物' }
+                }
+                else {
+                    $blocked += [pscustomobject]@{ Path = $it.Path; Why = $rule.Why; Clause = '§0.3.1 缓存/本地产物' }
+                }
                 break
             }
         }
@@ -141,16 +153,27 @@ try {
             }
             # 新增顶层文件（不在白名单）需要确认（§0.4.3）
             elseif ($p -notmatch '/') {
-                $allow = @('AGENTS.md', 'CHANGELOG', 'README.md', '开发对接文档.md', '使用教程.md', '.gitignore', '.gitattributes')
+                $allow = @('AGENTS.md', 'CHANGELOG', 'README.md', '.gitignore', '.gitattributes')
                 $ok = ($allow -contains $p) -or ($p -like 'MERGE-RECORD-*.md')
                 if (-not $ok) {
                     $needConfirm += [pscustomobject]@{ Path = $it.Path; Why = '新增顶层文件，根目录只保留白名单内容'; Clause = '§0.4.3 命名与落位' }
                 }
             }
-            # 服务端新增 cmd/<工具名> 目录（§0.4.1）
+            # 服务端新增 cmd/<工具名> **入口目录**（§0.4.1）。
+            # 判据是「这个入口目录是全新的」：已存在的入口里加文件（例如 cmd/dfolauncher 的
+            # 测试文件）不算新增入口——否则每加一个测试文件都会被当成开新入口而被拦下
+            # （2026-10-05 实测：cmd/dfolauncher/main_test.go 误报）。
             if ($p -match '^server/work/dfo-lan/cmd/([^/]+)/') {
-                if ($ALLOWED_CMD_ENTRIES -notcontains $Matches[1]) {
-                    $blocked += [pscustomobject]@{ Path = $it.Path; Why = "新增 cmd/$($Matches[1]) 入口；工具应进 internal/toolcmd/<name> 并由 cmd/dfo-tool 统一调用"; Clause = '§0.4.1 Go 落位' }
+                $entryName = $Matches[1]
+                if ($ALLOWED_CMD_ENTRIES -notcontains $entryName) {
+                    $prefix = "server/work/dfo-lan/cmd/$entryName/"
+                    $entryAlreadyTracked = $false
+                    foreach ($trackedPath in $tracked.Keys) {
+                        if ($trackedPath.StartsWith($prefix)) { $entryAlreadyTracked = $true; break }
+                    }
+                    if (-not $entryAlreadyTracked) {
+                        $blocked += [pscustomobject]@{ Path = $it.Path; Why = "新增 cmd/$entryName 入口；工具应进 internal/toolcmd/<name> 并由 cmd/dfo-tool 统一调用"; Clause = '§0.4.1 Go 落位' }
+                    }
                 }
             }
             # 服务端新增 configs/*.json（§0.4.1 + §0 铁律）
@@ -189,12 +212,26 @@ try {
                     }
                 }
                 else {
-                    $crlf = 0; $lone = 0
+                    # .cmd：BOM 会让首行 `@echo off` 解析失败；裸 LF 会让中文被 cmd.exe 按控制台
+                    # 代码页解码后错位拆分，把乱码片段当命令执行（2026-10-05 业主实机：
+                    # `'hell' is not recognized`、`'�在' is not recognized`、`'强制时才用' is not recognized`
+                    # —— 最后一条来自 `rem` 行，所以判据是「整份 .cmd 不得有非 ASCII 字节」）。
+                    $hasBom = ($raw.Length -ge 3 -and $raw[0] -eq 0xEF -and $raw[1] -eq 0xBB -and $raw[2] -eq 0xBF)
+                    if ($hasBom) {
+                        $blocked += [pscustomobject]@{ Path = $it.Path; Why = '.cmd 带 UTF-8 BOM：首行 `@echo off` 被 BOM 污染，脚本会带着一片解析错误继续跑（§0.4.2 要求 .cmd 不带 BOM）'; Clause = '§0.3.4 环境匹配' }
+                    }
+                    $crlf = 0; $lone = 0; $nonAscii = 0
                     for ($i = 0; $i -lt $raw.Length; $i++) {
+                        if ($raw[$i] -gt 0x7F) { $nonAscii++ }
                         if ($raw[$i] -eq 10) { if ($i -gt 0 -and $raw[$i - 1] -eq 13) { $crlf++ } else { $lone++ } }
                     }
-                    if ($crlf -eq 0 -and $lone -gt 0) {
-                        $needConfirm += [pscustomobject]@{ Path = $it.Path; Why = ("本机 .cmd 约定 CRLF，此文件有 $lone 行是裸 LF"); Clause = '§0.3.4 环境匹配' }
+                    if ($lone -gt 0) {
+                        $why = if ($crlf -eq 0) { ".cmd 全部是裸 LF（共 $lone 行）：cmd 按行解析会错位，把相邻行粘成一条" }
+                        else { ".cmd 混用 CRLF/LF（裸 LF $lone 行）：cmd 按行解析批处理，混行尾同样会拆坏中文行" }
+                        $needConfirm += [pscustomobject]@{ Path = $it.Path; Why = $why; Clause = '§0.3.4 环境匹配' }
+                    }
+                    if ($nonAscii -gt 0) {
+                        $needConfirm += [pscustomobject]@{ Path = $it.Path; Why = ".cmd 含 $nonAscii 个非 ASCII 字节：cmd 用控制台代码页解码批处理文本，中文（连 rem 行也一样）会被拆成乱码命令执行；中文请放进带 BOM 的 .ps1 或 .py 打印"; Clause = '§0.3.4 环境匹配' }
                     }
                 }
             }
@@ -203,28 +240,49 @@ try {
 
     # ---- 4b. 环境匹配（§0.3.4）：提交内容与「本机正在跑的这一套环境」是否对得上 ----
     # 只报事实对不上（路径不存在 / 档位不一致），不猜意图。
-    # (a) 存储档：活动档与已跟踪示例档引用的路径必须在本机存在，driver 必须一致
+    # (a) 存储档：活动档引用的路径必须在本机存在；与已跟踪示例档 driver 不一致时，
+    #     若该 driver 有自己的路线档（双库双路线，见 scripts\storage-route.ps1）则只提示。
     $activeCfg = Join-Path $RepoRoot 'server\work\dfo-lan\runtime\storage\local.json'
     $exampleCfg = Join-Path $RepoRoot 'server\work\dfo-lan\runtime\storage\local.example.json'
     if (Test-Path -LiteralPath $activeCfg) {
         try {
             $act = Get-Content -LiteralPath $activeCfg -Raw -Encoding UTF8 | ConvertFrom-Json
-            $actDriver = if ($act.driver) { [string]$act.driver } elseif ($act.sqlite_path) { 'sqlite' } else { 'postgres' }
+            $actDriver = if ($act.driver) { [string]$act.driver } elseif ($act.postgres_dsn) { 'postgres' } elseif ($act.sqlite_path) { 'sqlite' } else { 'postgres' }
             if ($actDriver -eq 'sqlite' -and $act.sqlite_path) {
                 $liveDb = [string]$act.sqlite_path
                 if (-not (Test-Path -LiteralPath $liveDb)) {
                     $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = "本机存储档 driver=sqlite，但 sqlite_path=$liveDb 不存在（当前环境起不来）"; Clause = '§0.3.4 环境匹配' }
                 }
             }
+            # 没有 driver 却同时写了 postgres_dsn 与 sqlite_path：引擎选择是「DSN 优先」，
+            # 但两份配置混在一个文件里，最容易被读成另一个库（2026-10-05 pgsql 端无法登录）。
+            if (-not $act.driver -and $act.postgres_dsn -and $act.sqlite_path) {
+                $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = '同时写了 postgres_dsn 与 sqlite_path 却没有 driver（按唯一规则选 PostgreSQL；建议显式写 driver 或删掉不用的那个键）'; Clause = '§0.3.4 环境匹配' }
+            }
+            if ($act.driver -and $act.driver -eq 'postgres' -and $act.sqlite_path) {
+                $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = 'driver=postgres 但档里还留着 SQLite 专有键 sqlite_path（配置环境会清理；手工改的建议删掉）'; Clause = '§0.3.4 环境匹配' }
+            }
         }
-        catch { }
+        catch {
+            # 读不动（含非法 JSON / BOM 之外的问题）本身就是环境不匹配，要报出来而不是吞掉。
+            $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = "本机存储档无法解析（$($_.Exception.Message)）；服务端会因此启动失败"; Clause = '§0.3.4 环境匹配' }
+        }
     }
     if (Test-Path -LiteralPath $exampleCfg) {
         try {
             $exa = Get-Content -LiteralPath $exampleCfg -Raw -Encoding UTF8 | ConvertFrom-Json
             $exaDriver = if ($exa.driver) { [string]$exa.driver } elseif ($exa.sqlite_path) { 'sqlite' } else { 'postgres' }
             if ((Test-Path -LiteralPath $activeCfg) -and $actDriver -and ($exaDriver -ne $actDriver)) {
-                $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.example.json'; Why = "示例档 driver=$exaDriver，本机活动档 driver=$actDriver（照示例档配环境会得到另一套存储）"; Clause = '§0.3.4 环境匹配' }
+                # 双库双路线（2026-10-05 业主定调）：本机可以合法地停在任一条路线上，示例档只对应其中一条。
+                # 路线的证据是 scripts\storage-route.ps1 管的那份档：local.<活动 driver>.json 存在 ⇒ 这是切换后的
+                # 正常状态，只提示；连它都不存在，才说明活动档既不是示例档、也不是任何一条已建好的路线。
+                $routeFile = Join-Path $RepoRoot ("server\work\dfo-lan\runtime\storage\local.{0}.json" -f $actDriver)
+                if (Test-Path -LiteralPath $routeFile) {
+                    $notes += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = "本机停在 $actDriver 路线（$(Split-Path -Leaf $routeFile) 存在）；已跟踪示例档 driver=$exaDriver 对应另一条路线"; Clause = '§0.3.4 环境匹配' }
+                }
+                else {
+                    $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.example.json'; Why = "示例档 driver=$exaDriver，本机活动档 driver=$actDriver，且没有对应的路线档（照示例档配环境会得到另一套存储）"; Clause = '§0.3.4 环境匹配' }
+                }
             }
             foreach ($field in @('postgres_bin', 'postgres_data')) {
                 $v = [string]$exa.$field
@@ -254,13 +312,17 @@ try {
         }
         catch { }
     }
-    # (c) 启动链引用的频道配置档必须存在
-    $probePath = Join-Path $RepoRoot 'server\work\dfo_probe_tools\channel_probe.py'
-    if (Test-Path -LiteralPath $probePath) {
-        $probeText = Get-Content -LiteralPath $probePath -Raw -Encoding UTF8
-        foreach ($m in [regex]::Matches($probeText, 'channel\.local\d+\.json')) {
+    # (c) 启动链引用的频道配置档必须存在。
+    # 真源从 Python（channel_probe.py，2026-10-05 已删）换成 Go 编排：
+    # internal/launcher/gateway.go 决定下发哪个 channel.local*.json。
+    $chainSources = @(Get-ChildItem -LiteralPath (Join-Path $RepoRoot 'server\work\dfo-lan\internal\launcher') -Filter '*.go' -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -notmatch '_test\.go$' })
+    foreach ($source in $chainSources) {
+        $chainText = Get-Content -LiteralPath $source.FullName -Raw -Encoding UTF8
+        foreach ($m in [regex]::Matches($chainText, 'channel\.local\d+\.json')) {
             if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot ('server\work\dfo-lan\configs\' + $m.Value)))) {
-                $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo_probe_tools/channel_probe.py'; Why = "启动链引用的 configs/$($m.Value) 不存在（该档位启动会失败）"; Clause = '§0.3.4 环境匹配' }
+                $rel = $source.FullName.Substring($RepoRoot.Length + 1) -replace '\\', '/'
+                $needConfirm += [pscustomobject]@{ Path = $rel; Why = "启动链引用的 configs/$($m.Value) 不存在（该档位启动会失败）"; Clause = '§0.3.4 环境匹配' }
             }
         }
     }
@@ -281,19 +343,23 @@ try {
 
     # ---- 5. 输出 ----
     $scope = if ($All) { '工作树全部改动（含未跟踪）' } else { '已暂存内容' }
+    # @() 不能省：只有 1 个路径时 `$items` 是单个对象，PS 5.1 上 `$obj.Count` 为 $null，
+    # 于是「共  个路径」这种空计数会出现在最小的那次提交上——正好是最需要看清范围的时候。
+    $pathCount = @($items).Count
     if ($Json) {
         [pscustomobject]@{
             scope       = $scope
-            paths       = $items.Count
+            paths       = $pathCount
             blocked     = $blocked
             needConfirm = $needConfirm
+            notes       = $notes
             verdict     = if ($blocked.Count -or $needConfirm.Count) { 'confirm-required' } else { 'pass' }
         } | ConvertTo-Json -Depth 5
     }
     else {
         Write-Host ''
         Write-Host 'DFO 115us · 提交前门禁（check-commit-hygiene）' -ForegroundColor Cyan
-        Write-Host ("范围：{0}，共 {1} 个路径" -f $scope, $items.Count)
+        Write-Host ("范围：{0}，共 {1} 个路径" -f $scope, $pathCount)
         $envIssues = @($blocked + $needConfirm | Where-Object { $_.Clause -match '环境匹配' })
         $blockedOther = @($blocked | Where-Object { $_.Clause -notmatch '环境匹配' })
         $needOther = @($needConfirm | Where-Object { $_.Clause -notmatch '环境匹配' })
@@ -311,6 +377,11 @@ try {
             Write-Host ''
             Write-Host ("[需确认] 可能不该入库或需业主裁决（{0}）" -f $needOther.Count) -ForegroundColor Yellow
             foreach ($c in $needOther) { Write-Host ("   - {0}`n       {1}  [{2}]" -f $c.Path, $c.Why, $c.Clause) -ForegroundColor Yellow }
+        }
+        if ($notes.Count) {
+            Write-Host ''
+            Write-Host ("[提示] 已被跟踪的运行期产物（不阻断，建议按提示清理）（{0}）" -f $notes.Count) -ForegroundColor DarkGray
+            foreach ($n in $notes) { Write-Host ("   - {0}`n       {1}  [{2}]" -f $n.Path, $n.Why, $n.Clause) -ForegroundColor DarkGray }
         }
         Write-Host ''
         if ($blocked.Count -or $needConfirm.Count) {

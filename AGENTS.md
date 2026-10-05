@@ -19,7 +19,7 @@
 9. **DLL 日志硬规则**：若经用户明确要求编写或调试 DLL，每个 DLL 产生的日志、诊断文本默认必须解析自身模块路径，写入该 DLL 所在目录；不得依赖进程当前目录或将日志写入客户端游戏根目录。
 10. **参考资料**：参考旧项目 `../90dof`、`../usdof`、`../ServerS4A21`、`../dfo115`，不能假设协议相同，必须实际分析。
 11. **新 codec 先过身份门禁**：完整走完 IDA 逆向链和客户端原生向量验证，再命名算法或下结论。
-12. **服务端技术栈门禁**：Go 1.26；PostgreSQL 16.4（端口 25438）；日常启动由 Python 3.11.9 脚本编排。
+12. **服务端技术栈门禁**：Go 1.26；PostgreSQL 16.4（端口 25438）；日常启动由**仓库内 Go 启动器**编排（`bin/dfolauncher.exe`；2026-10-05 起已不用 Python）。
 13. **一次只验证一个假设**：改动后必须通过测试与 vet；测试/候选/实机流程见 `server/AGENTS.md` §4。
 14. **玩法规则由 PVF 脚本驱动**：等级动作、条件、奖励、数量、材料、费用、概率与内容关联，以当前 PVF 原生脚本为唯一内容定义；Go 负责解析、校验与执行，不再维护平行玩法表。新增或修改玩法前必须走 §0.2 的来源与重复规则检查。
 15. **提交前必须过门禁并二次确认（强制，2026-10-04 业主定调）**：任何 AI 在 `git add` / `git commit` 之前，必须先跑 `pwsh -NoProfile -File scripts/check-commit-hygiene.ps1`。脚本一旦报出**本地缓存/构建产物入库**、**不符合 §0.4/§0.5 规范**或**与当前环境不匹配（§0.3.4）**，AI 必须**立即停止提交**，把违规条目逐条报告给业主并**取得业主明确的二次确认**后才能继续；不得用 `-Force`、`--no-verify`、`git add -A` 或任何方式绕过。完整流程见 §0.3。
@@ -99,14 +99,20 @@
 
 | 项 | 判据 | 本机 2026-10-05 实测命中 |
 | --- | --- | --- |
-| 存储档 | 活动 `runtime/storage/local.json` 的 `driver` 与已跟踪 `local.example.json` 的 `driver` 必须一致；`sqlite_path` 必须存在 | 示例档 driver=postgres，活动档 driver=sqlite |
+| 存储档 | 活动 `runtime/storage/local.json` 的路径必须在本机存在；与已跟踪 `local.example.json` 的 `driver` 不一致时，**若该 driver 有自己的路线档**（`runtime/storage/local.<driver>.json`，双库双路线切换器的产物）则只提示 | 示例档 driver=postgres，活动档 driver=sqlite |
 | 配置里的路径 | 示例/本地配置中写的相对路径必须在本机存在 | 示例档 `postgres_bin=tools/pg/pgsql/bin`，而 tools 已移出仓库 |
 | profile 程序 | `configs/pvf-default.json.binary`、`server/launcher.local.json.server_binary` 指向的程序必须存在 | 缺 `bin/wireprobe-pvf.exe` 时启动找不到程序 |
-| 启动链配置 | `channel_probe.py` 引用的 `configs/channel.local*.json` 必须存在 | next37 档引用的频道档没落地 → 该档启动失败 |
-| 脚本引用 | 改动过的 `.cmd`/`.ps1` 不得引用「仓库内 `tools\`」（本机 tools 在仓库外，该分支不可解析） | 新脚本写 `tools\python\python.exe` |
+| 启动链配置 | 启动链（Go：`internal/launcher/gateway.go`）引用的 `configs/channel.local*.json` 必须存在 | next37 档引用的频道档没落地 → 该档启动失败 |
+| 脚本引用 | 改动过的 `.cmd`/`.ps1` 不得引用「仓库内 `tools\`」（本机 tools 在仓库外，该分支不可解析） | 新脚本写 `..\..\gm-tool\python\python.exe`（Python 是 GM 工具专属依赖，已移出 `tools\`，放在整合包外的 `gm-tool\python`；2026-10-05 起启动链已无 Python 分支，不需要它） |
 | 脚本编码 | `.ps1` 必须 UTF-8 **带 BOM**；`.cmd` 必须 CRLF | 用会丢 BOM 的编辑器改门禁脚本 → PS 5.1 按 GBK 解码，脚本直接语法崩（当日实际踩到） |
 
 环境不匹配的两条出路：**改环境**（补文件/改配置，使两边一致）或**改提交**（不入库/换档位）。两条都要在提交信息里说明。
+
+> **「已跟踪」豁免（2026-10-05 补）**：门禁的缓存/产物规则只对**新增**文件判违规。若路径**已被 git 跟踪**
+> （例如历史遗留的 `server/work/dfo-lan/runtime/storage/local.example.json`、
+> `runtime/storage/pgdata/postgresql.conf`），修改它属于正常编辑，门禁只输出 `[提示]` 并建议
+> `git rm --cached` + 补 `.gitignore`，**不阻断提交**——因为此时门禁已无法阻止它入库，真正要做的是清理跟踪关系。
+> 判定用 `git -c core.quotePath=false ls-files`（不能用 `-z`：NUL 分隔在 PowerShell 里会粘成一个字符串）。
 
 ### 0.4 代码目录规范（强制，2026-10-04 定）
 
@@ -129,14 +135,22 @@
 - 移动脚本后必须核对：所有 `%~dp0` 派生路径与 cwd 相对路径分别按新层级重算，改完要逐个落盘验证目标存在（可参考 `scripts/check-commit-hygiene.ps1` 的检查思路）。
 - **编码与行尾（2026-10-04 实测订正，照做否则脚本跑不起来）**：
   - `.ps1`：**UTF-8 带 BOM** + CRLF。Windows PowerShell 5.1 对无 BOM 的 `.ps1` 按 ANSI(GBK) 解码，中文注释会直接让脚本语法报错（`scripts/check-commit-hygiene.ps1` 就是带 BOM 的，改它时不要去掉 BOM）。
+    **中文只放在 `.ps1` 里**：PowerShell 按 BOM 正确解码中文，`& "<中文名>.cmd"` 也按 UTF-16 正确处理。
   - `.cmd`：UTF-8 **不带 BOM** + CRLF + 首部 `chcp 65001`（BOM 会让 `@echo off` 那行异常）。
+    **整份文件保持纯 ASCII**（含 `rem` 行；中文提示交给带 BOM 的 `.ps1` 或 `.py` 打印）。
+    2026-10-05 两次实机踩到：`chcp 65001` 只对**其后被重新读取的行**生效，而裸 LF 会让 cmd 按行解析错位、
+    把相邻行粘成一条——UTF-8 中文一旦出现在 `.cmd` 里，cmd 会把乱码片段当命令执行，实测
+    `'hell' is not recognized ...`（`powershell` 被吃掉前 6 个字符）、`'�在' is not recognized ...`、
+    `'强制时才用' is not recognized ...`（**来自 `rem` 行**，所以判据不能只查执行行）。
+    修法与实测：把 `scripts/` 下入口全部改成纯 ASCII 后，CRLF / 裸 LF / 有无 BOM 四种组合全部正常。
+    门禁已机械校验：`.cmd` 带 BOM、出现裸 LF、或含任何非 ASCII 字节，都报 `[环境不匹配]`。
   - `.md`/`.go`/`.json` 等：UTF-8 不带 BOM。
 - 脚本要幂等、可重入，并在输出里明确「做了什么 / 下一步」（如 `scripts/停止游戏环境.cmd`）。
 - 只读检查脚本必须先自证「不修改工作区」，并在帮助注释里写清退出码含义（参照 `scripts/check-commit-hygiene.ps1`）。
 
 #### 0.4.3 命名与落位检查
 
-- 新增顶层目录/顶层文件前必须问业主；根目录只保留：`AGENTS.md`、`CHANGELOG`、`README`/`开发对接文档.md`、`使用教程.md`、`MERGE-RECORD-*.md`、`.gitignore`、`.gitattributes`(如新增)、业主的发布用 exe。
+- 新增顶层目录/顶层文件前必须问业主；根目录只保留：`AGENTS.md`、`CHANGELOG`、`README`/`开发对接文档.md`、`MERGE-RECORD-*.md`、`.gitignore`、`.gitattributes`(如新增)、业主的发布用 exe。
 - 上述落位由 `scripts/check-commit-hygiene.ps1` 机械校验；违反即触发 §0.3.1 的警告 + 二次确认。
 
 ### 0.5 开发规范（强制）
@@ -153,7 +167,7 @@
    - `git status --short` 里只有本任务文件；
    - 门禁脚本通过（或已取得二次确认）；
    - build / vet / test 结论已实际取得；
-   - 文档与索引同步（改了入口/目录/规范就要同步 AGENTS、README、使用教程）；
+   - 文档与索引同步（改了入口/目录/规范就要同步 AGENTS、README、开发对接文档）；
    - 没有把 `runtime/`、`pvf-cache/`、`.tmp/`、日志、`pgdata/`、SQLite 库文件带入暂存区。
 
 ## 1. 项目地图与子索引触发规则
@@ -170,7 +184,7 @@
 | `tools/**`（**现在仓库外** `../tools/`） | 沿用根规则 | 便携环境（Python 3.11、PostgreSQL、Go） |
 
 - 子目录没有 `AGENTS.md` 时，沿用根规则；**子索引不得与 §0.3~§0.5 冲突**，冲突以根文件为准。
-- 读取顺序：本文件 → 相关目录 `README` → `开发对接文档.md` → `使用教程.md`。
+- 读取顺序：本文件 → 相关目录 `README` → `开发对接文档.md`。
 - 权威 IDB `client/DFO.exe.i64` 位于 `client/` 目录；不得随意覆盖或并发损坏。
 
 ### 1.1 根目录职责
@@ -184,7 +198,7 @@
 | `analysis/`                                            | 逆向分析工作区、分析脚本与核心 Dump 资产（`analysis/dumps/`） |
 | `client-patchs/`                                       | 客户端补丁与 DLL 源码（ngstub, plugin loader 等，默认不开启） |
 | `docs/`                                                | 计划、台账与迁移清单（`docs/todo/`）                         |
-| `开发对接文档.md`、`使用教程.md`                       | 核心交付基线与运行操作指南                                   |
+| `server/开发对接文档.md`                               | 核心交付基线：已实现功能边界、未完成系统与验收路线           |
 | `tools/`（**仓库外** `../tools/`）                     | 便携环境：Python 3.11.9、PostgreSQL 16.4、Go 1.26（2026-10-04 已移出仓库） |
 
 ## 2. 权威索引
@@ -194,7 +208,7 @@
 | `AGENTS.md` §0.3 / §0.4 / §0.5                         | **提交规范 / 代码目录规范 / 开发规范**（唯一真源）           |
 | `scripts/check-commit-hygiene.ps1`                     | 提交前门禁：缓存产物与规范违规检测（配合 §0.3.1 的警告+二次确认） |
 | `开发对接文档.md`                                      | 核心交接基线：已实现功能边界、未完成系统与验收路线           |
-| `使用教程.md`                                          | 运行环境、启动流程、端口分配与故障排查说明                   |
+| `server/README-先看这里.md` + `server/work/dfo-lan/docs/sqlite-operations.md` | 运行环境、启动流程、双库路线与故障排查说明 |
 | `server/README-先看这里.md`                            | 服务端源码、双版本可执行文件与启动脚本交接说明               |
 | `server/work/dfo-lan/docs/architecture.md`             | 局域网多人架构设计与 ADR 决策记录                            |
 | `server/work/dfo-lan/docs/protocol/`                   | 历史协议取证与分析记录（next27 ~ next38-equipment-display）  |
