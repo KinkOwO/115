@@ -61,6 +61,13 @@
     的字段也写成了 server-src 的值；已从 HEAD 还原该文件后改为「定位块 → 块内替换」，
     并用上一条的 5 包自检兜住。
 
+- **发布二进制与资源包已同步（会话关闭后补做）**：`bin/wireprobe-pvf.exe` 与候选 `bin/wireprobe-handoff-source.exe`
+  同为 `B992AA7E…`（含本次修复；`go version -m` 自述 `vcs.revision=bb6d47f9…`、无 `vcs.modified`），
+  `bin/dfolauncher.exe` = `3AB3298B…`；`tools/tools-server-bin.zip` 24,056,851 → **24,056,415 B**、
+  sha256 `d1c69470…`、**85 条目不变**，包内两个二进制的哈希与磁盘逐一核对一致；manifest 的 `server-bin` 同步，
+  5 个包（go / gopath-mod / server-src / server-configs / server-bin）按 `size`/`sha256`/`files` 全量自检通过。
+  旧程序备份仍在 `.tmp/pgremoval-bin-backup/`（未入库）。
+  说明：Go 默认嵌入 VCS 元数据，所以源码未改也可能换哈希 —— `dfolauncher.exe` 本轮即如此（`94B59BAF…`→`3AB3298B…`）。
 ### 未修复 / 未闭环
 
 - 未做实机验收：本次两处修复都是离线（测试 + 打包自检）结论，誓约进图的实机表现（尤其「Buff 两次」
