@@ -4,6 +4,7 @@ package wfpisolate
 
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"runtime"
@@ -13,9 +14,25 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// 这个文件是 Windows 上的真身：fwpuclnt.dll 通过 LazySystemDLL 加载（**不用 cgo**），
-// 结构体按 Windows SDK 的头文件布局手写，并靠 install_windows_test.go 里的
-// Sizeof/Offsetof 断言钉住（布局错一个字节，WFP 只会回一个 87，什么也说明不了）。
+// 这个文件是 Windows 上的真身：fwpuclnt.dll 通过 LazySystemDLL 加载（**不用 cgo**）。
+//
+// ## 为什么用手写字节缓冲，而不是 `unsafe` 的结构体
+//
+// 这是本文件最重要的一个决定。原先的写法是按 SDK 头文件的字段顺序定义 Go struct，
+// 再用 unsafe.Pointer 传给 WFP。本机实测（Go 1.26 / windows-amd64）发现**这条路会错**：
+//
+//	FWPM_SESSION0（C 里 56 字节）在 Go 里是 72 字节：
+//	  C: SessionKey 0, displayData 16, flags 24, txn 28, pid 32, sid 40, username 48, kernelMode 52
+//	  Go: SessionKey 0, DisplayData 16, Flags 32, Txn 36, Pid 40, Sid 48, Username 56, KernelMode 64
+//
+// 差别在于"含指针的结构体"在这个工具链下被补到 8 字节对齐（fwpmDisplayData0 本身是
+// 两个指针 = 16 字节，却在 FWPM_SESSION0 里占到了 16 字节之后又多了 8 字节的对齐填充）。
+// 这类布局差异**不会报错**：WFP 只会回一个 ERROR_INVALID_PARAMETER(87) 或者更糟 ——
+// 拿错字段当条件、装出一条宽度不对的过滤器。安全行为不能建在这种隐式对齐上。
+//
+// 于是这里改成把每个 WFP 结构体**按偏移编码进 []byte**：偏移量直接对着 SDK 头文件的
+// 字段顺序手算，并写死在下面的常量里（layout_windows_test.go 会逐项断言）。这样
+// "布局"是我们自己写的字节，与 Go 编译器的对齐规则、将来的版本变化都无关。
 //
 // 与 probe.cpp 的对应关系（行号指 server/work/dfo_probe_tools/probe.cpp）：
 //   - Guard::init  -> Install：FwpmEngineOpen0（动态会话）+ FwpmSubLayerAdd0
@@ -26,7 +43,7 @@ import (
 
 var (
 	modfwpuclnt = windows.NewLazySystemDLL("fwpuclnt.dll")
-	modkernel32 = windows.NewLazySystemDLL("kernel32.dll")
+	modole32    = windows.NewLazySystemDLL("ole32.dll")
 
 	procFwpmEngineOpen0           = modfwpuclnt.NewProc("FwpmEngineOpen0")
 	procFwpmEngineClose0          = modfwpuclnt.NewProc("FwpmEngineClose0")
@@ -36,7 +53,9 @@ var (
 	procFwpmSubLayerDeleteByKey0  = modfwpuclnt.NewProc("FwpmSubLayerDeleteByKey0")
 	procFwpmFreeMemory0           = modfwpuclnt.NewProc("FwpmFreeMemory0")
 
-	procCoCreateGuid = modkernel32.NewProc("CoCreateGuid")
+	// CoCreateGuid 在 ole32.dll（probe.cpp L50 用的是 UuidCreate，同一个 GUID v4 语义；
+	// 走 CoCreateGuid 是为了不引 rpcrt4 的 RPC_STATUS 口径）。
+	procCoCreateGuid = modole32.NewProc("CoCreateGuid")
 )
 
 // requiredProcs 是装隔离必需的 API。缺任何一个（老的 fwpuclnt.dll、被精简的系统）
@@ -50,90 +69,181 @@ var requiredProcs = []*windows.LazyProc{
 	procFwpmFreeMemory0,
 }
 
-// 结构体布局按 SDK 头文件的原样字段顺序写；指针字段一律 unsafe.Pointer（与 C 的 8 字节
-// 指针同宽），补齐字段用空白标识符，一眼能看出"这里是 C 的对齐填充"。
+// ---- 64 位布局常量（单位：字节）----
+//
+// ## 这些偏移是怎么定下来的（重要）
+//
+// 最初按 C 的"4 字节 int 对齐"手算：FWPM_SESSION0 = 56 字节、flags 在 24。**本机实测
+// 这个布局会让 fwpuclnt 崩**（exception 0xc0000005，PC 落在私有内存）：同一段代码传
+// 56 字节缓冲崩溃、传 72 字节缓冲（flags 在 32）成功打开引擎会话（返回 0）。C# 的
+// `[StructLayout(Sequential, Pack=8)]` 也是 72 字节、flags 在 32。
+//
+// 结论：这套 SDK 的 WFP 结构体在 64 位下按 **8 字节对齐**（4 字节 int 后面补 4 字节），
+// 于是 FWPM_SESSION0 是 72 字节而不是 56。下面的偏移按这个规则重算，并由
+// layout_windows_test.go 逐项钉住（期望值用 C# 的 Pack=8 布局在本机交叉验证过）。
+//
+// 命名规则：<结构体><字段>Off / <结构体>Size。
 
-// fwpmDisplayData0 是 FWPM_DISPLAY_DATA0（fwptypes.h L408-L412）。
-type fwpmDisplayData0 struct {
-	Name        *uint16
-	Description *uint16
+const (
+	// FWPM_DISPLAY_DATA0：两个 wchar_t*（fwptypes.h L408-L412）。
+	displayDataSize  = 16
+	displayDataName  = 0
+	displayDataDescr = 8
+
+	// FWPM_SESSION0（fwpmtypes.h L129-L139）。
+	// GUID(16) displayData(16) flags(4) txnWaitTimeout(4) processId(4) [4 填充]
+	// sid(8) username(8) kernelMode(4) [4 填充]
+	sessionSize        = 72
+	sessionKeyOff      = 0
+	sessionDisplayOff  = 16
+	sessionFlagsOff    = 32
+	sessionTxnOff      = 36
+	sessionPidOff      = 40
+	sessionSidOff      = 48
+	sessionUsernameOff = 56
+	sessionKernelOff   = 64
+	// FWP_BYTE_BLOB（fwptypes.h L151-L155）：size(4) [4 填充] data(8)。
+	byteBlobSize = 16
+	byteBlobLen  = 0
+	byteBlobData = 8
+
+	// FWP_VALUE0（fwptypes.h L165-L190）：类型(4) [4 填充] 联合体(8)。
+	valueSize = 16
+	valueType = 0
+	valueData = 8
+
+	// FWPM_SUBLAYER0（fwpmtypes.h L355-L363），同样 8 字节对齐：
+	// subLayerKey(16) displayData(16) flags(4) [4 填充] providerKey(8)
+	// providerData(16) weight(2) [6 填充] = 72
+	subLayerSize        = 72
+	subLayerKeyOff      = 0
+	subLayerDisplayOff  = 16
+	subLayerFlagsOff    = 32
+	subLayerProviderOff = 40
+	subLayerDataOff     = 48
+	subLayerWeightOff   = 64
+
+	// FWPM_FILTER_CONDITION0（fwpmtypes.h L463-L468）：
+	// fieldKey(16) matchType(4) [4 填充] conditionValue(16) = 40
+	conditionSize    = 40
+	conditionField   = 0
+	conditionMatch   = 16
+	conditionValueAt = 24
+
+	// FWPM_ACTION0（fwpmtypes.h L452-L461）：type(4) [4 填充] guid(16)。
+	actionSize = 24
+	actionType = 0
+
+	// FWPM_FILTER0（fwpmtypes.h L486-L507）。
+	// filterKey(16) displayData(16) flags(4) [4 填充] providerKey(8) providerData(16)
+	// layerKey(16) subLayerKey(16) weight(16) numConditions(4) [4 填充]
+	// filterCondition(8) action(24) rawContext(8) reserved(8) filterId(8) effectiveWeight(16)
+	filterSize          = 192
+	filterKeyOff        = 0
+	filterDisplayOff    = 16
+	filterFlagsOff      = 32
+	filterProviderOff   = 40
+	filterProviderData  = 48
+	filterLayerKeyOff   = 64
+	filterSubLayerKeyOf = 80
+	filterWeightOff     = 96
+	filterNumCondOff    = 112
+	filterConditionsOff = 120
+	filterActionOff     = 128
+	filterRawContextOff = 152
+	filterReservedOff   = 160
+	filterIdOff         = 168
+	filterEffectiveOff  = 176
+)
+
+// guidSize 是 GUID 的字节数（Data1/Data2/Data3/Data4）。
+const guidSize = 16
+
+// putGUID 按 Windows 的内存布局写一个 GUID：Data1(LE) Data2(LE) Data3(LE) Data4(原样)。
+func putGUID(buffer []byte, offset int, guid GUID) {
+	binary.LittleEndian.PutUint32(buffer[offset:], guid.Data1)
+	binary.LittleEndian.PutUint16(buffer[offset+4:], guid.Data2)
+	binary.LittleEndian.PutUint16(buffer[offset+6:], guid.Data3)
+	copy(buffer[offset+8:offset+16], guid.Data4[:])
 }
 
-// fwpmSession0 是 FWPM_SESSION0（fwpmtypes.h L129-L139）。
-type fwpmSession0 struct {
-	SessionKey         GUID
-	DisplayData        fwpmDisplayData0
-	Flags              uint32
-	TxnWaitTimeoutInMs uint32
-	ProcessId          uint32
-	_                  uint32
-	Sid                unsafe.Pointer
-	Username           *uint16
-	KernelMode         int32
-	_                  uint32
+// putPointer 在偏移处写一个 64 位指针/地址。
+func putPointer(buffer []byte, offset int, value uintptr) {
+	binary.LittleEndian.PutUint64(buffer[offset:], uint64(value))
 }
 
-// fwpByteBlob 是 FWP_BYTE_BLOB（fwptypes.h L151-L155）：4 字节 size + 对齐填充 + 指针。
-type fwpByteBlob struct {
-	Size uint32
-	_    uint32
-	Data unsafe.Pointer
+// putUTF16 在偏移处写一个 wchar_t*：字段本身是指针，指向的字符串另存。
+// 返回字符串的"存活引用"，由调用方 KeepAlive。
+func putUTF16(buffer []byte, offset int, text string) *uint16 {
+	value := windows.StringToUTF16Ptr(text)
+	putPointer(buffer, offset, uintptr(unsafe.Pointer(value)))
+	return value
 }
 
-// fwpValue0 是 FWP_VALUE0（fwptypes.h L165-L190）：类型 + 联合体。
-// 只用到 byteBlob 与 uint32 两种形态，统一按 8 字节承载。
-type fwpValue0 struct {
-	Type  uint32
-	_     uint32
-	Value uintptr
+// putByteBlob 在偏移处写一个 FWP_BYTE_BLOB 结构体，内容是 data 的地址与长度。
+// data 的所有权仍在调用方（WFP 只在调用期间读它）。
+func putByteBlob(buffer []byte, offset int, data []byte) {
+	binary.LittleEndian.PutUint32(buffer[offset:], uint32(len(data)))
+	if len(data) > 0 {
+		putPointer(buffer, offset+byteBlobData, uintptr(unsafe.Pointer(&data[0])))
+	}
 }
 
-// fwpmSubLayer0 是 FWPM_SUBLAYER0（fwpmtypes.h L355-L363）。
-type fwpmSubLayer0 struct {
-	SubLayerKey  GUID
-	DisplayData  fwpmDisplayData0
-	Flags        uint32
-	_            uint32
-	ProviderKey  unsafe.Pointer
-	ProviderData fwpByteBlob
-	Weight       uint16
-	_            [6]byte
+// putValueUint8 在偏移处写 FWP_VALUE0{type: FWP_UINT8, value: n}。
+func putValueUint8(buffer []byte, offset int, n uint8) {
+	binary.LittleEndian.PutUint32(buffer[offset:], DataTypeUint8)
+	buffer[offset+valueData] = n
 }
 
-// fwpmFilterCondition0 是 FWPM_FILTER_CONDITION0（fwpmtypes.h L463-L468）。
-type fwpmFilterCondition0 struct {
-	FieldKey       GUID
-	MatchType      int32
-	_              int32
-	ConditionValue fwpValue0
+// putValueUint32 在偏移处写 FWP_VALUE0{type: FWP_UINT32, value: n}。
+func putValueUint32(buffer []byte, offset int, n uint32) {
+	binary.LittleEndian.PutUint32(buffer[offset:], DataTypeUint32)
+	binary.LittleEndian.PutUint32(buffer[offset+valueData:], n)
 }
 
-// fwpmAction0 是 FWPM_ACTION0（fwpmtypes.h L452-L461）。
-type fwpmAction0 struct {
-	Type uint32
-	_    uint32
-	Guid GUID
+// putValueByteBlob 在偏移处写 FWP_VALUE0{type: FWP_BYTE_BLOB, value: p}（p 是 blob 的地址）。
+func putValueByteBlob(buffer []byte, offset int, blob uintptr) {
+	binary.LittleEndian.PutUint32(buffer[offset:], DataTypeByteBlob)
+	putPointer(buffer, offset+valueData, blob)
 }
 
-// fwpmFilter0 是 FWPM_FILTER0（fwpmtypes.h L486-L507）。
-type fwpmFilter0 struct {
-	FilterKey           GUID
-	DisplayData         fwpmDisplayData0
-	Flags               uint32
-	_                   uint32
-	ProviderKey         unsafe.Pointer
-	ProviderData        fwpByteBlob
-	LayerKey            GUID
-	SubLayerKey         GUID
-	Weight              fwpValue0
-	NumFilterConditions uint32
-	_                   uint32
-	FilterCondition     *fwpmFilterCondition0
-	Action              fwpmAction0
-	RawContext          uint64
-	Reserved            unsafe.Pointer
-	FilterId            uint64
-	EffectiveWeight     fwpValue0
+// buildSession 复刻 probe.cpp L48-L49 的 FWPM_SESSION0：
+// flags = FWPM_SESSION_FLAG_DYNAMIC，displayData.name = engineName，其余全 0
+// （nullptr 的 authnService/sessionKey 与 0 的 txnWaitTimeoutInMSec 就是默认行为）。
+func buildSession() ([]byte, *uint16) {
+	buffer := make([]byte, sessionSize)
+	binary.LittleEndian.PutUint32(buffer[sessionFlagsOff:], SessionFlagDynamic)
+	name := putUTF16(buffer, sessionDisplayOff+displayDataName, engineName)
+	return buffer, name
+}
+
+// buildSubLayer 复刻 probe.cpp L50 的 FWPM_SUBLAYER0：
+// subLayerKey = 随机 GUID，displayData.name = subLayerName，weight = 0xFFFF。
+func buildSubLayer(key GUID) ([]byte, *uint16) {
+	buffer := make([]byte, subLayerSize)
+	putGUID(buffer, subLayerKeyOff, key)
+	name := putUTF16(buffer, subLayerDisplayOff+displayDataName, subLayerName)
+	binary.LittleEndian.PutUint16(buffer[subLayerWeightOff:], subLayerWeight)
+	return buffer, name
+}
+
+// buildFilter 复刻 probe.cpp L55-L59 的 FWPM_FILTER0：
+// 层/子层、block 动作、FWP_UINT8=15 权重、numFilterConditions 条条件。
+//
+// conditions 是已经按布局码好的 FWPM_FILTER_CONDITION0 字节（每条 conditionSize 字节，
+// 连在一起）；appIDBlob 是条件里引用到的 blob 缓冲（调用方持有，调用期间存活）。
+func buildFilter(spec FilterLayer, conditions []byte, count int) ([]byte, *uint16) {
+	buffer := make([]byte, filterSize)
+	name := putUTF16(buffer, filterDisplayOff+displayDataName, spec.FilterName)
+	putGUID(buffer, filterLayerKeyOff, spec.Layer)
+	putGUID(buffer, filterSubLayerKeyOf, spec.SubLayer)
+	putValueUint8(buffer, filterWeightOff, spec.Weight)
+	binary.LittleEndian.PutUint32(buffer[filterNumCondOff:], uint32(count))
+	if count > 0 && len(conditions) > 0 {
+		putPointer(buffer, filterConditionsOff, uintptr(unsafe.Pointer(&conditions[0])))
+	}
+	binary.LittleEndian.PutUint32(buffer[filterActionOff:], spec.Action)
+	return buffer, name
 }
 
 // Install 装隔离。返回的 Installation.Installed 为假时，调用方必须回退 probe.exe。
@@ -155,14 +265,17 @@ func Install(spec Spec) (Installation, error) {
 	if spec.WalkRoot && spec.Root != "" {
 		walked, err := WalkApps(spec.Root)
 		if err != nil {
-			return Installation{}, fmt.Errorf("扫描客户端目录里的 .exe/.aes 失败：%w", err)
+			reason := fmt.Sprintf("扫描客户端目录里的 .exe/.aes 失败：%v", err)
+			return Installation{Reason: reason}, fmt.Errorf("%s", reason)
 		}
 		apps = append(apps, walked...)
 	}
 
 	engine, subLayer, err := openEngine()
 	if err != nil {
-		return Installation{}, err
+		// 没装上：Reason 必须写清楚 —— 调用方（clientrun.go）把它写进日志，
+		// 那是"这次到底有没有隔离"的唯一证据。
+		return Installation{Reason: err.Error()}, err
 	}
 	handle := &winHandle{engine: engine, subLayer: subLayer}
 	result := Installation{
@@ -171,10 +284,10 @@ func Install(spec Spec) (Installation, error) {
 		Reason:    "WFP 隔离已安装",
 		AppIDs:    make([]AppEntry, 0, len(apps)),
 	}
-	// 任何一步失败都把已经装上的部分拆干净，再把错误交给调用方。
+	// 任何一步失败都把已经装上的部分拆干净，再把错误交给调用方（Reason 一起给出）。
 	fail := func(stepErr error) (Installation, error) {
 		_ = handle.Close()
-		return Installation{}, stepErr
+		return Installation{Reason: stepErr.Error()}, stepErr
 	}
 
 	seen := map[string]bool{}
@@ -216,19 +329,23 @@ func supported() bool {
 }
 
 // openEngine 复刻 probe.cpp L47-L52：动态会话 + 本次的子层。
+//
+// ⚠️ 这些字节缓冲是**唯一**被 WFP 引用的对象，且只能通过 unsafe.Pointer 暴露给系统调用
+// （uintptr 形式对 GC 不可见）。所以必须在每个 Call 之后再写一次 `runtime.KeepAlive(session)`
+// —— 而且要在**错误分支之前**，否则拿到错误码后走 `return` 时缓冲已经可以回收，等于
+// 让 WFP 读一段随时会消失的内存（本机实测会直接 access violation）。
 func openEngine() (windows.Handle, GUID, error) {
-	var session fwpmSession0
-	session.Flags = SessionFlagDynamic
-	session.DisplayData.Name = windows.StringToUTF16Ptr(engineName)
-
+	session, sessionName := buildSession()
 	var engine windows.Handle
 	status, _, _ := procFwpmEngineOpen0.Call(
 		0,
 		uintptr(AuthnWinnt),
 		0,
-		uintptr(unsafe.Pointer(&session)),
+		uintptr(unsafe.Pointer(&session[0])),
 		uintptr(unsafe.Pointer(&engine)),
 	)
+	runtime.KeepAlive(session)
+	runtime.KeepAlive(sessionName)
 	if status != 0 {
 		return 0, GUID{}, fmt.Errorf("FwpmEngineOpen0 失败：%s；%s",
 			win32Error(status), privilegeHint(status))
@@ -239,87 +356,73 @@ func openEngine() (windows.Handle, GUID, error) {
 		_ = closeEngine(engine)
 		return 0, GUID{}, fmt.Errorf("生成子层 GUID 失败：%w", err)
 	}
-	var layer fwpmSubLayer0
-	layer.SubLayerKey = subLayer
-	layer.Weight = subLayerWeight
-	layer.DisplayData.Name = windows.StringToUTF16Ptr(subLayerName)
-	if status, _, _ := procFwpmSubLayerAdd0.Call(
+	layer, layerName := buildSubLayer(subLayer)
+	layerStatus, _, _ := procFwpmSubLayerAdd0.Call(
 		uintptr(engine),
-		uintptr(unsafe.Pointer(&layer)),
+		uintptr(unsafe.Pointer(&layer[0])),
 		0,
-	); status != 0 {
+	)
+	runtime.KeepAlive(layer)
+	runtime.KeepAlive(layerName)
+	if layerStatus != 0 {
 		_ = closeEngine(engine)
 		return 0, GUID{}, fmt.Errorf("FwpmSubLayerAdd0 失败：%s；%s",
-			win32Error(status), privilegeHint(status))
+			win32Error(layerStatus), privilegeHint(layerStatus))
 	}
 	return engine, subLayer, nil
 }
 
 // addFilter 复刻 probe.cpp L58-L59 的一次 FwpmFilterAdd0。
 //
-// appID 是 ALE_APP_ID 条件的 blob 字节：它在调用期间必须保持存活。FwpmFilterAdd0
-// 返回时已经把内容拷进内核，所以调用之后就可以回收 —— 但**必须**让编译器知道
-// （runtime.KeepAlive），否则 blob 可能在 Call 返回前就被判定为死。
-func addFilter(engine windows.Handle, filter FilterLayer, appID []byte) error {
-	blob := fwpByteBlob{Size: uint32(len(appID))}
-	if len(appID) > 0 {
-		blob.Data = unsafe.Pointer(&appID[0])
-	}
+// 所有缓冲（条件数组、APP_ID blob、过滤器本体、显示名）都在本函数的栈帧里，
+// 调用期间保持存活；FwpmFilterAdd0 返回时已经把内容拷进内核，之后即可回收。
+func addFilter(engine windows.Handle, spec FilterLayer, appID []byte) error {
+	// APP_ID blob 本体：FWP_BYTE_BLOB 结构 + 它指向的字节。
+	blobBuffer := make([]byte, byteBlobSize)
+	putByteBlob(blobBuffer, 0, appID)
 
-	conditions := make([]fwpmFilterCondition0, 0, len(filter.Conditions))
-	for _, condition := range filter.Conditions {
-		built := fwpmFilterCondition0{
-			FieldKey:  condition.FieldKey,
-			MatchType: int32(condition.MatchType),
-		}
+	// 条件数组：每条 24 字节，连着放。
+	conditions := make([]byte, conditionSize*len(spec.Conditions))
+	for index, condition := range spec.Conditions {
+		at := index * conditionSize
+		putGUID(conditions, at+conditionField, condition.FieldKey)
+		binary.LittleEndian.PutUint32(conditions[at+conditionMatch:], condition.MatchType)
 		switch condition.ValueType {
 		case DataTypeByteBlob:
-			built.ConditionValue.Type = DataTypeByteBlob
-			built.ConditionValue.Value = uintptr(unsafe.Pointer(&blob))
+			putValueByteBlob(conditions, at+conditionValueAt, uintptr(unsafe.Pointer(&blobBuffer[0])))
 		case DataTypeUint32:
-			built.ConditionValue.Type = DataTypeUint32
-			built.ConditionValue.Value = uintptr(condition.Uint32)
+			putValueUint32(conditions, at+conditionValueAt, condition.Uint32)
 		default:
 			return fmt.Errorf("不支持的 WFP 条件值类型 %d", condition.ValueType)
 		}
-		conditions = append(conditions, built)
 	}
 
-	var entry fwpmFilter0
-	entry.DisplayData.Name = windows.StringToUTF16Ptr(filter.FilterName)
-	entry.LayerKey = filter.Layer
-	entry.SubLayerKey = filter.SubLayer
-	entry.NumFilterConditions = uint32(len(conditions))
-	entry.Weight.Type = filter.WeightType
-	entry.Weight.Value = uintptr(filter.Weight)
-	entry.Action.Type = filter.Action
-	if len(conditions) > 0 {
-		entry.FilterCondition = &conditions[0]
-	}
-
+	filter, filterName := buildFilter(spec, conditions, len(spec.Conditions))
 	var filterID uint64
 	status, _, _ := procFwpmFilterAdd0.Call(
 		uintptr(engine),
-		uintptr(unsafe.Pointer(&entry)),
+		uintptr(unsafe.Pointer(&filter[0])),
 		0,
 		uintptr(unsafe.Pointer(&filterID)),
 	)
+	// 先 KeepAlive 再判错误：走错误分支 return 之后，这些缓冲就再没有 Go 侧的引用了。
+	runtime.KeepAlive(filter)
+	runtime.KeepAlive(filterName)
 	runtime.KeepAlive(conditions)
+	runtime.KeepAlive(blobBuffer)
 	runtime.KeepAlive(appID)
-	runtime.KeepAlive(&blob)
 	if status != 0 {
 		return fmt.Errorf("FwpmFilterAdd0 失败（层 %s）：%s；%s",
-			filter.Name, win32Error(status), privilegeHint(status))
+			spec.Name, win32Error(status), privilegeHint(status))
 	}
 	return nil
 }
 
 // ptrFromUintptr 把系统 API 返回的地址变成指针。
 //
-// 为什么绕一下：`go vet` 的 unsafeptr 检查会拦"uintptr 直接转 unsafe.Pointer"（因为 uintptr
-// 只是一个整数，GC 不认它，见 unsafe 文档）。WFP 在 FwpmGetAppIdFromFileName0 里分配的这块
-// blob 归本函数持有、直到 FwpmFreeMemory0 之前都不会移动，语义上是安全的；这里把转换集中到
-// 一处并写明前提，既过 vet，也避免以后有人到处直接转。
+// 为什么绕一下：`go vet` 的 unsafeptr 检查会拦"uintptr 直接转 unsafe.Pointer"（uintptr 只是整数，
+// GC 不认它）。这些地址来自 WFP 自己的分配，在本函数持有到 FwpmFreeMemory0 之前不会移动，语义安全；
+// 把转换集中到一处并写明前提，既过 vet，也避免以后到处直接转。
 func ptrFromUintptr(u uintptr) unsafe.Pointer {
 	return *(*unsafe.Pointer)(unsafe.Pointer(&u))
 }
@@ -335,6 +438,7 @@ func appIDFromFileName(path string) ([]byte, error) {
 		uintptr(unsafe.Pointer(name)),
 		uintptr(unsafe.Pointer(&raw)),
 	)
+	runtime.KeepAlive(name)
 	if status != 0 {
 		return nil, fmt.Errorf("FwpmGetAppIdFromFileName0 失败：%s；%s（路径 %s）",
 			win32Error(status), privilegeHint(status), path)
@@ -344,15 +448,22 @@ func appIDFromFileName(path string) ([]byte, error) {
 	}
 	defer procFwpmFreeMemory0.Call(uintptr(unsafe.Pointer(&raw)))
 
-	blob := (*fwpByteBlob)(ptrFromUintptr(raw))
-	if blob.Data == nil || blob.Size == 0 {
+	// WFP 分配的 FWP_BYTE_BLOB：size 在前、data 指针在后。这块内存归本函数持有，
+	// 直到 FwpmFreeMemory0 之前都不会移动，所以直接按偏移读是安全的。
+	blob := unsafe.Slice((*byte)(ptrFromUintptr(raw)), blobSizeRead)
+	size := binary.LittleEndian.Uint32(blob[byteBlobLen:])
+	dataPointer := binary.LittleEndian.Uint64(blob[byteBlobData:])
+	if size == 0 || dataPointer == 0 {
 		return nil, fmt.Errorf("APP_ID blob 是空的（路径 %s）", path)
 	}
-	encoded := unsafe.Slice((*byte)(blob.Data), blob.Size)
+	encoded := unsafe.Slice((*byte)(ptrFromUintptr(uintptr(dataPointer))), size)
 	out := make([]byte, len(encoded))
 	copy(out, encoded)
 	return out, nil
 }
+
+// blobSizeRead 是读 FWP_BYTE_BLOB 头部需要的最小字节数（size + 填充 + 指针）。
+const blobSizeRead = 16
 
 // winHandle 是一次已生效的隔离：引擎句柄 + 本次的子层 GUID + 幂等的 Close。
 type winHandle struct {
@@ -374,10 +485,12 @@ func (h *winHandle) Close() error {
 	}
 	h.closed = true
 	// 动态会话里这一步通常返回"找不到"，不算错误；真正的失败是关不掉引擎句柄。
-	procFwpmSubLayerDeleteByKey0.Call(
-		uintptr(h.engine),
-		uintptr(unsafe.Pointer(&h.subLayer)),
-	)
+	if supported() {
+		procFwpmSubLayerDeleteByKey0.Call(
+			uintptr(h.engine),
+			uintptr(unsafe.Pointer(&h.subLayer)),
+		)
+	}
 	h.err = closeEngine(h.engine)
 	h.engine = 0
 	return h.err

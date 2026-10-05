@@ -108,15 +108,6 @@ func probeClientDir(env *childEnv, probeDir string) string {
 	return filepath.Join(probeDir, "dfo_probe_client")
 }
 
-// probeClientDirWarning 是 channel_probe.py L616-L617 那行：probe 在写 client.log 之前就
-// 退出（返回码 3）时，这行是分辨"目录给错了"还是"被安全软件拦了"的唯一线索。
-func probeClientDirWarning(clientDir string) string {
-	if regularFile(filepath.Join(clientDir, "DFO.exe")) {
-		return ""
-	}
-	return "WARNING: probe cannot see DFO.exe under client dir: " + clientDir
-}
-
 // probeArgv 复刻 channel_probe.py L633-L650 的参数序，与 L618-L632 打印出来的完全一致。
 func probeArgv(probeExe, clientDir, out, uiMode, payload string) []string {
 	return []string{
@@ -154,6 +145,42 @@ func probeExitLines(code int, clientDir string) []string {
 				" on real machines this usually means security software blocked probe.exe)")
 	}
 	return lines
+}
+
+// probeFallbackEnvKey 是"强制走 probe.exe"的开关：验收要能确定地走回退路径
+// （probe.exe 的 WFP 隔离需要管理员权限，Go 版能装上的机器上没法靠权限逼出回退）。
+const probeFallbackEnvKey = "DFO_FORCE_PROBE_EXE"
+
+// requireGoIsolationEnvKey 是"不许回退"的开关：置 1 时 Go 隔离装不上就直接失败，
+// 而不是回退 probe.exe。涉及网络隔离时这是最严的口径（业主可以据此起一套只认 Go 隔离
+// 的环境），默认不设，保持 probe.exe 作为回退。
+const requireGoIsolationEnvKey = "DFO_REQUIRE_GO_ISOLATION"
+
+// forceProbeFallback 报告这次是否被显式要求走 probe.exe。
+func forceProbeFallback(env *childEnv) bool {
+	if env == nil || !env.Has(probeFallbackEnvKey) {
+		return false
+	}
+	value := strings.TrimSpace(env.Get(probeFallbackEnvKey))
+	return value != "" && value != "0"
+}
+
+// requireGoIsolation 报告这次是否禁止回退。
+func requireGoIsolation(env *childEnv) bool {
+	if env == nil || !env.Has(requireGoIsolationEnvKey) {
+		return false
+	}
+	value := strings.TrimSpace(env.Get(requireGoIsolationEnvKey))
+	return value != "" && value != "0"
+}
+
+// probeClientDirWarning 是 channel_probe.py L616-L617 那行：probe 在写 client.log 之前就
+// 退出（返回码 3）时，这行是分辨"目录给错了"还是"被安全软件拦了"的唯一线索。
+func probeClientDirWarning(clientDir string) string {
+	if regularFile(filepath.Join(clientDir, "DFO.exe")) {
+		return ""
+	}
+	return "WARNING: probe cannot see DFO.exe under client dir: " + clientDir
 }
 
 // pythonJSONString 用的是 Stage 2 fixture.go 里那一份（json.dumps ensure_ascii=True 的
@@ -225,8 +252,8 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 	appendLogFile(filepath.Join(out, "gateway.out"), commandLine)
 	fmt.Fprintln(console, commandLine)
 
-	// 4. 拉起 probe（L633-L650）。cwd 与网关一致（launch_local.py 给 helper 的 cwd 是 server\，
-	//    probe 继承它）；stdout/stderr 接到 helper.out / helper.err，与 Python 的继承等价。
+	// 4. 拉起客户端。**首选 Go 隔离 + Go 宿主**（Stage 3 的最后一块，见 clienthost.go）；
+	//    隔离装不上 / 非 Windows / 被显式要求回退时走 probe.exe，那条路一行没改。
 	probeOut, err := os.OpenFile(helperOut, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return fmt.Errorf("打开 helper.out 失败：%w", err)
@@ -238,23 +265,71 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 	}
 	defer probeErr.Close()
 
-	cmd := exec.Command(argv[0], argv[1:]...)
-	cmd.Dir = filepath.Join(root, "server")
-	cmd.Env = run.Env.List()
-	cmd.Stdout = probeOut
-	cmd.Stderr = probeErr
-	hideConsoleWindow(cmd)
-	probe, err := startChild(cmd)
-	if err != nil {
-		// Python 在 except 里 raise RuntimeError(command)，command 是**网关**命令行
-		// （启动器那侧真正要看的参数），这里沿用同一口径。
-		return fmt.Errorf("拉起 probe.exe 失败：%w\n命令行：%s\n网关命令行：%s",
-			err, commandLine, run.CommandLine)
+	// 客户端进程的 pid 与退出码在两条路上是同一个含义（run.json / probe.json 读它）。
+	var clientPID, clientExit int
+	// tryGoHost：只有 DFO_FORCE_PROBE_EXE 会在这里直接挡掉 Go 路径；能不能装隔离要
+	// 等 startHostedClient 试过才知道（下面按"有没有装上"分流）。
+	tryGoHost := !forceProbeFallback(run.Env)
+	var hostAttempt *HostedClient
+	var hostErr error
+	var hostCode int
+	if tryGoHost {
+		hostAttempt, hostCode, hostErr = startHostedClient(ClientHostOptions{
+			ClientDir:       clientDir,
+			LogPath:         filepath.Join(out, "client.log"),
+			Seconds:         55,
+			UIMode:          probeUIMode(mode),
+			BreakpointsFile: filepath.Join(out, "breakpoints.txt"),
+			Args:            []string{payload},
+			Env:             run.Env.List(),
+			Console:         probeOut,
+		}, true)
+		if hostErr == nil {
+			// 客户端已经退出、Job 已收、隔离已拆。pid 与退出码照实上报。
+			clientPID, clientExit = hostAttempt.Pid, hostAttempt.ExitCode
+			writeHelperLine(console, helperOut, wfpIsolationLine(hostAttempt))
+		} else if hostCode != exitClientHostMissingExe && hostAttempt != nil && hostAttempt.Isolated {
+			// 隔离装上了却起不了客户端：**不**回退 probe.exe（那会叠第二份隔离），
+			// 如实报错，让调用方看见。
+			return fmt.Errorf("Go 客户端宿主失败（已装的 WFP 隔离已拆除）：%w\n客户端目录：%s",
+				hostErr, clientDir)
+		}
+	}
+	if clientPID == 0 && clientExit != exitClientHostMissingExe {
+		// 走到这里有两种情形，处置相同：回退 probe.exe。
+		//   1. 本机装不上 Go 隔离（非 Windows / 缺 API / 无管理员权限 / 装过滤器失败）；
+		//   2. 被 DFO_FORCE_PROBE_EXE 显式要求回退（验收与排障用）。
+		if requireGoIsolation(run.Env) && !forceProbeFallback(run.Env) {
+			// 最严口径：不许回退。装不上隔离就是启动失败，绝不静默放行。
+			return fmt.Errorf("DFO_REQUIRE_GO_ISOLATION=1 且 Go 隔离不可用，拒绝以无隔离方式启动客户端："+
+				"%v\n客户端目录：%s", hostErr, clientDir)
+		}
+		if !forceProbeFallback(run.Env) {
+			reason := "Go 隔离不可用"
+			if hostErr != nil {
+				reason = hostErr.Error()
+			}
+			writeHelperLine(console, helperOut, "WFP 隔离：回退 probe.exe（"+reason+"）")
+		} else {
+			writeHelperLine(console, helperOut, "WFP 隔离：回退 probe.exe（"+wfpProbeIsolationReason(run.Env)+"）")
+		}
+		pid, code, fallbackErr := runProbeHost(run, root, argv, probeOut, probeErr, mode)
+		if fallbackErr != nil {
+			return fallbackErr
+		}
+		clientPID, clientExit = pid, code
+	} else if clientExit == exitClientHostMissingExe {
+		// Go 宿主在写 client.log 之前就发现看不到 DFO.exe（与 probe.exe 的返回码 3 同一语义）。
+		// 这一步不是"隔离装不上"，所以不叠第二份隔离，也不回退 probe.exe。
+		writeHelperLine(console, helperOut,
+			"WFP 隔离：Go 版；宿主看不到 DFO.exe，按 probe.exe 的返回码 3 收场")
+		clientPID, clientExit = 0, exitClientHostMissingExe
 	}
 
-	// 5. run.json 这次多一个 probe_pid（L651-L653）。
+	// 5. run.json 这次多一个 probe_pid（L651-L653）。Go 宿主跑在启动器进程里，
+	//    probe_pid 就是客户端进程自己（probe.exe 那一路是 probe.exe 的 pid）。
 	if err := os.WriteFile(filepath.Join(out, "run.json"),
-		[]byte(sessionRunJSON(run.Child.pid(), probe.pid(), run.Port)), 0o644); err != nil {
+		[]byte(sessionRunJSON(run.Child.pid(), clientPID, run.Port)), 0o644); err != nil {
 		return fmt.Errorf("写 run.json 失败：%w", err)
 	}
 	// launch_local.py 一看到 run.json 就返回成功（L315-L325），这两行必须紧跟着出现。
@@ -266,34 +341,74 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 	// 迁移要去掉的东西；而且 launch_local.py L297 固定注入 DFO_ENABLE_OBSERVER=0，从启动器
 	// 出发根本不可达。真需要观察者时应当是独立决定（Go 版或保留 Python 入口），不塞进这里。
 
-	// 6. 等 probe 退出（L673）。
+	// 6. probe.json 与退出码告警（L677-L694）。probe.json 先落盘，再打告警。
+	if err := os.WriteFile(filepath.Join(out, "probe.json"),
+		[]byte(probeReportJSON(clientPID, clientExit, clientDir, payload)), 0o644); err != nil {
+		return fmt.Errorf("写 probe.json 失败：%w", err)
+	}
+	for _, line := range probeExitLines(clientExit, clientDir) {
+		writeHelperLine(console, helperOut, line)
+	}
+
+	// 7. Python 的 finally：网关还活着就 terminate 并等最多 5 秒。trace 在它之后。
+	stopGateway()
+
+	// 8. 客户端 trace 与最后一行 out 绝对路径（L701-L721）。
+	printClientTrace(helperOut, out)
+	writeHelperLine(console, helperOut, out)
+	return nil
+}
+
+// wfpProbeIsolationReason 报告"为什么回退到 probe.exe"，写进日志用。
+func wfpProbeIsolationReason(env *childEnv) string {
+	if forceProbeFallback(env) {
+		return "DFO_FORCE_PROBE_EXE=1：按要求强制走 probe.exe"
+	}
+	if requireGoIsolation(env) {
+		return "DFO_REQUIRE_GO_ISOLATION=1：禁止回退，Go 隔离不可用即失败"
+	}
+	return "Go 隔离不可用（非 Windows / 缺 API / 无管理员权限 / 装过滤器失败）"
+}
+
+// runProbeHost 是回退路径：拉起 probe.exe 并等它退出（channel_probe.py L633-L694）。
+// 一行没改的原有行为，只是从 LaunchClient 里抽出来，好让两条路在同一个函数里对照。
+//
+// 返回 (probe_pid, probe_returncode, error)。超时（非 interactive 模式）沿用 Python 的
+// 语义：**不杀** probe，只把网关收掉并把命令行带进错误 —— 所以那一支返回错误，
+// 调用方直接返回，probe.json 不会写（与 Python 的 TimeoutExpired 一样）。
+func runProbeHost(
+	run *sessionRun,
+	root string,
+	argv []string,
+	probeOut, probeErr *os.File,
+	mode helperMode,
+) (int, int, error) {
+	commandLine := strings.Join(argv, " ")
+	cmd := exec.Command(argv[0], argv[1:]...)
+	// cwd 与网关一致（launch_local.py 给 helper 的 cwd 是 server\，probe 继承它）。
+	cmd.Dir = filepath.Join(root, "server")
+	cmd.Env = run.Env.List()
+	cmd.Stdout = probeOut
+	cmd.Stderr = probeErr
+	hideConsoleWindow(cmd)
+	probe, err := startChild(cmd)
+	if err != nil {
+		// Python 在 except 里 raise RuntimeError(command)，command 是**网关**命令行
+		// （启动器那侧真正要看的参数），这里沿用同一口径。
+		return 0, 0, fmt.Errorf("拉起 probe.exe 失败：%w\n命令行：%s\n网关命令行：%s",
+			err, commandLine, run.CommandLine)
+	}
 	if timeout, bounded := mode.probeWaitTimeout(); bounded {
 		if !probe.waitTimeout(timeout) {
 			// Python 的 subprocess.TimeoutExpired：probe 还活着，Python **不杀它**（finally
 			// 只收网关），这里也不杀，只把网关收掉并把命令行带进错误，语义保持一致。
-			return fmt.Errorf("probe.exe 在 %s 内没有退出。\n网关命令行：%s", timeout, run.CommandLine)
+			return probe.pid(), -1, fmt.Errorf("probe.exe 在 %s 内没有退出。\n网关命令行：%s",
+				timeout, run.CommandLine)
 		}
 	} else {
 		probe.reap()
 	}
-	code := probe.exitCode()
-
-	// 7. probe.json 与退出码告警（L677-L694）。probe.json 先落盘，再打告警。
-	if err := os.WriteFile(filepath.Join(out, "probe.json"),
-		[]byte(probeReportJSON(probe.pid(), code, clientDir, payload)), 0o644); err != nil {
-		return fmt.Errorf("写 probe.json 失败：%w", err)
-	}
-	for _, line := range probeExitLines(code, clientDir) {
-		writeHelperLine(console, helperOut, line)
-	}
-
-	// 8. Python 的 finally：网关还活着就 terminate 并等最多 5 秒。trace 在它之后。
-	stopGateway()
-
-	// 9. 客户端 trace 与最后一行 out 绝对路径（L701-L721）。
-	printClientTrace(helperOut, out)
-	writeHelperLine(console, helperOut, out)
-	return nil
+	return probe.pid(), probe.exitCode(), nil
 }
 
 // writeHelperLine 把 helper 侧的一行写进 helper.out 并回显到 console（命令行的两行、客户端

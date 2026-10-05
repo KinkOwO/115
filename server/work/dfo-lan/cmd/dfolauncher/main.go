@@ -31,6 +31,8 @@ func main() {
 		os.Exit(runStartStorage(os.Args[2:]))
 	case "prepare-inner-pvf":
 		os.Exit(runPrepareInnerPVF(os.Args[2:]))
+	case hostClientSubcommand:
+		os.Exit(runHostClient(os.Args[1:]))
 	case "-h", "--help", "help":
 		usage()
 		os.Exit(0)
@@ -39,6 +41,41 @@ func main() {
 		usage()
 		os.Exit(2)
 	}
+}
+
+// hostClientSubcommand 是 Go 宿主的入口名，取值与 probe.exe 的用法**同形**：
+//
+//	dfolauncher --host-client <client_dir> <client.log> <seconds> <ui-mode> [payload...]
+//
+// 位置参数刻意与 probe.exe 的 argv 一一对应（第 5 个参数 breakpoints.txt 也留着占位），
+// 这样 clientrun.go 能把同一份实参交给两条路，也让"换成 Go 之后到底变了什么"只剩下
+// 包名这一处差异。probe.exe 收到 --host-client 同样能跑（它把 argv[1] 当客户端目录），
+// 所以真正的等价性不依赖这个开关。
+const hostClientSubcommand = "--host-client"
+
+// runHostClient 是 Go 版客户端宿主（probe.exe 的替代路径）。它自己装 WFP 隔离、
+// 拉起客户端、看护到退出、写 client.log，退出码语义与 probe.exe 对齐（0 正常，
+// 3 看不到 DFO.exe，7/11/12 是 Job/CreateProcess/Assign 失败）。
+//
+// 注意：这个入口**不**做 DFO_FORCE_PROBE_EXE / DFO_REQUIRE_GO_ISOLATION 的判断 ——
+// 安装隔离这件事由它自己按"装不上就优雅降级、日志写明没隔离"的 probe 口径处理。
+func runHostClient(args []string) int {
+	if len(args) < 5 {
+		fmt.Fprintln(os.Stderr, "usage: dfolauncher "+hostClientSubcommand+
+			" <client_dir> <client.log> <seconds> <ui-mode> [breakpoints.txt] [payload...]")
+		return 2
+	}
+	options, err := launcher.ParseHostClientArgv(args[1:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "host-client: %v\n", err)
+		return 2
+	}
+	options.Console = os.Stdout
+	code, err := launcher.RunClientHost(options)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "host-client: %v\n", err)
+	}
+	return code
 }
 
 func usage() {
@@ -82,10 +119,18 @@ says it is missing or stale; --dry-run never writes it.
 docs/go-launch-migration-plan.md): the protocol fixture, the gateway argv, ready.json
 and run.json are reproduced from channel_probe.py, so no Python is involved.
 
-interactive (the default) and --client-only additionally launch probe.exe with the same
+interactive (the default) and --client-only additionally launch the client with the same
 argv, run.json, probe.json, exit-code warnings and client-trace handling as
-channel_probe.py (Stage 3). DFO_ENABLE_OBSERVER is not implemented; it is a Python-only
-observer and the launcher always injects 0.
+channel_probe.py (Stage 3). The client runs under the Go WFP isolation
+(internal/wfpisolate) whenever it can be installed; otherwise the original probe.exe is
+used unchanged. DFO_FORCE_PROBE_EXE=1 forces the probe.exe path and
+DFO_REQUIRE_GO_ISOLATION=1 refuses to run without the Go isolation.
+DFO_ENABLE_OBSERVER is not implemented; it is a Python-only observer and the launcher
+always injects 0.
+
+--host-client is the Go client host itself (dfolauncher --host-client <client_dir>
+<client.log> <seconds> <ui-mode> [breakpoints.txt] [payload...]): the same positional
+arguments probe.exe takes, so the launcher can hand both paths the same argv.
 `)
 }
 
