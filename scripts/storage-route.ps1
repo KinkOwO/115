@@ -640,9 +640,15 @@ function Test-IsAdmin {
 # （2026-10-05 业主双击两个路线入口「直接闪退」的根因）。
 # 这里改用 .NET 参数表传 $PSCommandPath（真实 Unicode 字符串）⇒ 路径不会被重新解码。
 function Invoke-ElevatedSelf([string]$verb, [string[]]$rest) {
-    $args = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath, $verb) + $rest
+    # 变量名**不能**叫 `$args`：那是 PowerShell 的自动变量，赋值会被忽略/取到 null，
+    # 实测报错「Cannot validate argument on parameter 'ArgumentList' … contains a null value」
+    # （2026-10-05 业主第二次实机踩到）。`$pid`/`$home`/`$error` 同理，一律换名。
+    $elevatedArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath, $verb)
+    foreach ($item in @($rest)) {
+        if ($null -ne $item -and "$item" -ne '') { $elevatedArgs += "$item" }
+    }
     Write-Host '[提权] 正在以管理员身份重新运行本入口（WFP 网络隔离需要管理员）…' -ForegroundColor Cyan
-    $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList $args -Verb RunAs -Wait -PassThru -ErrorAction Stop
+    $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList $elevatedArgs -Verb RunAs -Wait -PassThru -ErrorAction Stop
     exit $proc.ExitCode
 }
 
@@ -666,10 +672,11 @@ try {
     # 需要管理员的只有「真启动游戏」；--dry-run/--check 是只读，不提权（方便排查）。
     $isEntryLaunch = $verb -in @('game-sqlite', 'game-postgres', 'game-current')
     $readOnly = @($extra | Where-Object { $_ -in @('--dry-run', '--check', '-h', '--help') }).Count -gt 0
+    # transcript 要在**提权之前**开：父进程这段（提权失败/被拒）也要留档，否则一闪而过又没证据。
+    if ($isEntryLaunch) { Start-EntryTranscript $verb }
     if ($isEntryLaunch -and -not $readOnly -and -not (Test-IsAdmin)) {
         Invoke-ElevatedSelf $verb $extra
     }
-    if ($isEntryLaunch) { Start-EntryTranscript $verb }
     switch ($verb) {
         'show' { Show-Current }
         'use' {
