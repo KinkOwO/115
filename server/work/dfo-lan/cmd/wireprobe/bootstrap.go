@@ -1577,7 +1577,9 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		return nil, nil, err
 	}
 	// Starter Boost 662 装配：目录来自 PVF 直读（preparePVFBoostUp），NOTI108 活动清单
-	// 只在开关打开时冻结一次。base=nil —— 本树从未下发过 108 的频道开放门，不伪造。
+	// 只在开关打开时冻结一次。表体是**频道门 + 活动行合并后的那一张**（见
+	// event_info_variant.go）：客户端对 108 是整表替换，只发活动行的第二条会被
+	// 进城那条频道门表抹掉，城里就没有活动礼物图标。
 	var boostCatalog *boostup.Catalog
 	var boostEventInfo []byte
 	if startup.BoostUpEvent {
@@ -1592,9 +1594,11 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		} else if characters == nil || lootService == nil || worldService == nil {
 			return nil, nil, errors.New("Starter Boost 需要持久化角色、掉落与世界服务")
 		} else {
-			rows, e := protocol.BoostOpeningEvents115(0, boostup.EventEnd, startup.BoostUpChallenge)
-			if e != nil {
-				return nil, nil, e
+			// 选角（CMD8）与进城 announce 发同一条表；参考实现
+			// `活动Boost与胶囊教学-20260927` 的两个发送点用的也是同一个快照。
+			rows, ok := buildTownEventInfoTable(startup.BoostUpChallenge)
+			if !ok {
+				return nil, nil, errors.New("Starter Boost 事件表合并失败（频道门表形状异常）")
 			}
 			boostCatalog, boostEventInfo = pvfCatalogs.BoostUp, rows
 			characters.Boost = boostCatalog

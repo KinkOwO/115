@@ -327,7 +327,9 @@ type EquipmentTransformReceipt struct {
 //
 //  1. 目标必须**已在装备库登记**（`Journal.Counts[target] != 0`）。这是**规格**不是兜底：
 //     图鉴窗口列的只有已登记条目（与 CreateEquipment 同一条规矩）。
-//  2. 成本按目标的**档位**（`[grade]` + `[rarity]`）从 `[create cost]` 里取；
+//  2. 成本按目标的**稀有度**从源 `etc/115lvability/equipmenttransformsystem.cos` 的
+//     `[need materials]` 里取（**不是** `[create cost]` —— 那张表按**件**定价，是生成用的；
+//     两张表口径不同，正是第 10 关免单要按件谓词判的原因，见 PrepareEquipmentTransform）；
 //     付法序号就是请求头 `[13]`（`PayOption`），**照它扣，不回退**（见 pickCraftCost）。
 //  3. 逐件扣料，然后把 `worn[slot]` 的模板换成目标 —— 见 applyTransform 说明保留/清空哪些字段。
 //
@@ -340,6 +342,12 @@ type transformStep struct {
 	from    uint32
 	to      uint32
 	bagSlot uint16 // 0 = 源在身上；非 0 = 源在背包装备区的这个槽
+	// unpriced 表示**源里没有这件的 `[create cost]` 条目**（`[item index]` 精确查找未命中）
+	// —— 与生成路径 `EquipmentCraftPlan.Unpriced` **同一个按件谓词**。
+	// 变换表 `[need materials]` 是按**稀有度**分档的，所以只看那张表会把"源里根本没定价的
+	// 教学件"按它所属稀有度收钱；教学轨道内要按这个按件谓词免单，见
+	// PrepareEquipmentTransform 的「教学免单」分支。
+	unpriced bool
 }
 
 type EquipmentTransformPlan struct {
@@ -416,7 +424,10 @@ func (s *ItemService) PlanEquipmentTransform(role Role, slots, templates []uint3
 			result.Skipped = append(result.Skipped, target)
 			continue
 		}
-		plans = append(plans, transformStep{slot: slot, from: from, to: target, bagSlot: bagSlot})
+		// 按件记下"源里有没有这件的成本条目"（与生成路径同谓词）。
+		// `GroupFor` 返回 (近似档, 是否精确命中)；精确未命中 ⇒ 源里没有这件 ⇒ 教学期免单。
+		_, exact := s.CreateCost.GroupFor(target)
+		plans = append(plans, transformStep{slot: slot, from: from, to: target, bagSlot: bagSlot, unpriced: !exact})
 	}
 	if len(plans) == 0 {
 		// 把逐件判定写进错误串：2026-09-30 03:06 那次日志只说了 "nothing transformable"，
@@ -475,19 +486,30 @@ func (s *ItemService) PrepareEquipmentTransform(current Role, accountRaw json.Ra
 		// rare..epic 一直多扣金币（源是 25000/30000/35000/40000）。现在整表直读。
 		var pay transformPayment
 		pay, e = s.transformPayment(catalog.TransformChainEquipment, p.to, plan.PayOption)
-		if e != nil {
-			// ★ 教学免单：662 训练轨道内的装备库变换**不收成本**。
-			// 依据（业主 2026-10-04 明确要求）：第 10 关的教学目标就是让玩家走一遍装备变换，
-			// 客户端界面把成本显示为 0（实机截图「金币免费」），而源表 `[need materials]`
-			// 对 legendary 仍写着「登记证×1 + 35,000 金币 / 融合石×7」—— 学员号 0 金币、
-			// 无登记证无融合石，照源扣必然付不起；2259 又不能回拒绝包（回 Error 会让客户端
-			// `exit=0xC0000005`）⇒ 界面「点了没反应」，教学卡死。
-			// ⚠️ 刻意偏离源，只作用于训练轨道（`bag.TutorialMode()`）；出关后同一件按源扣。
-			if !live.TutorialMode() {
-				result.Skipped = append(result.Skipped, p.to)
-				continue
-			}
+		// ★ 教学免单：662 训练轨道内，**源里没有这件成本条目**的目标按 0 材料 / 0 金币执行。
+		//
+		// 为什么必须用按件谓词（`p.unpriced`）而不是"算不出成本"：变换表 `[need materials]`
+		// 是**按稀有度**分档的。第 10 关教学件 `100051285` 在 `[create cost]` 里根本没有条目
+		// （PVF 投影 `configs/equipment-create-cost.generated.json` 全表查无此件），
+		// 却因稀有度是 legendary 而命中「登记证×1 + 35,000 金币 / 融合石×7」——
+		// 实机 2026-10-06 03:15:20 就是这么被拒的：
+		//
+		//	equipment craft open: panel=36 context=0x551afe0 action=0 pay_option=1 slots=[14] templates=[100051285]
+		//	equipment craft TRANSFORM-REFUSED: requested=1: need 35000 gold, have 6973 in bag + 0 in vault
+		//
+		// 客户端对同一件显示的却是 **FREE**（实机截图：材料行 FREE、金币不扣）⇒ L0 口径就是 0。
+		// 且 2259 没有拒绝分支（回 Error 客户端 `exit=0xC0000005`）⇒ 拒绝等于"点了没反应"，
+		// 界面只做本地乐观更新、退出重读就打回 —— 教学卡在第 10 关。
+		//
+		// ⚠️ 与生成路径一致，这是**刻意偏离原生源**；只作用于训练轨道（`live.TutorialMode()`），
+		// 出关后同一件仍按源扣。原来的"算不出成本也免单"作为兜底保留（表未装载等情况）。
+		tutorialFree := live.TutorialMode() && (p.unpriced || e != nil)
+		switch {
+		case tutorialFree:
 			pay = transformPayment{Option: plan.PayOption}
+		case e != nil:
+			result.Skipped = append(result.Skipped, p.to)
+			continue
 		}
 		affordable := true
 		for _, m := range pay.AccountMats {

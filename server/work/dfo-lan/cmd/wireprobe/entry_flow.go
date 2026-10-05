@@ -281,15 +281,16 @@ func (p entryPayloads) packets() []outboundPacket {
 		// here even though s4 does not repeat it).
 		{"weekly_dungeon_info_sent", 0, 706, weeklyDungeonInfoTable},
 		// The NOTI108 EVENT_INFO table. Official post-selection order is
-		// 706 -> 108 -> STAMINA(4) -> 537, and the body is the fixed 54-byte
-		// raw table (event_info_generated.go) established by the round-11
-		// differential probe experiment (next79 §15-§16): zlib containers
-		// and multi-record raw tables both trigger CMD217
-		// ENUM_CMDPACKET_OVERFLOW_INFO and freeze this client, while this
-		// exact body parses AND the legion-tab gate then opens Ispins
-		// (probe V3 verdict, live 2026-10-02 16:00). The table carries the
-		// Ispins Legion Open event (776) the gate looks up.
-		{"event_info_sent", 0, 108, eventInfoTable},
+		// 706 -> 108 -> STAMINA(4) -> 537. The body comes from
+		// event_info_generated.go: the 2026-10-04 legion/raid gate round grew
+		// the round-11 probe's single-record body (54 B, "Ispins Legion Open"
+		// 776) into the full 19-record gate table (1144 B). Still RAW only -
+		// zlib containers trigger CMD217 ENUM_CMDPACKET_OVERFLOW_INFO and
+		// freeze this client (probe V2/V5), and an over-long raw body froze it
+		// too (probe V4), so the frame keeps the empty tail.
+		// event_info_variant.go exposes DFO_EVENT_INFO_VARIANT for the 662
+		// entry investigation; unset = exactly this table.
+		{"event_info_sent", 0, 108, townEventInfoTable},
 		{"dungeon_enter_count_info_sent", 0, 537, dungeonEnterCountInfo},
 		{"entry_basic_probe_sent", 0, 2, p.Basic},
 		{"entry_addition_sent", 0, 2, p.Addition},

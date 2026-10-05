@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
 )
@@ -32,5 +33,35 @@ func TestEventRequest115LiveWidths(t *testing.T) {
 	three[8] = 7
 	if q, e := DecodeEventRequest115(three, true); e != nil || q.Parameter != 7 {
 		t.Fatal(q, e)
+	}
+}
+
+// TestBoostTrainingStatusGraduatedFrame 钉住官服的**毕业态** 2638：
+// `02 0c 00 00 01`（mode=2 / step=12 / phase=0 / active=1）。
+//
+// 真源：参考包 `活动Boost与胶囊教学-20260927.zip` 的
+// `规格文档/2638-BOOSTUPCHARACTER.md`「已推翻」一节 ——
+// 「第12步不是第12张训练副本：该源只有 11 个 step info，官服在最后领取后转为 02/0c/00/00/01」。
+// 与本仓 `boostup.next()` 越过最后一关后的 `Step=12 / Phase=0 / Finished=true` 正好吻合。
+//
+// 原实现有一条 `mode==2 && active` 的守卫会拒发这条帧（零测试覆盖），
+// 于是第 11 关领奖整笔被拒 —— 实机 2026-10-06 03:39:44
+// `boost_event_request_refused: finished boost training cannot be active`。
+// 这条测试把官服口径钉住，防止守卫被"修"回来。
+func TestBoostTrainingStatusGraduatedFrame(t *testing.T) {
+	got, e := BoostTrainingStatus115(BoostTrainingState115{Mode: 2, Step: 12, Phase: 0, Active: true})
+	if e != nil {
+		t.Fatalf("毕业态被拒：%v", e)
+	}
+	if want := []byte{0x02, 0x0c, 0x00, 0x00, 0x01}; !bytes.Equal(got, want) {
+		t.Fatalf("毕业帧 = % x, want % x", got, want)
+	}
+	// 保留的不变量：未激活不得携带进度。
+	if _, e := BoostTrainingStatus115(BoostTrainingState115{Mode: 2, Step: 12, Active: false}); e == nil {
+		t.Fatal("未激活却携带进度被放过")
+	}
+	// 训练中（mode=0）不受影响。
+	if got, e := BoostTrainingStatus115(BoostTrainingState115{Mode: 0, Step: 11, Phase: 1, Active: true}); e != nil || !bytes.Equal(got, []byte{0x00, 0x0b, 0x01, 0x00, 0x01}) {
+		t.Fatalf("训练中帧 = % x err=%v", got, e)
 	}
 }

@@ -134,15 +134,29 @@ type BoostTrainingState115 struct {
 
 // BoostTrainingStatus115 编码 2638 的五字节包体 [mode, step, phase, 0, active]。
 // donor-live：旧端多轮实机接受（含 09:28:31 捕获的 `00 03 00 00 01`），未过 IDA 门禁。
+//
+// ⚠️ **2026-10-06 删掉了一条与官服相反的守卫**：原实现禁 `mode==2 && active`，报
+// "finished boost training cannot be active"。但官服的**毕业态就是** `02 0c 00 00 01`
+// （mode=2 / step=12 / phase=0 / active=1）—— 见参考包
+// `活动Boost与胶囊教学-20260927.zip` 的 `规格文档/2638-BOOSTUPCHARACTER.md`「已推翻」一节：
+// 「第12步不是第12张训练副本：该源只有 11 个 step info，官服在最后领取后转为 02/0c/00/00/01」。
+//
+// 而 `boostup.next()` 越过最后一关时正好产出 `Step=12 / Phase=0 / Finished=true`，
+// `boostTrainingRestore` 据此组出的就是那条官方帧 —— 被守卫挡成编码错误 ⇒
+// **最后一关领奖整笔被拒**。实机 2026-10-06 03:39:44（会话 `..._033224_339881`）：
+//
+//	boost_event_request_refused: "finished boost training cannot be active"
+//	request_hex = 96 02 00 00 0b 00 00 00   (事件 662 / 第 11 关)
+//
+// 该守卫零测试覆盖，编码器也只有一个调用方（`boostTrainingRestore`），
+// 但那个函数被 6 处调用（含进城恢复 client_entry.go）⇒ 毕业之后每条路径都编码失败。
+// 真正的不变量只有「未激活不得携带进度」（见上一段），mode/active 的取值不另设限制。
 func BoostTrainingStatus115(v BoostTrainingState115) ([]byte, error) {
 	if v.Mode != 0 && v.Mode != 2 {
 		return nil, fmt.Errorf("unsupported boost training mode %d", v.Mode)
 	}
 	if !v.Active && (v.Step != 0 || v.Phase != 0) {
 		return nil, fmt.Errorf("inactive boost training carries progress")
-	}
-	if v.Mode == 2 && v.Active {
-		return nil, fmt.Errorf("finished boost training cannot be active")
 	}
 	active := byte(0)
 	if v.Active {
