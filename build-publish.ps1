@@ -8,7 +8,7 @@
 #       一键打包.cmd -IncludeDevDocs       离线包里额外带上开发者文档（默认不带）
 #       一键打包.cmd -ListPruned           只列出「会被裁掉的条目」和最终顶层分布，不写 zip（试跑/审计用）
 #       一键打包.cmd -VerifyZip <zip 路径>  只校验一个已存在的包（不打新包；抽查/复验用，-Kind 决定按哪套规则校验）
-# 流程: git 分支导出 -> 加入 tools/{pg}(排除 pgAdmin 4) ->
+# 流程: git 分支导出 ->
 #       **复制预编译产物**(服务端程序 / 会话编排 CLI / WFP 探针 / configs) ->
 #       launcher.local.json 模板(相对路径) ->
 #       **按 -Kind 裁掉非白名单条目**(离线包只留必要项；见下方 $OfflineAllowed) ->
@@ -90,11 +90,9 @@ $OfflineAllowed = @(
     # —— 启动入口（缺一个就少一条路）——
     # 中文文件名照旧（Explorer / PowerShell 按 UTF-16 处理没问题；内容才是纯 ASCII，见 scripts/README.md）。
     'scripts/启动游戏.cmd',            # 默认档入口（走 storage-route.ps1 game-current）
-    'scripts/启动游戏-SQLite.cmd',     # SQLite 档（不需要 PostgreSQL）
-    'scripts/启动游戏-PostgreSQL.cmd', # PostgreSQL 档（自动起库）
+    'scripts/启动游戏-SQLite.cmd',     # SQLite 档（与本启动链唯一的存储引擎一致）
     'scripts/启动服务端.cmd',          # 只起服务端（默认档）
     'scripts/启动服务端-SQLite.cmd',
-    'scripts/启动服务端-PostgreSQL.cmd',
     'scripts/启动游戏-奥德赛.cmd',     # 整档强制奥德赛模式；小且是可选项，留着
     'scripts/停止游戏环境.cmd',
     'scripts/storage-route.ps1',       # 双库双路线切换 + 启动链调用（入口内部调用）
@@ -148,11 +146,11 @@ $ForbiddenRules = @(
     @{ kinds = @('all'); pattern = 'server/work/dfo-lan/runtime/storage/local.json'
        why = '作者的存储档位选择（应在本机由启动器按默认档位生成）' }
     @{ kinds = @('all'); pattern = 'server/work/dfo-lan/runtime/storage/local.*.json'; unless = '**/local.example.json'
-       why = '作者的两条路线档（local.sqlite.json / local.postgres.json）；仓库里的样例 local.example.json 不算' }
+       why = '作者的存储档位选择（local.sqlite.json 等）；仓库里的样例 local.example.json 不算' }
     @{ kinds = @('all'); pattern = 'server/work/dfo-lan/runtime/storage/backups/**'
        why = '作者存档备份' }
     @{ kinds = @('all'); pattern = 'server/work/dfo-lan/runtime/storage/pgdata/**'
-       why = '作者的 PostgreSQL 数据目录（体积大且是作者存档）' }
+       why = '历史 PostgreSQL 存档目录（引擎已移除，但这是作者存档，体积大且绝不许进包）' }
     @{ kinds = @('all'); pattern = 'server/work/dfo-lan/runtime/storage/*.log'
        why = '运行日志（作者机器上的运行痕迹）' }
     @{ kinds = @('all'); pattern = 'server/work/dfo-lan/runtime/roles_*'
@@ -166,7 +164,7 @@ $ForbiddenRules = @(
     @{ kinds = @('all'); pattern = '.tmp/**'
        why = '打包/调试临时目录' }
     @{ kinds = @('all'); pattern = 'tools/**'
-       why = '便携运行环境（PG 等）；启动链只走仓库内 Go 启动器，不需要它（业主也明确要求 tools\ 保留在仓库里、不入包）' }
+       why = '便携运行环境与发布资源包；启动链只走仓库内 Go 启动器，不需要它（业主也明确要求 tools\ 保留在仓库里、不入包）' }
     @{ kinds = @('all'); pattern = '**/*.previous-*'
        why = '旧版程序备份（*.previous-* 一份 36 MB），白占体积还可能被误当成可用程序' }
     @{ kinds = @('all'); pattern = '**/*~'
@@ -454,7 +452,6 @@ function Assert-PublishZip {
         $need = @(
             'scripts/启动游戏.cmd',
             'scripts/启动游戏-SQLite.cmd',
-            'scripts/启动游戏-PostgreSQL.cmd',
             'scripts/启动服务端.cmd',
             'scripts/停止游戏环境.cmd',
             'scripts/storage-route.ps1',
@@ -469,7 +466,6 @@ function Assert-PublishZip {
         foreach ($rel in $PrebuiltFiles) { $need += ($rel -replace '\\', '/') }
         # 分发给玩家的正式形态就是这个启动器 exe；包里也带上它（解压即可双击），所以列为必需项。
         $need += 'DFO-115US单机一键启动器.exe'
-        if (Test-Path (Join-Path $ROOT 'tools\pg')) { $need += 'tools/pg/pgsql/bin/initdb.exe' }
 
         $miss = @()
         foreach ($n in $need) {
@@ -611,18 +607,9 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'git archive 失败' }
     [IO.Compression.ZipFile]::ExtractToDirectory($tar, $work)
 
-    # 2. 加入便携运行环境（pg，按需），排除 pgAdmin 4
-    Write-Host '[2/6] 复制便携运行环境...'
-    $tools = Join-Path $ROOT 'tools'
-    New-Item -ItemType Directory -Force -Path (Join-Path $work 'tools') | Out-Null
-    foreach ($d in @('pg')) {
-        $src = Join-Path $tools $d
-        if (-not (Test-Path $src)) { Write-Warning "缺少运行环境目录 tools\$d (跳过)"; continue }
-        if ($Kind -ne 'dev') { Write-Host ("   - 离线包不带 tools\{0}（启动链只走仓库内 Go 启动器；见排除清单）" -f $d); continue }
-        Copy-Item $src (Join-Path $work "tools\$d") -Recurse -Force
-    }
-    $pga = Join-Path $work 'tools\pg\pgsql\pgAdmin 4'
-    if (Test-Path $pga) { Remove-Item $pga -Recurse -Force; Write-Host '   已排除 pgAdmin 4' }
+    # 2. 便携运行环境：PostgreSQL 支持已于 2026-10-05 移除（业主口径，见 AGENTS §0.6），
+    #    启动链只走仓库内 Go 启动器 + SQLite 单文件，包内不再需要任何便携运行时。
+    Write-Host '[2/6] 便携运行环境：已无（PostgreSQL 支持已移除）...'
 
     # 3. 复制预编译产物 + configs（git 里没有这些文件，必须从工作区带进包）
     Write-Host '[3/6] 复制预编译产物（服务端程序 / 编排 CLI / 探针 / configs）...'

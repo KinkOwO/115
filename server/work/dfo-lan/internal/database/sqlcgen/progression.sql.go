@@ -22,7 +22,7 @@ type ActiveCharacterOwnedParams struct {
 }
 
 func (q *Queries) ActiveCharacterOwned(ctx context.Context, arg ActiveCharacterOwnedParams) (bool, error) {
-	row := q.db.QueryRow(ctx, activeCharacterOwned, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, activeCharacterOwned, arg.AccountID, arg.CharacterID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -42,7 +42,7 @@ type AdvanceBirthParams struct {
 }
 
 func (q *Queries) AdvanceBirth(ctx context.Context, arg AdvanceBirthParams) (int64, error) {
-	result, err := q.db.Exec(ctx, advanceBirth,
+	result, err := q.db.ExecContext(ctx, advanceBirth,
 		arg.Stage,
 		arg.Dungeon,
 		arg.AccountID,
@@ -51,7 +51,11 @@ func (q *Queries) AdvanceBirth(ctx context.Context, arg AdvanceBirthParams) (int
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const advanceTowerFloor = `-- name: AdvanceTowerFloor :one
@@ -76,7 +80,7 @@ type AdvanceTowerFloorRow struct {
 }
 
 func (q *Queries) AdvanceTowerFloor(ctx context.Context, arg AdvanceTowerFloorParams) (AdvanceTowerFloorRow, error) {
-	row := q.db.QueryRow(ctx, advanceTowerFloor,
+	row := q.db.QueryRowContext(ctx, advanceTowerFloor,
 		arg.Floor,
 		arg.RunID,
 		arg.AccountID,
@@ -114,7 +118,7 @@ type AdvanceTowerGriefRow struct {
 }
 
 func (q *Queries) AdvanceTowerGrief(ctx context.Context, arg AdvanceTowerGriefParams) (AdvanceTowerGriefRow, error) {
-	row := q.db.QueryRow(ctx, advanceTowerGrief,
+	row := q.db.QueryRowContext(ctx, advanceTowerGrief,
 		arg.Floor,
 		arg.Day,
 		arg.RunID,
@@ -131,7 +135,7 @@ SELECT id,$1::smallint FROM characters ON CONFLICT(character_id) DO NOTHING
 `
 
 func (q *Queries) BackfillBirth(ctx context.Context, stage int16) error {
-	_, err := q.db.Exec(ctx, backfillBirth, stage)
+	_, err := q.db.ExecContext(ctx, backfillBirth, stage)
 	return err
 }
 
@@ -151,7 +155,7 @@ type BirthStageRow struct {
 }
 
 func (q *Queries) BirthStage(ctx context.Context, arg BirthStageParams) (BirthStageRow, error) {
-	row := q.db.QueryRow(ctx, birthStage, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, birthStage, arg.AccountID, arg.CharacterID)
 	var i BirthStageRow
 	err := row.Scan(&i.Stage, &i.Dungeon)
 	return i, err
@@ -168,7 +172,7 @@ type EnsureTowerGriefProgressParams struct {
 }
 
 func (q *Queries) EnsureTowerGriefProgress(ctx context.Context, arg EnsureTowerGriefProgressParams) error {
-	_, err := q.db.Exec(ctx, ensureTowerGriefProgress, arg.AccountID, arg.HighestCleared)
+	_, err := q.db.ExecContext(ctx, ensureTowerGriefProgress, arg.AccountID, arg.HighestCleared)
 	return err
 }
 
@@ -184,7 +188,7 @@ type EnsureTowerProgressParams struct {
 }
 
 func (q *Queries) EnsureTowerProgress(ctx context.Context, arg EnsureTowerProgressParams) error {
-	_, err := q.db.Exec(ctx, ensureTowerProgress, arg.AccountID, arg.TowerKey, arg.HighestCleared)
+	_, err := q.db.ExecContext(ctx, ensureTowerProgress, arg.AccountID, arg.TowerKey, arg.HighestCleared)
 	return err
 }
 
@@ -202,7 +206,7 @@ type EnsureWorldParams struct {
 }
 
 func (q *Queries) EnsureWorld(ctx context.Context, arg EnsureWorldParams) error {
-	_, err := q.db.Exec(ctx, ensureWorld,
+	_, err := q.db.ExecContext(ctx, ensureWorld,
 		arg.Position,
 		arg.ConfigVersion,
 		arg.CharacterID,
@@ -227,7 +231,7 @@ type EnterChannelWorldParams struct {
 }
 
 func (q *Queries) EnterChannelWorld(ctx context.Context, arg EnterChannelWorldParams) error {
-	_, err := q.db.Exec(ctx, enterChannelWorld,
+	_, err := q.db.ExecContext(ctx, enterChannelWorld,
 		arg.ChannelType,
 		arg.Position,
 		arg.ConfigVersion,
@@ -257,7 +261,7 @@ type FatigueRecoveryUsageRow struct {
 }
 
 func (q *Queries) FatigueRecoveryUsage(ctx context.Context, arg FatigueRecoveryUsageParams) (FatigueRecoveryUsageRow, error) {
-	row := q.db.QueryRow(ctx, fatigueRecoveryUsage, arg.Day, arg.CharacterID, arg.Template)
+	row := q.db.QueryRowContext(ctx, fatigueRecoveryUsage, arg.Day, arg.CharacterID, arg.Template)
 	var i FatigueRecoveryUsageRow
 	err := row.Scan(&i.DailyUses, &i.LastUsed, &i.HasLastUsed)
 	return i, err
@@ -275,7 +279,7 @@ type FatigueRoomRecordedParams struct {
 }
 
 func (q *Queries) FatigueRoomRecorded(ctx context.Context, arg FatigueRoomRecordedParams) (bool, error) {
-	row := q.db.QueryRow(ctx, fatigueRoomRecorded, arg.CharacterID, arg.RunID, arg.MapID)
+	row := q.db.QueryRowContext(ctx, fatigueRoomRecorded, arg.CharacterID, arg.RunID, arg.MapID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -295,7 +299,7 @@ type IspinsWeeklyUsedParams struct {
 }
 
 func (q *Queries) IspinsWeeklyUsed(ctx context.Context, arg IspinsWeeklyUsedParams) (bool, error) {
-	row := q.db.QueryRow(ctx, ispinsWeeklyUsed,
+	row := q.db.QueryRowContext(ctx, ispinsWeeklyUsed,
 		arg.CharacterID,
 		arg.AccountID,
 		arg.Model,
@@ -333,7 +337,7 @@ type LoadFatigueRow struct {
 }
 
 func (q *Queries) LoadFatigue(ctx context.Context, arg LoadFatigueParams) (LoadFatigueRow, error) {
-	row := q.db.QueryRow(ctx, loadFatigue,
+	row := q.db.QueryRowContext(ctx, loadFatigue,
 		arg.Day,
 		arg.DailyLimit,
 		arg.AccountID,
@@ -374,7 +378,7 @@ type LoadLockedCharacterFatigueRow struct {
 }
 
 func (q *Queries) LoadLockedCharacterFatigue(ctx context.Context, arg LoadLockedCharacterFatigueParams) (LoadLockedCharacterFatigueRow, error) {
-	row := q.db.QueryRow(ctx, loadLockedCharacterFatigue, arg.CharacterID, arg.Day, arg.DailyLimit)
+	row := q.db.QueryRowContext(ctx, loadLockedCharacterFatigue, arg.CharacterID, arg.Day, arg.DailyLimit)
 	var i LoadLockedCharacterFatigueRow
 	err := row.Scan(
 		&i.Day,
@@ -402,7 +406,7 @@ type LoadWorldRow struct {
 }
 
 func (q *Queries) LoadWorld(ctx context.Context, arg LoadWorldParams) (LoadWorldRow, error) {
-	row := q.db.QueryRow(ctx, loadWorld, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, loadWorld, arg.AccountID, arg.CharacterID)
 	var i LoadWorldRow
 	err := row.Scan(&i.Position, &i.Revision, &i.ConfigVersion)
 	return i, err
@@ -418,7 +422,7 @@ type LockOathProgressParams struct {
 }
 
 func (q *Queries) LockOathProgress(ctx context.Context, arg LockOathProgressParams) (int32, error) {
-	row := q.db.QueryRow(ctx, lockOathProgress, arg.CharacterID, arg.DungeonID)
+	row := q.db.QueryRowContext(ctx, lockOathProgress, arg.CharacterID, arg.DungeonID)
 	var clears int32
 	err := row.Scan(&clears)
 	return clears, err
@@ -436,7 +440,7 @@ type LockedIspinsWeeklyUsedParams struct {
 }
 
 func (q *Queries) LockedIspinsWeeklyUsed(ctx context.Context, arg LockedIspinsWeeklyUsedParams) (bool, error) {
-	row := q.db.QueryRow(ctx, lockedIspinsWeeklyUsed, arg.CharacterID, arg.Model, arg.Week)
+	row := q.db.QueryRowContext(ctx, lockedIspinsWeeklyUsed, arg.CharacterID, arg.Model, arg.Week)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -452,7 +456,7 @@ type OathProgressClearsParams struct {
 }
 
 func (q *Queries) OathProgressClears(ctx context.Context, arg OathProgressClearsParams) (int32, error) {
-	row := q.db.QueryRow(ctx, oathProgressClears, arg.CharacterID, arg.DungeonID)
+	row := q.db.QueryRowContext(ctx, oathProgressClears, arg.CharacterID, arg.DungeonID)
 	var clears int32
 	err := row.Scan(&clears)
 	return clears, err
@@ -464,7 +468,7 @@ AND event_key IN('odyssey-graduate-reward-v1','odyssey-honor-mail-v1'))
 `
 
 func (q *Queries) OdysseyGraduationAlreadyPaid(ctx context.Context, characterID int64) (bool, error) {
-	row := q.db.QueryRow(ctx, odysseyGraduationAlreadyPaid, characterID)
+	row := q.db.QueryRowContext(ctx, odysseyGraduationAlreadyPaid, characterID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -485,7 +489,7 @@ type OmenStateRow struct {
 }
 
 func (q *Queries) OmenState(ctx context.Context, arg OmenStateParams) (OmenStateRow, error) {
-	row := q.db.QueryRow(ctx, omenState, arg.CharacterID, arg.DungeonID)
+	row := q.db.QueryRowContext(ctx, omenState, arg.CharacterID, arg.DungeonID)
 	var i OmenStateRow
 	err := row.Scan(&i.Held, &i.OrthairePending)
 	return i, err
@@ -503,7 +507,7 @@ type ReadTowerGriefProgressRow struct {
 }
 
 func (q *Queries) ReadTowerGriefProgress(ctx context.Context, accountID int64) (ReadTowerGriefProgressRow, error) {
-	row := q.db.QueryRow(ctx, readTowerGriefProgress, accountID)
+	row := q.db.QueryRowContext(ctx, readTowerGriefProgress, accountID)
 	var i ReadTowerGriefProgressRow
 	err := row.Scan(&i.HighestCleared, &i.ClearedDay, &i.LastRunID)
 	return i, err
@@ -527,7 +531,7 @@ type ReadTowerProgressRow struct {
 }
 
 func (q *Queries) ReadTowerProgress(ctx context.Context, arg ReadTowerProgressParams) (ReadTowerProgressRow, error) {
-	row := q.db.QueryRow(ctx, readTowerProgress, arg.AccountID, arg.TowerKey)
+	row := q.db.QueryRowContext(ctx, readTowerProgress, arg.AccountID, arg.TowerKey)
 	var i ReadTowerProgressRow
 	err := row.Scan(
 		&i.HighestCleared,
@@ -554,7 +558,7 @@ type RecordFatigueRecoveryParams struct {
 }
 
 func (q *Queries) RecordFatigueRecovery(ctx context.Context, arg RecordFatigueRecoveryParams) error {
-	_, err := q.db.Exec(ctx, recordFatigueRecovery,
+	_, err := q.db.ExecContext(ctx, recordFatigueRecovery,
 		arg.CharacterID,
 		arg.Template,
 		arg.Day,
@@ -579,7 +583,7 @@ type RecordFatigueRoomParams struct {
 }
 
 func (q *Queries) RecordFatigueRoom(ctx context.Context, arg RecordFatigueRoomParams) error {
-	_, err := q.db.Exec(ctx, recordFatigueRoom,
+	_, err := q.db.ExecContext(ctx, recordFatigueRoom,
 		arg.CharacterID,
 		arg.RunID,
 		arg.MapID,
@@ -605,7 +609,7 @@ type RecordIspinsWeeklyClearParams struct {
 }
 
 func (q *Queries) RecordIspinsWeeklyClear(ctx context.Context, arg RecordIspinsWeeklyClearParams) error {
-	_, err := q.db.Exec(ctx, recordIspinsWeeklyClear,
+	_, err := q.db.ExecContext(ctx, recordIspinsWeeklyClear,
 		arg.CharacterID,
 		arg.EventKey,
 		arg.ConfigVersion,
@@ -638,7 +642,7 @@ type ReserveTowerEntryRow struct {
 }
 
 func (q *Queries) ReserveTowerEntry(ctx context.Context, arg ReserveTowerEntryParams) (ReserveTowerEntryRow, error) {
-	row := q.db.QueryRow(ctx, reserveTowerEntry,
+	row := q.db.QueryRowContext(ctx, reserveTowerEntry,
 		arg.Day,
 		arg.AccountID,
 		arg.TowerKey,
@@ -672,7 +676,7 @@ type RunFatigueLedgerRow struct {
 }
 
 func (q *Queries) RunFatigueLedger(ctx context.Context, arg RunFatigueLedgerParams) (RunFatigueLedgerRow, error) {
-	row := q.db.QueryRow(ctx, runFatigueLedger, arg.AccountID, arg.CharacterID, arg.RunID)
+	row := q.db.QueryRowContext(ctx, runFatigueLedger, arg.AccountID, arg.CharacterID, arg.RunID)
 	var i RunFatigueLedgerRow
 	err := row.Scan(&i.Charged, &i.Rooms)
 	return i, err
@@ -691,7 +695,7 @@ type RunMonsterExperienceParams struct {
 }
 
 func (q *Queries) RunMonsterExperience(ctx context.Context, arg RunMonsterExperienceParams) (int64, error) {
-	row := q.db.QueryRow(ctx, runMonsterExperience, arg.AccountID, arg.CharacterID, arg.EventPattern)
+	row := q.db.QueryRowContext(ctx, runMonsterExperience, arg.AccountID, arg.CharacterID, arg.EventPattern)
 	var total int64
 	err := row.Scan(&total)
 	return total, err
@@ -708,7 +712,7 @@ type RunPaidFatigueParams struct {
 }
 
 func (q *Queries) RunPaidFatigue(ctx context.Context, arg RunPaidFatigueParams) (bool, error) {
-	row := q.db.QueryRow(ctx, runPaidFatigue, arg.CharacterID, arg.RunID)
+	row := q.db.QueryRowContext(ctx, runPaidFatigue, arg.CharacterID, arg.RunID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -726,7 +730,7 @@ type SaveFatigueChargeParams struct {
 }
 
 func (q *Queries) SaveFatigueCharge(ctx context.Context, arg SaveFatigueChargeParams) error {
-	_, err := q.db.Exec(ctx, saveFatigueCharge, arg.Used, arg.UsedMax, arg.CharacterID)
+	_, err := q.db.ExecContext(ctx, saveFatigueCharge, arg.Used, arg.UsedMax, arg.CharacterID)
 	return err
 }
 
@@ -740,7 +744,7 @@ type SaveFatigueRecoveryParams struct {
 }
 
 func (q *Queries) SaveFatigueRecovery(ctx context.Context, arg SaveFatigueRecoveryParams) error {
-	_, err := q.db.Exec(ctx, saveFatigueRecovery, arg.Used, arg.CharacterID)
+	_, err := q.db.ExecContext(ctx, saveFatigueRecovery, arg.Used, arg.CharacterID)
 	return err
 }
 
@@ -757,7 +761,7 @@ type SaveOathProgressParams struct {
 }
 
 func (q *Queries) SaveOathProgress(ctx context.Context, arg SaveOathProgressParams) error {
-	_, err := q.db.Exec(ctx, saveOathProgress, arg.CharacterID, arg.DungeonID, arg.Clears)
+	_, err := q.db.ExecContext(ctx, saveOathProgress, arg.CharacterID, arg.DungeonID, arg.Clears)
 	return err
 }
 
@@ -774,7 +778,7 @@ type SaveOmenHeldParams struct {
 }
 
 func (q *Queries) SaveOmenHeld(ctx context.Context, arg SaveOmenHeldParams) error {
-	_, err := q.db.Exec(ctx, saveOmenHeld, arg.CharacterID, arg.DungeonID, arg.Held)
+	_, err := q.db.ExecContext(ctx, saveOmenHeld, arg.CharacterID, arg.DungeonID, arg.Held)
 	return err
 }
 
@@ -792,7 +796,7 @@ type SaveWorldParams struct {
 }
 
 func (q *Queries) SaveWorld(ctx context.Context, arg SaveWorldParams) (int64, error) {
-	result, err := q.db.Exec(ctx, saveWorld,
+	result, err := q.db.ExecContext(ctx, saveWorld,
 		arg.Position,
 		arg.AccountID,
 		arg.CharacterID,
@@ -801,7 +805,11 @@ func (q *Queries) SaveWorld(ctx context.Context, arg SaveWorldParams) (int64, er
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const scrubPollutedWorldPositions = `-- name: ScrubPollutedWorldPositions :execrows
@@ -809,11 +817,15 @@ DELETE FROM character_world WHERE (position->>'town')::bigint=ANY($1::bigint[])
 `
 
 func (q *Queries) ScrubPollutedWorldPositions(ctx context.Context, towns []int64) (int64, error) {
-	result, err := q.db.Exec(ctx, scrubPollutedWorldPositions, towns)
+	result, err := q.db.ExecContext(ctx, scrubPollutedWorldPositions, towns)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const setOmenPending = `-- name: SetOmenPending :exec
@@ -829,7 +841,7 @@ type SetOmenPendingParams struct {
 }
 
 func (q *Queries) SetOmenPending(ctx context.Context, arg SetOmenPendingParams) error {
-	_, err := q.db.Exec(ctx, setOmenPending, arg.CharacterID, arg.DungeonID, arg.Pending)
+	_, err := q.db.ExecContext(ctx, setOmenPending, arg.CharacterID, arg.DungeonID, arg.Pending)
 	return err
 }
 
@@ -846,9 +858,13 @@ type StartBirthParams struct {
 }
 
 func (q *Queries) StartBirth(ctx context.Context, arg StartBirthParams) (int64, error) {
-	result, err := q.db.Exec(ctx, startBirth, arg.Stage, arg.AccountID, arg.CharacterID)
+	result, err := q.db.ExecContext(ctx, startBirth, arg.Stage, arg.AccountID, arg.CharacterID)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }

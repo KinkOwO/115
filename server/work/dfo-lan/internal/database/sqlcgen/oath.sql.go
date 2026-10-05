@@ -19,7 +19,7 @@ type EquippedOathSelectionParams struct {
 }
 
 func (q *Queries) EquippedOathSelection(ctx context.Context, arg EquippedOathSelectionParams) (int32, error) {
-	row := q.db.QueryRow(ctx, equippedOathSelection, arg.CharacterID, arg.CoreInstanceKey)
+	row := q.db.QueryRowContext(ctx, equippedOathSelection, arg.CharacterID, arg.CoreInstanceKey)
 	var selected_option int32
 	err := row.Scan(&selected_option)
 	return selected_option, err
@@ -38,7 +38,7 @@ type InsertOathOptionParams struct {
 }
 
 func (q *Queries) InsertOathOption(ctx context.Context, arg InsertOathOptionParams) error {
-	_, err := q.db.Exec(ctx, insertOathOption,
+	_, err := q.db.ExecContext(ctx, insertOathOption,
 		arg.CharacterID,
 		arg.CoreInstanceKey,
 		arg.SelectedOption,
@@ -57,7 +57,7 @@ type LockOathOptionRevisionParams struct {
 }
 
 func (q *Queries) LockOathOptionRevision(ctx context.Context, arg LockOathOptionRevisionParams) (int64, error) {
-	row := q.db.QueryRow(ctx, lockOathOptionRevision, arg.CharacterID, arg.CoreInstanceKey)
+	row := q.db.QueryRowContext(ctx, lockOathOptionRevision, arg.CharacterID, arg.CoreInstanceKey)
 	var revision int64
 	err := row.Scan(&revision)
 	return revision, err
@@ -81,7 +81,7 @@ type OathOptionRow struct {
 }
 
 func (q *Queries) OathOption(ctx context.Context, arg OathOptionParams) (OathOptionRow, error) {
-	row := q.db.QueryRow(ctx, oathOption, arg.CharacterID, arg.CoreInstanceKey)
+	row := q.db.QueryRowContext(ctx, oathOption, arg.CharacterID, arg.CoreInstanceKey)
 	var i OathOptionRow
 	err := row.Scan(
 		&i.CharacterID,
@@ -106,7 +106,7 @@ type SelectEquippedOathOptionParams struct {
 }
 
 func (q *Queries) SelectEquippedOathOption(ctx context.Context, arg SelectEquippedOathOptionParams) error {
-	_, err := q.db.Exec(ctx, selectEquippedOathOption, arg.CharacterID, arg.CoreInstanceKey, arg.SelectedOption)
+	_, err := q.db.ExecContext(ctx, selectEquippedOathOption, arg.CharacterID, arg.CoreInstanceKey, arg.SelectedOption)
 	return err
 }
 
@@ -123,7 +123,7 @@ type UpdateOathOptionParams struct {
 }
 
 func (q *Queries) UpdateOathOption(ctx context.Context, arg UpdateOathOptionParams) error {
-	_, err := q.db.Exec(ctx, updateOathOption,
+	_, err := q.db.ExecContext(ctx, updateOathOption,
 		arg.SelectedOption,
 		arg.Revision,
 		arg.CharacterID,

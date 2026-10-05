@@ -26,6 +26,46 @@
 
 ---
 
+## 2026-10-05：彻底移除 PostgreSQL 支持（SQLite 唯一引擎）
+
+### 已修复 / 已完成
+
+- **业主口径（方案 A）**：PostgreSQL 支持**整体移除**，SQLite 成为唯一引擎。根 `AGENTS.md` §0.6 整节改写为
+  「存储：SQLite 唯一引擎」，同步铁律 4/5/12、§0.3.4 环境表与 §2 索引；`server/AGENTS.md` 的 §1/§2/§3/§4/§5
+  与 `docs/sqlite-operations.md`（整份重写为单引擎版，含 pgdata 可救路径）同步 —— **口径变更与依据已落文档**。
+- **依赖**：`go.mod` / `go.sum` 摘掉 `jackc/pgx/v5 v5.7.6` 及 3 个间接依赖（`pgpassfile`、`pgservicefile`、`puddle/v2`）；
+  全仓 `git grep jackc` 为空。
+- **代码删除**：`internal/database` 的 PG 引擎与连接池（`postgresEngine`/`postgresTx`/`rawPool`/`errPostgresOnly`/
+  advisory lock）、`openPostgres` 与 `Config.PostgresDSN`/`PostgresSchema`；`sync.go` 的 PG 半边（`pg_dump`/`pg_restore`、
+  跨引擎复制、PG 自省，**1864 → 853 行**）；`sqliteconvert.go`（403 行 PG→SQLite 转换器）；`sql/postgres/**`（17 文件）；
+  `migrationQuery`/`migrationSQL`；`sqlc.yaml` 的 PG 条目。启动器：`init-storage`（initdb/pg_ctl/createdb/postgresql.conf）、
+  `storage.go` 起库与 `StartStoragePlan`、`PostgresPort`/25438 探测、`launch.go` 的 PG 计划与 `parseLoopbackDSN`、
+  `StorageConfig` 的三个 PG 字段；CLI：`storagesync` 的跨引擎复制与 `pg_dump` 工具链、`cmd/gmtool` 的 PG 分支。
+- **保留**：`sqlcgen` 作为内部查询/类型层 —— 只把 `DBTX` 与 2 处 `pgtype.Int8` 换成 `database/sql`（281 处
+  生成体调用点、22 处 `RowsAffected` 机械改写），SQL 文本与参数/行类型未动；`DriverPostgres` 常量保留**仅用于识别并明确拒绝**。
+- **测试**：删除 12 个 `*_postgres_test.go`、21 个 PG-schema 集成测试、2 个 PG 迁移测试与 3 个 PG 门控誓约用例；
+  `OpenTestFixture` 从「临时 PG schema」改为「临时目录里的独立 SQLite 库」；`RejectGraduation` 用 `RAISE(ABORT)`
+  触发器重建（设计文档 §650 R10 列的那一项）；摘掉 25 个文件的 `DFO_TEST_POSTGRES_DSN` 门控。
+- **净收益（可验证）**：原本一直跳过的集成测试**第一次真正运行**并全部通过 —— `TestOdysseyGraduationAtomicIntegration`
+  （SKIP → PASS）、`internal/loot` 9 个、`internal/workflow` 2 个、`cashshop`/`character`/`gmtool` 各 1 个，SKIP 归零。
+- **资源与脚本**：`tools/tools-pg-bin.zip`（28.05 MB）删除，`tools/manifest.json` 的 `pg-bin` 包移除（6→5）；
+  `build-publish.ps1` 的 PG 脚本白名单、`tools/pg` 复制块、pgAdmin 排除与 `initdb.exe` 必需项删除；
+  `scripts/启动游戏-PostgreSQL.cmd`、`scripts/启动服务端-PostgreSQL.cmd`、`runtime/storage/local.postgres.json`（含明文口令）删除。
+- **存档安全**：`runtime/storage/pgdata`（66.1 MB）与 `pgdata.stale-*` **一字节未动**；读取它们的唯一路径
+  （旧提交 worktree + 旧版 `dfo-tool sqliteconvert`，需自备 PG 16.4 便携版）写进根 §0.6 第 3 条与操作手册 §3。
+- **验证**：`go build ./...` 退出 0、`go vet ./...` 干净、`go test ./... -count=1` **41 包全绿**；提交前门禁通过。
+
+### 未修复 / 未闭环
+
+- **新暴露的失败（与存储无关）**：`cmd/wireprobe/oath_direct_entry_test.go` 的 `TestOathDirectEntryIntegration`
+  摘掉 DSN 门控后第一次运行即失败 —— loading 阶段多出 `dungeon_worn_random_options_restored`，撞上
+  「loading 不许重发 ID 2/13/14/2839」的断言。该用例用内存装备目录、不读 PVF 也不读玩家库，属**既有差异被门控掩盖**；
+  已如实标注跳过并报业主裁决，**未顺手改玩法行为**。
+- 历史 `sql/postgres` 溯源头注释仍留在 `sql/sqlite/**` 与其生成物 `sqlcgensqlite/**` 里（生成物必须与源逐字一致
+  才能通过重新生成校验），故**刻意未改**。
+- `runtime/update-backup/20261004-201421/...` 下有一份 PG 时代的 `primer_transform_flow_test.go` 旧备份副本，
+  属 `runtime/`（不入库），未处理。
+
 ## 2026-10-05：SQLite 主路线领取邮件附件被拒修复 + 存储主线定为 SQLite
 
 ### 已修复 / 已完成

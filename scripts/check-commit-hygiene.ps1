@@ -240,27 +240,32 @@ try {
 
     # ---- 4b. 环境匹配（§0.3.4）：提交内容与「本机正在跑的这一套环境」是否对得上 ----
     # 只报事实对不上（路径不存在 / 档位不一致），不猜意图。
-    # (a) 存储档：活动档引用的路径必须在本机存在；与已跟踪示例档 driver 不一致时，
-    #     若该 driver 有自己的路线档（双库双路线，见 scripts\storage-route.ps1）则只提示。
+    # (a) 存储档：SQLite 是唯一引擎（2026-10-05 起 PostgreSQL 支持已整体移除，见根 AGENTS.md §0.6）。
+    #     活动档必须解析成 sqlite，且 sqlite_path 是绝对路径并在本机存在；写着 driver=postgres 的档
+    #     会被服务端明确拒绝，属于「环境对不上」，必须报出来。
     $activeCfg = Join-Path $RepoRoot 'server\work\dfo-lan\runtime\storage\local.json'
     $exampleCfg = Join-Path $RepoRoot 'server\work\dfo-lan\runtime\storage\local.example.json'
     if (Test-Path -LiteralPath $activeCfg) {
         try {
             $act = Get-Content -LiteralPath $activeCfg -Raw -Encoding UTF8 | ConvertFrom-Json
-            $actDriver = if ($act.driver) { [string]$act.driver } elseif ($act.postgres_dsn) { 'postgres' } elseif ($act.sqlite_path) { 'sqlite' } else { 'postgres' }
-            if ($actDriver -eq 'sqlite' -and $act.sqlite_path) {
+            $actDriver = if ($act.driver) { [string]$act.driver } else { 'sqlite' }
+            if ($actDriver -eq 'sqlite') {
                 $liveDb = [string]$act.sqlite_path
-                if (-not (Test-Path -LiteralPath $liveDb)) {
+                if (-not $liveDb) {
+                    $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = '本机存储档没有 sqlite_path（服务端会以 sqlite storage configuration incomplete 拒绝启动）'; Clause = '§0.3.4 环境匹配' }
+                }
+                elseif (-not [System.IO.Path]::IsPathRooted($liveDb)) {
+                    $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = "sqlite_path=$liveDb 不是绝对路径（服务端明确拒绝相对路径，会在进程当前目录建库）"; Clause = '§0.3.4 环境匹配' }
+                }
+                elseif (-not (Test-Path -LiteralPath $liveDb)) {
                     $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = "本机存储档 driver=sqlite，但 sqlite_path=$liveDb 不存在（当前环境起不来）"; Clause = '§0.3.4 环境匹配' }
                 }
+                if ($act.postgres_dsn -or $act.postgres_bin -or $act.postgres_data) {
+                    $notes += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = '档里还留着 PostgreSQL 时代的键（postgres_dsn/bin/data）；它们已被忽略、不影响启动，删掉可避免误读'; Clause = '§0.3.4 环境匹配' }
+                }
             }
-            # 没有 driver 却同时写了 postgres_dsn 与 sqlite_path：引擎选择是「DSN 优先」，
-            # 但两份配置混在一个文件里，最容易被读成另一个库（2026-10-05 pgsql 端无法登录）。
-            if (-not $act.driver -and $act.postgres_dsn -and $act.sqlite_path) {
-                $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = '同时写了 postgres_dsn 与 sqlite_path 却没有 driver（按唯一规则选 PostgreSQL；建议显式写 driver 或删掉不用的那个键）'; Clause = '§0.3.4 环境匹配' }
-            }
-            if ($act.driver -and $act.driver -eq 'postgres' -and $act.sqlite_path) {
-                $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = 'driver=postgres 但档里还留着 SQLite 专有键 sqlite_path（配置环境会清理；手工改的建议删掉）'; Clause = '§0.3.4 环境匹配' }
+            else {
+                $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = "本机活动档 driver=$actDriver：PostgreSQL 支持已于 2026-10-05 整体移除，服务端会明确拒绝这个档（改成 driver=sqlite，或删掉 driver 键走 sqlite 兜底）"; Clause = '§0.3.4 环境匹配' }
             }
         }
         catch {
@@ -271,25 +276,15 @@ try {
     if (Test-Path -LiteralPath $exampleCfg) {
         try {
             $exa = Get-Content -LiteralPath $exampleCfg -Raw -Encoding UTF8 | ConvertFrom-Json
-            $exaDriver = if ($exa.driver) { [string]$exa.driver } elseif ($exa.sqlite_path) { 'sqlite' } else { 'postgres' }
+            $exaDriver = if ($exa.driver) { [string]$exa.driver } else { 'sqlite' }
             if ((Test-Path -LiteralPath $activeCfg) -and $actDriver -and ($exaDriver -ne $actDriver)) {
-                # 双库双路线（2026-10-05 业主定调）：本机可以合法地停在任一条路线上，示例档只对应其中一条。
-                # 路线的证据是 scripts\storage-route.ps1 管的那份档：local.<活动 driver>.json 存在 ⇒ 这是切换后的
-                # 正常状态，只提示；连它都不存在，才说明活动档既不是示例档、也不是任何一条已建好的路线。
-                $routeFile = Join-Path $RepoRoot ("server\work\dfo-lan\runtime\storage\local.{0}.json" -f $actDriver)
-                if (Test-Path -LiteralPath $routeFile) {
-                    $notes += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = "本机停在 $actDriver 路线（$(Split-Path -Leaf $routeFile) 存在）；已跟踪示例档 driver=$exaDriver 对应另一条路线"; Clause = '§0.3.4 环境匹配' }
-                }
-                else {
-                    $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.example.json'; Why = "示例档 driver=$exaDriver，本机活动档 driver=$actDriver，且没有对应的路线档（照示例档配环境会得到另一套存储）"; Clause = '§0.3.4 环境匹配' }
-                }
+                # PG 移除后只有 sqlite 一条路：示例档与活动档的 driver 必须一致，否则照示例档配环境会得到另一套存储。
+                $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.example.json'; Why = "示例档 driver=$exaDriver，本机活动档 driver=$actDriver（2026-10-05 起只有 sqlite 一条存储路线，两者必须一致）"; Clause = '§0.3.4 环境匹配' }
             }
-            foreach ($field in @('postgres_bin', 'postgres_data')) {
-                $v = [string]$exa.$field
-                if ($v -and -not [System.IO.Path]::IsPathRooted($v)) {
-                    if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot ($v -replace '/', '\')))) {
-                        $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.example.json'; Why = "$field=$v 在本机不存在（本环境的 tools 已移出仓库，该示例档已过时）"; Clause = '§0.3.4 环境匹配' }
-                    }
+            $exaDb = [string]$exa.sqlite_path
+            if ($exaDb -and -not [System.IO.Path]::IsPathRooted($exaDb)) {
+                if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot ($exaDb -replace '/', '\')))) {
+                    $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.example.json'; Why = "sqlite_path=$exaDb 在本机不存在（示例档已过时）"; Clause = '§0.3.4 环境匹配' }
                 }
             }
         }

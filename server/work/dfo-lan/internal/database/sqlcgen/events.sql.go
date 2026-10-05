@@ -30,7 +30,7 @@ type BlackPurgatoryEntryCountsRow struct {
 }
 
 func (q *Queries) BlackPurgatoryEntryCounts(ctx context.Context, arg BlackPurgatoryEntryCountsParams) (BlackPurgatoryEntryCountsRow, error) {
-	row := q.db.QueryRow(ctx, blackPurgatoryEntryCounts, arg.DayStart, arg.CharacterID, arg.WeekStart)
+	row := q.db.QueryRowContext(ctx, blackPurgatoryEntryCounts, arg.DayStart, arg.CharacterID, arg.WeekStart)
 	var i BlackPurgatoryEntryCountsRow
 	err := row.Scan(&i.Daily, &i.Weekly)
 	return i, err
@@ -47,7 +47,7 @@ type BlackPurgatoryEntryStageParams struct {
 }
 
 func (q *Queries) BlackPurgatoryEntryStage(ctx context.Context, arg BlackPurgatoryEntryStageParams) (string, error) {
-	row := q.db.QueryRow(ctx, blackPurgatoryEntryStage, arg.CharacterID, arg.EventKey)
+	row := q.db.QueryRowContext(ctx, blackPurgatoryEntryStage, arg.CharacterID, arg.EventKey)
 	var stage string
 	err := row.Scan(&stage)
 	return stage, err
@@ -69,7 +69,7 @@ type CharacterEventStageRow struct {
 }
 
 func (q *Queries) CharacterEventStage(ctx context.Context, arg CharacterEventStageParams) (CharacterEventStageRow, error) {
-	row := q.db.QueryRow(ctx, characterEventStage, arg.CharacterID, arg.EventKey)
+	row := q.db.QueryRowContext(ctx, characterEventStage, arg.CharacterID, arg.EventKey)
 	var i CharacterEventStageRow
 	err := row.Scan(&i.Model, &i.Stage)
 	return i, err
@@ -80,11 +80,15 @@ UPDATE characters SET config_version=$1::text WHERE config_version IS DISTINCT F
 `
 
 func (q *Queries) NormalizeCharacterIdentity(ctx context.Context, identity string) (int64, error) {
-	result, err := q.db.Exec(ctx, normalizeCharacterIdentity, identity)
+	result, err := q.db.ExecContext(ctx, normalizeCharacterIdentity, identity)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const normalizeEventIdentity = `-- name: NormalizeEventIdentity :execrows
@@ -92,11 +96,15 @@ UPDATE character_events SET config_version=$1::text WHERE config_version IS DIST
 `
 
 func (q *Queries) NormalizeEventIdentity(ctx context.Context, identity string) (int64, error) {
-	result, err := q.db.Exec(ctx, normalizeEventIdentity, identity)
+	result, err := q.db.ExecContext(ctx, normalizeEventIdentity, identity)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const normalizeMapClearIdentity = `-- name: NormalizeMapClearIdentity :execrows
@@ -104,11 +112,15 @@ UPDATE character_map_clears SET source_version=$1::text WHERE source_version IS 
 `
 
 func (q *Queries) NormalizeMapClearIdentity(ctx context.Context, identity string) (int64, error) {
-	result, err := q.db.Exec(ctx, normalizeMapClearIdentity, identity)
+	result, err := q.db.ExecContext(ctx, normalizeMapClearIdentity, identity)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const normalizeQuestIdentity = `-- name: NormalizeQuestIdentity :execrows
@@ -116,11 +128,15 @@ UPDATE character_quests SET config_version=$1::text WHERE config_version IS DIST
 `
 
 func (q *Queries) NormalizeQuestIdentity(ctx context.Context, identity string) (int64, error) {
-	result, err := q.db.Exec(ctx, normalizeQuestIdentity, identity)
+	result, err := q.db.ExecContext(ctx, normalizeQuestIdentity, identity)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const normalizeQuestRewardIdentity = `-- name: NormalizeQuestRewardIdentity :execrows
@@ -128,11 +144,15 @@ UPDATE character_quest_rewards SET source_version=$1::text WHERE source_version 
 `
 
 func (q *Queries) NormalizeQuestRewardIdentity(ctx context.Context, identity string) (int64, error) {
-	result, err := q.db.Exec(ctx, normalizeQuestRewardIdentity, identity)
+	result, err := q.db.ExecContext(ctx, normalizeQuestRewardIdentity, identity)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const normalizeWorldIdentity = `-- name: NormalizeWorldIdentity :execrows
@@ -140,11 +160,15 @@ UPDATE character_world SET config_version=$1::text WHERE config_version IS DISTI
 `
 
 func (q *Queries) NormalizeWorldIdentity(ctx context.Context, identity string) (int64, error) {
-	result, err := q.db.Exec(ctx, normalizeWorldIdentity, identity)
+	result, err := q.db.ExecContext(ctx, normalizeWorldIdentity, identity)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const pendingBlackPurgatoryRewards = `-- name: PendingBlackPurgatoryRewards :many
@@ -162,7 +186,7 @@ type PendingBlackPurgatoryRewardsParams struct {
 }
 
 func (q *Queries) PendingBlackPurgatoryRewards(ctx context.Context, arg PendingBlackPurgatoryRewardsParams) ([]json.RawMessage, error) {
-	rows, err := q.db.Query(ctx, pendingBlackPurgatoryRewards, arg.AccountID, arg.CharacterID, arg.Model)
+	rows, err := q.db.QueryContext(ctx, pendingBlackPurgatoryRewards, arg.AccountID, arg.CharacterID, arg.Model)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +211,7 @@ WHERE character_id=$1 AND model='black-purgatory-entry-v1' AND outcome->>'stage'
 `
 
 func (q *Queries) RefundPendingBlackPurgatoryEntries(ctx context.Context, characterID int64) error {
-	_, err := q.db.Exec(ctx, refundPendingBlackPurgatoryEntries, characterID)
+	_, err := q.db.ExecContext(ctx, refundPendingBlackPurgatoryEntries, characterID)
 	return err
 }
 
@@ -203,7 +227,7 @@ type SetCharacterEventStageParams struct {
 }
 
 func (q *Queries) SetCharacterEventStage(ctx context.Context, arg SetCharacterEventStageParams) error {
-	_, err := q.db.Exec(ctx, setCharacterEventStage, arg.Stage, arg.CharacterID, arg.EventKey)
+	_, err := q.db.ExecContext(ctx, setCharacterEventStage, arg.Stage, arg.CharacterID, arg.EventKey)
 	return err
 }
 
@@ -223,7 +247,7 @@ type StoredCharacterEventRow struct {
 }
 
 func (q *Queries) StoredCharacterEvent(ctx context.Context, arg StoredCharacterEventParams) (StoredCharacterEventRow, error) {
-	row := q.db.QueryRow(ctx, storedCharacterEvent, arg.CharacterID, arg.EventKey)
+	row := q.db.QueryRowContext(ctx, storedCharacterEvent, arg.CharacterID, arg.EventKey)
 	var i StoredCharacterEventRow
 	err := row.Scan(&i.Model, &i.Outcome)
 	return i, err

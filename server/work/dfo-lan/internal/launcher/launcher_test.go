@@ -8,9 +8,12 @@ import (
 	"testing"
 )
 
-// The plan is the part worth testing without touching the machine: whether a SQLite
-// profile tries to stop a PostgreSQL that does not exist, and whether a PostgreSQL
-// profile still plans the graceful stop before the force fallback.
+// The plan is the part worth testing without touching the machine: a SQLite profile
+// stops the server processes and nothing else.
+//
+// PostgreSQL support was removed on 2026-10-05 (owner decision, see root AGENTS.md
+// §0.6), so no pg-* action can exist any more — and the removed engine must now be
+// refused exactly like any other unknown driver, not silently treated as SQLite.
 func TestStopPlanIsDriverAware(t *testing.T) {
 	sqlitePlan, err := StopPlan(StorageConfig{Driver: "sqlite", SQLitePath: "save.sqlite3"})
 	if err != nil {
@@ -21,67 +24,29 @@ func TestStopPlanIsDriverAware(t *testing.T) {
 	}
 	for _, action := range sqlitePlan {
 		if strings.HasPrefix(action.Kind, "pg-") {
-			t.Errorf("sqlite plan contains the PostgreSQL action %q (%s)", action.Kind, action.Detail)
+			t.Errorf("sqlite plan contains the removed PostgreSQL action %q (%s)", action.Kind, action.Detail)
 		}
 	}
 
 	// A configuration that names no engine falls back to SQLite (2026-10-05 业主口径
-	// 「默认 sqlite」), which has no service: no pg-* action may be planned for it.
+	// 「默认 sqlite」), which has no service: the plan is just the kills.
 	fallbackPlan, err := StopPlan(StorageConfig{})
 	if err != nil {
 		t.Fatalf("fallback plan: %v", err)
 	}
 	for _, action := range fallbackPlan {
 		if strings.HasPrefix(action.Kind, "pg-") {
-			t.Errorf("the empty configuration planned the PostgreSQL action %q (%s)", action.Kind, action.Detail)
+			t.Errorf("the empty configuration planned the removed PostgreSQL action %q (%s)", action.Kind, action.Detail)
 		}
 	}
 
-	// PostgreSQL is selected by naming it (or a DSN), never by omission.
-	postgresPlan, err := StopPlan(StorageConfig{Driver: "postgres"})
-	if err != nil {
-		t.Fatalf("postgres plan: %v", err)
-	}
-	kinds := map[string]int{}
-	for _, action := range postgresPlan {
-		kinds[action.Kind]++
-	}
-	if kinds["pg-force"] != 1 {
-		t.Errorf("postgres plan has %d pg-force actions, want exactly 1 (the fallback)", kinds["pg-force"])
-	}
-	if kinds["kill"] == 0 {
-		t.Error("postgres plan stops no server processes")
-	}
-
-	// With a real pg_ctl and data directory present, the graceful stop must be planned.
-	bin := t.TempDir()
-	data := filepath.Join(t.TempDir(), "pgdata")
-	if err := os.MkdirAll(data, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(bin, "pg_ctl.exe"), []byte("stub"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	withCtl, err := StopPlan(StorageConfig{Driver: "postgres", PostgresBin: bin, PostgresData: data})
-	if err != nil {
-		t.Fatalf("plan with pg_ctl: %v", err)
-	}
-	var graceful *Action
-	for i := range withCtl {
-		if withCtl[i].Kind == "pg-stop" {
-			graceful = &withCtl[i]
-		}
-	}
-	if graceful == nil {
-		t.Fatal("a present pg_ctl and data directory did not plan a graceful stop")
-	}
-	if graceful.Path != data {
-		t.Errorf("pg-stop carries data directory %q, want %q", graceful.Path, data)
-	}
-
-	// An unknown driver must be refused rather than silently treated as PostgreSQL.
+	// An unknown driver is refused rather than silently treated as SQLite.
 	if _, err := StopPlan(StorageConfig{Driver: "mysql"}); err == nil {
 		t.Error("an unknown driver was accepted")
+	}
+	// The removed engine is now just another unsupported driver.
+	if _, err := StopPlan(StorageConfig{Driver: "postgres"}); err == nil {
+		t.Error("the removed PostgreSQL driver was still accepted")
 	}
 }
 
@@ -149,14 +114,8 @@ func TestDriverNameMatchesTheServerRule(t *testing.T) {
 		want string
 	}{
 		{name: "explicit sqlite", cfg: StorageConfig{Driver: "Sqlite "}, want: "sqlite"},
-		{name: "explicit postgres", cfg: StorageConfig{Driver: "postgres"}, want: "postgres"},
+		{name: "a removed engine is still reported as written so the plans can refuse it", cfg: StorageConfig{Driver: "postgres"}, want: "postgres"},
 		{name: "unknown driver is reported as written", cfg: StorageConfig{Driver: "mysql"}, want: "mysql"},
-		{
-			name: "a DSN outranks a leftover sqlite_path",
-			cfg:  StorageConfig{PostgresDSN: "postgres://u@127.0.0.1:25438/dfo_lan", SQLitePath: "leftover.sqlite3"},
-			want: "postgres",
-		},
-		{name: "DSN alone", cfg: StorageConfig{PostgresDSN: "postgres://u@127.0.0.1:25438/dfo_lan"}, want: "postgres"},
 		{name: "sqlite_path alone", cfg: StorageConfig{SQLitePath: "save.sqlite3"}, want: "sqlite"},
 		{name: "neither falls back to sqlite (2026-10-05 default)", cfg: StorageConfig{}, want: "sqlite"},
 	}
@@ -168,20 +127,33 @@ func TestDriverNameMatchesTheServerRule(t *testing.T) {
 		})
 	}
 
-	// The mixed configuration must also produce the PostgreSQL stop plan: no pg-*
-	// action was ever planned for a SQLite profile, which is how the disagreement
-	// used to hide - the database was never stopped because the file needs no stop.
-	plan, err := StopPlan(StorageConfig{PostgresDSN: "postgres://u@127.0.0.1:25438/dfo_lan", SQLitePath: "leftover.sqlite3"})
-	if err != nil {
-		t.Fatalf("mixed plan: %v", err)
+	// A profile that still carries the removed PostgreSQL keys (the 2026-10-04 upgrade
+	// package wrote them) must load fine and be treated as SQLite: the leftover keys are
+	// ignored, and no pg-* action can be planned for it.
+	root := t.TempDir()
+	dir := filepath.Join(root, "server", "work", "dfo-lan", "runtime", "storage")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
 	}
-	found := false
+	stale := `{"driver":"sqlite","sqlite_path":"save.sqlite3",` +
+		`"postgres_dsn":"postgres://u@127.0.0.1:25438/dfo_lan","postgres_bin":"x","postgres_data":"y"}`
+	if err := os.WriteFile(filepath.Join(dir, "local.json"), []byte(stale), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadStorageConfig(root)
+	if err != nil {
+		t.Fatalf("a profile with leftover PostgreSQL keys must still load: %v", err)
+	}
+	if got := loaded.DriverName(); got != "sqlite" {
+		t.Fatalf("DriverName() = %q, want sqlite (leftover PostgreSQL keys are ignored)", got)
+	}
+	plan, err := StopPlan(loaded)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
 	for _, action := range plan {
 		if strings.HasPrefix(action.Kind, "pg-") {
-			found = true
+			t.Errorf("a sqlite profile planned the removed PostgreSQL action %q", action.Kind)
 		}
-	}
-	if !found {
-		t.Error("the mixed configuration planned no PostgreSQL action; it was treated as a SQLite profile")
 	}
 }

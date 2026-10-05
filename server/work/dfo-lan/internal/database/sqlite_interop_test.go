@@ -32,9 +32,9 @@ func TestSQLiteInteropWithUpgradePackageConfig(t *testing.T) {
 	}
 	defer store.Close()
 
-	// It really is the SQLite engine, not a PostgreSQL fallback that happened to open.
-	if _, err := store.rawPool(); err == nil {
-		t.Error("storage opened as PostgreSQL; sqlite_path alone must select SQLite")
+	// It really is the SQLite engine, not a fallback that happened to open.
+	if _, ok := store.engine.(*sqliteEngine); !ok {
+		t.Error("storage opened as something other than the SQLite engine; sqlite_path alone must select SQLite")
 	}
 	if _, err := store.DevelopmentAccount(ctx, "interop"); err != nil {
 		t.Fatalf("the SQLite store is not usable: %v", err)

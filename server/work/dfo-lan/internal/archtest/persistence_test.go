@@ -11,6 +11,13 @@ import (
 	"testing"
 )
 
+// driverImports are the packages only internal/database may import: the SQLite driver
+// itself and database/sql. PostgreSQL's pgx used to be listed here; it went with the
+// engine (2026-10-05 业主口径，见根 AGENTS.md §0.6).
+func driverImports(name string) bool {
+	return name == "modernc.org/sqlite" || name == "database/sql"
+}
+
 // Generated persistence types must not become the domain or gateway API. This
 // guard also prevents reintroducing a generic SQL transaction facade.
 func TestPersistenceBoundary(t *testing.T) {
@@ -50,14 +57,11 @@ func TestPersistenceBoundary(t *testing.T) {
 				if name == "dfolan/internal/database/sqlcgen" && !isDatabase {
 					t.Errorf("%s exposes generated database types outside database", path)
 				}
-				if !isDatabase && (strings.HasPrefix(name, "github.com/jackc/pgx/") || name == "database/sql") {
+				if !isDatabase && driverImports(name) {
 					t.Errorf("%s imports a database driver outside database", path)
 				}
-				if strings.HasPrefix(name, "github.com/jackc/pgx/") || name == "database/sql" || name == "dfolan/internal/database/sqlcgen" {
+				if driverImports(name) || name == "dfolan/internal/database/sqlcgen" {
 					alias := filepath.Base(name)
-					if name == "github.com/jackc/pgx/v5" {
-						alias = "pgx"
-					}
 					if imp.Name != nil {
 						alias = imp.Name.Name
 					}

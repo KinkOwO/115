@@ -42,21 +42,12 @@
       "note": "当前PVF直读运行所需配置与策略；不包含玩家连接配置或数据库存档。",
       "target": "server/work/dfo-lan"
     },
-    {
-      "name": "pg-bin",
-      "url": "tools/tools-pg-bin.zip",
-      "size": 29413405,
-      "sha256": "ba960e17190b0af4a15d8a2f12e0ac532e76a9f01b210869a95931f814fc977b",
-      "files": 71,
-      "check": "tools/pg/pgsql/bin/postgres.exe",
-      "target": "tools/pg/pgsql/bin",
-      "note": "PostgreSQL 便携运行时 (pg/pgsql/bin 整目录)；缺 postgres.exe 时 pg_ctl 拉不起数据库"
-    },
+    
             {
       "name": "server-bin",
       "url": "tools/tools-server-bin.zip",
-      "size": 30916333,
-      "sha256": "c8cfaee9632e46fc6eddf51046283b00c8879ce7fb09dff225c41c29fe669e2b",
+      "size": 24056851,
+      "sha256": "784feadc3cca9d31561dd9fabae0cced15bb612b0dd1f9b1dde9257c836418cd",
       "files": 85,
       "check": "server/work/dfo-lan/bin/wireprobe-pvf.exe",
       "note": "预编译服务端程序（wireprobe-pvf.exe）+ Go 会话编排 CLI（dfolauncher.exe：launch/stop/check/start-storage/init-storage/prepare-inner-pvf/--host-client）+ 网络隔离探针（dfo_probe_tools/probe.exe）；有了它就不必在本机编译服务端，**且全程不需要 Python**（会话编排、内层 PVF 生成、存储初始化都由这个 CLI 完成）",

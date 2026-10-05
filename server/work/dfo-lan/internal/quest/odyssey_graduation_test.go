@@ -9,7 +9,6 @@ import (
 	"dfolan/internal/savecontract"
 	"dfolan/internal/testfixture"
 	"encoding/json"
-	"os"
 	"slices"
 	"testing"
 	"time"
@@ -119,9 +118,6 @@ func TestGraduationEligibilityAndJobFilter(t *testing.T) {
 }
 
 func TestOdysseyGraduationAtomicIntegration(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("requires explicit DFO_TEST_POSTGRES_DSN for isolated PostgreSQL schema")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	fixture, err := database.OpenTestFixture(ctx)
