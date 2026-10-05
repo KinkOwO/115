@@ -3,6 +3,7 @@ package launcher
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,8 +19,9 @@ import (
 // --server-only` starts the game gateway itself.
 //
 // 它接管的是 channel_probe.py 从"起网关"到"写 run.json"这一段（L222-L607），以及
-// launch_local.py 在它外面做的环境拼装与 7001 检查。客户端拉起（probe.exe）与 WFP 隔离
-// 属于 Stage 3，这里不碰：interactive / client-only 会明确报未实现并退出，不做半套。
+// launch_local.py 在它外面做的环境拼装与 7001 检查。Stage 3 的客户端拉起（probe.exe）
+// 与 WFP 隔离复用同一个会话前半段：startSession 把 L222-L599 抽出来，LaunchServer 与
+// LaunchClient（clientrun.go）各自接自己的后半段。
 
 // readyPollInterval 是就绪轮询的间隔（channel_probe.py L597 的 time.sleep(0.05)）。
 const readyPollInterval = 50 * time.Millisecond
@@ -30,58 +32,64 @@ func sessionTagName(now time.Time) string {
 	return launcherTagPrefix + now.Format("20060102_150405") + "_" + fmt.Sprintf("%06d", now.Nanosecond()/1000) + "_next37"
 }
 
-// LaunchServer 执行 `launch --server-only` 的真实启动：预检（与 --check 同一套）→ 7001
-// 占用检查 → 起存储（SQLite 档无事可做）→ 写协议夹具 → 构造并下发网关命令行 →
-// 等 ready.json → 写 run.json → 打印监听地址 → 等网关退出。
+// sessionRun 是一次已经起好网关的会话。server-only / interactive / client-only 三种模式
+// 从这里分叉：server-only 写两个键的 run.json 后等网关退出（channel_probe.py L600-L607），
+// 其余写三个键的 run.json 再拉 probe（L608 之后，见 clientrun.go）。
+type sessionRun struct {
+	Session     sessionTag
+	Env         *childEnv
+	Child       *childProcess
+	Address     string
+	Port        int
+	CommandLine string
+	HelperOut   string
+	HelperErr   string
+}
+
+// startSession 复刻 launch_local.py L228-L312 加上 channel_probe.py L222-L599：预检
+// （与 --check 同一套）→ 7001 占用检查 → 起存储（SQLite 档无事可做）→ 写协议夹具 →
+// 拼环境 → 构造并下发网关命令行 → 等 ready.json → 解析监听端口。
 //
-// console 收启动器自己要说的话（命令行与监听地址），与 Python 版 helper 的 helper.out
-// 对应；网关自己的 stdout/stderr 落在 runtime/<tag>/gateway.out / gateway.err。
-func LaunchServer(ctx context.Context, root string, opts LaunchOptions, console io.Writer) error {
+// --storage-only 在起网关之前返回 (nil, nil)（Python L283-L285）。
+//
+// console 收启动器自己要说的话（inner-PVF 结论、命令行与监听地址），与 Python 版 helper 的
+// helper.out 对应；网关自己的 stdout/stderr 落在 runtime/<tag>/gateway.out / gateway.err。
+func startSession(ctx context.Context, root string, opts LaunchOptions, console io.Writer) (*sessionRun, error) {
 	if console == nil {
 		console = io.Discard
 	}
-	// 这个入口只做 server-only / storage-only：--check/--dry-run 走 LaunchPlan，客户端侧是 Stage 3。
-	// storage-only 不设置 ServerOnly，好让预检的依赖清单与 launch_local.py 的 --storage-only
-	// 一致（那一条分支要 probe.exe 与客户端三件套）；server-only 才裁到 [网关程序]。
-	if !opts.StorageOnly {
-		opts.ServerOnly = true
-	}
-	opts.ClientOnly = false
-	opts.Check = false
-	opts.DryRun = false
-
 	module := filepath.Join(root, "server", "work", "dfo-lan")
 	serverRoot := filepath.Join(root, "server")
 
 	// 1. 预检。任何一项不过都不起进程，失败原因与 --check 完全一致。
 	report, err := LaunchPlan(root, opts)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if message := report.InnerPVF.Message; message != "" {
 		fmt.Fprintln(console, message)
 	}
 
 	// 2. 已经有会话在 7001 上，就不要叠一个（launch_local.py L278-L279）。--storage-only
-	//    不起网关，Python 那一句也把它排除在外。
-	if !opts.StorageOnly && PortListening(GatewayPort, portProbeTimeout) {
-		return fmt.Errorf("端口 %d 已在监听；请先检查现有会话再重试。", GatewayPort)
+	//    不起网关，--client-only 连的是别的机器，Python 那一句把两者都排除在外。
+	if !opts.StorageOnly && !opts.ClientOnly && PortListening(GatewayPort, portProbeTimeout) {
+		return nil, fmt.Errorf("端口 %d 已在监听；请先检查现有会话再重试。", GatewayPort)
 	}
 
 	// 3. 存储。SQLite 档没有服务要起（引擎自己打开文件），PostgreSQL 档才需要 pg_ctl，
-	//    且只允许启动启动器自己那棵 pgdata。--storage-only 到这里就结束（Python 同样）。
+	//    且只允许启动启动器自己那棵 pgdata。--client-only 不启本机存储（Python L281）。
 	storage, err := LoadStorageConfig(root)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if storage.DriverName() != "sqlite" {
+	if !opts.ClientOnly && storage.DriverName() != "sqlite" {
 		if err := startLaunchStorage(ctx, module, storage); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if opts.StorageOnly {
 		fmt.Fprintln(console, "Existing storage ready.")
-		return nil
+		return nil, nil
 	}
 
 	// 4. 会话目录与协议夹具。目录用原始 tag，行为看降级后的 tag。
@@ -91,17 +99,17 @@ func LaunchServer(ctx context.Context, root string, opts LaunchOptions, console 
 	}
 	session := newSessionTag(module, tag)
 	if err := os.MkdirAll(session.Out, 0o755); err != nil {
-		return fmt.Errorf("创建会话目录失败：%w", err)
+		return nil, fmt.Errorf("创建会话目录失败：%w", err)
 	}
 	readyPath := filepath.Join(session.Out, "ready.json")
 	// Python 的 out.mkdir(parents=True) 遇到已存在的目录会失败，所以它从不需要清理旧状态。
 	// Go 允许 --tag 复用目录（对照测试要这么做），那就必须自己把上一次的 ready.json 删掉，
 	// 否则轮询会立刻拿到过期地址。
 	if err := os.Remove(readyPath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("清理旧 ready.json 失败：%w", err)
+		return nil, fmt.Errorf("清理旧 ready.json 失败：%w", err)
 	}
 	if _, err := WriteSessionFixtures(module, session.Out, session.Effective); err != nil {
-		return fmt.Errorf("写协议夹具失败：%w", err)
+		return nil, fmt.Errorf("写协议夹具失败：%w", err)
 	}
 
 	// 5. 环境：launch_environment 的合并结果 + launch_local.py 追加的四个变量。
@@ -124,10 +132,10 @@ func LaunchServer(ctx context.Context, root string, opts LaunchOptions, console 
 		Probe:   probe,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if len(gateway.Args) == 0 {
-		return fmt.Errorf("内部错误：网关命令行是空的")
+		return nil, fmt.Errorf("内部错误：网关命令行是空的")
 	}
 	commandLine := strings.Join(gateway.Args, " ")
 	helperOut := filepath.Join(session.Out, "helper.out")
@@ -148,19 +156,19 @@ func LaunchServer(ctx context.Context, root string, opts LaunchOptions, console 
 	//    这样它一定是 gateway.out 的第一行（Python 走文本缓冲，靠的是运气）。
 	gatewayOut, err := os.Create(filepath.Join(session.Out, "gateway.out"))
 	if err != nil {
-		return fmt.Errorf("打开 gateway.out 失败：%w", err)
+		return nil, fmt.Errorf("打开 gateway.out 失败：%w", err)
 	}
 	defer gatewayOut.Close()
 	gatewayErr, err := os.Create(filepath.Join(session.Out, "gateway.err"))
 	if err != nil {
-		return fmt.Errorf("打开 gateway.err 失败：%w", err)
+		return nil, fmt.Errorf("打开 gateway.err 失败：%w", err)
 	}
 	defer gatewayErr.Close()
 	if _, err := gatewayOut.WriteString(commandLine + pythonTextNewline); err != nil {
-		return fmt.Errorf("写 gateway.out 失败：%w", err)
+		return nil, fmt.Errorf("写 gateway.out 失败：%w", err)
 	}
 	if err := gatewayOut.Sync(); err != nil {
-		return fmt.Errorf("刷 gateway.out 失败：%w", err)
+		return nil, fmt.Errorf("刷 gateway.out 失败：%w", err)
 	}
 
 	cmd := exec.Command(gateway.Args[0], gateway.Args[1:]...)
@@ -173,30 +181,68 @@ func LaunchServer(ctx context.Context, root string, opts LaunchOptions, console 
 	hideConsoleWindow(cmd)
 	child, err := startChild(cmd)
 	if err != nil {
-		return fmt.Errorf("拉起网关失败：%w\n命令行：%s", err, commandLine)
+		return nil, fmt.Errorf("拉起网关失败：%w\n命令行：%s", err, commandLine)
 	}
 
 	// 8. 等 ready.json。直读 PVF 要先校验来源再开存储，上限比 JSON 档大（L589-L591）。
 	address, err := awaitReady(readyPath, startupChecks(env.Get("DFO_PVF_CATALOGS")), child.exited, time.Sleep, gateway.Args)
 	if err != nil {
 		child.terminate(5 * time.Second)
-		return err
+		return nil, err
 	}
 	port, err := portFromAddress(address)
 	if err != nil {
 		child.terminate(5 * time.Second)
+		return nil, err
+	}
+	return &sessionRun{
+		Session:     session,
+		Env:         env,
+		Child:       child,
+		Address:     address,
+		Port:        port,
+		CommandLine: commandLine,
+		HelperOut:   helperOut,
+		HelperErr:   helperErr,
+	}, nil
+}
+
+// LaunchServer 执行 `launch --server-only` 的真实启动：startSession 起好网关之后，
+// 写两个键的 run.json、打印监听地址，然后等网关退出（channel_probe.py L600-L607）。
+func LaunchServer(ctx context.Context, root string, opts LaunchOptions, console io.Writer) error {
+	if console == nil {
+		console = io.Discard
+	}
+	// 这个入口只做 server-only / storage-only：--check/--dry-run 走 LaunchPlan，客户端侧是
+	// Stage 3 的 LaunchClient。storage-only 不设置 ServerOnly，好让预检的依赖清单与
+	// launch_local.py 的 --storage-only 一致（那一条分支要 probe.exe 与客户端三件套）；
+	// server-only 才裁到 [网关程序]。
+	if !opts.StorageOnly {
+		opts.ServerOnly = true
+	}
+	opts.ClientOnly = false
+	opts.Check = false
+	opts.DryRun = false
+
+	run, err := startSession(ctx, root, opts, console)
+	if err != nil {
 		return err
 	}
+	if run == nil {
+		// --storage-only：Python 同样在这里结束（L283-L285）。
+		return nil
+	}
+	child := run.Child
 
 	// 9. run.json 与监听行。键名、键序、空格风格与 json.dumps 默认风格一致。
-	if err := os.WriteFile(filepath.Join(session.Out, "run.json"),
-		[]byte(runJSON(child.pid(), port)), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(run.Session.Out, "run.json"),
+		[]byte(runJSON(child.pid(), run.Port)), 0o644); err != nil {
 		child.terminate(5 * time.Second)
 		return fmt.Errorf("写 run.json 失败：%w", err)
 	}
-	listening := fmt.Sprintf("Server listening on 127.0.0.1:%d and %s", GatewayPort, address)
+	listening := fmt.Sprintf("Server listening on 127.0.0.1:%d and %s", GatewayPort, run.Address)
 	fmt.Fprintln(console, listening)
-	appendLogFile(helperOut, listening)
+	appendLogFile(run.HelperOut, listening)
 
 	// 10. 等网关退出。Ctrl+C 与 Python 的 KeyboardInterrupt 一样：不再等，按 0 收场
 	//     （控制台的 CTRL_C_EVENT 本来就会发给同组的网关，不需要我们代它自杀）。
@@ -281,6 +327,36 @@ func (c *childProcess) reap() {
 	}
 	c.err = <-c.done
 	c.waited = true
+}
+
+// waitTimeout 对应 Python 的 probe.wait(timeout=...)：超时返回 false，进程仍在跑（还没收尸）。
+// Python 的 subprocess.TimeoutExpired 不会杀子进程（channel_probe.py 的 finally 只收网关），
+// 所以这里也不杀 —— 语义与 Python 保持一致，由调用方决定怎么报。
+func (c *childProcess) waitTimeout(timeout time.Duration) bool {
+	if c.waited {
+		return true
+	}
+	select {
+	case err := <-c.done:
+		c.err = err
+		c.waited = true
+		return true
+	case <-time.After(timeout):
+		return false
+	}
+}
+
+// exitCode 是 Python 的 probe.returncode：正常退出就是退出码，拿不到状态（被信号等）按
+// Python 的负值口径给 -1。
+func (c *childProcess) exitCode() int {
+	if c.err == nil {
+		return 0
+	}
+	var exit *exec.ExitError
+	if errors.As(c.err, &exit) {
+		return exit.ExitCode()
+	}
+	return -1
 }
 
 // reapWith 记录后台 Wait 的结果，用于 done 已经被本 goroutine 取走的情形。

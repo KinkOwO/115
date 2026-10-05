@@ -49,7 +49,7 @@ Usage:
   dfolauncher launch --check|--dry-run [--root <path>]
                     [--server-only|--client-only|--storage-only]
                     [--json-mode|--repair-profile <path>] [--source-build]
-  dfolauncher launch --server-only [--root <path>] [--tag <name>]
+  dfolauncher launch [--root <path>] [--tag <name>]
                     [--json-mode|--repair-profile <path>] [--source-build]
 
 Flags:
@@ -65,8 +65,12 @@ storage -> inner PVF -> gateway -> client command plan.
 
 --server-only really starts the game gateway in Go (Stage 2 of
 docs/go-launch-migration-plan.md): the protocol fixture, the gateway argv, ready.json
-and run.json are reproduced from channel_probe.py, so no Python is involved. The
-client (probe.exe) and the WFP isolation are Stage 3 and are refused for now.
+and run.json are reproduced from channel_probe.py, so no Python is involved.
+
+interactive (the default) and --client-only additionally launch probe.exe with the same
+argv, run.json, probe.json, exit-code warnings and client-trace handling as
+channel_probe.py (Stage 3). DFO_ENABLE_OBSERVER is not implemented; it is a Python-only
+observer and the launcher always injects 0.
 `)
 }
 
@@ -171,8 +175,8 @@ func runCheck(args []string) int {
 }
 
 // runLaunch is the launch subcommand. --check and --dry-run are Stage 1 (read-only);
-// --server-only is Stage 2 and really starts the gateway in Go; everything that needs the
-// client is Stage 3 and is refused rather than half-done.
+// --server-only is Stage 2 and really starts the gateway in Go; interactive and
+// --client-only are Stage 3: the same gateway session followed by the probe.exe handoff.
 func runLaunch(args []string) int {
 	flags := flag.NewFlagSet("launch", flag.ContinueOnError)
 	root := flags.String("root", ".", "repository root")
@@ -211,8 +215,9 @@ func runLaunch(args []string) int {
 		return 1
 	}
 
-	// A real run: server-only and storage-only are ported; interactive/client-only still
-	// need the probe.exe path and the WFP isolation of Stage 3.
+	// A real run. server-only and storage-only start the gateway; everything else is the
+	// interactive / client-only session, which also starts the gateway and then hands the
+	// client to probe.exe (Stage 3).
 	if !*check && !*dryRun {
 		switch {
 		case *serverOnly, *storageOnly:
@@ -222,10 +227,11 @@ func runLaunch(args []string) int {
 			}
 			return 0
 		default:
-			fmt.Fprintln(os.Stderr, "launch: 客户端拉起与 WFP 隔离属于 "+
-				"docs/go-launch-migration-plan.md Stage 3，本阶段未实现；"+
-				"请用 --server-only 或 --storage-only，或走 Python 路径。")
-			return 1
+			if err := launcher.LaunchClient(context.Background(), absolute, options, os.Stdout); err != nil {
+				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+				return 1
+			}
+			return 0
 		}
 	}
 
