@@ -99,7 +99,7 @@
 
 | 项 | 判据 | 本机 2026-10-05 实测命中 |
 | --- | --- | --- |
-| 存储档 | 活动 `runtime/storage/local.json` 的 `driver` 与已跟踪 `local.example.json` 的 `driver` 必须一致；`sqlite_path` 必须存在 | 示例档 driver=postgres，活动档 driver=sqlite |
+| 存储档 | 活动 `runtime/storage/local.json` 的路径必须在本机存在；与已跟踪 `local.example.json` 的 `driver` 不一致时，**若该 driver 有自己的路线档**（`runtime/storage/local.<driver>.json`，双库双路线切换器的产物）则只提示 | 示例档 driver=postgres，活动档 driver=sqlite |
 | 配置里的路径 | 示例/本地配置中写的相对路径必须在本机存在 | 示例档 `postgres_bin=tools/pg/pgsql/bin`，而 tools 已移出仓库 |
 | profile 程序 | `configs/pvf-default.json.binary`、`server/launcher.local.json.server_binary` 指向的程序必须存在 | 缺 `bin/wireprobe-pvf.exe` 时启动找不到程序 |
 | 启动链配置 | `channel_probe.py` 引用的 `configs/channel.local*.json` 必须存在 | next37 档引用的频道档没落地 → 该档启动失败 |

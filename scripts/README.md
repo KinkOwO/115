@@ -9,8 +9,10 @@
 | 文件 | 作用 | 谁调用 |
 | --- | --- | --- |
 | `check-commit-hygiene.ps1` | **提交前门禁**：检出「本地缓存/构建产物入库」与目录规范违规；退出码 2 = 需业主二次确认（根 `AGENTS.md` §0.3.1） | 任何提交前手动跑：`pwsh -NoProfile -File scripts/check-commit-hygiene.ps1` |
+| `存储档.ps1` / `存储档.cmd` | **双库双路线切换器**：`show` 看当前路线、`use sqlite`/`use postgres` 切换、`stop-postgres` 停 PG、`selftest` 自检（逻辑见 `server/work/dfo-lan/docs/sqlite-operations.md` §1.1） | 四个路线启动入口内部调用；也可手动 `scripts\存储档.cmd show` |
 | `configure_env.py` | 配置本机环境（写 `server/work/dfo-lan/runtime/storage/local.json`、探测客户端目录） | `scripts\配置环境.cmd` |
-| `stop_environment.py` | 安全停止环境（PG `pg_ctl stop -m fast` 做 checkpoint、清理进程与端口） | `scripts\停止游戏环境.cmd` |
+| `storage_profile.py` | 存储引擎判定规则的 **Python 真源**（显式 driver > 有 DSN 选 PostgreSQL > 只有 sqlite_path 选 SQLite），被 `configure_env.py`、`stop_environment.py`、`gm.py` 导入 | 上面几个脚本 |
+| `stop_environment.py` | 安全停止环境（PG `pg_ctl stop -m fast` 做 checkpoint、清理进程与端口，按 driver 分叉） | `scripts\停止游戏环境.cmd` |
 | `build_publish_zip.py` | 打发布包 | 根 `build-publish.ps1:59` |
 | `test_environment_storage.py` | 上面两个脚本的单元测试（用 tempfile + mock，不碰真实环境） | 手动：`python scripts/test_environment_storage.py` |
 
@@ -39,9 +41,22 @@
 
 ## 运行入口（全部在本目录）
 
-`启动游戏.cmd`、`启动服务端.cmd`、`启动游戏-奥德赛.cmd`、`停止游戏环境.cmd`、`检查环境.cmd`、
-`配置环境.cmd`、`移除tools.cmd`/`还原tools.cmd`、`一键打包.cmd`、`打包增量更新.cmd`、`伊斯-*.cmd`，
-以及提交门禁 `check-commit-hygiene.ps1`。
+**两条存储路线各有自己的启动入口**（2026-10-05 业主定调：双库兼容方案要能分别启动）：
+
+| 路线 | 存档位置 | 游戏全链 | 只起服务端 |
+| --- | --- | --- | --- |
+| SQLite | `runtime\storage\dfolan.sqlite3`（单文件，不需要 PostgreSQL） | `启动游戏-SQLite.cmd` | `启动服务端-SQLite.cmd` |
+| PostgreSQL | `runtime\storage\pgdata`（本地 PostgreSQL 实例，端口 25438） | `启动游戏-PostgreSQL.cmd` | `启动服务端-PostgreSQL.cmd` |
+
+四个入口都先调用 `scripts\存储档.ps1 use <路线>` 把活动档切成该路线，再交给统一入口
+（`启动游戏.cmd` / `启动服务端.cmd`，提权与启动编排都在那里）；PostgreSQL 路线的入口会额外
+调用 `bin\dfolauncher.exe start-storage` 把 PostgreSQL 拉起来（SQLite 档下它是空操作）。
+**两条路线的存档互相独立**，切换路线不会带着角色走；搬运存档用 `dfo-tool sqliteconvert`
+（只支持 PostgreSQL → SQLite 单向）。
+
+其余入口：`启动游戏.cmd`、`启动服务端.cmd`、`启动游戏-奥德赛.cmd`、`停止游戏环境.cmd`、
+`检查环境.cmd`、`配置环境.cmd`、`GM.cmd`、`存储档.cmd`、`移除tools.cmd`/`还原tools.cmd`、
+`一键打包.cmd`、`打包增量更新.cmd`、`伊斯-*.cmd`，以及提交门禁 `check-commit-hygiene.ps1`。
 
 > 这些 `.cmd` 一律先 `cd /d "%~dp0.."` 回到仓库根，因此内部路径仍按仓库根书写（根 `AGENTS.md` §0.4.2）。
 > 构建脚本 `build-publish.ps1` 仍在**仓库根**（被 `一键打包.cmd` 以 `%~dp0..\build-publish.ps1` 调用）。

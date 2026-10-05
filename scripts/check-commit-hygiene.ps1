@@ -215,7 +215,8 @@ try {
 
     # ---- 4b. 环境匹配（§0.3.4）：提交内容与「本机正在跑的这一套环境」是否对得上 ----
     # 只报事实对不上（路径不存在 / 档位不一致），不猜意图。
-    # (a) 存储档：活动档与已跟踪示例档引用的路径必须在本机存在，driver 必须一致
+    # (a) 存储档：活动档引用的路径必须在本机存在；与已跟踪示例档 driver 不一致时，
+    #     若该 driver 有自己的路线档（双库双路线，见 scripts\存储档.ps1）则只提示。
     $activeCfg = Join-Path $RepoRoot 'server\work\dfo-lan\runtime\storage\local.json'
     $exampleCfg = Join-Path $RepoRoot 'server\work\dfo-lan\runtime\storage\local.example.json'
     if (Test-Path -LiteralPath $activeCfg) {
@@ -247,7 +248,16 @@ try {
             $exa = Get-Content -LiteralPath $exampleCfg -Raw -Encoding UTF8 | ConvertFrom-Json
             $exaDriver = if ($exa.driver) { [string]$exa.driver } elseif ($exa.sqlite_path) { 'sqlite' } else { 'postgres' }
             if ((Test-Path -LiteralPath $activeCfg) -and $actDriver -and ($exaDriver -ne $actDriver)) {
-                $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.example.json'; Why = "示例档 driver=$exaDriver，本机活动档 driver=$actDriver（照示例档配环境会得到另一套存储）"; Clause = '§0.3.4 环境匹配' }
+                # 双库双路线（2026-10-05 业主定调）：本机可以合法地停在任一条路线上，示例档只对应其中一条。
+                # 路线的证据是 scripts\存储档.ps1 管的那份档：local.<活动 driver>.json 存在 ⇒ 这是切换后的
+                # 正常状态，只提示；连它都不存在，才说明活动档既不是示例档、也不是任何一条已建好的路线。
+                $routeFile = Join-Path $RepoRoot ("server\work\dfo-lan\runtime\storage\local.{0}.json" -f $actDriver)
+                if (Test-Path -LiteralPath $routeFile) {
+                    $notes += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.json'; Why = "本机停在 $actDriver 路线（$(Split-Path -Leaf $routeFile) 存在）；已跟踪示例档 driver=$exaDriver 对应另一条路线"; Clause = '§0.3.4 环境匹配' }
+                }
+                else {
+                    $needConfirm += [pscustomobject]@{ Path = 'server/work/dfo-lan/runtime/storage/local.example.json'; Why = "示例档 driver=$exaDriver，本机活动档 driver=$actDriver，且没有对应的路线档（照示例档配环境会得到另一套存储）"; Clause = '§0.3.4 环境匹配' }
+                }
             }
             foreach ($field in @('postgres_bin', 'postgres_data')) {
                 $v = [string]$exa.$field

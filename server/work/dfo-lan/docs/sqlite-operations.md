@@ -58,6 +58,38 @@
   指向便携 PostgreSQL；`scripts/配置环境.cmd`（`scripts/configure_env.py`）会补齐这两个路径，
   并**清掉该档里残留的 SQLite 专有键**（`sqlite_path` 等），避免下一次选择含糊。
 
+### 1.2 两条路线各自的启动入口（2026-10-05）
+
+全链（服务端 / 启动器 / Web GM / GM 命令行）只读**同一份活动档**
+`runtime/storage/local.json`，所以「切换路线」＝把该路线的档写成活动档。
+`scripts\存储档.cmd` 负责这件事（逻辑在 `scripts\存储档.ps1`，只写配置档，不启动任何程序）：
+
+```powershell
+scripts\存储档.cmd show                 # 当前路线、连的是哪个库、另一条路线档在不在
+scripts\存储档.cmd use sqlite           # 切到 SQLite 路线（无需 PostgreSQL）
+scripts\存储档.cmd use postgres         # 切到 PostgreSQL 路线
+scripts\存储档.cmd stop-postgres        # 停掉本仓库 pgdata 上的 PostgreSQL
+scripts\存储档.cmd selftest             # 自检（临时目录里跑，不碰本机真实配置）
+```
+
+四个启动入口在切好路线后交给统一入口，因此提权、探针、客户端编排仍只有一套实现：
+
+| 路线 | 游戏全链 | 只起服务端 |
+| --- | --- | --- |
+| SQLite | `scripts\启动游戏-SQLite.cmd` | `scripts\启动服务端-SQLite.cmd` |
+| PostgreSQL | `scripts\启动游戏-PostgreSQL.cmd` | `scripts\启动服务端-PostgreSQL.cmd` |
+
+- 路线档放在 `runtime/storage/local.sqlite.json` 与 `local.postgres.json`（**运行期状态，不入库**）：
+  切换时当前活动档会先按它自己的引擎存回对应路线档，再写入目标路线档，所以手工改过的键不会丢。
+- 路线档缺失时按**本机**路径生成：SQLite 用绝对 `sqlite_path`；PostgreSQL 优先沿用本机既有的
+  `local.json.pg-backup`（保留其中真实 DSN），并把 `postgres_bin`/`postgres_data` 修成本机实际存在
+  的路径（便携 PG 在仓库外 `..\tools\pg`），缺 DSN 时才用项目默认值并明确提示核对。
+- **两条路线的存档互相独立**：SQLite 是单文件、PostgreSQL 是 `pgdata` 里的库。换路线不会带着角色走；
+  搬运存档用 `dfo-tool sqliteconvert`（只支持 PostgreSQL → SQLite 单向）。
+- PostgreSQL 路线的入口会调 `bin\dfolauncher.exe start-storage` 起库（`driver=sqlite` 时它是空操作，
+  见 `internal/launcher.StartStoragePlan`）；停止仍由 `scripts\停止游戏环境.cmd` 按活动档的 driver 决定，
+  所以「已切回 SQLite 但 PostgreSQL 还在跑」时用 `存储档.cmd stop-postgres` 收尾。
+
 ## 2. 首次在 SQLite 上启动
 
 服务端在启动时打开（必要时创建）`sqlite_path`，并**一次性应用全部 schema 分节**；
