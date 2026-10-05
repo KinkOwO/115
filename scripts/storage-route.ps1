@@ -35,6 +35,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# 控制台按 UTF-8 解码**原生命令的输出**：启动器（Go）打的是 UTF-8 中文，
+# 不提这一句，PS 5.1 会按当前代码页（本机 936/GBK）解码 ⇒ 日志与窗口里全是乱码
+# （2026-10-05 业主实机看到 `P�mT0w PVF Ó�r6n...` 就是这个）。
+try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch { }
+try { $OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch { }
+$Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $StorageDir = Join-Path $RepoRoot 'server\work\dfo-lan\runtime\storage'
 $ActiveFile = Join-Path $StorageDir 'local.json'
@@ -599,14 +606,31 @@ function Invoke-FullChain([string]$route, [string]$scope, [string[]]$extra) {
     $env:DFO_REQUIRE_GO_ISOLATION = '1'
     Write-Host ("       环境：{0}=1（Go 隔离不可用就报错，不回退）" -f $GoLauncherEnvRequireIsolation) -ForegroundColor DarkGray
     Set-Location $RepoRoot
-    # 启动器的输出同时写进入口日志（Tee-Object）：提升后子进程窗口是隐藏的，
-    # 由父进程跟随这个文件显示；直接运行时也算留档。
+    # 启动器输出：窗口显示 + 追加进 UTF-8 日志（自己写，不用 Tee-Object——PS 5.1 的
+    # Tee-Object 默认写 UTF-16，父进程按 UTF-8 读会全是乱码）。
+    # **两个坑都在这里**：
+    #   1. 原生命令往 stderr 写一行，在 $ErrorActionPreference='Stop' 下会被 PS 当成终止错误
+    #      ⇒ 抛异常 ⇒ 入口退出码 3。启动器经常往 stderr 写日志（例如
+    #      `storage: PostgreSQL already listening on 25438`），这就是业主那次 exit 3 的根因。
+    #      调用期间临时切到 'Continue'。
+    #   2. 写日志失败绝不能影响启动：每次都单独 try。
     $logPath = if ($script:EntryVerb) { Get-EntryLogPath $script:EntryVerb } else { $null }
-    if ($logPath) {
-        & $chosen.Path @all 2>&1 | Tee-Object -FilePath $logPath -Append
+    $savedEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        if ($logPath) {
+            & $chosen.Path @all 2>&1 | ForEach-Object {
+                $text = if ($null -eq $_) { '' } else { [string]$_ }
+                Write-Host $text
+                try { [System.IO.File]::AppendAllText($logPath, $text + "`r`n", $Utf8NoBom) } catch { }
+            }
+        }
+        else {
+            & $chosen.Path @all
+        }
     }
-    else {
-        & $chosen.Path @all
+    finally {
+        $ErrorActionPreference = $savedEap
     }
     exit $LASTEXITCODE
 }
@@ -694,18 +718,28 @@ function Reset-EntryLog([string]$verb) {
     catch { Write-Host ("[提示] 入口日志无法写入：{0}" -f $_.Exception.Message) -ForegroundColor Yellow }
 }
 
-# 跟随日志：只打印新增行（PS 5.1 下不用后台作业，简单可靠）。
+# 跟随日志：只打印新增行。**必须用共享读**（FileShare.ReadWrite）：
+# 子进程正在往同一个文件追加，若父进程独占读会把它的写入顶掉、让它抛异常退出（2026-10-05 踩到）。
 function Show-NewEntryLogLines([string]$path, [int]$seen) {
     if (-not (Test-Path -LiteralPath $path)) { return $seen }
-    try { $all = @(Get-Content -LiteralPath $path -Encoding UTF8 -ErrorAction Stop) } catch { return $seen }
-    if ($null -eq $all -or $all.Count -le $seen) { return $seen }
-    for ($i = $seen; $i -lt $all.Count; $i++) { Write-Host $all[$i] }
-    return $all.Count
+    $lines = @()
+    try {
+        $stream = [System.IO.FileStream]::new($path, [System.IO.FileMode]::Open,
+            [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+        $reader = [System.IO.StreamReader]::new($stream, $Utf8NoBom)
+        while ($null -ne ($line = $reader.ReadLine())) { $lines += $line }
+        $reader.Close()
+        $stream.Close()
+    }
+    catch { return $seen }
+    if ($lines.Count -le $seen) { return $seen }
+    for ($i = $seen; $i -lt $lines.Count; $i++) { Write-Host $lines[$i] }
+    return $lines.Count
 }
 
 function Write-EntryLog([string]$verb, [string]$text) {
     Write-Host $text
-    try { Add-Content -LiteralPath (Get-EntryLogPath $verb) -Value $text -Encoding UTF8 } catch { }
+    try { [System.IO.File]::AppendAllText((Get-EntryLogPath $verb), $text + "`r`n", $Utf8NoBom) } catch { }
 }
 
 try {
