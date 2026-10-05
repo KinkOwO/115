@@ -22,12 +22,18 @@ func TestStartStoragePlanForSQLiteIsEmpty(t *testing.T) {
 }
 
 func TestStartStoragePlanForPostgres(t *testing.T) {
+	// A PostgreSQL profile must name its engine (or carry a DSN); the shared fallback for a
+	// configuration that names nothing is SQLite since 2026-10-05.
 	// Incomplete configuration must be refused with a message that names what is missing.
-	if _, err := StartStoragePlan(StorageConfig{}); err == nil {
+	if _, err := StartStoragePlan(StorageConfig{Driver: "postgres"}); err == nil {
 		t.Error("a PostgreSQL profile without postgres_bin/postgres_data was accepted")
 	}
-	if _, err := StartStoragePlan(StorageConfig{PostgresBin: "x", PostgresData: "y"}); err == nil {
+	if _, err := StartStoragePlan(StorageConfig{Driver: "postgres", PostgresBin: "x", PostgresData: "y"}); err == nil {
 		t.Error("a profile naming a missing pg_ctl was accepted")
+	}
+	// The fallback is the SQLite no-op, not an error: there is no service to start.
+	if plan, err := StartStoragePlan(StorageConfig{}); err != nil || len(plan) != 0 {
+		t.Errorf("empty configuration planned %v, %v; want the sqlite no-op", plan, err)
 	}
 
 	bin := t.TempDir()
@@ -37,13 +43,13 @@ func TestStartStoragePlanForPostgres(t *testing.T) {
 	}
 	// pg_ctl alone is not enough: an uninitialised data directory must be refused before
 	// anything is started.
-	if _, err := StartStoragePlan(StorageConfig{PostgresBin: bin, PostgresData: data}); err == nil {
+	if _, err := StartStoragePlan(StorageConfig{Driver: "postgres", PostgresBin: bin, PostgresData: data}); err == nil {
 		t.Error("a data directory without PG_VERSION was accepted")
 	}
 	if err := os.WriteFile(filepath.Join(data, "PG_VERSION"), []byte("16"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	plan, err := StartStoragePlan(StorageConfig{PostgresBin: bin, PostgresData: data})
+	plan, err := StartStoragePlan(StorageConfig{Driver: "postgres", PostgresBin: bin, PostgresData: data})
 	if err != nil {
 		t.Fatalf("plan: %v", err)
 	}

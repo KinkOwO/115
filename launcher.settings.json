@@ -5,10 +5,18 @@
   "onboarding": {
     "done": true
   },
-  "update": {
+  "selfupdate": {
     "branch": "master",
+    "endpoint": "https://gitgud.io/yh9/115us-dfolauncher",
+    "fallback_branch": "master",
+    "fallback_endpoint": "https://gitgud.io/RicardoLz/115us-dfolauncher"
+  },
+  "update": {
+    "branch": "main",
     "enabled": true,
-    "endpoint": "https://gitgud.io/RicardoLz/115us-dfolauncher"
+    "endpoint": "https://gitgud.io/fuckworld/115",
+    "fallback_branch": "main",
+    "fallback_endpoint": "https://gitgud.io/RicardoLz/115"
   },
   "window": {
     "height": 909,

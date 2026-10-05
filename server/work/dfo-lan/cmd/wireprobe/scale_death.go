@@ -41,6 +41,7 @@ import (
 	"strings"
 
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/legion"
 )
 
 const (
@@ -145,10 +146,14 @@ func scaleTemplateIn(p []byte, want map[uint32]bool) (uint32, bool) {
 	return 0, false
 }
 
-// scaleStatus 处理一条 CMD2329：记录「见过的最高血量」，并在血量触底时
+// scaleStatus 处理一条 CMD2329：维纳斯阶段本走形态切换分支（venusPhaseShift，
+// 不受开关约束）；其余副本维持调律机关的血量判死（默认关闭），血量触底时
 // 直接把机关判死（合成它的 CMD39 交给 monsterDeath）。
-// 默认关闭，且任何解析失败都只是「不处理」，绝不因此让整帧失败。
+// 调律路径任何解析失败都只是「不处理」，绝不因此让整帧失败。
 func (w *worldSession) scaleStatus(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
+	if w.activeDungeon != nil && legion.IsVenusStageDungeon(w.activeDungeon.Definition.ID) {
+		return w.venusPhaseShift(p, event)
+	}
 	if !w.scaleDeathFromHP || w.activeDungeon == nil {
 		return nil, nil
 	}

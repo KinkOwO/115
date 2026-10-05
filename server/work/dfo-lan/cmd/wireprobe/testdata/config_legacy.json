@@ -20,6 +20,7 @@
     "CharacterStorage": "",
     "EntryAdditionProbe": false,
     "EntryBasicProbe": false,
+    "VenusFlipGear": "configs/venus-flip-gear.generated.json",
     "EquipmentCatalog": "",
     "EquipmentCraftConfirmVariant": 0,
     "EquipmentCraftConfirmWindow": 0,

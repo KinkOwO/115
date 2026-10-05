@@ -49,6 +49,10 @@ if (-not $OutDir) { $OutDir = Split-Path -Parent $ROOT }
 # 「开始游戏」就会报"缺少服务端 Go 编排 CLI / 服务端程序"。启动器虽然能按发布仓库的
 # manifest 自动补齐（见 internal/prebuilt），但**包本该自带**，别让它为了开玩先下 22 MB。
 $PrebuiltFiles = @(
+    # 启动器 exe（2026-10-05 追加）：包内的它必须与**当前工作区刚构建的那份**一致 ——
+    # git 分支里那份是历史提交（45.9 MB，没有本轮的内置资源释放与受管资源校验），
+    # 只从 git 导出会让"整包分发"的玩家拿到旧逻辑，正是这次要修的问题之一。
+    'DFO-115US单机一键启动器.exe',
     'server\work\dfo-lan\bin\dfolauncher.exe',   # Go 会话编排 CLI（launch / stop / prepare-inner-pvf / init-storage…）
     'server\work\dfo-lan\bin\wireprobe-pvf.exe', # 服务端程序（PVF 直读默认档 configs\pvf-default.json 指向它）
     'server\work\dfo_probe_tools\probe.exe'      # 客户端宿主回退路径（WFP 回环隔离后拉起客户端）
@@ -80,6 +84,7 @@ $OfflineAllowed = @(
     'LICENSE',
     'CHANGELOG',                 # 业主的变更记录（纯文本，34 KB）；docs/ 下已无 CHANGELOG.md，这里就是它的位置
     'launcher.settings.json',    # 启动器设置（更新分支/窗口尺寸）；缺失时启动器会自建，但包内带上更省一次自举
+    '资源清单.json',              # 包内受管文件的 size+sha256 清单（路 1 自校验的依据，见 build-publish.ps1 第 5.5 步）
     'scripts/README.md',         # 四个入口的用法与踩坑说明（排错最需要的一份文本）
 
     # —— 启动入口（缺一个就少一条路）——
@@ -586,7 +591,7 @@ if ($LASTEXITCODE -ne 0) { throw "分支不存在: $Branch（本地没有这个�
 $stamp = Get-Date -Format 'yyyyMMdd'
 # 产物名带定位：**分发给玩家的是单个 exe，这个 zip 只是离线自用/应急包**，
 # 名字里写清楚，免得以后有人误把它当成玩家分发物。
-$zipName = if ($Kind -eq 'dev') { "DFO-115US-开发发布包-$stamp.zip" } else { "DFO-115US-离线自用包-$stamp.zip" }
+$zipName = if ($Kind -eq 'dev') { "DFO-115US-开发发布包-$stamp.zip" } else { "DFO-115US-发布包-$stamp.zip" }
 $zipOut = Join-Path $OutDir $zipName
 $work = Join-Path $env:TEMP "df-publish-$stamp-$Kind"
 $tar  = Join-Path $env:TEMP "df-publish-$stamp-$Kind.tar.zip"
@@ -598,7 +603,7 @@ if ($Kind -ne 'dev') {
 }
 
 if (Test-Path $work) { Remove-Item $work -Recurse -Force }
-New-Item -ItemType Directory -Path $work | Out-Null
+New-Item -ItemType Directory -Force -Path $work | Out-Null
 try {
     # 1. 从 git 分支导出发布内容（不依赖工作区状态）
     Write-Host '[1/6] git 分支导出...'
@@ -609,7 +614,7 @@ try {
     # 2. 加入便携运行环境（pg，按需），排除 pgAdmin 4
     Write-Host '[2/6] 复制便携运行环境...'
     $tools = Join-Path $ROOT 'tools'
-    New-Item -ItemType Directory -Path (Join-Path $work 'tools') | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $work 'tools') | Out-Null
     foreach ($d in @('pg')) {
         $src = Join-Path $tools $d
         if (-not (Test-Path $src)) { Write-Warning "缺少运行环境目录 tools\$d (跳过)"; continue }
@@ -626,7 +631,7 @@ try {
         $src = Join-Path $ROOT $rel
         if (-not (Test-Path $src -PathType Leaf)) { $lackPrebuilt += $rel; continue }
         $dst = Join-Path $work $rel
-        New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dst)  | Out-Null
         Copy-Item $src $dst -Force
         $mb = [math]::Round((Get-Item $src).Length / 1MB, 1)
         Write-Host ("   + {0}  ({1} MB)" -f $rel, $mb)
@@ -643,7 +648,7 @@ try {
         throw "工作区里缺少 $ConfigsRel（服务端运行必需的配置目录），无法打包"
     }
     $cfgDst = Join-Path $work $ConfigsRel
-    New-Item -ItemType Directory -Path $cfgDst -Force | Out-Null
+    New-Item -ItemType Directory -Force -Path $cfgDst  | Out-Null
     $cfgCount = 0
     $cfgSkipped = @()
     Get-ChildItem $cfgSrc -Recurse -File | ForEach-Object {
@@ -651,7 +656,7 @@ try {
         if ($_.Name -like '*.local.json') { $cfgSkipped += $_.Name; return }
         $rel = $_.FullName.Substring($cfgSrc.Length).TrimStart('\')
         $dst = Join-Path $cfgDst $rel
-        New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dst)  | Out-Null
         Copy-Item $_.FullName $dst -Force
         $cfgCount++
     }
@@ -673,7 +678,7 @@ try {
         Remove-EmptyDirs -Tree $work
         foreach ($d in $OfflineScaffoldDirs) {
             $p = Join-Path $work $d
-            if (-not (Test-Path $p)) { New-Item -ItemType Directory -Path $p -Force | Out-Null; Write-Host ("   + 预建空目录 {0}" -f ($d -replace '\\', '/')) }
+            if (-not (Test-Path $p)) { New-Item -ItemType Directory -Force -Path $p  | Out-Null; Write-Host ("   + 预建空目录 {0}" -f ($d -replace '\\', '/')) }
         }
         Write-Host ("   - 裁掉 {0} 个条目（白名单之外）" -f $removedCount)
         $summary.Keys | Sort-Object { -$summary[$_] } | ForEach-Object {
@@ -704,6 +709,54 @@ try {
             Group-Object | Sort-Object Count -Descending | ForEach-Object { Write-Host ("     {0,6}  {1}" -f $_.Count, $_.Name) }
         return
     }
+
+    # 5.5 资源清单（正式发布包的自校验依据）
+    #
+    # 业主 2026-10-05 口径：zip 分发要能**自校验**。清单写在包根，逐条记录受管文件的
+    # 相对路径 + size + sha256 + 版本；玩家/启动器拿它核对"包内资源完整 / 缺失 / 被改坏 / 过期"。
+    # 口径与发布仓库的 tools/manifest.json 一致（那边是包的哈希，这里是包内文件的哈希），
+    # 所以同一个校验器（启动器 internal/resources 的 Audit）既能核 zip 包，也能核源链补下来的东西。
+    Write-Host '[5.5/7] 写资源清单（资源清单.json）...'
+    $manifestEntries = New-Object System.Collections.Generic.List[object]
+    $managedGlobs = @(
+        'server/work/dfo-lan/configs/**',
+        'server/work/dfo-lan/cmd/wireprobe/testdata/**',
+        'server/work/dfo-lan/runtime/*.bin',
+        'server/work/dfo-lan/bin/*.exe',
+        'server/work/dfo_probe_tools/probe.exe'
+    )
+    foreach ($pattern in $managedGlobs) {
+        $full = Join-Path $work ($pattern -replace '/', '\')
+        Get-ChildItem -Path $full -File -ErrorAction SilentlyContinue | Sort-Object FullName | ForEach-Object {
+            $rel = $_.FullName.Substring($work.Length + 1).Replace('\', '/')
+            $sum = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            $manifestEntries.Add([ordered]@{ path = $rel; size = $_.Length; sha256 = $sum })
+        }
+    }
+    # 版本号真源 = **包内启动器 exe 自己的 VERSIONINFO**（115 仓库里没有 version.json，
+    # 依赖它会得到 0.0.0）；exe 读不到时才退回 version.json（老包可能带），最后才落 0.0.0。
+    $verText = ''
+    $exeInPack = Join-Path $work 'DFO-115US单机一键启动器.exe'
+    if (Test-Path -LiteralPath $exeInPack) {
+        $verText = ([string](Get-Item -LiteralPath $exeInPack).VersionInfo.ProductVersion).Trim()
+    }
+    if (-not $verText) {
+        $verFile = Join-Path $work 'version.json'
+        if (Test-Path -LiteralPath $verFile) {
+            $verDoc = Get-Content -LiteralPath $verFile -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($verDoc.version) { $verText = [string]$verDoc.version }
+        }
+    }
+    if (-not $verText) { $verText = '0.0.0' }
+    $manifestDoc = [ordered]@{
+        schema       = 1
+        version      = $verText
+        generated_at = (Get-Date).ToString('o')
+        entries      = $manifestEntries
+    }
+    $manifestPath = Join-Path $work '资源清单.json'
+    [System.IO.File]::WriteAllText($manifestPath, ($manifestDoc | ConvertTo-Json -Depth 5), (New-Object System.Text.UTF8Encoding($false)))
+    Write-Host ("     受管文件 {0} 项（版本 {1}）" -f $manifestEntries.Count, $verText)
 
     # 6. Python 标准 zip 打包（正斜杠分隔符、UTF-8 文件名、无 ./ 前缀）
     Write-Host '[6/7] 压缩为 zip...'

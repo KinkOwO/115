@@ -25,8 +25,20 @@ func TestStopPlanIsDriverAware(t *testing.T) {
 		}
 	}
 
-	// An empty driver means PostgreSQL, exactly as the server treats it.
-	postgresPlan, err := StopPlan(StorageConfig{})
+	// A configuration that names no engine falls back to SQLite (2026-10-05 业主口径
+	// 「默认 sqlite」), which has no service: no pg-* action may be planned for it.
+	fallbackPlan, err := StopPlan(StorageConfig{})
+	if err != nil {
+		t.Fatalf("fallback plan: %v", err)
+	}
+	for _, action := range fallbackPlan {
+		if strings.HasPrefix(action.Kind, "pg-") {
+			t.Errorf("the empty configuration planned the PostgreSQL action %q (%s)", action.Kind, action.Detail)
+		}
+	}
+
+	// PostgreSQL is selected by naming it (or a DSN), never by omission.
+	postgresPlan, err := StopPlan(StorageConfig{Driver: "postgres"})
 	if err != nil {
 		t.Fatalf("postgres plan: %v", err)
 	}
@@ -50,7 +62,7 @@ func TestStopPlanIsDriverAware(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bin, "pg_ctl.exe"), []byte("stub"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	withCtl, err := StopPlan(StorageConfig{PostgresBin: bin, PostgresData: data})
+	withCtl, err := StopPlan(StorageConfig{Driver: "postgres", PostgresBin: bin, PostgresData: data})
 	if err != nil {
 		t.Fatalf("plan with pg_ctl: %v", err)
 	}
@@ -99,15 +111,15 @@ func TestStopDryRunChangesNothing(t *testing.T) {
 }
 
 // The config loader must accept the byte-order mark the existing files carry and treat
-// a missing file as "PostgreSQL default", which is what the Python did.
+// a missing file as the empty configuration, whose driver is the shared SQLite fallback.
 func TestLoadStorageConfig(t *testing.T) {
 	root := t.TempDir()
 	cfg, err := LoadStorageConfig(root)
 	if err != nil {
 		t.Fatalf("missing config: %v", err)
 	}
-	if cfg.DriverName() != "postgres" {
-		t.Errorf("missing config defaulted to %q, want postgres", cfg.DriverName())
+	if cfg.DriverName() != "sqlite" {
+		t.Errorf("missing config defaulted to %q, want sqlite (2026-10-05 default)", cfg.DriverName())
 	}
 
 	dir := filepath.Join(root, "server", "work", "dfo-lan", "runtime", "storage")
@@ -146,7 +158,7 @@ func TestDriverNameMatchesTheServerRule(t *testing.T) {
 		},
 		{name: "DSN alone", cfg: StorageConfig{PostgresDSN: "postgres://u@127.0.0.1:25438/dfo_lan"}, want: "postgres"},
 		{name: "sqlite_path alone", cfg: StorageConfig{SQLitePath: "save.sqlite3"}, want: "sqlite"},
-		{name: "neither", cfg: StorageConfig{}, want: "postgres"},
+		{name: "neither falls back to sqlite (2026-10-05 default)", cfg: StorageConfig{}, want: "sqlite"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

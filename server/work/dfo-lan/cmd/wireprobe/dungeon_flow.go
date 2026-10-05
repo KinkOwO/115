@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/legion"
 	"dfolan/internal/loot"
 	"dfolan/internal/workflow"
 	"encoding/binary"
@@ -438,6 +439,12 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 	if w.bleedingMineStart != nil {
 		return w.advanceBleedingMine(r)
 	}
+	// 维纳斯阶段副本的直进 = 清怪后的原生转阶段（客户端按 N2655 推进后的
+	// 阶段记录解析目标副本，2026-10-04 14:41 实机）。必须在这里接管，否则
+	// 普通路径会建出无怪空房、客户端秒清后再转，形成无限进图循环。
+	if legion.IsVenusStageDungeon(r.ID) {
+		return w.enterVenusStageDirectMove(r)
+	}
 	d, ok := w.dungeons.Dungeons[r.ID]
 	if !ok {
 		return nil, nil, fmt.Errorf("direct move target absent from imported source")
@@ -543,7 +550,11 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	if e := w.loadOmenRunState(w.oathProgressDungeon()); e != nil {
 		return nil, e
 	}
-	plan := []outboundPacket{{"dungeon_loading_ack", 1, 37, []byte{1}}, {"dungeon_actor_state", 0, 3, state}, {"dungeon_loading_complete", 0, 30, protocol.DungeonLoaded()}}
+	// 官服巴卡尔军团段（20261002 抓包 21:42:19）：CMD37 ack 之后、N30 之前
+	// 下发 N1474 阶段倒计时（伊斯官服 timer_sync 回放同序）。非维纳斯零开销。
+	plan := []outboundPacket{{"dungeon_loading_ack", 1, 37, []byte{1}}, {"dungeon_actor_state", 0, 3, state}}
+	plan = append(plan, w.venusStageTimer(time.Now())...)
+	plan = append(plan, outboundPacket{"dungeon_loading_complete", 0, 30, protocol.DungeonLoaded()})
 	// 常驻状态：把两个档位在客户端读 getter 之前下发（见 oath_info.go）。
 	grades, e := w.oathInfoPackets()
 	if e != nil {
@@ -681,6 +692,10 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	}
 	// 房间重建会重置原生场景计时器，每次加载均同步同一个挑战期限。
 	plan = append(plan, w.bleedingMineTimer(time.Now())...)
+	// 维纳斯首关三只圣物怪是事件怪：不能编进 N29 固定行（venus_1phase.map
+	// 无 [monster] 段，客户端按 SourceIndex 找不到源行就不建怪——2026-10-04
+	// 13:52 实机），照月湖动态怪先例在真实 C37 加载完成后用 N2194 注册。
+	plan = append(plan, w.venusDynamicSpawnPackets()...)
 	plan, e = appendDungeonWornRandomOptions(plan, w)
 	if e != nil {
 		return nil, e
@@ -1031,7 +1046,10 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 	var newDrops []protocol.SceneDrop
 	if !w.deathSent[uint16(r.Entity)] {
 		body := protocol.MonsterDeathConfirmed(uint16(r.Entity))
-		if w.loot != nil && (!unowned || blackBoss) {
+		// 军团本（维纳斯/伊斯）BOSS 击杀不掉落任何物品：官服口径只有翻牌
+		// 界面给奖励，地面金币/装备掉落是普通副本机制。在此入口整体排除，
+		// 避免 w.drops.Death 为军团 BOSS roll 出地面掉落。
+		if w.loot != nil && (!unowned || blackBoss) && w.venus == nil && w.ispins == nil {
 			if w.drops == nil || w.drops.Run != w.activeDungeon.RunID {
 				// Drops span every job's gear at every level by design; that
 				// breadth is a feature, not a bug, so the pool is not narrowed
@@ -1209,6 +1227,9 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 		plan = append(plan, outboundPacket{"hell_party_clear_sent", 0, 777, protocol.HellPartyClear()})
 		w.activeDungeon.HellClearSent = true
 	}
+	// 维纳斯阶段清怪投影：最后一只战斗怪确认死亡后推进权威 N2655（客户端
+	// 据此直进下一阶段，见 venusStageProjection）。
+	plan = append(plan, w.venusStageProjection(event)...)
 	completed, err := w.completeDungeon()
 	if err != nil {
 		// The death acknowledgement and confirmation are already in plan.
@@ -1246,6 +1267,12 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	// N2255 clear → N1658 → N2253 → N2254。阶段推进由 CMD2046 分支处理。
 	if w.ispins != nil {
 		return w.completeIspinsStage()
+	}
+	// 维纳斯阶段本：非终点关走转阶段（CMD2062 直进），completeDungeon 返回 nil；
+	// 终点关由 completeVenusStage 发军团翻牌链（N31→N2252→N2253，仿伊斯），
+	// 绝不走通用结算（CMD46→N34/N35/N261+8张牌）。
+	if w.venus != nil && w.activeDungeon != nil && legion.IsVenusStageDungeon(w.activeDungeon.Definition.ID) {
+		return w.completeVenusStage()
 	}
 	if w.channelType == azureMainChannelType {
 		return w.completeAzureMain()

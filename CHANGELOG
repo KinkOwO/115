@@ -26,6 +26,53 @@
 
 ---
 
+## 2026-10-05：SQLite 主路线领取邮件附件被拒修复 + 存储主线定为 SQLite
+
+### 已修复 / 已完成
+
+- **缺陷（业主实机报「SQLite 端接收邮件提示无邮件」）**：SQLite 档 `LockMailbox` 的 nil 参数被适配器
+  marshal 成 JSON 文本 `"null"` 绑定，`CAST(?3 AS TEXT) IS NULL` 不成立、`json_each('null')` 匹配 0 行，
+  「不过滤编号」被静默降级成「读 0 行」⇒ `MutateMailbox(mail-claim-v1, nil)` 读到空邮件集，
+  CMD95 领取一律被 `errMailMissing` 拒（客户端即报"无邮件/邮件不存在"）。
+- **实机证据**：`runtime/roles_..._20261005_154211_651358_next37`（角色 3）07:43:51 `mailbox_delivery_notified latest_mail_id=2`
+  → 07:44:06 CMD96 列表已含附件 `id=1`（CMD97 首字段 `01 00 00 00 00 00 00 00`）
+  → 07:44:07 CMD95 `mailbox_request_rejected`（`邮件不存在、已过期或不属于当前角色`）。同一现象在 15:53 会话复现。
+- **修复**：`internal/database/sqlite_adapter_gen.go` 的 `fromPgLockMailboxParams` 对 nil 保留 NULL
+  （空集合仍 marshal 成 `[]` = 匹配 0 行，与 PG `id=ANY('{}')` 一致）；未改 SQL、未改协议。
+  生成器 `.tmp/gen-sqlite-adapter.go`（未入库）同步该规则，实跑生成确认输出 `if v.MessageIds != nil`。
+- **回归测试**：新增 `internal/database/sqlite_mailbox_claim_test.go`（领取路径 + nil/空集/指定 id 三态），
+  修复前 FAIL（`saw 0 message(s)`）、修复后 PASS；移植规则写进 `docs/sqlite-query-port-guide.md` §1/§4。
+- **存储主线定为 SQLite（业主 2026-10-05 口径「默认 sqlite」）**：根 `AGENTS.md` 新增 §0.6，
+  并同步铁律 4/5/12、§0.3.4 环境表与 §2 索引；`server/AGENTS.md` §1/§2/§3/§4/§5 与
+  `docs/sqlite-operations.md`（兜底第 4 条 PostgreSQL → SQLite、模板顺序、已删除的 `gmweb.py` 引用）同步。
+- **顺带修掉一处真实漂移**：`internal/launcher.DriverName()` 对「driver/dsn/path 都没写」返回 `postgres`，
+  而服务端 `EngineForConfig` 自 13:24 起已兜底 `sqlite` —— 即文档警告的「启动器起一个引擎、服务端读另一个库」。
+  现两侧一致，并同步 `launcher_test.go` / `storage_test.go` / `check_test.go`（PG 计划测试改为显式 `driver=postgres`）。
+- **默认程序已发布（业主授权）**：`bin/wireprobe-pvf.exe` = 候选同哈希 `671FBB43…693702`（16:00，`Build-Server.ps1 -UpdatePVFDefault`，
+  脚本内 test+vet 通过）；旧默认 `1293028F…2A6CA6` 备份在 `.tmp/mailfix-backup-20261005-155949/`。
+- **实机已确认（业主 2026-10-05「邮件领到了」）**：会话 `runtime/roles_..._20261005_160813_822603_next37`（角色 3，
+  程序 `bin\wireprobe-pvf.exe` = 上一条发布的默认程序）：08:09:23 `mailbox_delivery_notified latest_mail_id=2`
+  → 08:09:36 CMD96 列表含附件 `id=1` → 08:09:37 **CMD95 `mailbox_claimed`**（修复前此处恒为
+  `mailbox_request_rejected`），随后 CMD14 背包/时装刷新与 CMD134 状态回执 → 08:13:36 邮箱列表已空。
+  确认范围**仅**「SQLite 主路线领取邮件附件」这一条路径。
+
+### 未修复 / 未闭环
+
+- PostgreSQL 第二路线未在本次一并实机回归：该修复只落在 SQLite 适配器（PG 侧 nil 切片本来就直接绑成 NULL），
+  PG 邮件专项测试保持通过。
+- `bin/dfolauncher.exe` 仍是 13:07 构建，不含本轮 `DriverName` 兜底对齐；真实档位都显式写 `driver`，
+  行为无差异，需要时再重建。
+- `.tmp/gen-sqlite-adapter.go` 未入库（本地脚手架），重新生成会带来约 800 行与本次无关的转换函数重排 diff。
+
+### bug 测试取证
+
+- `go build ./...` exit 0；`go vet ./...` exit 0；`go test ./... -count=1` 全绿（含 `internal/launcher`、
+  `internal/database`、`cmd/wireprobe`）。
+- 邮件缺陷：`TestSQLiteMailClaimReadsTheMailboxWithoutAnIDFilter`、`TestSQLiteLockMailboxDistinguishesNilFromAnEmptyIDSet`。
+- 兜底规则：`internal/database/engine_selection_test.go`（服务端）与 `internal/launcher/launcher_test.go`（镜像）同名用例一致。
+
+---
+
 ## 2026-10-05：汉化 dll（localization.dll）经启动宿主接回完整链路
 
 ### 已修复 / 已完成

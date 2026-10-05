@@ -56,6 +56,10 @@ type worldSession struct {
 	// ispins 是一次伊斯大陆（内容号 101）挑战的会话状态；nil = 无进行中的
 	// 挑战。字节契约见 ispins_flow.go 与 next78 取证文档。
 	ispins                 *ispinsRun
+	// venus 是一次美神维纳斯（内容号 106）挑战的会话状态；nil = 无进行中的
+	// 挑战。字节契约见 venus_flow.go、internal/legion/venus.go 与
+	// 包规格/全流程 N2655/2290/2291/1474 规格文档。
+	venus                  *venusRun
 	blackPurgatory         blackPurgatoryState
 	adventureEliteSnapshot [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which

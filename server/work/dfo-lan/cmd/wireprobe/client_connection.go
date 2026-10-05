@@ -184,6 +184,16 @@ func (client *gameConnection) serve() {
 				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
 					return
 				}
+				// 维纳斯阶段倒计时到期：判定挑战失败、回待机区并复位 run（venus_stage_timeout）。
+				packets = client.worldState.venusStageTimeout(now, client.event)
+				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
+					return
+				}
+				// 维纳斯难度选择窗倒计时归 0：推原生 close ACK 自动关窗。
+				packets = client.worldState.venusOperationClose(now, client.event)
+				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
+					return
+				}
 			}
 			continue
 		case now := <-client.connection.moonTicks():

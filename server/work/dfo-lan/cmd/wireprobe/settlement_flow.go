@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/legion"
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"fmt"
@@ -43,6 +44,12 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	// N29/N21 通用结算族）。2026-10-03 四测：generic 路径发出这 8 个包后
 	// 客户端 1.2s 内 op=682 崩溃退出。
 	if w != nil && w.ispins != nil && w.activeDungeon != nil {
+		return nil, nil
+	}
+	// 维纳斯终局翻牌：CMD46 整包吞掉（仿伊斯）。军团翻牌链 N31→N2252→N2253
+	// 已在 completeVenusStage 发出，通用结算（N34/N35/N261+8张牌翻牌，图5/图6）
+	// 不适用——团本里不存在那种通用结算面板。
+	if w != nil && w.venus != nil && w.activeDungeon != nil && legion.IsVenusStageDungeon(w.activeDungeon.Definition.ID) {
 		return nil, nil
 	}
 	if w == nil || w.progression == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || !w.completionSent {
