@@ -599,7 +599,15 @@ function Invoke-FullChain([string]$route, [string]$scope, [string[]]$extra) {
     $env:DFO_REQUIRE_GO_ISOLATION = '1'
     Write-Host ("       环境：{0}=1（Go 隔离不可用就报错，不回退）" -f $GoLauncherEnvRequireIsolation) -ForegroundColor DarkGray
     Set-Location $RepoRoot
-    & $chosen.Path @all
+    # 启动器的输出同时写进入口日志（Tee-Object）：提升后子进程窗口是隐藏的，
+    # 由父进程跟随这个文件显示；直接运行时也算留档。
+    $logPath = if ($script:EntryVerb) { Get-EntryLogPath $script:EntryVerb } else { $null }
+    if ($logPath) {
+        & $chosen.Path @all 2>&1 | Tee-Object -FilePath $logPath -Append
+    }
+    else {
+        & $chosen.Path @all
+    }
     exit $LASTEXITCODE
 }
 
@@ -647,23 +655,39 @@ function Invoke-ElevatedSelf([string]$verb, [string[]]$rest) {
     foreach ($item in @($rest)) {
         if ($null -ne $item -and "$item" -ne '') { $elevatedArgs += "$item" }
     }
-    Write-Host '[提权] 正在以管理员身份重新运行本入口（WFP 网络隔离需要管理员）…' -ForegroundColor Cyan
-    $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList $elevatedArgs -Verb RunAs -Wait -PassThru -ErrorAction Stop
+    Write-Host '[提权] 以管理员身份后台执行；输出实时显示在本窗口（不再新开窗口）…' -ForegroundColor Cyan
+    $logPath = Get-EntryLogPath $verb
+    Set-Content -LiteralPath $logPath -Value '' -Encoding UTF8 -ErrorAction SilentlyContinue
+    # **隐藏**提升出来的 PowerShell：业主要求不要再弹额外窗口（2026-10-05）；
+    # 它的输出由本窗口跟随日志文件显示。
+    $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList $elevatedArgs -Verb RunAs `
+        -WindowStyle Hidden -PassThru -ErrorAction Stop
+    $seen = 0
+    while (-not $proc.HasExited) {
+        $seen = Show-NewEntryLogLines $logPath $seen
+        Start-Sleep -Milliseconds 400
+    }
+    $seen = Show-NewEntryLogLines $logPath $seen
+    Write-Host ("[提权] 子进程结束，退出码 {0}；完整日志 {1}" -f $proc.ExitCode, $logPath) -ForegroundColor DarkGray
     exit $proc.ExitCode
 }
 
-function Start-EntryTranscript([string]$verb) {
-    try {
-        $dir = Join-Path $RepoRoot 'runtime\storage'
-        if (Test-Path -LiteralPath $dir) {
-            Start-Transcript -Path (Join-Path $dir ("entry-{0}.log" -f $verb)) -Force | Out-Null
-        }
-    }
-    catch { }
+function Get-EntryLogPath([string]$verb) {
+    return (Join-Path $RepoRoot ("runtime\storage\entry-{0}.log" -f $verb))
 }
 
-function Stop-EntryTranscript {
-    try { Stop-Transcript | Out-Null } catch { }
+# 跟随日志：只打印新增行（PS 5.1 下不用后台作业，简单可靠）。
+function Show-NewEntryLogLines([string]$path, [int]$seen) {
+    if (-not (Test-Path -LiteralPath $path)) { return $seen }
+    try { $all = @(Get-Content -LiteralPath $path -Encoding UTF8 -ErrorAction Stop) } catch { return $seen }
+    if ($null -eq $all -or $all.Count -le $seen) { return $seen }
+    for ($i = $seen; $i -lt $all.Count; $i++) { Write-Host $all[$i] }
+    return $all.Count
+}
+
+function Write-EntryLog([string]$verb, [string]$text) {
+    Write-Host $text
+    try { Add-Content -LiteralPath (Get-EntryLogPath $verb) -Value $text -Encoding UTF8 } catch { }
 }
 
 try {
@@ -671,9 +695,15 @@ try {
     $extra = if ($Rest.Count -ge 2) { @($Rest[1..($Rest.Count - 1)]) } else { @() }
     # 需要管理员的只有「真启动游戏」；--dry-run/--check 是只读，不提权（方便排查）。
     $isEntryLaunch = $verb -in @('game-sqlite', 'game-postgres', 'game-current')
+    $isChainRun = $isEntryLaunch -or ($verb -in @('server-sqlite', 'server-postgres'))
     $readOnly = @($extra | Where-Object { $_ -in @('--dry-run', '--check', '-h', '--help') }).Count -gt 0
-    # transcript 要在**提权之前**开：父进程这段（提权失败/被拒）也要留档，否则一闪而过又没证据。
-    if ($isEntryLaunch) { Start-EntryTranscript $verb }
+    # 日志文件名按动作走：父进程（非管理员，提权前）与提升后的子进程共用同一个文件，
+    # 父进程负责把新增行显示在自己的窗口里（业主要求：不要再弹额外窗口）。
+    $script:EntryVerb = if ($isChainRun -and -not $readOnly) { $verb } else { '' }
+    if ($script:EntryVerb) {
+        Set-Content -LiteralPath (Get-EntryLogPath $verb) -Value '' -Encoding UTF8 -ErrorAction SilentlyContinue
+        Write-EntryLog $verb ("[{0}] {1} 启动链开始（{2}）" -f (Get-Date -Format 'HH:mm:ss'), $verb, (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
+    }
     if ($isEntryLaunch -and -not $readOnly -and -not (Test-IsAdmin)) {
         Invoke-ElevatedSelf $verb $extra
     }
@@ -703,14 +733,14 @@ try {
         'help' { Show-Help }
         default { Show-Help; throw "未知动作 '$verb'。" }
     }
-    if ($isEntryLaunch) { Stop-EntryTranscript }
     exit 0
 }
 catch {
     Write-Host ("[失败] " + $_.Exception.Message) -ForegroundColor Red
-    if ($isEntryLaunch) { Stop-EntryTranscript }
+    if ($script:EntryVerb) { Write-EntryLog $script:EntryVerb ("[失败] {0}" -f $_.Exception.Message) }
     Write-Host ("        完整输出见 runtime\storage\entry-{0}.log" -f $verb) -ForegroundColor DarkGray
-    # 退出码 3 = 本脚本自己的失败（切换路线 / 起库 / 找不到完整启动链）。四个入口据此 pause，
-    # 让业主看得到原因；成功路径由 Invoke-FullChain 直接 exit 子进程的退出码，不走这里。
+    # 退出码 3 = 本脚本自己的失败（切换路线 / 起库 / 找不到完整启动链 / 提权被拒）。
+    # 入口对**任何**非 0 都 pause，让业主看得到原因；成功路径由 Invoke-FullChain 直接
+    # exit 子进程的退出码，不走这里。
     exit 3
 }
