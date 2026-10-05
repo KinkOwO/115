@@ -3,23 +3,23 @@
 > 本文件是 `DFO 115us` 项目的唯一 AGENTS 根真源；用户目录或其它副本仅作镜像，冲突时以本文件为准。
 > 先读本文件，再按 §1 的触发规则读子目录 `AGENTS.md`；默认不读 `server/reference/` 与历史归档。
 >
-> 结构：§0 硬约束 → §0.1~§0.5 专题规范（C2S 计次 / PVF 规则 / **提交** / **目录** / **开发**）
-> → §1 项目地图 → §2 权威索引。任何 AI 在动手前必须读完 §0 与 §0.3~§0.5。
+> 结构：§0 硬约束 → §0.1~§0.6 专题规范（C2S 计次 / PVF 规则 / **提交** / **目录** / **开发** / **存储路线：以 SQLite 为主**）
+> → §1 项目地图 → §2 权威索引。任何 AI 在动手前必须读完 §0 与 §0.3~§0.6。
 
 ## 0. 硬约束速查（每条都必须遵守）
 
 1. **服务端优先**：新功能、缺陷修复、协议补包、状态机调整默认只走 Go 服务端（`server/work/dfo-lan/`）。用户未明确要求当前任务使用客户端补丁/DLL 时，不得新增、修改、启用或扩展客户端 DLL/补丁；证据不足时暂停实现并记录缺口，不以 DLL 代替服务端闭环。详见 `client-patchs/AGENTS.md`。
 2. **真源优先**：协议、字段、reader、分支、codec 以当前 115 级客户端 `client/DFO.exe` 及权威 IDB `client/DFO.exe.i64` 的 IDA 分析与实机动态命中为准；参考服源码（如 `86`、`90`、`ServerS4A21` 等）和历史文档只作线索，不是事实标准。
 3. **禁止猜包**：字段、顺序、等待态或客户端消费路径未闭环时，停止服务端叠包试探，收集 IDA、服务端日志和用户手动 live 证据。
-4. **数据库更新与存档兼容（强制）**：服务端采用 PostgreSQL，对数据库结构更新后，必须保证向前兼容或提供平滑迁移脚本，让已有玩家角色/物品存档无损升级。存档兼容是最高优先级。
-5. **保护用户工作区**：不覆盖、不回滚、不提交用户的其它改动；提交前执行 `git status --short`，只暂存当前任务文件。严禁将 `server/work/dfo-lan/runtime/storage/pgdata/`、大日志、临时生成物混入 Git。多 agent 并发时不要影响其他 agent 正在修改的文件，冲突且无法回避时暂停等用户确认。
+4. **数据库更新与存档兼容（强制）**：服务端是**双引擎**（**默认且主路线为 SQLite 单文件**，PostgreSQL 16.4 为第二路线，见 §0.6）。数据库/存档结构更新后，必须**两条路线同时**保证向前兼容或提供平滑迁移脚本，让已有玩家角色/物品存档无损升级。存档兼容是最高优先级；SQLite 库文件与 `pgdata/` 同等对待——不得入库、不得随意删除。
+5. **保护用户工作区**：不覆盖、不回滚、不提交用户的其它改动；提交前执行 `git status --short`，只暂存当前任务文件。严禁将 `server/work/dfo-lan/runtime/storage/` 下任何运行期文件（**主路线的 `dfolan.sqlite3`、`-wal`/`-shm`、`local.json`、`local.<driver>.json`、管理租约**，以及第二路线的 `pgdata/`）、大日志、临时生成物混入 Git。多 agent 并发时不要影响其他 agent 正在修改的文件，冲突且无法回避时暂停等用户确认。
 6. **实机由用户操作**：不得无人值守启动客户端或代替玩家跑图；准备完成后通知用户手动操作，再读取日志。
 7. **用户确认后立即收口**：用户说"正常、修好、可以、冻结、暂时搁置"即视为收口信号，当轮更新 `CHANGELOG` 和 confirmed baseline，之后commit本次改动过的文件（不要commit其他agent正在改的文件）。
 8. **异常先查资源与配置边界**：遇到莫名闪退、脚本查找 `-1`、资源键缺失或 UI 文本异常时，先排查 `client/Script.pvf`、`client/sk.dat`、导出的 JSON 配置与原版资源的差异；区分配置数据缺失与协议结构错误。
 9. **DLL 日志硬规则**：若经用户明确要求编写或调试 DLL，每个 DLL 产生的日志、诊断文本默认必须解析自身模块路径，写入该 DLL 所在目录；不得依赖进程当前目录或将日志写入客户端游戏根目录。
 10. **参考资料**：参考旧项目 `../90dof`、`../usdof`、`../ServerS4A21`、`../dfo115`，不能假设协议相同，必须实际分析。
 11. **新 codec 先过身份门禁**：完整走完 IDA 逆向链和客户端原生向量验证，再命名算法或下结论。
-12. **服务端技术栈门禁**：Go 1.26；PostgreSQL 16.4（端口 25438）；日常启动由**仓库内 Go 启动器**编排（`bin/dfolauncher.exe`；2026-10-05 起已不用 Python）。
+12. **服务端技术栈门禁**：Go 1.26；存储**以 SQLite 为主**（单文件 `runtime/storage/dfolan.sqlite3` 及其 `-wal`/`-shm`，不需要起库服务），PostgreSQL 16.4（端口 25438）是第二路线（见 §0.6）；日常启动由**仓库内 Go 启动器**编排（`bin/dfolauncher.exe`；2026-10-05 起已不用 Python）。
 13. **一次只验证一个假设**：改动后必须通过测试与 vet；测试/候选/实机流程见 `server/AGENTS.md` §4。
 14. **玩法规则由 PVF 脚本驱动**：等级动作、条件、奖励、数量、材料、费用、概率与内容关联，以当前 PVF 原生脚本为唯一内容定义；Go 负责解析、校验与执行，不再维护平行玩法表。新增或修改玩法前必须走 §0.2 的来源与重复规则检查。
 15. **提交前必须过门禁并二次确认（强制，2026-10-04 业主定调）**：任何 AI 在 `git add` / `git commit` 之前，必须先跑 `pwsh -NoProfile -File scripts/check-commit-hygiene.ps1`。脚本一旦报出**本地缓存/构建产物入库**、**不符合 §0.4/§0.5 规范**或**与当前环境不匹配（§0.3.4）**，AI 必须**立即停止提交**，把违规条目逐条报告给业主并**取得业主明确的二次确认**后才能继续；不得用 `-Force`、`--no-verify`、`git add -A` 或任何方式绕过。完整流程见 §0.3。
@@ -99,7 +99,7 @@
 
 | 项 | 判据 | 本机 2026-10-05 实测命中 |
 | --- | --- | --- |
-| 存储档 | 活动 `runtime/storage/local.json` 的路径必须在本机存在；与已跟踪 `local.example.json` 的 `driver` 不一致时，**若该 driver 有自己的路线档**（`runtime/storage/local.<driver>.json`，双库双路线切换器的产物）则只提示 | 示例档 driver=postgres，活动档 driver=sqlite |
+| 存储档 | 活动 `runtime/storage/local.json` 的路径必须在本机存在；与已跟踪 `local.example.json` 的 `driver` 不一致时，**若该 driver 有自己的路线档**（`runtime/storage/local.<driver>.json`，双库双路线切换器的产物）则只提示 | 2026-10-05 起**示例档与活动档都是 `driver=sqlite`**（§0.6 默认主路线），该行不再命中；PostgreSQL 只经 `local.postgres.json` 切换，切错档时按本节处理 |
 | 配置里的路径 | 示例/本地配置中写的相对路径必须在本机存在 | 示例档 `postgres_bin=tools/pg/pgsql/bin`，而 tools 已移出仓库 |
 | profile 程序 | `configs/pvf-default.json.binary`、`server/launcher.local.json.server_binary` 指向的程序必须存在 | 缺 `bin/wireprobe-pvf.exe` 时启动找不到程序 |
 | 启动链配置 | 启动链（Go：`internal/launcher/gateway.go`）引用的 `configs/channel.local*.json` 必须存在 | next37 档引用的频道档没落地 → 该档启动失败 |
@@ -178,6 +178,34 @@
     4. 推送前再 `fetch` 一次确认没被别人抢先；被抢先就回到第 2 步。
     - 提交信息里要能看出"已合并远端"：合并提交用默认 `Merge ...` 文案即可；普通提交若在合并后重跑过门禁，请在正文注明"已合并 <远端>/<分支> 并重跑门禁"。
 
+### 0.6 存储路线：以 SQLite 为主（强制，2026-10-05 业主定调）
+
+> 业主口径：**默认 sqlite**。SQLite 是**主路线**（单文件、不需要起库服务）；PostgreSQL 16.4（端口 25438）
+> 保留为**第二路线**，用于历史存档与兼容验证。服务端与启动器两侧的兜底都已统一到它
+> （`internal/database.EngineForConfig` 第 4 条兜底、`internal/launcher.StorageConfig.DriverName`、
+> 启动器仓库的 `internal/config.StorageDriver`）；`local.example.json` 也已切成本机 SQLite 档。
+
+1. **真源**：`server/work/dfo-lan/docs/sqlite-operations.md`（引擎判定、两条路线入口、迁移步骤与已知边界）。
+   配置是 `server/work/dfo-lan/runtime/storage/local.json`（活动档），路线档 `local.sqlite.json` / `local.postgres.json`。
+2. **两条路线各有独立存档**：SQLite = `runtime/storage/dfolan.sqlite3`（连带 `-wal`/`-shm`）＋管理租约文件；
+   PostgreSQL = `runtime/storage/pgdata/`。**换路线不会带角色走**；搬运存档只有单向
+   `dfo-tool sqliteconvert`（PostgreSQL → SQLite）。这些运行期文件一律**不得入库、不得随意删除**（与 §0 铁律 4/5 一致）。
+3. **引擎判定只有一条规则，且两侧必须逐字一致**：显式 `driver` > 有 `postgres_dsn` 选 PostgreSQL >
+   只有 `sqlite_path` 选 SQLite > **三者都没有则兜底 SQLite**。改这条规则要同时改
+   `internal/database.EngineForConfig`、`internal/launcher` 的镜像与两侧用例（两边各有同一张表的测试）。
+   两侧漂移的实机后果是「启动器起了一个引擎、服务端读另一个库」，玩家看到的是**存档像丢了 / 登录失败**。
+4. **默认按 SQLite 档开发与验收**：新功能、缺陷修复、schema 变更先在 SQLite 档跑通（含本机实机验收），
+   再确认 PostgreSQL 路线不被破坏。协议与玩法证据与用哪条存储路线无关——**不得因为换了库而改变协议行为**。
+5. **存档兼容是两条路线共同的义务**（§0 铁律 4）：SQLite 的 schema 由
+   `sql/sqlite/migrations/0001_initial.sql` 一次性建全（`Migrate*` 在 SQLite 上是诚实的空操作），
+   PostgreSQL 仍是按域增量迁移；两边分节名逐字对齐，新增结构必须**两边都给迁移/兼容说明**并说明兼容范围。
+6. **排障顺序**：先看服务端启动日志里**真正打开的库**（`storage: engine=sqlite target=<文件>`），
+   再看活动档 `driver` 与路线档是否一致，最后才怀疑存档本身。SQLite 档的常见坑（管理租约、库文件路径、
+   WAL）见操作手册 §4；`scripts\storage-route.cmd show` / `clear-guard` 是对应的只读/自愈入口。
+7. **`--source-build` 与存储路线无关**：候选程序（`bin/wireprobe-handoff-source.exe`）在两条路线上都能跑，
+   实机入口取 `scripts\启动游戏-SQLite.cmd --source-build`（SQLite 主路线）或
+   `scripts\启动游戏-PostgreSQL.cmd --source-build`（第二路线）。
+
 ## 1. 项目地图与子索引触发规则
 
 | 路径               | 子索引                    | 何时读                                                 |
@@ -191,7 +219,7 @@
 | `docs/**`          | 沿用根规则                | 计划、台账、迁移清单                                   |
 | `tools/**`（**现在仓库外** `../tools/`） | 沿用根规则 | 便携环境（Python 3.11、PostgreSQL、Go） |
 
-- 子目录没有 `AGENTS.md` 时，沿用根规则；**子索引不得与 §0.3~§0.5 冲突**，冲突以根文件为准。
+- 子目录没有 `AGENTS.md` 时，沿用根规则；**子索引不得与 §0.3~§0.6 冲突**，冲突以根文件为准。
 - 读取顺序：本文件 → 相关目录 `README` → `开发对接文档.md`。
 - 权威 IDB `client/DFO.exe.i64` 位于 `client/` 目录；不得随意覆盖或并发损坏。
 
@@ -213,7 +241,7 @@
 
 | 文件                                                   | 用途                                                         |
 | ------------------------------------------------------ | ------------------------------------------------------------ |
-| `AGENTS.md` §0.3 / §0.4 / §0.5                         | **提交规范 / 代码目录规范 / 开发规范**（唯一真源）           |
+| `AGENTS.md` §0.3 / §0.4 / §0.5 / §0.6                         | **提交规范 / 代码目录规范 / 开发规范 / 存储路线（以 SQLite 为主）**（唯一真源）           |
 | `scripts/check-commit-hygiene.ps1`                     | 提交前门禁：缓存产物与规范违规检测（配合 §0.3.1 的警告+二次确认） |
 | `开发对接文档.md`                                      | 核心交接基线：已实现功能边界、未完成系统与验收路线           |
 | `server/README-先看这里.md` + `server/work/dfo-lan/docs/sqlite-operations.md` | 运行环境、启动流程、双库路线与故障排查说明 |

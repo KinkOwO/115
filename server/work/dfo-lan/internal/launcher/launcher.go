@@ -32,7 +32,8 @@ type StorageConfig struct {
 
 // DriverName reports the effective driver, mirroring the server's
 // engineForConfig (internal/database): an explicit driver wins, a named DSN means
-// PostgreSQL, and only a configuration that names nothing but sqlite_path is SQLite.
+// PostgreSQL, a named sqlite_path means SQLite, and a configuration that names
+// nothing falls back to SQLite (2026-10-05 业主口径「默认 sqlite」).
 //
 // The two rules must stay identical. When they drift, the launcher starts one engine while
 // the server reads the other - a running PostgreSQL and an empty SQLite file, which reaches
@@ -47,7 +48,7 @@ func (c StorageConfig) DriverName() string {
 	if strings.TrimSpace(c.SQLitePath) != "" {
 		return "sqlite"
 	}
-	return "postgres"
+	return "sqlite"
 }
 
 // postgresImages are the server processes the launcher owns. They are killed by image
@@ -232,8 +233,11 @@ func stopPostgres(ctx context.Context, action Action) {
 	_ = cmd.Run()
 }
 
-// LoadStorageConfig reads runtime/storage/local.json below root. A missing file yields
-// the PostgreSQL default, matching the Python behaviour of continuing without config.
+// LoadStorageConfig reads runtime/storage/local.json below root. A missing file yields an
+// empty configuration, which DriverName reports as SQLite - the single fallback both this
+// launcher and the server use (2026-10-05 业主口径「默认 sqlite」). The server then fails
+// with an explicit "sqlite storage configuration incomplete" instead of opening a database
+// nobody asked for.
 func LoadStorageConfig(root string) (StorageConfig, error) {
 	path := filepath.Join(root, "server", "work", "dfo-lan", "runtime", "storage", "local.json")
 	data, err := os.ReadFile(path)

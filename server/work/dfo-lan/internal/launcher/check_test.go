@@ -191,13 +191,14 @@ func TestCheckReportsTheStorageDriver(t *testing.T) {
 	}
 	storagePath := filepath.Join(storageDir, "local.json")
 
-	// No storage config at all means the PostgreSQL default, which the report must say.
+	// No storage config at all means the shared SQLite fallback (2026-10-05 业主口径
+	// 「默认 sqlite」), which the report must say.
 	report, err := Check(root, CheckOptions{ServerOnly: true})
 	if err != nil {
 		t.Fatalf("check without a storage config: %v", err)
 	}
-	if !strings.HasPrefix(report.Storage, "PostgreSQL:") {
-		t.Errorf("storage = %q, want the PostgreSQL form", report.Storage)
+	if !strings.HasPrefix(report.Storage, "SQLite ") {
+		t.Errorf("storage = %q, want the SQLite form (the shared fallback)", report.Storage)
 	}
 
 	// A sqlite profile must name the database file instead, so the owner can see at a

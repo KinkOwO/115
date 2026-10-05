@@ -7,14 +7,16 @@
 ## 1. 选择引擎：只改一份配置
 
 引擎由存储配置里的 `driver` 决定（`runtime/storage/local.json`；模板见
-`runtime/storage/local.example.json`，**该模板当前就是 SQLite 档、与本机环境一致**）：
-
-```json
-{ "driver": "postgres", "postgres_dsn": "postgres://...", "max_connections": 12 }
-```
+`runtime/storage/local.example.json`，**该模板当前就是 SQLite 档、与本机环境一致**）。
+**主路线是 SQLite**（业主 2026-10-05 口径「默认 sqlite」，见根 `AGENTS.md` §0.6）；
+PostgreSQL 是第二路线：
 
 ```json
 { "driver": "sqlite", "sqlite_path": "C:/Game/dof/115us/115/server/work/dfo-lan/runtime/storage/dfolan.sqlite3", "sqlite_busy_timeout_ms": 5000, "max_connections": 4 }
+```
+
+```json
+{ "driver": "postgres", "postgres_dsn": "postgres://...", "max_connections": 12 }
 ```
 
 ### 1.1 没有 `driver` 时的唯一规则（2026-10-05 收口）
@@ -25,12 +27,13 @@
 | 次序 | 配置里有什么 | 选中 | 说明 |
 | --- | --- | --- | --- |
 | 1 | 显式 `driver` | `driver` 的值 | 写了就照写；写成其它值**明确报错** |
-| 2 | 没有 `driver`，但有 `postgres_dsn` | **PostgreSQL** | 文档中的默认引擎；配置里点了 DSN 就不该去开别的文件 |
+| 2 | 没有 `driver`，但有 `postgres_dsn` | **PostgreSQL** | 配置里点了 DSN 就不该去开别的文件 |
 | 3 | 没有 `driver`，也没有 DSN，但有 `sqlite_path` | **SQLite** | SQLite 升级包（20261004）的迁移工具写出的形状：只有 `sqlite_path` |
-| 4 | 三个都没有 | PostgreSQL（并报配置不完整） | 不发明一个库出来 |
+| 4 | 三个都没有 | **SQLite（兜底）** | 2026-10-05 业主口径「默认 sqlite」：与启动器兜底一致。SQLite 那条打开路径会以 `sqlite storage configuration incomplete` 明确报错，不会凭空发明一个库 |
 
 规则的真源是 `internal/database.EngineForConfig`；镜像在
-`internal/launcher.StorageConfig.DriverName`（Go 启动器）与 `gm-tool/scripts/gmweb.py`，
+`internal/launcher.StorageConfig.DriverName`（Go 启动器；Web GM 已于 2026-10-05 随独立
+`gm-tool` 一起移除，现在只有启动器内嵌的 GM），
 两边各有同一张表的用例（`internal/database/engine_selection_test.go`、
 `internal/launcher/launcher_test.go`）。
 
@@ -48,7 +51,7 @@
 > `database.LoadConfig` 现在剥掉 BOM，并把出错文件名写进错误里。
 
 - **`sqlite_path` 必须是绝对路径**（2026-10-04 起服务端明确拒绝相对路径，否则会在进程当前目录下建库）。
-- **`driver` 缺省即 `postgres`**，所以既有配置不需要改动。
+- **不带 `driver` 的兜底是 SQLite**（2026-10-05 起，与启动器一致）；既有 PostgreSQL 档都写了 `driver`/`postgres_dsn`，所以不受影响。
 - 写成其它值会**明确报错**，不会静默按 PostgreSQL 处理——存储配置写错一个词就连接到另一个库，必须响。
 - 换了 `driver` 之后，启动器与停止脚本都会跟着变：`sqlite` 档**不拉起也不需要停止 PostgreSQL**
   （`scripts/启动游戏.cmd` 直接开服，`scripts/停止游戏环境.cmd` 打印 `Storage: sqlite profile` 后跳过停机）。
