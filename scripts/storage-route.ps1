@@ -381,11 +381,21 @@ function Invoke-SelfTest() {
         if (-not $rejected) { throw '未知路线没有被拒绝' }
         $checks++
 
-        # 6. 交接目标必须存在：这两个中文名只写在本文件里（.cmd 执行行保持纯 ASCII），
-        #    所以文件名打错时只有走到 Invoke-Entry 才发现——自检把它提前抓出来。
-        foreach ($entry in @('启动游戏.cmd', '启动服务端.cmd')) {
+        # 6. 「两个路线脚本各自独立可用」＝至少要有一条**能把客户端完整拉起来**的链路，
+        #    而且两个游戏入口文件在位（业主要求：脚本先独立可用，再接进启动器）。
+        #    这里不再要求 scripts\启动游戏.cmd 那类中间入口存在——它们正被并行会话改造。
+        foreach ($entry in @('启动游戏-SQLite.cmd', '启动游戏-PostgreSQL.cmd')) {
             $target = Join-Path $PSScriptRoot $entry
-            if (-not (Test-Path -LiteralPath $target)) { throw "统一入口不存在：$target" }
+            if (-not (Test-Path -LiteralPath $target)) { throw "路线入口不存在：$target" }
+            $checks++
+        }
+        $chain = Get-FullChainCandidates ''
+        if (-not $chain) { throw '没有任何可用的完整启动链（一键启动器 CLI / launch_local.py / bin\dfolauncher.exe 都不可用）' }
+        $checks++
+        foreach ($scope in @('', '--server-only')) {
+            $scoped = Get-FullChainCandidates $scope
+            if (-not $scoped) { throw "完整启动链缺少 '$scope' 变体的可用项" }
+            if ($scope -and ($scoped[0].Args -notcontains '--server-only')) { throw 'server-only 变体没有把 --server-only 传给启动器' }
             $checks++
         }
 
@@ -526,21 +536,82 @@ function Start-PostgresBounded([int]$timeoutSeconds) {
     Write-Host ("        排查：{0}、数据目录里的 postmaster.pid，或先跑 scripts\停止游戏环境.cmd。" -f $logPath) -ForegroundColor Yellow
 }
 
-# 切换路线后，把控制权交给统一入口（提权、探针、客户端编排都在那里）。
-# 中文文件名只出现在**本文件**里：PowerShell 按 UTF-8 BOM 正确解码，而 .cmd 的执行行
-# 保持纯 ASCII（cmd.exe 用控制台代码页解码批处理文本，UTF-8 中文进执行行会破坏解析，
-# 2026-10-05 业主实机踩到 `'hell' is not recognized`）。
-function Invoke-Entry([string]$route, [string]$entry, [string[]]$extra) {
+# ── 完整启动链：自带优先级选择，不依赖任何「正在被改造」的中间入口 ──────────────
+#
+# 业主要求（2026-10-05）：两个路线脚本必须**各自独立可用**（存档→服务端→客户端），
+# 之后才接进启动器。所以这里不再委托 scripts\启动游戏.cmd（它可能被别人改指向，
+# 也可能落到还没接客户端的启动器上），而是按下面的优先级直接调「能把客户端完整拉起来」
+# 的那一条：
+#   1. ..\115us-dfolauncher\bin\dfolauncher-cli.exe --launch   （一键启动器的 CLI，历来起全链）
+#   2. server\work\dfo-lan\scripts\launch_local.py             （Python 编排，同样起全链）
+#   3. server\work\dfo-lan\bin\dfolauncher.exe launch          （仓库内 Go 启动器；客户端托管可能还没接线）
+# 每一条都把「选了哪条、要执行什么命令行」打印出来；`chain-info` 只打印不执行。
+function Get-FullChainCandidates([string]$scope) {
+    $parent = Split-Path -Parent $RepoRoot
+    $scopeArgs = if ($scope) { @($scope) } else { @() }
+    $candidates = @()
+
+    $external = Join-Path $parent '115us-dfolauncher\bin\dfolauncher-cli.exe'
+    if (Test-Path -LiteralPath $external) {
+        $candidates += [pscustomobject]@{ Kind = 'external-cli'; Path = $external; Args = @('--launch') + $scopeArgs }
+    }
+    $python = Join-Path $parent 'tools\python\python.exe'
+    $launchPy = Join-Path $RepoRoot 'server\work\dfo-lan\scripts\launch_local.py'
+    if (Test-Path -LiteralPath $launchPy) {
+        if (Test-Path -LiteralPath $python) {
+            $candidates += [pscustomobject]@{ Kind = 'python-launcher'; Path = $python; Args = @($launchPy) + $scopeArgs }
+        }
+        elseif (Get-Command python -ErrorAction SilentlyContinue) {
+            $candidates += [pscustomobject]@{ Kind = 'python-launcher'; Path = 'python'; Args = @($launchPy) + $scopeArgs }
+        }
+    }
+    $goLauncher = Join-Path $RepoRoot 'server\work\dfo-lan\bin\dfolauncher.exe'
+    if (Test-Path -LiteralPath $goLauncher) {
+        $candidates += [pscustomobject]@{ Kind = 'go-launcher'; Path = $goLauncher; Args = @('launch') + $scopeArgs }
+    }
+    return $candidates
+}
+
+function Show-ChainInfo() {
+    $candidates = Get-FullChainCandidates ''
+    Write-Host ''
+    Write-Host '[完整启动链] 两个路线脚本会按这个顺序挑第一条可用的（chain-info 只报告、不执行）：' -ForegroundColor Cyan
+    if (-not $candidates) {
+        Write-Host '  （一条都没有：既没有一键启动器 CLI，也没有 launch_local.py 或 bin\dfolauncher.exe）' -ForegroundColor Red
+        return
+    }
+    $i = 0
+    foreach ($candidate in $candidates) {
+        $i++
+        $mark = if ($i -eq 1) { '<= 本次会用' } else { '' }
+        Write-Host ("  {0}. {1}`n     {2} {3}  {4}" -f $i, $candidate.Kind, $candidate.Path, ($candidate.Args -join ' '), $mark)
+    }
+    if ($candidates[0].Kind -eq 'go-launcher') {
+        Write-Host '  注意：仓库内 Go 启动器的客户端托管仍在开发中；若停在「服务端已就绪」而没有客户端，' -ForegroundColor Yellow
+        Write-Host '        请改用一键启动器 CLI（把文件放回 ..\115us-dfolauncher\bin\dfolauncher-cli.exe）或 Python 编排。' -ForegroundColor Yellow
+    }
+}
+
+function Invoke-FullChain([string]$route, [string]$scope, [string[]]$extra) {
     Use-Route $route
     if ($route -eq 'postgres') {
         Start-PostgresBounded 60
     }
-    $target = Join-Path $PSScriptRoot $entry
-    if (-not (Test-Path -LiteralPath $target)) { throw "找不到统一入口：$target" }
+    $candidates = Get-FullChainCandidates $scope
+    if (-not $candidates) {
+        throw ('找不到可用的完整启动链：需要 ..\115us-dfolauncher\bin\dfolauncher-cli.exe、' +
+               'server\work\dfo-lan\scripts\launch_local.py（配 Python）或 server\work\dfo-lan\bin\dfolauncher.exe 之一。')
+    }
+    $chosen = $candidates[0]
+    $all = @($chosen.Args) + @($extra)
     Write-Host ''
-    Write-Host ("[启动] 调用统一入口 {0} ..." -f $entry) -ForegroundColor Cyan
-    & $target @extra
-    # 把子入口的退出码原样带出去（非 0 时入口自己已经打印了原因并 pause）。
+    Write-Host ("[启动] {0}（{1} 路线{2}）" -f $chosen.Kind, $route, $(if ($scope) { '，只起服务端' } else { '' })) -ForegroundColor Cyan
+    Write-Host ("       {0} {1}" -f $chosen.Path, ($all -join ' '))
+    if ($chosen.Kind -eq 'go-launcher') {
+        Write-Host '       （仓库内 Go 启动器的客户端托管仍在接线；若只起了服务端，请用一键启动器 CLI）' -ForegroundColor Yellow
+    }
+    Set-Location $RepoRoot
+    & $chosen.Path @all
     exit $LASTEXITCODE
 }
 
@@ -578,13 +649,14 @@ try {
         'stop-postgres' { Stop-Postgres }
         'preflight-postgres' { Start-PostgresBounded 60 }
         'clear-guard' { Clear-AdminGuard }
+        'chain-info' { Show-ChainInfo }
         'selftest' {
             if (-not (Invoke-SelfTest)) { exit 1 }
         }
-        'game-sqlite' { Invoke-Entry 'sqlite' '启动游戏.cmd' $extra }
-        'game-postgres' { Invoke-Entry 'postgres' '启动游戏.cmd' $extra }
-        'server-sqlite' { Invoke-Entry 'sqlite' '启动服务端.cmd' $extra }
-        'server-postgres' { Invoke-Entry 'postgres' '启动服务端.cmd' $extra }
+        'game-sqlite' { Invoke-FullChain 'sqlite' '' $extra }
+        'game-postgres' { Invoke-FullChain 'postgres' '' $extra }
+        'server-sqlite' { Invoke-FullChain 'sqlite' '--server-only' $extra }
+        'server-postgres' { Invoke-FullChain 'postgres' '--server-only' $extra }
         'help' { Show-Help }
         default { Show-Help; throw "未知动作 '$verb'。" }
     }
@@ -592,7 +664,7 @@ try {
 }
 catch {
     Write-Host ("[失败] " + $_.Exception.Message) -ForegroundColor Red
-    # 退出码 3 = 本脚本自己的失败（切换路线 / 起库 / 找不到统一入口）。四个入口据此 pause，
-    # 让业主看得到原因；成功路径由 Invoke-Entry 直接 exit 子入口的退出码，不走这里。
+    # 退出码 3 = 本脚本自己的失败（切换路线 / 起库 / 找不到完整启动链）。四个入口据此 pause，
+    # 让业主看得到原因；成功路径由 Invoke-FullChain 直接 exit 子进程的退出码，不走这里。
     exit 3
 }

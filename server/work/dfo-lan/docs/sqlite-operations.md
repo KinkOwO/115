@@ -81,6 +81,12 @@ scripts\storage-route.cmd selftest             # 自检（临时目录里跑，�
 
 - 路线档放在 `runtime/storage/local.sqlite.json` 与 `local.postgres.json`（**运行期状态，不入库**）：
   切换时当前活动档会先按它自己的引擎存回对应路线档，再写入目标路线档，所以手工改过的键不会丢。
+- **两个游戏入口各自独立可用**（2026-10-05 业主定调：脚本先能独立跑通全链，再谈接进启动器）：
+  它们纯 ASCII、自己提权（WFP 需要管理员），不依赖 `启动游戏.cmd` 之类正在被改造的中间入口；
+  完整启动链由 `storage-route.ps1` 按优先级自己挑——
+  `..\115us-dfolauncher\bin\dfolauncher-cli.exe --launch` → `launch_local.py`（Python 编排）→
+  `bin\dfolauncher.exe launch`（客户端托管仍在接线，会打印提醒）。
+  `scripts\storage-route.cmd chain-info` 只报告会挑哪一条；`selftest` 断言「至少一条完整链路可用」。
 - 路线档缺失时按**本机**路径生成：SQLite 用绝对 `sqlite_path`；PostgreSQL 优先沿用本机既有的
   `local.json.pg-backup`（保留其中真实 DSN），并把 `postgres_bin`/`postgres_data` 修成本机实际存在
   的路径（便携 PG 在仓库外 `..\tools\pg`），缺 DSN 时才用项目默认值并明确提示核对。
