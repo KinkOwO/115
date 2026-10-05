@@ -1,0 +1,7 @@
+{
+    "version":  "1.6.4",
+    "exe_url":  "DFO-115US单机一键启动器.exe",
+    "exe_size":  45903872,
+    "exe_sha256":  "C76872F12E73523D94853B008ECD8570223F0DF01C174917726FE623794EB151",
+    "notes":  "更新源改为「主源 + 备用源」：主源失败自动回退备用源 RicardoLz/115us-dfolauncher（master）。主源保持原样（gitgud.io/yh9/115us-dfolauncher @ master）。回退触发条件：HTTP 非 200（含 404）/ 连接失败 / 超时 / 清单解析失败 / sha256 校验失败；日志写明这次是谁提供的，两源都失败给合并报错。玩家只拿一个 exe 即可：启动自动补齐预编译服务端（永不编译），首次运行引导选择 DFO.exe。"
+}
