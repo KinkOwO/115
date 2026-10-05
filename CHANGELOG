@@ -26,6 +26,84 @@
 
 ---
 
+## 2026-10-05：网关游戏端口「整组重抽」（Windows 保留段启动失败回归）
+
+### 已修复 / 已完成
+
+- **缺陷（2026-09-21 回归）**：`-game-listen 127.0.0.2:0` 抽到的基准端口可用、但 `base+1…base+49`
+  里的某个端口落在 Windows 保留段（WinNAT/Hyper-V 动态保留，`netsh … excludedportrange` 未必列出）时，
+  频道监听**在重试之外**、直接 `return err`，网关在写出 `ready.json` 之前退出。
+  现场：`runtime/roles_..._20261005_203212_156217_next37`（只有 `gateway.err`，末行
+  `listen tcp4 127.0.0.2:61857: bind: An attempt was made to access a socket in a way forbidden by
+  its access permissions.`，**无** `game listen: … rejected` 重试日志 ⇒ 主监听 61856 绑得上、失败的是
+  频道端口 61857）；95 秒后重点的 20:33:46 会话换了一段端口（61953…62002）就成功。
+  同类历史现场 `docs/archive/CHANGELOG-20260916-20261004.md` L3040-3044。
+- **修法**（`cmd/wireprobe/listen.go`、`cmd/wireprobe/main.go`）：恢复"整组"语义 ——
+  `openGameListeners(addr, extra)` 每次用端口 0 重抽基准端口，把主监听与 `base+1…base+extra`
+  作为一组打开；组内任一失败就关掉本组全部监听、重抽（≤ `ephemeralListenAttempts = 8`），
+  日志 `game listen: block base … rejected: … (attempt N/8)`；重抽前 `skipPastGroup` 把内核临时端口
+  游标推过刚失败的那一组，让相邻两次尝试落在**不重叠**的端口段上（只靠下一次 :0 抽签每次只前进 1，
+  本机 60~200 端口宽的保留段会连续撞满 8 次：实测基准 62764…62771 全被 62787 拒）。
+  端口固定（非 0）时不换端口也不推游标；重试用尽用 `%w` 保留最后一次真实 bind 错误原文；
+  `ready.json` 字段与写入时机不变。
+- **验证**：`cmd/wireprobe/listen_test.go` 新增 6 个整组用例（重抽整组、重抽不重叠、失败组关干净不泄漏 fd、
+  WSAEACCES 原文保留、固定端口不换端口/不推游标、成功时端口连续）；修复前这些用例 `[build failed]`
+  （`undefined: openGameListeners/listenTCP4/closeGameListeners`），修复后 9/9 PASS。
+  真机（生产 argv + 隔离 `-output`/临时 SQLite/频道目录 7099）：旧代码抽到 63676 时频道 63677 被拒 →
+  无 `ready.json`；新代码 57341 组被拒（57347 WSAEACCES）→ 推过该组 → `block base 127.0.0.2:57392
+  bound after 1 rejected attempt(s)` → `ready.json`（`channels:50`）。
+  详见 `server/work/dfo-lan/docs/game-listen-block-retry.md`。
+
+### 未修复 / 未闭环
+
+- **未实机验收、未发布**：`bin/wireprobe-pvf.exe` 未替换、`tools/tools-server-bin.zip` 与
+  `tools/manifest.json` 未重打 —— 只改源码玩家拿不到修复。请业主按
+  `scripts\启动游戏-SQLite.cmd --source-build` 回归后再走 `Build-Server.ps1 -UpdatePVFDefault` + 重打
+  `server-bin`（步骤见上述文档 §6）。
+- 残留边界：单个保留段宽于 8 × (组宽+1)（默认 ≈400 端口）时仍可能重试用尽。
+- 2026-10-05 20:32/20:33 两个现场会话目录已被启动器的会话保留策略清掉（关键行已在本文档与
+  `docs/game-listen-block-retry.md` 留档）；复现期间我把系统临时端口游标推到保留段下方，导致
+  21:09:00 业主的一次启动撞上 62787 被拒（21:09:49 重试正常），当时复现网关还占着 7001，
+  之后已改为 7099 隔离并停止占用。
+
+### bug 测试取证
+
+- `go build ./...`、`go vet ./...`、`go test ./... -count=1`（`server/work/dfo-lan`，Go 1.26.0）
+  全部退出码 0；41 个测试包 `ok`，4 个 `no test files`，无 `FAIL`。
+- `go test ./cmd/wireprobe/ -run "TestOpenGameListeners|TestListenGamePort" -count=1 -v` → 9/9 PASS
+  （修复前同一命令 `[build failed]`）。
+
+---
+
+## 2026-10-05：默认程序被回滚后重新发布（业主确认 A）
+
+### 已修复 / 已完成
+
+- **发现（多写者冲突）**：21:07:58-59 `bin/wireprobe-pvf.exe` 与 `bin/dfolauncher.exe` 被换回 PostgreSQL
+  移除**之前**的那一对 —— `C32C46C3…`(36,888,576 B) / `44CC249E…`(24,857,600 B)，与
+  `.tmp/pgremoval-bin-backup/*.before-pgremoval` 同尺寸同哈希。当晚 21:17:56 与 21:20:13 两次实机会话因此
+  跑的都是这份旧默认程序（`gateway.out` 首行只有 `wireprobe-pvf.exe`、无 `--source-build`；启动器资源缓存亦记
+  `sha256=c32c46c3…`）。**结论：「貌似没啥问题」不能作为 PG 移除或誓约修复的验收证据**，两条改动都还没被实机验到。
+- **处置（业主选 A：把含两项改动的版本重新发布为默认程序）**：在 HEAD `8989e6b4` 上重编
+  `bin/wireprobe-pvf.exe` = `bin/wireprobe-handoff-source.exe` = **`08E62F97…`**（28,633,600 B；
+  `go version -m` 自述 `vcs.revision=8989e6b4…`、无 `vcs.modified`），`bin/dfolauncher.exe` = **`1B18A69D…`**（16,475,136 B）。
+- **发布包按最小改动更新**：`tools/tools-server-bin.zip` 24,056,415 → **24,060,992 B**、sha256 `e2cc9b3a…`，
+  **条目清单 85 个一字未动**（就地替换包内两个二进制，包内哈希与磁盘逐一对上）；manifest 的 `server-bin` 同步；
+  5 个包（go / gopath-mod / server-src / server-configs / server-bin）按 size/sha256/files 全量自检通过。
+  - **为什么不从工作区重新收集**：`server/work/dfo-lan/configs/` 下现有 **27 个未跟踪文件**（另一个会话在工作区里
+    恢复的历史基线 JSON：`cerashop.json`、`loot.level150.json`、`character-rules.jobs-release.json`、
+    `pvf-*-candidate.json` 等，磁盘 95 = 跟踪 68 + 未跟踪 27）。按文件系统 glob 会把它们卷进发布包，已避开并登记。
+- **启动器缓存**：`.launcher-resource-cache.json` 记录的 manifest 哈希（`494d0222…`）与当前 `tools/manifest.json`
+  已不一致，且它对两个二进制记的是旧 `want`；下次启动启动器会重新核对并按新包提取，**不会再自行滚回旧版**。
+  若仍被回滚，则说明有人在手动还原，需要查清来源。
+
+### 未修复 / 未闭环
+
+- **PG 移除与誓约修复仍未实机验收**：请用含两项改动的默认程序重新启动一次（`scripts\启动游戏-SQLite.cmd`），
+  带誓约核心（槽位 47）进副本，确认随机属性/穿戴效果是否还会被应用两次。
+- 另一个会话正在同一棵树里工作（探测到 `wireprobe.test.exe` 从临时 go-build 目录运行，`configs/` 下 27 个未跟踪
+  文件）：它们的文件我一个都没碰、没暂存。
+
 ## 2026-10-05：闭环上一节的两项「未闭环」（誓约直入重复随机属性 / 源码发布包过期）
 
 ### 已修复 / 已完成
