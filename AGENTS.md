@@ -150,7 +150,7 @@
 
 #### 0.4.3 命名与落位检查
 
-- 新增顶层目录/顶层文件前必须问业主；根目录只保留：`AGENTS.md`、`CHANGELOG`、`README`/`开发对接文档.md`、`使用教程.md`、`MERGE-RECORD-*.md`、`.gitignore`、`.gitattributes`(如新增)、业主的发布用 exe。
+- 新增顶层目录/顶层文件前必须问业主；根目录只保留：`AGENTS.md`、`CHANGELOG`、`README`/`开发对接文档.md`、`MERGE-RECORD-*.md`、`.gitignore`、`.gitattributes`(如新增)、业主的发布用 exe。
 - 上述落位由 `scripts/check-commit-hygiene.ps1` 机械校验；违反即触发 §0.3.1 的警告 + 二次确认。
 
 ### 0.5 开发规范（强制）
@@ -167,7 +167,7 @@
    - `git status --short` 里只有本任务文件；
    - 门禁脚本通过（或已取得二次确认）；
    - build / vet / test 结论已实际取得；
-   - 文档与索引同步（改了入口/目录/规范就要同步 AGENTS、README、使用教程）；
+   - 文档与索引同步（改了入口/目录/规范就要同步 AGENTS、README、开发对接文档）；
    - 没有把 `runtime/`、`pvf-cache/`、`.tmp/`、日志、`pgdata/`、SQLite 库文件带入暂存区。
 
 ## 1. 项目地图与子索引触发规则
@@ -184,7 +184,7 @@
 | `tools/**`（**现在仓库外** `../tools/`） | 沿用根规则 | 便携环境（Python 3.11、PostgreSQL、Go） |
 
 - 子目录没有 `AGENTS.md` 时，沿用根规则；**子索引不得与 §0.3~§0.5 冲突**，冲突以根文件为准。
-- 读取顺序：本文件 → 相关目录 `README` → `开发对接文档.md` → `使用教程.md`。
+- 读取顺序：本文件 → 相关目录 `README` → `开发对接文档.md`。
 - 权威 IDB `client/DFO.exe.i64` 位于 `client/` 目录；不得随意覆盖或并发损坏。
 
 ### 1.1 根目录职责
@@ -198,7 +198,7 @@
 | `analysis/`                                            | 逆向分析工作区、分析脚本与核心 Dump 资产（`analysis/dumps/`） |
 | `client-patchs/`                                       | 客户端补丁与 DLL 源码（ngstub, plugin loader 等，默认不开启） |
 | `docs/`                                                | 计划、台账与迁移清单（`docs/todo/`）                         |
-| `开发对接文档.md`、`使用教程.md`                       | 核心交付基线与运行操作指南                                   |
+| `server/开发对接文档.md`                               | 核心交付基线：已实现功能边界、未完成系统与验收路线           |
 | `tools/`（**仓库外** `../tools/`）                     | 便携环境：Python 3.11.9、PostgreSQL 16.4、Go 1.26（2026-10-04 已移出仓库） |
 
 ## 2. 权威索引
@@ -208,7 +208,7 @@
 | `AGENTS.md` §0.3 / §0.4 / §0.5                         | **提交规范 / 代码目录规范 / 开发规范**（唯一真源）           |
 | `scripts/check-commit-hygiene.ps1`                     | 提交前门禁：缓存产物与规范违规检测（配合 §0.3.1 的警告+二次确认） |
 | `开发对接文档.md`                                      | 核心交接基线：已实现功能边界、未完成系统与验收路线           |
-| `使用教程.md`                                          | 运行环境、启动流程、端口分配与故障排查说明                   |
+| `server/README-先看这里.md` + `server/work/dfo-lan/docs/sqlite-operations.md` | 运行环境、启动流程、双库路线与故障排查说明 |
 | `server/README-先看这里.md`                            | 服务端源码、双版本可执行文件与启动脚本交接说明               |
 | `server/work/dfo-lan/docs/architecture.md`             | 局域网多人架构设计与 ADR 决策记录                            |
 | `server/work/dfo-lan/docs/protocol/`                   | 历史协议取证与分析记录（next27 ~ next38-equipment-display）  |

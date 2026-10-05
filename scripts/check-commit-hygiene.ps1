@@ -153,7 +153,7 @@ try {
             }
             # 新增顶层文件（不在白名单）需要确认（§0.4.3）
             elseif ($p -notmatch '/') {
-                $allow = @('AGENTS.md', 'CHANGELOG', 'README.md', '开发对接文档.md', '使用教程.md', '.gitignore', '.gitattributes')
+                $allow = @('AGENTS.md', 'CHANGELOG', 'README.md', '.gitignore', '.gitattributes')
                 $ok = ($allow -contains $p) -or ($p -like 'MERGE-RECORD-*.md')
                 if (-not $ok) {
                     $needConfirm += [pscustomobject]@{ Path = $it.Path; Why = '新增顶层文件，根目录只保留白名单内容'; Clause = '§0.4.3 命名与落位' }
