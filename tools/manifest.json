@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "note": "启动器按需补齐运行时：缺 Go 工具链补 go/gopath-mod，缺服务端源码补 server-src，缺服务端配置补 server-configs，缺 PostgreSQL 运行时文件补 pg-bin；缺服务端程序补 server-bin（预编译，免本机编译）。每个包解压到 target 指定的目录（相对整合包根）。",
+  "note": "启动器按需补齐运行时：缺 Go 工具链补 go/gopath-mod，缺服务端源码补 server-src，缺服务端配置补 server-configs；缺服务端程序补 server-bin（预编译，免本机编译；2026-10-05 起 SQLite 是唯一引擎，已不再需要 PostgreSQL 运行时，pg-bin 包随之移除）。每个包解压到 target 指定的目录（相对整合包根）。",
   "packages": [
     {
       "name": "go",
