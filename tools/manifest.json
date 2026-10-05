@@ -55,9 +55,9 @@
             {
       "name": "server-bin",
       "url": "tools/tools-server-bin.zip",
-      "size": 23960838,
-      "sha256": "e1b63235609fb5c64e86b4ebae63f37c19010665326f53c632c232fedebac75d",
-      "files": 84,
+      "size": 30916333,
+      "sha256": "c8cfaee9632e46fc6eddf51046283b00c8879ce7fb09dff225c41c29fe669e2b",
+      "files": 85,
       "check": "server/work/dfo-lan/bin/wireprobe-pvf.exe",
       "note": "预编译服务端程序（wireprobe-pvf.exe）+ Go 会话编排 CLI（dfolauncher.exe：launch/stop/check/start-storage/init-storage/prepare-inner-pvf/--host-client）+ 网络隔离探针（dfo_probe_tools/probe.exe）；有了它就不必在本机编译服务端，**且全程不需要 Python**（会话编排、内层 PVF 生成、存储初始化都由这个 CLI 完成）",
       "target": "server"
