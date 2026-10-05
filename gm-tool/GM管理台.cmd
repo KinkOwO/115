@@ -10,7 +10,16 @@ REM ============================================================
 
 set GMTOOL=%~dp0
 set LOGDIR=%GMTOOL%logs
-set PYEXE=D:\115us\tools\python\python.exe
+rem Python is a GM-tool-only dependency (the game launch chain does not need it).
+rem Resolution order: in-package GM dir -> GM-only copy next to tools\ -> python on PATH.
+set PYEXE=%GMTOOL%python\python.exe
+if not exist "%PYEXE%" set PYEXE=%GMTOOL%..\..\gm-tool\python\python.exe
+set PYEXE_OK=1
+if not exist "%PYEXE%" (
+    set PYEXE=python
+    where python >nul 2>nul
+    if errorlevel 1 set PYEXE_OK=0
+)
 
 REM ---------- Prepare log directory and date ----------
 if not exist "%LOGDIR%" mkdir "%LOGDIR%"
@@ -52,6 +61,7 @@ if %errorlevel%==0 (
 )
 
 REM ---------- Step 2: Start Python proxy (28081) ----------
+if "%PYEXE_OK%"=="0" goto :no_python
 netstat -ano | findstr ":28081 " | findstr LISTENING >nul
 if %errorlevel%==0 (
     echo [OK] Python proxy already running on 28081
@@ -85,3 +95,18 @@ echo.
 start "" "http://127.0.0.1:28081/"
 
 endlocal
+exit /b 0
+
+:no_python
+echo [ERROR] Python interpreter not found.
+echo         Python is a GM-tool-only dependency; the game launch chain does not need it.
+echo         Looked for, in order:
+echo           1) %GMTOOL%python\python.exe
+echo           2) %GMTOOL%..\..\gm-tool\python\python.exe   (GM-only copy next to tools\)
+echo           3) python on PATH
+echo         To restore: unzip the portable Python 3.11 (capstone / cryptography / pefile / frida)
+echo         into the "gm-tool\python" folder that sits next to the package's "tools" folder,
+echo         or put python on PATH.
+echo.
+pause
+exit /b 1

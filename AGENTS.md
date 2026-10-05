@@ -103,7 +103,7 @@
 | 配置里的路径 | 示例/本地配置中写的相对路径必须在本机存在 | 示例档 `postgres_bin=tools/pg/pgsql/bin`，而 tools 已移出仓库 |
 | profile 程序 | `configs/pvf-default.json.binary`、`server/launcher.local.json.server_binary` 指向的程序必须存在 | 缺 `bin/wireprobe-pvf.exe` 时启动找不到程序 |
 | 启动链配置 | 启动链（Go：`internal/launcher/gateway.go`）引用的 `configs/channel.local*.json` 必须存在 | next37 档引用的频道档没落地 → 该档启动失败 |
-| 脚本引用 | 改动过的 `.cmd`/`.ps1` 不得引用「仓库内 `tools\`」（本机 tools 在仓库外，该分支不可解析） | 新脚本写 `tools\python\python.exe`（2026-10-05 起启动链已无 Python 分支） |
+| 脚本引用 | 改动过的 `.cmd`/`.ps1` 不得引用「仓库内 `tools\`」（本机 tools 在仓库外，该分支不可解析） | 新脚本写 `..\..\gm-tool\python\python.exe`（Python 是 GM 工具专属依赖，已移出 `tools\`，放在整合包外的 `gm-tool\python`；2026-10-05 起启动链已无 Python 分支，不需要它） |
 | 脚本编码 | `.ps1` 必须 UTF-8 **带 BOM**；`.cmd` 必须 CRLF | 用会丢 BOM 的编辑器改门禁脚本 → PS 5.1 按 GBK 解码，脚本直接语法崩（当日实际踩到） |
 
 环境不匹配的两条出路：**改环境**（补文件/改配置，使两边一致）或**改提交**（不入库/换档位）。两条都要在提交信息里说明。
