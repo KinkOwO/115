@@ -286,11 +286,9 @@ func TestLaunchRequiredListPerMode(t *testing.T) {
 	module := filepath.Join(root, "server", "work", "dfo-lan")
 	probe := filepath.Join(root, "server", "work", "dfo_probe_tools")
 	client := filepath.Join(root, "server", "client")
-	helper := filepath.Join(probe, "channel_probe.py")
 	probeExe := filepath.Join(probe, "probe.exe")
 	pvfBinary := filepath.Join(module, "bin", "wireprobe-pvf.exe")
 	sourceBinary := filepath.Join(module, "bin", "wireprobe-handoff-source.exe")
-	startup := filepath.Join(probe, "catalog_startup.py")
 
 	cases := []struct {
 		name string
@@ -300,42 +298,42 @@ func TestLaunchRequiredListPerMode(t *testing.T) {
 		{
 			name: "default",
 			opts: LaunchOptions{Check: true},
-			want: []string{helper, probeExe, pvfBinary,
+			want: []string{probeExe, pvfBinary,
 				filepath.Join(client, "DFO.exe"), filepath.Join(client, "Script.pvf"),
-				filepath.Join(client, "sk.dat"), startup},
+				filepath.Join(client, "sk.dat")},
 		},
 		{
 			name: "server only",
 			opts: LaunchOptions{Check: true, ServerOnly: true},
-			want: []string{helper, pvfBinary, startup},
+			want: []string{pvfBinary},
 		},
 		{
 			name: "client only",
 			opts: LaunchOptions{Check: true, ClientOnly: true},
-			want: []string{helper, probeExe,
+			want: []string{probeExe,
 				filepath.Join(client, "DFO.exe"), filepath.Join(client, "Script.pvf"),
-				filepath.Join(client, "sk.dat"), startup},
+				filepath.Join(client, "sk.dat")},
 		},
 		{
 			name: "storage only still needs the client",
 			opts: LaunchOptions{Check: true, StorageOnly: true},
-			want: []string{helper, probeExe, pvfBinary,
+			want: []string{probeExe, pvfBinary,
 				filepath.Join(client, "DFO.exe"), filepath.Join(client, "Script.pvf"),
-				filepath.Join(client, "sk.dat"), startup},
+				filepath.Join(client, "sk.dat")},
 		},
 		{
 			name: "json mode keeps the settings binary",
 			opts: LaunchOptions{Check: true, JSONMode: true},
-			want: []string{helper, probeExe, pvfBinary,
+			want: []string{probeExe, pvfBinary,
 				filepath.Join(client, "DFO.exe"), filepath.Join(client, "Script.pvf"),
-				filepath.Join(client, "sk.dat"), startup},
+				filepath.Join(client, "sk.dat")},
 		},
 		{
 			name: "source build swaps the profile binary",
 			opts: LaunchOptions{Check: true, SourceBuild: true},
-			want: []string{helper, probeExe, sourceBinary,
+			want: []string{probeExe, sourceBinary,
 				filepath.Join(client, "DFO.exe"), filepath.Join(client, "Script.pvf"),
-				filepath.Join(client, "sk.dat"), startup},
+				filepath.Join(client, "sk.dat")},
 		},
 	}
 	for _, testCase := range cases {
@@ -451,7 +449,7 @@ func TestLaunchRepairProfileWinsOverSourceBuild(t *testing.T) {
 	}
 }
 
-// The first missing dependency is the one reported, so Go and Python name the same file.
+// The first missing dependency is the one reported（2026-10-05 起不再要求任何 .py，故这里缺的是 probe.exe）。
 func TestLaunchReportsTheFirstMissingDependency(t *testing.T) {
 	root := buildLaunchTree(t)
 	probeExe := filepath.Join(root, "server", "work", "dfo_probe_tools", "probe.exe")
@@ -463,7 +461,8 @@ func TestLaunchReportsTheFirstMissingDependency(t *testing.T) {
 	if err != nil {
 		t.Fatalf("server-only run: %v", err)
 	}
-	if len(report.Required) != 3 {
+	// server-only 只需要网关程序本身（以前还要 channel_probe.py / catalog_startup.py 两个 .py）。
+	if len(report.Required) != 1 {
 		t.Errorf("server-only required = %v", report.Required)
 	}
 	_, err = LaunchPlan(root, LaunchOptions{Check: true})

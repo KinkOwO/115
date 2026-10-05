@@ -27,8 +27,6 @@ func buildTree(t *testing.T) string {
 	write(filepath.Join("server", "client", "DFO.exe"), "stub")
 	write(filepath.Join("server", "client", "Script.pvf"), "stub")
 	write(filepath.Join("server", "client", "sk.dat"), "stub")
-	write(filepath.Join("server", "work", "dfo_probe_tools", "channel_probe.py"), "stub")
-	write(filepath.Join("server", "work", "dfo_probe_tools", "catalog_startup.py"), "stub")
 	write(filepath.Join("server", "work", "dfo_probe_tools", "probe.exe"), "stub")
 	write(filepath.Join("server", "work", "dfo-lan", "bin", "wireprobe-pvf.exe"), "stub")
 	write(filepath.Join("server", "work", "dfo-lan", "bin", "wireprobe-handoff-source.exe"), "stub")

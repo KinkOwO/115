@@ -223,26 +223,24 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 		report.DataMode = "PVF direct"
 	}
 
-	// The required list is the Python's, branch for branch. --client-only wins over
-	// --server-only because it is tested first there too (argparse let both through).
-	helper := filepath.Join(probeDir, "channel_probe.py")
+	// 2026-10-05 业主决策："最小预装环境、没有 python、不留回退" —— 预检不再要求任何 .py 文件
+	// （channel_probe.py / catalog_startup.py 以前是 Python 编排的必需品，Go 编排不用它们）。
+	// probe.exe 保留：它是原生工具（不是环境依赖），Go 宿主装 WFP 过滤器失败时的回退路径要用。
 	var required []string
 	switch {
 	case opts.ClientOnly:
 		// A client-only run reaches a server on another machine: no local gateway, but the
 		// probe runtime and the client triple are still needed.
 		required = []string{
-			helper,
 			filepath.Join(probeDir, "probe.exe"),
 			filepath.Join(client, "DFO.exe"),
 			filepath.Join(client, "Script.pvf"),
 			filepath.Join(client, "sk.dat"),
 		}
 	case opts.ServerOnly:
-		required = []string{helper, binary}
+		required = []string{binary}
 	default:
 		required = []string{
-			helper,
 			filepath.Join(probeDir, "probe.exe"),
 			binary,
 			filepath.Join(client, "DFO.exe"),
@@ -250,8 +248,6 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 			filepath.Join(client, "sk.dat"),
 		}
 	}
-	// Unconditional, including --server-only and --client-only, as in the Python.
-	required = append(required, filepath.Join(probeDir, "catalog_startup.py"))
 	report.Required = required
 	for _, path := range required {
 		if !regularFile(path) {
