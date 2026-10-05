@@ -25,6 +25,8 @@ func main() {
 		os.Exit(runStop(os.Args[2:]))
 	case "check":
 		os.Exit(runCheck(os.Args[2:]))
+	case "launch":
+		os.Exit(runLaunch(os.Args[2:]))
 	case "start-storage":
 		os.Exit(runStartStorage(os.Args[2:]))
 	case "-h", "--help", "help":
@@ -44,11 +46,20 @@ Usage:
   dfolauncher stop  [--root <path>] [--dry-run]
   dfolauncher start-storage [--root <path>] [--dry-run]
   dfolauncher check [--root <path>] [--server-only|--client-only] [--source-build] [--json-mode]
+  dfolauncher launch --check|--dry-run [--root <path>]
+                    [--server-only|--client-only|--storage-only]
+                    [--json-mode|--repair-profile <path>] [--source-build]
 
 Flags:
   --root      repository root (default: the current directory, which is where the
               .cmd entry points cd to)
   --dry-run   print every action without performing it
+
+launch decides the session before anything starts: it reads the same configuration,
+validates the same profile and checks the same dependencies as
+scripts/launch_local.py, and --check prints the same four lines. --dry-run adds the
+storage -> inner PVF -> gateway -> client command plan. Nothing is started or written
+until the later stages of docs/go-launch-migration-plan.md land.
 `)
 }
 
@@ -149,6 +160,64 @@ func runCheck(args []string) int {
 		return 1
 	}
 	fmt.Println("Paths OK.")
+	return 0
+}
+
+// runLaunch is Stage 1 of the launch migration: configuration, profile validation,
+// dependency checks and the command plan. --check starts nothing, --dry-run only adds the
+// plan, and a bare launch is refused rather than quietly doing half the job.
+func runLaunch(args []string) int {
+	flags := flag.NewFlagSet("launch", flag.ContinueOnError)
+	root := flags.String("root", ".", "repository root")
+	check := flags.Bool("check", false, "check every dependency and start nothing")
+	dryRun := flags.Bool("dry-run", false, "print the command plan without running it")
+	serverOnly := flags.Bool("server-only", false, "check the server-only scope")
+	clientOnly := flags.Bool("client-only", false, "check the client-only scope")
+	storageOnly := flags.Bool("storage-only", false, "check the storage-only scope")
+	jsonMode := flags.Bool("json-mode", false, "explicit legacy JSON mode")
+	sourceBuild := flags.Bool("source-build", false, "use bin/wireprobe-handoff-source.exe")
+	repairProfile := flags.String("repair-profile", "", "override the default PVF profile")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+	if *jsonMode && *repairProfile != "" {
+		// The Python declared these mutually exclusive, and the choice decides both the
+		// binary and the data mode of the whole session.
+		fmt.Fprintln(os.Stderr, "launch: --json-mode and --repair-profile are mutually exclusive")
+		return 2
+	}
+	if !*check && !*dryRun {
+		fmt.Fprintln(os.Stderr, "launch: 真实启动见 docs/go-launch-migration-plan.md Stage 2；"+
+			"本阶段请用 --check 或 --dry-run。")
+		return 1
+	}
+	absolute, err := filepathAbs(*root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
+		return 1
+	}
+	report, err := launcher.LaunchPlan(absolute, launcher.LaunchOptions{
+		Check:         *check,
+		DryRun:        *dryRun,
+		ServerOnly:    *serverOnly,
+		ClientOnly:    *clientOnly,
+		StorageOnly:   *storageOnly,
+		JSONMode:      *jsonMode,
+		SourceBuild:   *sourceBuild,
+		RepairProfile: *repairProfile,
+	})
+	// The inner-PVF status is printed before the Python's fatal checks, so it is printed
+	// here even when the plan then fails.
+	if report.InnerPVF.Message != "" {
+		fmt.Println(report.InnerPVF.Message)
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+		return 1
+	}
+	for _, line := range report.Lines(*dryRun) {
+		fmt.Println(line)
+	}
 	return 0
 }
 
