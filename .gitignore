@@ -137,3 +137,8 @@ server/work/client-build/Script.inner.manifest.json
 # ------------------------------------------------------------------------------
 # 仓库根的 .tmp/：构建/抓包临时中间产物（内含 gocache 等，禁止入库；见 scripts/check-commit-hygiene.ps1）
 /.tmp/
+
+# ------------------------------------------------------------------------------
+# mod 示例的打包产物（mods/examples/*/dist*）：中间输出，可随时用 build-mod.cmd 重建
+/mods/examples/*/dist/
+/mods/examples/*/dist-nopvf/
