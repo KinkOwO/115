@@ -67,40 +67,6 @@ func TestBoostTrainingStatusGraduatedFrame(t *testing.T) {
 	}
 }
 
-// TestBoostRosterRowWidth115 钉住 NOTI2639 的行宽契约（IDA：handler sub_140C131D0
-// 每行读 u8+u32+u8+u8 = 7 字节；官服 cap43 单行帧 `01000000 03 00000000 01 00`）。
-// 旧 donor 布局行宽 5 字节：1 行时恰好落在补齐后的 16 字节里，2 行时客户端要 18 字节
-// 却只有 16 ⇒ 游标越界，客户端回 CMD217(OVERFLOW) 体内 0x0A4F=2639（2026-10-06 实机：
-// 同账号第二个角色直升后卡在赛利亚、选角名单空白）。
-func TestBoostRosterRowWidth115(t *testing.T) {
-	empty, e := BoostRoster115(nil)
-	if e != nil || hex.EncodeToString(empty) != "00000000" {
-		t.Fatalf("空名单 = % x err=%v", empty, e)
-	}
-	one, e := BoostRoster115([]BoostRosterRow115{{Slot: 0, Mode: 0}})
-	if e != nil {
-		t.Fatal(e)
-	}
-	if want := "0100000003000000000000"; hex.EncodeToString(one) != want {
-		t.Fatalf("单行 = %s, want %s（官服同位只差状态字节 01/00）", hex.EncodeToString(one), want)
-	}
-	two, e := BoostRoster115([]BoostRosterRow115{{Slot: 0, Mode: 0}, {Slot: 1, Mode: 2}})
-	if e != nil {
-		t.Fatal(e)
-	}
-	if want := "020000000300000000000003010000000200"; hex.EncodeToString(two) != want {
-		t.Fatalf("双行 = %s, want %s", hex.EncodeToString(two), want)
-	}
-	// 客户端按 7 字节行宽读取，正文长度必须正好 4+7N；短于它就越界（CMD217 触发条件）。
-	for n, body := range map[int][]byte{0: empty, 1: one, 2: two} {
-		if len(body) != 4+n*BoostRosterRowBytes115 {
-			t.Fatalf("%d 行正文 %d 字节，客户端需要 %d", n, len(body), 4+n*BoostRosterRowBytes115)
-		}
-	}
-	if _, e := BoostRoster115([]BoostRosterRow115{{Slot: 3, Mode: 0}, {Slot: 3, Mode: 2}}); e == nil {
-		t.Fatal("重名单位次被放过")
-	}
-}
 
 // TestDecodeBoostCapsule115BufferVariant 钉住两种胶囊的实机正文（同会话
 // 2026-10-06 18:38:49 / 18:41:44，均 64 字节明文）：

@@ -31,6 +31,10 @@
   `boostChallengeClearProgress` + 进城 `boostChallengeEntryRestore`（**只在真 enrolled 时出帧**）。
 - **665 面板 Go 按钮**：传送落点改读源 `[go contents town area]`（行 0 = 241/1@143,173），不再落到存档回城点。
 - **NOTI2639 行宽 5 → 7 字节**（正文契约 `4+7N`）—— 一条游标越界同时解释「第二角色卡赛利亚」与「选角名单空白」。
+  ⚠️ **本 MR 暂不落这一条**（业主 2026-10-07 裁决）：上游同轮带进 `cmd/wireprobe/boostup_roster.go` 的
+  `maxVerifiedBoostRosterBytes=9` 与本改动**互斥**（9 < 编码最小合法长度 `4+7×1=11` ⇒ 名单恒被降级成空标记）。
+  证据与修法留档 `docs/protocol/next53-boost-662-roster-2639-row-width.md`，待与上游对齐后再落；
+  本 MR 实际落地 = 六小节中的 5 条 + 进城自动登记 665。
 - **缓冲（奶系）胶囊**：只给胶囊一份 CMD507 字段掩码，**通用解码器不放松**（药水/皮肤仓/幻化栏/飞艇照旧）；变体按源推导。
 - **662 首登弹窗门禁**：`character.CreatedAsOdyssey(role)` 或 `level >= [goal level]`（源 = 115）时把礼盒行**全部标已处理**；
   CMD643 领取路径**不加**同门禁（业主口径「发胶囊不用管」）。
