@@ -35,6 +35,9 @@
   `maxVerifiedBoostRosterBytes=9` 与本改动**互斥**（9 < 编码最小合法长度 `4+7×1=11` ⇒ 名单恒被降级成空标记）。
   证据与修法留档 `docs/protocol/next53-boost-662-roster-2639-row-width.md`，待与上游对齐后再落；
   本 MR 实际落地 = 六小节中的 5 条 + 进城自动登记 665。
+  ⇒ **已按权威说明单独提交**（`fix/noti2639-row-width-20261007`）：行宽改 7 字节、上限改成与编码自洽的
+  `4 + 7×32`，并把「太长 ⇒ 太短」的成因连同三条独立证据写进
+  `docs/protocol/noti2639-row-width-authoritative-20261007.md`。
 - **缓冲（奶系）胶囊**：只给胶囊一份 CMD507 字段掩码，**通用解码器不放松**（药水/皮肤仓/幻化栏/飞艇照旧）；变体按源推导。
 - **662 首登弹窗门禁**：`character.CreatedAsOdyssey(role)` 或 `level >= [goal level]`（源 = 115）时把礼盒行**全部标已处理**；
   CMD643 领取路径**不加**同门禁（业主口径「发胶囊不用管」）。

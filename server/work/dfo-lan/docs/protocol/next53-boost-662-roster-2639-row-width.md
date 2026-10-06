@@ -6,7 +6,10 @@
 > ⚠️ **状态更新（2026-10-07）**：本修复**暂缓落地**。上游同轮带进 `cmd/wireprobe/boostup_roster.go` 的
 > `maxVerifiedBoostRosterBytes = 9` 与这里的三重证据**互斥**（9 字节 < 本文档编码的最小合法长度
 > `4 + 7×1 = 11` 字节 ⇒ 名单恒被降级为空标记）。按业主裁决，本次 MR 维持旧端 5 字节形态；
-> 本文档保留完整证据链，待与上游对齐后再落。详见 `analysis/tasks/next165-*.md` §6。
+> 本文档保留完整证据链。
+> ➡️ **2026-10-07 已单独提交**：权威结论、三条独立证据与判定口诀见
+> [`noti2639-row-width-authoritative-20261007.md`](noti2639-row-width-authoritative-20261007.md)；
+> 本工作稿只保留过程记录。
 
 ## 症状
 
