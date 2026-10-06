@@ -371,7 +371,7 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 		log.Printf("equipment craft: decode account materials after craft: %v", e)
 		return plan, nil
 	}
-	refresh, e := accountMaterialRefreshPackets(account, saved)
+	refresh, e := accountMaterialRefreshPackets(account, saved, w.activeDungeon != nil)
 	if e != nil {
 		log.Printf("equipment craft: build account material refresh: %v", e)
 		return plan, nil

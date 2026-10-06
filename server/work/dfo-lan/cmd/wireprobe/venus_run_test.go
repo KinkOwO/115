@@ -5,14 +5,17 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/game/wire"
 	"dfolan/internal/legion"
 	"dfolan/internal/loot"
-	"dfolan/internal/database"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"io"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -83,9 +86,14 @@ func TestVenusWaitingInfoLayout(t *testing.T) {
 }
 
 func TestVenusChosenAndAdvancedInfo(t *testing.T) {
-	chosen := legion.VenusChosenInfo(2)
+	chosen := legion.VenusChosenInfo(2, 0)
 	if chosen[2] != 2 || binary.LittleEndian.Uint32(chosen[3:]) != 2 || binary.LittleEndian.Uint32(chosen[11:]) != 0 {
 		t.Fatalf("chosen info choice/state/stage = %d/%d/%d", chosen[2], binary.LittleEndian.Uint32(chosen[3:]), binary.LittleEndian.Uint32(chosen[11:]))
+	}
+	// BUG3 回归：进度保留后 chosen 态携带下一个待进阶段。
+	chosen2 := legion.VenusChosenInfo(2, 2)
+	if chosen2[2] != 2 || binary.LittleEndian.Uint32(chosen2[11:]) != 2 {
+		t.Fatalf("chosen2 info choice/stage = %d/%d", chosen2[2], binary.LittleEndian.Uint32(chosen2[11:]))
 	}
 	next := legion.VenusStageAdvancedInfo(1, 1)
 	if got := binary.LittleEndian.Uint32(next[11:]); got != 1 {
@@ -590,9 +598,11 @@ func TestVenusStageTimeout(t *testing.T) {
 		t.Fatalf("completed stage must not time out: %+v", out)
 	}
 	// 未通关的终点关：差 1 秒不触发，到点判定失败（stage 2 = 第 3 关，600 秒）。
+	// 带进度与已选难度（超时不清进度：第二十二轮口径，难度第三十三轮起锁定）。
 	w.activeDungeon = &dungeon.Session{Definition: catalog.DungeonDefinition{ID: legion.VenusStageDungeons[2]}}
 	w.completionSent = false
-	w.venus = &venusRun{choice: 2, stage: 2}
+	w.venus = &venusRun{choice: 2, stage: 2, relicMask: 1 << 3, entered: true,
+		cleared: [4]bool{true, true, false, false}}
 	w.venus.stageClock[2] = started
 	if out := w.venusStageTimeout(started.Add(599*time.Second), nil); out != nil {
 		t.Fatalf("unexpired stage must not time out: %+v", out)
@@ -627,14 +637,16 @@ func TestVenusStageTimeout(t *testing.T) {
 	if !hasTownState || !hasReturnArea || !hasRevive {
 		t.Fatalf("timeout plan missing town route/revive: state=%v area=%v revive=%v", hasTownState, hasReturnArea, hasRevive)
 	}
-	if last := plan[len(plan)-1]; last.Name != "venus_info_timeout_waiting" || last.ID != legion.NotiVenusInfo {
-		t.Fatalf("timeout plan must end with the waiting N2655: %+v", last)
+	// 序列末尾 N2655 带权威已选难度（Choice=2，Stage=保留进度 2）。
+	if last := plan[len(plan)-1]; last.Name != "venus_info_timeout_waiting" || last.ID != legion.NotiVenusInfo ||
+		last.Payload[2] != 2 || binary.LittleEndian.Uint32(last.Payload[3:]) != 2 || binary.LittleEndian.Uint32(last.Payload[11:]) != 2 {
+		t.Fatalf("timeout plan must end with the locked waiting N2655: %+v payload %x", last, last.Payload)
 	}
 	if len(notes) != 1 || notes[0]["kind"] != "venus_stage_timeout" || notes[0]["stage"] != 2 || notes[0]["limit"] != 600 {
 		t.Fatalf("timeout notes = %+v", notes)
 	}
-	if w.venus.choice != 0xff || w.venus.stage != 0 || !w.venus.stageClock[2].IsZero() {
-		t.Fatalf("run not reset after timeout: %+v", w.venus)
+	if w.venus.choice != 2 || w.venus.relicMask != 1<<3 || !w.venus.entered || w.venus.clearedCount() != 2 || !w.venus.stageClock[2].IsZero() {
+		t.Fatalf("timeout must keep the locked progress, got %+v", w.venus)
 	}
 	if w.activeDungeon != nil || w.deathSent != nil || w.completionSent || w.resultSent || w.selectingDungeon || w.approvedDungeonGate != 0 {
 		t.Fatalf("session not cleaned after timeout: dungeon=%v death=%v completion=%v result=%v selecting=%v gate=%d",
@@ -687,7 +699,7 @@ func TestVenusOperationWindowClose(t *testing.T) {
 		t.Fatalf("close ack body = %x", body)
 	}
 	// 关一次即清零：重复触发空操作。
-	if out := w.venusOperationClose(deadline.Add(2 * time.Second), nil); out != nil {
+	if out := w.venusOperationClose(deadline.Add(2*time.Second), nil); out != nil {
 		t.Fatalf("repeat close must be a no-op: %+v", out)
 	}
 	// 确认难度后不推 close（窗已原生关闭）。
@@ -698,7 +710,7 @@ func TestVenusOperationWindowClose(t *testing.T) {
 	if _, _, err := w.venusOperation(confirm); err != nil {
 		t.Fatal(err)
 	}
-	if out := w.venusOperationClose(deadline.Add(3 * time.Second), nil); out != nil {
+	if out := w.venusOperationClose(deadline.Add(3*time.Second), nil); out != nil {
 		t.Fatalf("confirmed run must not push close: %+v", out)
 	}
 	if !w.venus.windowDeadline.IsZero() {
@@ -709,7 +721,7 @@ func TestVenusOperationWindowClose(t *testing.T) {
 		t.Fatal(err)
 	}
 	w.activeDungeon = &dungeon.Session{Definition: catalog.DungeonDefinition{ID: legion.VenusStageDungeons[0]}}
-	if out := w.venusOperationClose(deadline.Add(4 * time.Second), nil); out != nil {
+	if out := w.venusOperationClose(deadline.Add(4*time.Second), nil); out != nil {
 		t.Fatalf("inside a dungeon must not push close: %+v", out)
 	}
 	// resetRun 清截止时刻。
@@ -775,8 +787,10 @@ func TestVenusRetreatCmd2044(t *testing.T) {
 }
 
 // CMD72（EPLP_COMMAND）= 副本内右上角「撤退」：focus（State2）只回执不清场，
-// 真正退出（State1）ACK 后走回城序列、run 复位为全新未选状态、序列末尾垫
-// 等待态 N2655。请求体取自 2026-10-04 12:27 实机帧 01020100…。
+// 真正退出（State1）ACK 后走回城序列；进度保留（第二十二轮），第三十三轮起
+// 难度与遗物一并保留——序列末尾的 N2655 带权威已选难度（Choice≠FF），客户端
+// 点 Open 直接进「已选择X。确定要进入吗？」变更提示，不再弹三卡片自由重选。
+// 请求体取自 2026-10-04 12:27 实机帧 01020100…。
 func TestVenusSettlementExitRetreatCmd72(t *testing.T) {
 	exit := make([]byte, 16)
 	exit[0], exit[1], exit[2] = 1, 2, 1
@@ -788,7 +802,7 @@ func TestVenusSettlementExitRetreatCmd72(t *testing.T) {
 	w := &worldSession{channelType: 99, completionSent: true,
 		role:  database.Character{ID: 7, WireID: 7, Name: "001", State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)},
 		state: database.WorldState{Position: database.WorldPosition{Town: 204, Area: 0, X: 700, Y: 300}},
-		venus: &venusRun{choice: 2, stage: 0, relicMask: 1,
+		venus: &venusRun{choice: 2, stage: 0, relicMask: 1, entered: true,
 			pending: []protocol.UnassignedMonster115{{Grid: [2]byte{1, 0}, Entity: 4096, Template: 109016980}}},
 		activeDungeon: &dungeon.Session{
 			Definition: catalog.DungeonDefinition{ID: legion.VenusStageDungeons[0]},
@@ -816,12 +830,12 @@ func TestVenusSettlementExitRetreatCmd72(t *testing.T) {
 		}
 	}
 	waiting := plan[len(plan)-1]
-	if waiting.Name != "venus_info_waiting" || waiting.ID != legion.NotiVenusInfo || waiting.Payload[2] != 0xff || binary.LittleEndian.Uint32(waiting.Payload[3:]) != 2 {
+	if waiting.Name != "venus_info_waiting" || waiting.ID != legion.NotiVenusInfo || waiting.Payload[2] != 2 || binary.LittleEndian.Uint32(waiting.Payload[3:]) != 2 {
 		t.Fatalf("trailing N2655 = %+v payload %x", waiting, waiting.Payload)
 	}
 	run := w.venus
-	if run == nil || run.choice != 0xff || run.stage != 0 || run.clearedCount() != 0 || run.relicMask != 0 || len(run.pending) != 0 {
-		t.Fatalf("retreat must reset the run, got %+v", run)
+	if run == nil || run.choice != 2 || run.stage != 0 || run.clearedCount() != 0 || run.relicMask != 1 || !run.entered || len(run.pending) != 0 {
+		t.Fatalf("retreat must keep the locked run, got %+v", run)
 	}
 }
 
@@ -874,6 +888,100 @@ func TestVenusOperationReopenAction4(t *testing.T) {
 	}
 	if w.venus.choice != 1 {
 		t.Fatalf("reconfirmed choice = %d, want 1", w.venus.choice)
+	}
+	// 第三十三轮：进过图（entered）的挑战难度锁定——action4 重选回原生负包
+	//（公共 00 + 错误码 4），不回 N2655、不清锁、不重开三卡窗。
+	w.venus.entered = true
+	plan, notes, err = w.handleVenusRequest(reopen, legion.CmdVenusOperationSelect)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan) != 1 || plan[0].Name != "venus_operation_locked_refused" || plan[0].Kind != 1 ||
+		plan[0].ID != legion.CmdVenusOperationSelect || !bytes.Equal(plan[0].Payload, []byte{0, 4, 0}) {
+		t.Fatalf("locked reopen must refuse natively: %+v payload %x", plan, plan[0].Payload)
+	}
+	if w.venus.choice != 1 || !w.venus.entered {
+		t.Fatalf("locked reopen must keep the run, got %+v", w.venus)
+	}
+	if len(notes) != 1 || notes[0]["kind"] != "venus_operation_locked" {
+		t.Fatalf("locked reopen notes = %v", notes)
+	}
+	// 锁定期间 action1 开窗与换档 action2 同样拒绝；同档重复确认放行。
+	open := append(make([]byte, legion.EnvelopeSize), 1, 0, 0, 0, 255)
+	plan, _, err = w.handleVenusRequest(open, legion.CmdVenusOperationSelect)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan) != 1 || plan[0].Name != "venus_operation_locked_refused" {
+		t.Fatalf("locked open must refuse: %+v", plan)
+	}
+	if !w.venus.windowDeadline.IsZero() {
+		t.Fatal("locked open must not arm the window deadline")
+	}
+	switchChoice := append(make([]byte, legion.EnvelopeSize), 2, 0, 0, 0, 0)
+	plan, _, err = w.handleVenusRequest(switchChoice, legion.CmdVenusOperationSelect)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan) != 1 || plan[0].Name != "venus_operation_locked_refused" || w.venus.choice != 1 {
+		t.Fatalf("locked switch must refuse: %+v choice=%d", plan, w.venus.choice)
+	}
+	sameChoice := append(make([]byte, legion.EnvelopeSize), 2, 0, 0, 0, 1)
+	if _, _, err = w.handleVenusRequest(sameChoice, legion.CmdVenusOperationSelect); err != nil {
+		t.Fatal(err)
+	}
+	if w.venus.choice != 1 {
+		t.Fatal("same-choice reconfirm must pass")
+	}
+}
+
+// 第三十三轮 BUG3：撤退/超时保留的锁定 run 重新开战（CMD2043）——waiting 向
+// 量带权威已选难度（Choice≠FF、State2、Stage=下一个待进阶段），run 的选择与
+// 遗物掩码原样保留；未选过难度的重开维持未选等待态。
+func TestVenusRunRestartKeepsLockedChoice(t *testing.T) {
+	startBody, err := hex.DecodeString(venusLiveStartRequestHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := &worldSession{channelType: 99,
+		role:       database.Character{WireID: 7, ID: 7, Name: "VenusCap"},
+		characters: &character.Service{ChannelContext: [2]byte{0x03, 0x56}},
+		dungeons:   &catalog.DungeonCatalog{},
+		venus: &venusRun{choice: 2, stage: 1, relicMask: 1 << 3, entered: true,
+			cleared: [4]bool{true, false, false, false}},
+	}
+	w.soloPartyReady = true
+	plan, _, err := w.handleVenusRequest(startBody, legion.CmdStart)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan) != 2 || plan[1].ID != legion.NotiVenusInfo {
+		t.Fatalf("restart plan = %+v", plan)
+	}
+	body := plan[1].Payload
+	if body[2] != 2 || binary.LittleEndian.Uint32(body[3:]) != 2 || binary.LittleEndian.Uint32(body[11:]) != 1 {
+		t.Fatalf("restart waiting must carry the locked choice: %x", body)
+	}
+	if w.venus.choice != 2 || w.venus.relicMask != 1<<3 || w.venus.clearedCount() != 1 {
+		t.Fatalf("restart must keep the locked run: %+v", w.venus)
+	}
+	// 撤退自第 1 关（未清任何进度）的 run 同样锁定：chosen 态 Stage=0。
+	w.venus = &venusRun{choice: 0, entered: true}
+	plan, _, err = w.handleVenusRequest(startBody, legion.CmdStart)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body = plan[1].Payload; body[2] != 0 || binary.LittleEndian.Uint32(body[3:]) != 2 {
+		t.Fatalf("kept zero-progress run must stay chosen: %x", body)
+	}
+	// 未选过难度的全新开战维持未选等待态（Choice FF）。
+	w.venus = &venusRun{choice: 0xff}
+	plan, _, err = w.handleVenusRequest(startBody, legion.CmdStart)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body = plan[1].Payload; body[2] != 0xff {
+		t.Fatalf("fresh restart must stay unchosen: %x", body)
 	}
 }
 
@@ -1380,5 +1488,179 @@ func TestVenusRelicReport(t *testing.T) {
 	}
 	if w.venus.relicMask != 1<<5 {
 		t.Fatalf("relic mask = %x, want %x", w.venus.relicMask, 1<<5)
+	}
+}
+
+// 第三十四轮（用户口径）：退出队伍 = 放弃攻坚——返回选择角色（CMD7）时
+// 先于菜单应答补发 State0 关闭态（客户端在过场里按 manager 最后状态重建
+// VENUS_MAIN_INFO_WINDOW，171948 会话 trace；关闭态让重建渲染为空、选角
+// 界面不再残留面板），同时 run 整体作废（难度/进度/遗物全清零，重进走
+// CMD12+CMD2043 全新开团）；关闭态用 ChoiceFF/掩码0，客户端遗物显示一并
+// 清掉。保留进度只属于「撤退回待机区」（CMD72，队伍还在）。
+// 1566 退出爆发期间的 N2655 补发已删除：拆屏期到达只会把窗口重建打开
+// （172342 会话 trace Close 3789 → RECV N2655 → Open 3789）。
+func TestVenusExitToSelectAbandonsRun(t *testing.T) {
+	server, peer := net.Pipe()
+	defer server.Close()
+	defer peer.Close()
+	events := make(chan map[string]any, 8)
+	c := &gameConnection{gatewayRuntime: &gatewayRuntime{}, bootstrapped: true, selectedCharacterID: 7,
+		keys: make([]byte, wire.SessionKeyBytes),
+		worldState: &worldSession{channelType: 99,
+			role: database.Character{ID: 7, WireID: 7},
+			venus: &venusRun{choice: 2, stage: 1, relicMask: 1 << 3, entered: true,
+				cleared: [4]bool{true, false, false, false}}},
+		event: func(e map[string]any) { events <- e }}
+	c.output = newConnectionOutput(server, c.keys, "test", c.event)
+	go func() {
+		if got := c.dispatchVenus(&clientRequest{frame: wire.Frame{Type: 1, ID: 7}, verified: true}); got != dispatchNext {
+			t.Error(got)
+		}
+	}()
+	peer.SetReadDeadline(time.Now().Add(4 * time.Second))
+	h := make([]byte, 16)
+	if _, e := io.ReadFull(peer, h); e != nil {
+		t.Fatal(e)
+	}
+	size := int(binary.LittleEndian.Uint32(h[3:7]))
+	if size < 16 || size > wire.MaxPacketSize {
+		t.Fatal(size)
+	}
+	b := make([]byte, size-16)
+	if _, e := io.ReadFull(peer, b); e != nil {
+		t.Fatal(e)
+	}
+	if id := binary.LittleEndian.Uint16(h[1:3]); id != legion.NotiVenusInfo {
+		t.Fatal("exit close must be N2655, got", id)
+	}
+	plain, e := wire.DecryptPayload(c.keys, legion.NotiVenusInfo, b)
+	if e != nil {
+		t.Fatal(e)
+	}
+	// 关闭态：State0 + ChoiceFF + 掩码清零（run 已作废，权威状态归零）。
+	if len(plain) < 85 || plain[2] != 0xff || binary.LittleEndian.Uint32(plain[3:]) != 0 ||
+		binary.LittleEndian.Uint32(plain[77:]) != 0 {
+		t.Fatalf("exit close state = %x", plain)
+	}
+	select {
+	case e := <-events:
+		if e["kind"] != "venus_exit_to_select" || e["abandoned"] != true {
+			t.Fatal("unexpected event", e)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("exit not logged")
+	}
+	if c.worldState.venus != nil {
+		t.Fatalf("leaving the party must abandon the run: %+v", c.worldState.venus)
+	}
+	// 终局已完成的 run 同样作废（重复 State0 是无害收尾）。
+	done := &gameConnection{gatewayRuntime: &gatewayRuntime{}, bootstrapped: true, selectedCharacterID: 7,
+		keys: make([]byte, wire.SessionKeyBytes),
+		worldState: &worldSession{channelType: 99,
+			venus: &venusRun{choice: 2, finalDone: true}},
+		event: func(e map[string]any) { events <- e }}
+	done.output = newConnectionOutput(server, done.keys, "test", done.event)
+	go func() {
+		if got := done.dispatchVenus(&clientRequest{frame: wire.Frame{Type: 1, ID: 7}, verified: true}); got != dispatchNext {
+			t.Error(got)
+		}
+	}()
+	// 读走关闭帧（net.Pipe 同步写，不读会卡住发送方）。
+	peer.SetReadDeadline(time.Now().Add(4 * time.Second))
+	if _, e := io.ReadFull(peer, h); e != nil {
+		t.Fatal(e)
+	}
+	dsize := int(binary.LittleEndian.Uint32(h[3:7]))
+	db := make([]byte, dsize-16)
+	if _, e := io.ReadFull(peer, db); e != nil {
+		t.Fatal(e)
+	}
+	select {
+	case e := <-events:
+		if e["kind"] != "venus_exit_to_select" {
+			t.Fatal("finished run must be abandoned on exit too", e)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("finished run exit not logged")
+	}
+	if done.worldState.venus != nil {
+		t.Fatal("finished run must be retired on exit")
+	}
+	// 非维纳斯频道不触发。
+	town := &gameConnection{gatewayRuntime: &gatewayRuntime{}, bootstrapped: true, selectedCharacterID: 7,
+		keys:       make([]byte, wire.SessionKeyBytes),
+		worldState: &worldSession{channelType: 1, venus: &venusRun{choice: 2}},
+		event:      func(e map[string]any) { events <- e }}
+	town.output = newConnectionOutput(server, town.keys, "test", town.event)
+	if got := town.dispatchVenus(&clientRequest{frame: wire.Frame{Type: 1, ID: 7}, verified: true}); got != dispatchNext {
+		t.Fatal(got)
+	}
+	select {
+	case e := <-events:
+		if e["kind"] == "venus_exit_to_select" {
+			t.Fatal("non-venus channel must not trigger the exit hook")
+		}
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+// 第三十五轮：BUG4 遗物重置钩子的重置包必须是 State0 关闭态——客户端在
+// 城镇里周期性发 CMD35（位置同步），通关 CMD72 回城后第一条周期 CMD35 就
+// 会命中本钩子（191905 会话 11:26:23 实证）；旧实现发 State2 等待态把右上
+// 角面板重新顶起来。State0 掩码照样归零且面板保持关闭。
+func TestVenusRelicResetKeepsPanelClosed(t *testing.T) {
+	server, peer := net.Pipe()
+	defer server.Close()
+	defer peer.Close()
+	events := make(chan map[string]any, 8)
+	c := &gameConnection{gatewayRuntime: &gatewayRuntime{}, bootstrapped: true, selectedCharacterID: 7,
+		keys:       make([]byte, wire.SessionKeyBytes),
+		worldState: &worldSession{channelType: 99, pendingRelicReset: true},
+		event:      func(e map[string]any) { events <- e }}
+	c.output = newConnectionOutput(server, c.keys, "test", c.event)
+	go func() {
+		if got := c.dispatchVenus(&clientRequest{frame: wire.Frame{Type: 1, ID: 35}, verified: true}); got != dispatchNext {
+			t.Error(got)
+		}
+	}()
+	peer.SetReadDeadline(time.Now().Add(4 * time.Second))
+	h := make([]byte, 16)
+	if _, e := io.ReadFull(peer, h); e != nil {
+		t.Fatal(e)
+	}
+	size := int(binary.LittleEndian.Uint32(h[3:7]))
+	b := make([]byte, size-16)
+	if _, e := io.ReadFull(peer, b); e != nil {
+		t.Fatal(e)
+	}
+	if id := binary.LittleEndian.Uint16(h[1:3]); id != legion.NotiVenusInfo {
+		t.Fatal("relic reset must be N2655, got", id)
+	}
+	plain, e := wire.DecryptPayload(c.keys, legion.NotiVenusInfo, b)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if len(plain) < 85 || plain[2] != 0xff || binary.LittleEndian.Uint32(plain[3:]) != 0 ||
+		binary.LittleEndian.Uint32(plain[77:]) != 0 {
+		t.Fatalf("relic reset state = %x (want State0 closed, mask 0)", plain)
+	}
+	select {
+	case e := <-events:
+		if e["kind"] != "venus_relic_ui_reset" {
+			t.Fatal("unexpected event", e)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("reset not logged")
+	}
+	if c.worldState.pendingRelicReset || c.worldState.lastVenusResetCharacter != 7 {
+		t.Fatalf("reset flags = %v/%v", c.worldState.pendingRelicReset, c.worldState.lastVenusResetCharacter)
+	}
+	// 消费一次后不再重复发（下一条周期 CMD35 应无包）。
+	go func() {
+		_ = c.dispatchVenus(&clientRequest{frame: wire.Frame{Type: 1, ID: 35}, verified: true})
+	}()
+	peer.SetReadDeadline(time.Now().Add(300 * time.Millisecond))
+	if _, e := io.ReadFull(peer, h); e == nil {
+		t.Fatal("second CMD35 must not push another state")
 	}
 }
