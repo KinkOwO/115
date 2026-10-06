@@ -142,3 +142,14 @@ server/work/client-build/Script.inner.manifest.json
 # mod 示例的打包产物（mods/examples/*/dist*）：中间输出，可随时用 build-mod.cmd 重建
 /mods/examples/*/dist/
 /mods/examples/*/dist-nopvf/
+
+# ------------------------------------------------------------------------------
+# client-patchs 各补丁的构建产物（见 client-patchs/AGENTS.md）：
+#   *.dll / *.zip 由上面的通用规则覆盖，这里补 MSVC 中间产物与打包 staging 目录
+# ------------------------------------------------------------------------------
+*.obj
+*.exp
+/client-patchs/*/dist/
+
+# mod 作者工作区（仓库根 mods/）里的启用名单是运行期状态，不入库（服务端模块的那份另有跟踪）
+/mods/enabled.json
