@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
+	"encoding/hex"
 	"fmt"
 	"time"
 )
@@ -12,6 +13,10 @@ import (
 // 客户端进复活 UI 后只会等，不会发请求，所以「倒计时结束 → 挑战失败」只能由服务端
 // 推进（见 main.go 的 case 40）。实机截图显示客户端从 9~10 秒开始倒数，这里取 10 秒。
 const deathFailTimeout = 10 * time.Second
+
+// deathFailTimeoutReason 是 NOTI33 FAIL_CLEAR_DUNGEON 的原因码：100 = 倒计时超时
+// （0 = 「默认死亡」，奥德赛禁复活的立即判负用它，与 Elvenmere 同形）。
+const deathFailTimeoutReason byte = 100
 
 func (w *worldSession) playerDeath(p []byte, frames ...[]byte) ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 || w.activeDungeon == nil || !w.activeDungeon.Loaded {
@@ -69,6 +74,52 @@ func (w *worldSession) playerDeath(p []byte, frames ...[]byte) ([]outboundPacket
 		plan = append(plan, outboundPacket{"dungeon_fail_clear", 0, 33, protocol.DungeonFailClear(0)})
 	}
 	return plan, nil
+}
+
+// deathFailLeave 是「死亡 → 挑战失败 → 回城」那一步的实际动作，原样取自 case 40 里
+// 10 秒定时器的闭包（[MERGE-20260928-DEATH-FAIL-TIMEOUT]）：
+//
+//	① 发 NOTI33 FAIL_CLEAR_DUNGEON（reason：100 = 倒计时超时，0 = 默认死亡）；
+//	② 走 leaveDungeon 把玩家送回城 —— 只发 FAIL_CLEAR 客户端不会自己走
+//	   （实机 2026-09-28：收到 FAIL_CLEAR 后 25 秒毫无动作，直到玩家手动放弃才回城）；
+//	③ 自己清副本会话（这里绕过了主循环里 dungeon_leave_ack 的清理）。
+//
+// 调用点：
+//   - case 40 的 10 秒定时器（死亡后没复活 → 超时判负），reason=100；
+//   - **奥德赛禁复活时立即调用**（业主 2026-10-06：死亡即回城，不等倒计时），reason=0。
+//
+// 重复调用是安全的：第一次跑完会清掉 activeDungeon，第二次在入口直接返回。
+func (c *gameConnection) deathFailLeave(reason byte) {
+	if c == nil || c.worldState == nil {
+		return
+	}
+	w := c.worldState
+	d := w.pilotDeath
+	if d == nil || !d.Dead || w.activeDungeon == nil {
+		return
+	}
+	// [AZURE-DEATH-AFTER-CLEAR] 结算已经走完的**只回城、不补 FAIL_CLEAR**：
+	// 补了会把一场已经通关并发了奖的挑战标成失败。
+	if !w.resultSent {
+		if err := c.output.send(0, 33, protocol.DungeonFailClear(reason)); err != nil {
+			return
+		}
+	}
+	leave, e := w.leaveDungeon()
+	if e != nil {
+		c.event(map[string]any{"kind": "death_fail_leave_error", "error": e.Error()})
+		return
+	}
+	if c.sendPlan(leave, func(p outboundPacket) {
+		if p.ID == 1361 {
+			c.event(map[string]any{"kind": p.Name, "character_id": w.role.ID, "id": p.ID, "type": p.Kind, "plain_hex": hex.EncodeToString(p.Payload), "path": "death_fail_leave"})
+		}
+	}) != nil {
+		return
+	}
+	w.activeDungeon = nil
+	w.bleedingMineStart = nil
+	c.event(map[string]any{"kind": "death_fail_leave", "run": d.Run, "reason": reason, "steps": len(leave) + 1})
 }
 
 // deathAfterSettlement 处理「结算已走完之后的死亡」：结果不改写，只把玩家送回城。

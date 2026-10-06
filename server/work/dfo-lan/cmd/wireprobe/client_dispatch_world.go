@@ -392,49 +392,17 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 				// 驱动失败结算与回城。此前只有 Elvenmere(100003126) 会发，其它副本
 				// 死亡后永远停在 Dead 界面（实机 2026-09-28：倒计时结束不回城，
 				// 剧情叠在死亡界面上卡死）。
+				// 奥德赛禁复活时不等这 10 秒（业主 2026-10-06：死亡即回城）——
+				// 判负与回城各只有一条出口，动作与下面定时器**同一份代码**。
 				w := client.worldState
-				select {
-				case <-client.connection.done:
-				default:
-					time.AfterFunc(deathFailTimeout, func() {
-						d := w.pilotDeath
-						if d == nil || !d.Dead || w.activeDungeon == nil {
-							return
-						}
-						// [AZURE-DEATH-AFTER-CLEAR] 结算已经走完的**只回城、不补 FAIL_CLEAR**：
-						// 补了会把一场已经通关并发了奖的挑战标成失败。没结算的还是照旧走失败链。
-						skipFailClear := w.resultSent
-						// reason 100 = timeout（0 是「默认死亡」）。
-						if !skipFailClear {
-							if err := client.output.send(0, 33, protocol.DungeonFailClear(100)); err != nil {
-								return
-							}
-						}
-						// 只发 FAIL_CLEAR 不够：客户端收到后只播死亡镜头，不会自己
-						// 离开副本 —— 实机 2026-09-28 客户端 trace 里
-						// `RECV ENUM_NOTIPACKET_FAIL_CLEAR_DUNGEON` 之后 25 秒毫无
-						// 动作，直到玩家手动发 GIVEUP_GAME(42) 才回城。
-						// 这里照「放弃」那条路径把玩家送回城。
-						leave, e := w.leaveDungeon()
-						if e != nil {
-							client.event(map[string]any{"kind": "death_fail_leave_error", "error": e.Error()})
-							return
-						}
-						if client.sendPlan(leave, func(p outboundPacket) {
-							if p.ID == 1361 {
-								client.event(map[string]any{"kind": p.Name, "character_id": w.role.ID, "id": p.ID, "type": p.Kind, "plain_hex": hex.EncodeToString(p.Payload), "path": "death_timeout"})
-							}
-						}) != nil {
-							return
-						}
-						// 主循环在发出 dungeon_leave_ack 时会清掉副本会话
-						// （main.go 的 `p.Name == "dungeon_leave_ack"` 分支），
-						// 这里绕过了那段，必须自己清 —— 否则客户端回城后发来的
-						// 门请求仍会命中一个已离开的会话。
-						w.activeDungeon = nil
-						w.bleedingMineStart = nil
-						client.event(map[string]any{"kind": "death_fail_timeout", "run": d.Run, "steps": len(leave) + 1})
-					})
+				if w.odysseyImmediateDeathFail() {
+					client.deathFailLeave(0)
+				} else {
+					select {
+					case <-client.connection.done:
+					default:
+						time.AfterFunc(deathFailTimeout, func() { client.deathFailLeave(deathFailTimeoutReason) })
+					}
 				}
 			}
 		case 43:

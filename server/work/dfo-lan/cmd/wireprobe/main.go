@@ -99,6 +99,9 @@ func runGateway(startup Config) error {
 			log.Printf("servermod: mod 声明的内容扩展意图 → %s", c)
 		}
 	}
+	// 模式规则（由 mod 通过 internal/modpolicy 设置）：开没开、谁开的都要在日志里。
+	// server/AGENTS §6 的教训是"默认路径悄悄坏掉最难查"，所以这里留一行可核对的证据。
+	logModPolicy()
 	// 启动期一次性 mod 命令（可选）：DFO_SERVERMOD_CONSOLE="<mod-id> <name> [args]"
 	// 服务端没有可交互控制台（启动器以隐藏窗口拉起），所以命令是一次性的、结果进日志。
 	if spec := os.Getenv("DFO_SERVERMOD_CONSOLE"); spec != "" {
