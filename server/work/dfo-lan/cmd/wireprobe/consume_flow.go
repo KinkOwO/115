@@ -22,6 +22,11 @@ func (w *worldSession) useStackable(p []byte, event func(map[string]any)) ([]out
 	if e != nil {
 		return nil, e
 	}
+	// 苏醒之森军团口径：副本内消耗品每关限 8 次（用户要求），超限拒绝且
+	// 不扣库存。gate 命中时森林计数已 +1。
+	if refused := w.forestPotionGate(r); refused != nil {
+		return refused, nil
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	before, e := inventory.ReadBag(w.role.State)

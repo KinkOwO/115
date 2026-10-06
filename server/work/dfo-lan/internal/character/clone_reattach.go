@@ -32,7 +32,10 @@ func (s *Service) CloneReattachPackets(role Character) (reset, full []byte, ok b
 		if lookupErr != nil || !definition.IsCloneAvatar() {
 			continue
 		}
-		cover := looks[item.Slot]
+		cover := bag.CloneAvatarLook(item)
+		if cover == 0 {
+			cover = looks[item.Slot]
+		}
 		if cover == 0 {
 			cover = s.defaultCloneCover(role.Profession, item.Slot)
 			if cover != 0 {

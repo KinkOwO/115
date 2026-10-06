@@ -46,8 +46,9 @@ func (s *Service) TagCharacterSnapshot(role Character) (protocol.TagCharacter, e
 			Durability: item.Durability, Period: item.Period, Record: item.Record,
 			AvatarOptions: item.AvatarOptions, AvatarSockets: item.AvatarSockets}
 		if item.Slot <= 11 && item.Group == 0 {
+			row.HeaderTemplateA = bag.CloneAvatarLook(item)
 			for _, look := range bag.Worn {
-				if look.Slot == item.Slot && look.Group == 1 {
+				if row.HeaderTemplateA == 0 && look.Slot == item.Slot && look.Group == 1 {
 					row.HeaderTemplateA = look.Template
 					break
 				}

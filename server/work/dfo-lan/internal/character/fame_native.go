@@ -20,7 +20,7 @@ func importFameRules(a *pvf.Archive, index catalog.ItemIndex, withItems bool) (*
 	if a == nil || index.Source.Checksum == "" || a.Snapshot().Checksum != index.Source.Checksum {
 		return nil, fmt.Errorf("fame PVF/index source mismatch")
 	}
-	r := FameRules{Version: 1, Source: a.Snapshot().Checksum, Sources: map[string]string{}, Tables: map[string]map[int]int64{}, Items: map[uint32]fameSourceValue{}, Sets: map[int][]fameThreshold{}, ItemPoints: map[uint32][]fameSetPoint{}}
+	r := FameRules{Version: 1, Source: a.Snapshot().Checksum, Sources: map[string]string{}, Tables: map[string]map[int]int64{}, Items: map[uint32]fameSourceValue{}, Sets: map[int][]fameThreshold{}, ItemPoints: map[uint32][]fameSetPoint{}, Groups: map[uint32][]int32{}}
 	read := func(path string) ([]fameSourceSection, error) {
 		script, err := catalog.ReadScript(a, path)
 		if err != nil {
@@ -143,6 +143,9 @@ func importFameRules(a *pvf.Archive, index catalog.ItemIndex, withItems bool) (*
 				return nil, fmt.Errorf("invalid fame group template")
 			}
 			template := uint32(v)
+			if !slices.Contains(r.Groups[template], int32(group)) {
+				r.Groups[template] = append(r.Groups[template], int32(group))
+			}
 			for rank, fame := range awakening[group] {
 				if r.Awakening[template] == nil {
 					r.Awakening[template] = map[byte]int64{}

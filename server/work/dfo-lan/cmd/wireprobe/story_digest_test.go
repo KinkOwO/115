@@ -307,8 +307,8 @@ func TestEventInfoTableRidesAnnounce(t *testing.T) {
 	if copies != 1 {
 		t.Fatalf("announce carries %d non-empty NOTI108 frames, want exactly 1", copies)
 	}
-	if !bytes.Equal(got, eventInfoTable) {
-		t.Fatalf("announce 108 body drifted from the fixed table (%d vs %d bytes)", len(got), len(eventInfoTable))
+	if !bytes.Equal(got, townEventInfoTable) {
+		t.Fatalf("announce 108 body drifted from the town table (%d vs %d bytes)", len(got), len(townEventInfoTable))
 	}
 	// Official post-selection position: 706 -> 108 -> 537.
 	if !(at[706] < at[108] && at[108] < at[537]) {
