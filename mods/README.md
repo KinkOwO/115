@@ -1,17 +1,28 @@
-# mods —— mod 示例与开发文档
+# mods —— mod 库 / 示例与开发文档
 
-本目录是**mod 作者的工作区**：示例源码与两份文档。它**不是**服务端加载 mod 的地方。
+本目录在整包里是**整合包根 `mods/`**，它有三重身份（2026-10-07 订正，旧文"它**不是**服务端加载
+mod 的地方"已过时）：
 
-## 目录职责（两个 mods/ 别混）
+1. **Lua 奖励规则脚本的第一顺位目录**：平铺的 `*.lua`（本目录根的 `newchar_kit.lua` 就是）
+   会在服务端启动时被读进奖励管线 —— 见 [`MOD-DEVELOPMENT.md`](MOD-DEVELOPMENT.md) §4.5.4；
+2. **启动器「MOD 工具」页显示的 mod 库根**（装/卸、批量操作都以它为根）；
+3. **mod 作者的工作区**：示例源码与两份文档（`examples/`、`newchar-kit/`、`MOD-*.md`）。
+
+> 真正"被编译进服务端"的 Go 源码 mod 不在本目录，而在**服务端模块**的 `mods/`
+> （`server/work/dfo-lan/mods/`）—— 两者别混。
+
+## 目录职责（两个 `mods/` 别混）
 
 | 路径 | 是什么 | 谁会写它 |
 | --- | --- | --- |
-| **`mods/`**（本目录，仓库根） | **示例源码 + 开发文档**（给人看的） | 人手写 |
-| `server/work/dfo-lan/mods/` | **服务端真正加载的目录**：已装 mod 的 Go 源码、生成的 `zz_mods_gen.go`、`enabled.json` | 只有 `modkit install/uninstall` 与 mod 管理器 |
+| **`mods/`**（本目录，仓库根 = 整合包根） | **规则脚本（平铺 `*.lua`，服务端读盘第一顺位）+ mod 库 + 示例源码与文档** | 人 / modkit 落位 / 管理器 |
+| `server/work/dfo-lan/mods/` | **服务端源码 mod**：已装 mod 的 Go 源码、生成的 `zz_mods_gen.go`、`enabled.json` | 只有 `modkit install/uninstall` 与 mod 管理器 |
 
-为什么分开：服务端 mod 要参与 Go 编译，必须待在服务端模块里（`server/work/dfo-lan/mods/`，
-且其内容会被 `go build ./mods/...` 扫到）。示例源码若放在那里，就会被误当成已安装的 mod
-编译进去 —— 所以示例与文档放在这里。
+为什么把 Go 源码放服务端模块里：服务端 mod 要参与 Go 编译，必须待在服务端模块里。
+示例源码若放在那里，就会被误当成已安装的 mod 一起编进去 —— 所以示例与文档放在本目录。
+
+> 规则脚本为什么不放服务端模块里：它**不参与编译**，只要服务端启动时读得到就行；
+> 与各 mod 库目录同级平铺最好找，也方便「MOD 工具」页统一管理。
 
 装 mod 用的是**打好的 zip 包**，不是把示例目录拷过去：
 
@@ -71,11 +82,43 @@ build-mod.py / build-mod.cmd      打包
 **不带附件的系统邮件** —— 这两者"必定成功、不依赖任何内容模板"，
 所以能干净地回答"mod 到底注册生效了没有"。
 
-想改成发装备，要注意奖励邮件的装备附件走的是**奖励目录**
-（启动日志里的 `loaded equipment catalog: N rows`），
-而不是 42 万条的完整穿戴目录；模板不在前者里就会报
-`模板 <N> 取不到奖励耐久（equipment definition missing）`。
-先确认模板在那份目录里，再放进池子。
+想改成发装备，**不需要先把模板放进奖励目录**（2026-10-06 起放开）：`grant_item` 与
+`send_mail` 附件走同一套分流 —— 是堆叠物就按堆叠发，否则按**装备**发，
+只要 **PVF 里有这件装备的定义**（不必在掉落池/奖励选集里），服务端就能取到耐久与部位并实例化。
+模板号在 PVF 里根本不存在时仍会失败，**但报错一定带模板号**（`模板 <N> …`），
+所以池子可以先粗后细、跑一次新号看日志逐个修。
+
+> 旧口径（2026-10-06 之前）：装备附件必须先在**奖励目录**（启动日志里的
+> `loaded equipment catalog: N rows`）里，否则报
+> `模板 <N> 取不到奖励耐久（equipment definition missing）`。**这条已经作废**，
+> 别再照它筛模板。
+
+## 整合包自带的 mod
+
+### `newchar-kit/` —— 新角色出厂补给（**一个**规则脚本）
+
+`server` 层只声明 `scripts`（**没有 Go 代码**）的真实例子：新角色创建时发一套出厂补给。
+
+```
+mod.json                              permissions=["server.script"]，layers.server.scripts **一项**
+server/rules/newchar_kit.lua          业主原稿：金币/点券/堆叠物走 grant_item，装备与武器走 send_mail，
+                                      有 ctx.profession + ctx.advancement 时按职业判输出/辅助
+variants/original/newchar_kit.lua     业主原稿的逐字节副本（**历史留档**，不参与安装）
+variants/two-layer/                   备用变体：拆成 newchar-general.lua + newchar-class.lua 两个独立脚本，
+                                      **不在 mod.json 里、不进 zip**，要启用得改清单
+build-mod.py                          打包 → dist\（只有 mod.json + README + server/）
+README.md                             发什么、职业怎么判、装/卸、做不到的部分
+```
+
+> 当前脚本的 sha256 是 **`cba54ad3…`**（`server/rules/newchar_kit.lua`，22,175 字节）。
+> 旧文里那个 `66e6236e…` 属于 `variants/original/newchar_kit.lua`（20,364 字节），
+> 两份**不是同一份**（原稿后来改过），别混用。
+
+装它**不需要 Go 工具链、也不重新编译服务端**：脚本落到 **`<启动器根>\mods\newchar_kit.lua`**
+（平铺，与各 mod 库目录同级），**重启服务端**即生效。
+**卸载它不会删那份脚本** —— 脚本留在原地变成手工脚本，只摘注册表条目；
+要停用就在启动器「MOD 工具」页下半部分「Lua 规则脚本」里删它
+（见 [`MOD-DEVELOPMENT.md`](MOD-DEVELOPMENT.md) §4.5.4）。
 
 ## 打包
 

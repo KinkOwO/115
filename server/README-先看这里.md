@@ -78,6 +78,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./Build-Server.ps1
 
 若Go不在PATH，给脚本加 `-Go 'D:/tools/go/bin/go.exe'`。脚本依次执行 `go test ./...`、`go vet ./...`、编译源码版；首次构建补齐bin/wireprobe-pvf.exe，已有确认PVF程序默认保留。后续已验收构建使用-UpdatePVFDefault更新默认PVF；**不覆盖原39版**。首次编译可能需要下载 `go.mod/go.sum` 中的依赖，包中没有vendor。
 
+> **装了 mod 的树（2026-10-07 补）**：`work/dfo-lan/mods/zz_mods_gen.go` 是 modkit 生成的
+> **mod 加载器**，它同时进版本库，所以仓库里提交的必须是**干净形态**（不 import 任何 mod）——
+> 只有干净形态才保证别人 clone 下来 `go build ./...`、`go test ./...` 编得过。本机装了哪些
+> mod 由启动器写在**本机**这份（装卸会写，编译前还会按 `mods/` 现状重算），所以**别把本机
+> 那份提交/推上去**；要把某个 mod 分享出去，就把它的源码一起入库。`Build-Server.ps1`
+> 编译前会机械核对加载器里 import 的每个 `dfolan/mods/<id>` 是否已被 git 跟踪，未入库直接
+> 报错中止（本机确实要带着已装 mod 编译时加 `-SkipModGenGate`）；没有 git 的解包目录只告警。
+> 完整说明见 `work/dfo-lan/mods/README.md` §加载器 `zz_mods_gen.go`。
+
 测试源码候选版：关闭同一个测试会话后，在管理员PowerShell运行：
 
 ```powershell

@@ -113,7 +113,13 @@ func boostCapsuleRefresh(w *worldSession, role database.Character, r loot.BoostC
 	if e != nil {
 		return nil, e
 	}
-	plan := []outboundPacket{{"boost_capsule_consumed", 0, 14, delta}, {"boost_capsule_training", 0, 2638, status}, {"boost_capsule_roster", 0, 2639, roster}, {"boost_capsule_skills", 0, 19, skills}}
+	plan := []outboundPacket{{"boost_capsule_consumed", 0, 14, delta}, {"boost_capsule_training", 0, 2638, status}}
+	// NOTI2639 走同一道客户端上限护栏（见 boostup_roster.go 的 maxVerifiedBoostRosterBytes）。
+	// 这里传 false：胶囊路径没有"快照必须两个包"的契约，超限宁可不发这一帧。
+	if pkt, ok := boostRosterFrame("boost_capsule_roster", roster, false); ok {
+		plan = append(plan, pkt)
+	}
+	plan = append(plan, outboundPacket{"boost_capsule_skills", 0, 19, skills})
 	plan, e = appendSkillPresetRestore(plan, w.characters, role, "skill_preset_restored_after_boost_capsule")
 	if e != nil {
 		return nil, e

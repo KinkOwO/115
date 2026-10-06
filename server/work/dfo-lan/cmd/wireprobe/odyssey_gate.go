@@ -70,8 +70,10 @@ func (w *worldSession) odysseyImmediateDeathFail() bool {
 		w.pilotDeath.Run == w.activeDungeon.RunID && w.pilotDeath.Dead
 }
 
-// logModPolicy 把生效中的模式规则写进启动日志。
-// server/AGENTS §6 的教训是"默认路径悄悄坏掉最难查"，所以这里必须有一行可核对。
+// logModPolicy 把生效中的模式规则与掉落倍率写进启动日志。
+// server/AGENTS §6 的教训是"默认路径悄悄坏掉最难查"，所以这里必须有一行可核对：
+// 规则没生效、或"谁把爆率改了"都必须一眼看得出来。
 func logModPolicy() {
 	log.Printf("odyssey mode rules: %s", modpolicy.Odyssey())
+	log.Printf("drop rate rules: %s", modpolicy.Drops())
 }
