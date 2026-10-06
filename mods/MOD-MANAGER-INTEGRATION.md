@@ -4,7 +4,8 @@
 > 它讲清：管理器在启动链里插在哪、要读写哪些文件、勾选/禁用怎么落地、以及哪些边界不能碰。
 > mod 作者看 `mods/MOD-DEVELOPMENT.md`；架构背景看启动器仓 `docs/modkit.md`。
 
-- 状态：接口已就绪（服务端侧已实现并可测试），管理器 UI 待接
+- 状态：接口已就绪（服务端侧已实现并可测试）；**管理器 UI 已接进启动器「MOD 工具」页**
+  （2026-10-06：mod 库列表 / 批量装与卸，以及下半部分的 **Lua 规则脚本**面板）
 - 日期：2026-10-06
 - 涉及三方：
   - **启动器**（`cmd/launcher` + UI）——管理器的宿主
@@ -146,6 +147,42 @@ modkit mods disable --id <mod-id>         --root <启动器根> [--by launcher-u
 > 这三个子命令是给管理器用的稳定接口。管理器**不要**直接改 `enabled.json`
 > （绕过依赖检查、也容易写坏 JSON）。
 
+### 4.4 Lua 规则脚本（管理器要能管这个目录）
+
+服务端启动时会读 `<服务端模块>/mods/scripts/*.lua` 当奖励规则（见 `MOD-DEVELOPMENT.md`
+§4.5.4），这是**不重新编译**就能加一条规则的正式入口。管理器应当能管这个目录，
+但必须守住下面四条：
+
+| 规则 | 为什么 |
+| --- | --- |
+| 文件名必须是**平铺 `*.lua`**（不许带目录、不许上跳） | 服务端是按平铺 `*.lua` 枚举脚本的，带目录的名字它读不到 —— 那种"写了却没生效"最难查 |
+| **由 mod 安装落位的脚本只读**（改/删都拒绝，提示去卸载那个 mod） | 它是那个 mod 的内容；手工改会让注册表里的还原凭据（哈希）对不上 |
+| 保存时要带上"打开时那份内容的哈希" | 两个人同时编辑时，后点保存的不该悄悄盖掉前一个 |
+| 每次都提示「改完要**重启服务端**才生效」 | 脚本是启动时一次性读进 Lua state 的，无法热摘；**但不需要重新编译**（与 `server.hook` 不同） |
+
+事实来源（不要自己发明）：
+
+- **这个目录里有什么** = `<服务端模块>/mods/scripts/*.lua`（平铺，忽略子目录与点开头文件）；
+- **是谁落的位** = modkit 注册表（`<客户端>\.launcher-mods\modkit\registry.json`）里
+  `kind = "server.script"` 的条目（`target` = `mods/scripts/<名>`）；读不到注册表就**不猜**，
+  归属显示为空并给出原因；
+- **会不会盖住某个 mod** = 各已装 mod 落位目录里的 `mod.json` 的 `server.scripts`
+  （同名时服务端**磁盘优先**，页面要点名是哪个 mod 被盖住）。
+
+启动器里的落地（供其它宿主参考）：数据层 `internal/modlib/scripts.go`，
+RPC 在 `cmd/launcher/modlib.go`：
+
+```text
+mods.scripts        无参                        → {dir, moduleDir, items[], note, restartHint}
+mods.scriptRead     {name}                      → {name, body, sha256}
+mods.scriptSave     {name, body, sha256}        → {name, path, created}（sha256 = 打开时那份的哈希）
+mods.scriptDelete   {name}                      → {name}
+mods.scriptImport   无参（弹文件选择框）        → {name, path, created} | {cancelled:true}
+```
+
+`items[]` 每项：`{name, sizeBytes, sizeText, modTime, sha256, owner, ownerNote, providedBy[], readOnly}`。
+`owner` 非空即只读；`providedBy` 非空表示"这份脚本会盖住这些 mod 自带的同名规则"。
+
 ### 4.3 在游戏/服务端里核验
 
 ```powershell
@@ -238,7 +275,16 @@ servermod: mod 提供的奖励规则脚本 1 份：giveaway.random-equipment:giv
    （可带 `--by` 记录调用者），`--root` 可省略或直接 `cd` 到服务端模块根；退出码 0 / 1 / 2 与 §4.2 一致。
    2026-10-06 实测 `modkit mods list --root <115 仓>` 会按 §3 的字段表打出
    **名称 / 作者 / 说明**三行（`author` / `description` 取自各 mod 的 `mod.json`）；
-2. 管理器 UI 本身未做（业主规划为"启动段 mod 管理器接入"的下一步）；
+2. ~~管理器 UI 本身未做~~ —— **2026-10-06 已交付**：启动器「MOD 工具」页 = mod 库管理器
+   （列表 / 分页 / 导入导出 zip / 删除 / 批量安装卸载，实现在启动器仓 `internal/modlib`），
+   同页下半部分是 **Lua 规则脚本**面板（§4.4）。**仍未接进页面**的是运行期启用/停用
+   （`enabled.json`）：业主 2026-10-06 定的界面是"安装状态只做展示 + 批量装与卸"，
+   开关仍只有 `modkit mods enable/disable` 与手工编辑那份文件两个入口；
 3. mod 的**加载顺序**没有显式依赖排序（只有 `requires` 存在性检查）；
 4. 启用/禁用**不能热生效**（需重启服务端）——这是奖励脚本一次性加载带来的边界，
-   要热摘需要把 Lua state 做成可重建的，属独立工作。
+   要热摘需要把 Lua state 做成可重建的，属独立工作；
+5. **落盘规则脚本没有"停用"开关**：服务端无条件加载 `mods/scripts/*.lua`，`enabled.json`
+   管不到它（那只管编译进去的 mod 的 `Register()`）。管理页给的是**删除**，不做
+   "重命名成 `.lua.off` 式停用"——那会发明第二套启用状态，与 §2 的"三份状态"口径冲突；
+6. 规则脚本的**编辑是纯文本**：不校验 Lua 语法（语法错只在服务端启动时以
+   `reward rules disabled` 出现），也不做版本历史与回滚。

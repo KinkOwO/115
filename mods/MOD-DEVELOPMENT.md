@@ -162,7 +162,8 @@ MyMod.zip
 | `client.file.write` | client 层有 `file.add` / `file.replace` |
 | `client.exe.patch` | client 层有 `exe.patch` |
 | `exec.script` | pvf 层（要跑 .ps1） |
-| `server.hook` | 声明了 server 层 |
+| `server.hook` | server 层写了 `hooks`（Go 钩子，**装完要重新编译服务端**） |
+| `server.script` | server 层写了 `scripts`（Lua 规则脚本，只为它写包时**没有 Go 代码**，装完只要重启服务端） |
 | `pvf.merge` | 声明了 pvf 层 |
 | `resource.npk` | resource 层有整份 NPK 操作或条目级覆盖 |
 | `resource.index` | resource 层有 `npk.entries` 或 `npk.index` |
@@ -340,16 +341,71 @@ func Register() {
 | `send_mail(subject, body[, attachments])` | 系统邮件；`attachments = { {id=模板, count=数量}, ... }`（≤11 件）。**装备走这条**——附件路径会按装备目录的 reward 规则重建实例 |
 | `grant_cera(amount)` | 账号级点券 |
 
-`ctx` 字段：`type` / `level` / `quest_id` / `character_id` / `account_id` / `name`。
+**角色待遇**（2026-10-06 新增）：这些是**存档字段、不是物品**，`grant_item` / `send_mail` 碰不到它们，
+所以单开一组能力。语义一律"只升不降/累加"，**没调就不碰**，绝不会把玩家已有的待遇改小：
+
+| 函数 | 作用 |
+| --- | --- |
+| `unlock_equip_slots(mask)` | 扩展装备栏挂锁：把 mask **按位或**进 `expand_equip_flags`。位：`support=1`、`magic stone=2`、`aura skin=8`、`earring=16`、`creature skin=32`（**五个全开 = 59**） |
+| `expand_bag(tier)` | 背包扩容**档位**（客户端按 `40+8×档位` 算容量）：只升不降，超上限钳到 **2**（源商城只卖到 2 档） |
+| `expand_avatar(tier)` | 时装栏扩容档位：只升不降，钳到协议上限 |
+| `grant_revive_coin(count)` | 复活币：累加，到顶停在 `MaxUint32`（不回绕成 0） |
+| `grant_pet(template)` | 宠物**本体**：落宠物容器 `0..139`（不是普通装备栏）。模板必须是 `[creature]`、**不能是宠物蛋**、一次 1 只 |
+| `grant_pet_item(template, count)` | **宠物用品**（饲料/改名卡）：落 `376..431`，按堆叠规则合并。模板必须是 `[feed]` / `[creature]` 类堆叠物 |
+| `expand_vault(space, slots)` | 金库容量：`space` **2**=金库1、**45**=金库2（`8..264`、步长 16）、**12**=账号金库（8 的倍数、≤320）。只升不降 |
+| `grant_account_material(template, count)` | **账号材料仓**：按模板累加，落库时映射到仓库固定槽位。模板不在服务端映射里的会被拒并点名 |
+| `unlock_skins()` | **皮肤仓库全解锁**（账号级，幂等）。清单由服务端按**运行期皮肤目录**现算，不写死在脚本里 |
+
+**宠物装备不用这两条**：`[artifact *]` 跟其它装备一样走 `send_mail`，服务端领取时会放进宠物栏 `320..375`。
+
+**落库分派**：角色 state 那部分（挂锁/档位/复活币/宠物）是一笔角色事件事务；金库容量、账号材料仓、
+皮肤仓库各走自己的表与幂等键（键后缀 `:vault-1` / `:vault-2` / `:account-vault` / `:account-material`），
+所以其中一项失败不会连累其它项，重放也不会互相吞掉。
+
+一个 handler 里这几条与发放一样是**先收集、事件处理完一次落库**（键后缀 `:state`，与发放同一套
+稳定键语义，重放不会重复改）。越界入参（mask > 255、count ≤ 0、未知 space）会报错并记一条日志，不静默截断。
+
+`ctx` 字段：`type` / `level` / `quest_id` / `character_id` / `account_id` / `name`，
+以及**新角色创建时才有的职业信息** `profession`（基础职业号）/ `advancement`（转职号）。> **职业字段是"可选存在"的**（2026-10-06 起，服务端 `internal/reward` 的 `Recipient`
+> 带 `HasProfession`）：只有 `character_create` 事件会填它，`level_up` / `quest_complete`
+> 一律**不写进 ctx**。所以规则要写成"拿不到就跳过/走默认"，而不是把 0 当成"没职业"——
+> **基础职业 0（鬼剑士）是合法值**：
+>
+> ```lua
+> local prof = tonumber(ctx and ctx.profession)
+> if prof == nil then return end          -- 拿不到职业：本段跳过
+> local adv = tonumber(ctx and ctx.advancement) or 0
+> ```
+>
+> 判断"输出/辅助"必须**两个一起看**（同一基础职业里既有输出也有辅助，例：女神枪手(5)
+> 转职 1 = 漫游枪手（输出）、转职 5 = 协战师（辅助））。
 
 **装备必须走 `send_mail` 附件**，不要用 `grant_item`：后者是背包堆叠路径，
 装备需要实例化（耐久/属性）。
+
+**能不能发是服务端能力，发什么由你（mod 脚本）决定**（2026-10-06 定调）。具体到两条通道：
+
+| 通道 | 服务端保证 | 你要负责 |
+| --- | --- | --- |
+| `grant_item(id, n)` | `id 0` = 角色金币；其余必须是**堆叠物**（物品索引里 `kind=stackable`）。**一次调用是一整批**：里面有一个号不合格，整批（连金币）都不会发，日志里会点名那个模板号 | 池子里的模板号必须真实存在且是堆叠物 |
+| `send_mail(..., 附件)` | 每个附件：是堆叠物就按堆叠发；否则按**装备**发 —— 只要 **PVF 里有这件装备的定义**（不必在掉落池/奖励选集里），服务端就能取到耐久与部位并实例化。每封 ≤ 11 件 | 模板号要对；装备附件的 `count` 必须是 1 |
+
+**报错一定会带上模板号**（`模板 <N> …`），所以池子里哪个号错了，看服务端日志一眼就能定位 ——
+这是刻意的：规则的池子通常是一串手抄的模板号，没有号就没法查。
+
+**发不出去的三种情况**（都会明确报错、不影响角色创建本身）：
+模板号在 PVF 里根本不存在；不是堆叠物却用 `grant_item` 发；装备附件 `count != 1`。
 
 ### 4.5.3 完整示例
 
 `examples/giveaway-random-equipment/` —— 新角色创建时发金币 + 系统邮件
 （示例刻意用"必定成功、不依赖内容模板"的发放，便于验证 mod 是否真的注册生效）。
 它演示了嵌入 Lua 规则、发邮件带装备附件、以及被管理器勾选/取消勾选。
+
+**另一个真实例子**：[`../newchar-kit/`](../newchar-kit/)（整合包自带）—— 一整套出厂补给，
+按"通用层 / 职业层"拆成**两个互相独立的脚本**（各自 `on("character_create")`），
+并且**没有 Go 代码**（`server` 层只写 `scripts`）。要看"两层怎么分工、职业判定怎么写、
+邮件怎么按 11 件切分"，看它比看示例更直接。
 
 **规则脚本的失败是可观测的**：模板号填错时奖励管线会记一条 grant/mail 失败日志，
 角色创建本身不受影响（奖励是创建之后的可选步骤）。所以池子可以先粗后细。
@@ -358,6 +414,35 @@ func Register() {
 
 `<服务端模块>/mods/scripts/*.lua` 会被一并加载，同名时**磁盘优先**。
 适合运营侧快速试一条规则。注意它只影响奖励规则，不影响钩子注册。
+
+**它也是"只带规则、不带代码"的 mod 的落位目标**（2026-10-06 起）。这样的 mod
+不需要写任何 Go、也不需要重新编译服务端 —— 清单里声明 `scripts` 就行：
+
+```json
+{
+  "schema": 2,
+  "id": "myserver.rules",
+  "version": "1.0.0",
+  "name": "我的规则",
+  "permissions": ["server.script"],
+  "layers": {
+    "server": { "scripts": ["server/rules/newchar-gift.lua"] }
+  }
+}
+```
+
+- `scripts` 的每一项是**包内相对路径**（必须在 `server/` 目录下）、必须是 `.lua`；
+- 落位位置 = `<服务端模块>/mods/scripts/<文件名>`；**文件名是平铺的**（服务端就是按平铺
+  `*.lua` 枚举脚本的），同一个 mod 内不能重名、跨 mod 也不能同名 —— 后者会被 `plan` 拦下；
+- 一份清单里 `hooks` 与 `scripts` 可以同时写；**只写 `scripts` 时包里不需要 `.go` 文件**，
+  装的时候不建 `mods/<mod-id>/`、不改加载器、也不跑编译；
+- 权限位要 `server.script`（和 Go 钩子的 `server.hook` 分开：后者要重编译，前者不要）；
+- 卸载按注册表逐份核对哈希撤掉；现场被改过的脚本**保留现场**，并在输出里说明；
+- 改完要**重启服务端**才生效（脚本是启动时一次性读进内存的，无法热摘）。
+
+这一块在启动器「MOD 工具」页里也能直接管（页面下半部分「Lua 规则脚本」）：列出 / 新建 /
+编辑 / 删除 / 导入 `.lua` / 打开目录。**由 mod 安装落位的脚本在那页是只读的** ——
+要改就卸载那个 mod（手工改会让它的还原凭据失效）。
 
 ---
 
@@ -387,6 +472,11 @@ mod 只读；写只有两个入口：管理器 UI、或 `modkit mods enable/disa
 
 **边界**：奖励规则脚本在服务端启动时一次性加载进 Lua state，**无法热摘**。
 所以改启用状态后必须重启服务端；管理器应当提示或代劳。
+
+**注意 `enabled.json` 管不到"只带脚本的 mod"**（§4.5.4）：那份清单只决定"哪些编译进去的
+mod 在启动时调 `Register()`"，而 `mods/scripts/*.lua` 是服务端**无条件**读盘的。
+要停掉一条落盘规则，只能删掉/移走那个 `.lua`（管理页给的就是删除，不做"重命名式停用"——
+那等于发明第二套启用状态）。
 
 
 ## 5. client 层
