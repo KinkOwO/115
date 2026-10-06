@@ -19,9 +19,9 @@ import (
 // boostCapsuleAction 是胶囊在 CMD507 上的 [action type] 编号（S-0904 实测）。
 const boostCapsuleAction = 337
 
-func (w *worldSession) useStackableAction(p []byte) ([]outboundPacket, error) {
+func (w *worldSession) useStackableAction(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if len(p) >= 11 && binary.LittleEndian.Uint32(p[7:]) == boostCapsuleAction {
-		return w.useBoostCapsule(p)
+		return w.useBoostCapsule(p, event)
 	}
 	return w.recoverFatiguePotion(p)
 }
@@ -124,7 +124,7 @@ func boostCapsuleRefresh(w *worldSession, role database.Character, r loot.BoostC
 	ack := []byte{1, byte(r.Slot), byte(r.Slot >> 8), 0, 0x51, 1, 0, 0}
 	return append(plan, outboundPacket{"boost_capsule_ack", 1, 507, ack}), nil
 }
-func (w *worldSession) useBoostCapsule(p []byte) ([]outboundPacket, error) {
+func (w *worldSession) useBoostCapsule(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	r, e := protocol.DecodeBoostCapsule115(p)
 	if e != nil {
 		return nil, e
@@ -219,6 +219,13 @@ func (w *worldSession) useBoostCapsule(p []byte) ([]outboundPacket, error) {
 			return nil, e
 		}
 		plan = append(plan, unlock...)
+		// 直升落地后把主线一次性标为完成（boost-story-skip-v2，幂等收据）。
+		// 失败只由 boostStorySkipNow 记事件、不阻断本帧串：胶囊已经提交，
+		// 下一次进城镇的登录钩子会按同一张收据重试。
+		skip, skipErr := w.boostStorySkipNow(ctx, event)
+		if skipErr == nil {
+			plan = append(plan, skip...)
+		}
 	}
 	//  donor 的 partyIdentityNetworkDirty/presenceForceRefresh 挂脏位在本树不存在：
 	// boostTownRefresh 已经当场重发了城镇在场与状态包。

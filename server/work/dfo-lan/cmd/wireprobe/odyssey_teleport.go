@@ -64,6 +64,9 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (database.Wo
 		}
 		return w.teleportTransition(old, r)
 	}
+	if pos, handled, e := w.boostChallengeGoTeleport(r, specialWarp); handled {
+		return pos, e
+	}
 	if !isSeriaReturn && (specialWarp || isMapTeleport || isSeriaRoomTeleport) {
 		return w.teleportTransition(old, r)
 	}

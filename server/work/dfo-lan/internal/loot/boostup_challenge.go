@@ -13,7 +13,11 @@ func BoostChallengeSnapshot(c *boostup.Catalog, role Role) ([]byte, error) {
 	if e != nil {
 		return nil, e
 	}
-	var out protocol.BoostChallengeState115
+	// Rows 必须先建好：`var out` 的 map 是 nil，写第一条挑战行就 panic。
+	// 实机 2026-10-06 15:34:49（会话 ..._20261006_153257_795354_next37）第 11 关领奖
+	// `960200000b000000` → `connection_panic_recovered: assignment to entry in nil map`
+	// → 掉线。旧端把 665 门控着，这条投影从未跑到有行的一次；665 按源常开后立刻暴露。
+	out := protocol.BoostChallengeState115{Rows: map[byte]protocol.BoostChallengeRow115{}}
 	if st.Challenge != nil && st.Challenge.Enrolled {
 		if e = c.ValidateChallengeState(st.Challenge); e != nil {
 			return nil, e

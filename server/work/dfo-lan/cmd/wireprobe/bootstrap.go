@@ -151,7 +151,6 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		ApocalypsePath:        startup.ApocalypseCatalog,
 		AttunementPath:        startup.AttunementRewards,
 		ContentPolicyPath:     startup.PVFContentPolicy,
-		BoostChallenge:        startup.BoostUpChallenge,
 	}, runtimeCatalogAdapters())
 	// PrepareCatalogs can return partially acquired catalogs alongside an error.
 	if pvfCatalogs != nil {
@@ -1578,7 +1577,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		return nil, nil, err
 	}
 	// Starter Boost 662 装配：目录来自 PVF 直读（preparePVFBoostUp），NOTI108 活动清单
-	// 只在开关打开时冻结一次。表体是**频道门 + 活动行合并后的那一张**（见
+	// 只在活动生效时冻结一次。表体是**频道门 + 活动行合并后的那一张**（见
 	// event_info_variant.go）：客户端对 108 是整表替换，只发活动行的第二条会被
 	// 进城那条频道门表抹掉，城里就没有活动礼物图标。
 	var boostCatalog *boostup.Catalog
@@ -1591,13 +1590,14 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			// 这里保持一致：活动整体不装配，玩家照常进镇，不伪造内容。
 			log.Printf("warning: Starter Boost 662 disabled; PVF direct-read boostup domain is not prepared (-pvf-catalogs 加 boostup 才开启)")
 			startup.BoostUpEvent = false
-			startup.BoostUpChallenge = false
 		} else if characters == nil || lootService == nil || worldService == nil {
 			return nil, nil, errors.New("Starter Boost 需要持久化角色、掉落与世界服务")
 		} else {
 			// 选角（CMD8）与进城 announce 发同一条表；参考实现
 			// `活动Boost与胶囊教学-20260927` 的两个发送点用的也是同一个快照。
-			rows, ok := buildTownEventInfoTable(startup.BoostUpChallenge)
+			// challenge 恒为真：毕业后的 665 是玩法内容，不是开关（§6），
+			// 源没绑上时由 boostup_challenge 的 fail-closed 分支拒绝，不伪造进度。
+			rows, ok := buildTownEventInfoTable(true)
 			if !ok {
 				return nil, nil, errors.New("Starter Boost 事件表合并失败（频道门表形状异常）")
 			}
