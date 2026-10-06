@@ -39,7 +39,9 @@ func rollMonsterItems(c catalog.LootCatalog, table catalog.MonsterItemTable, see
 	if c.OrdinaryMonsterItemRate > MonsterItemDropDenominator {
 		return out, fmt.Errorf("invalid ordinary MOB item rate")
 	}
-	if c.OrdinaryMonsterItemRate == 0 || !table.Declared {
+	// mod 倍率在这里现读（不是构造目录时固化）：没有 mod 设置时与目录值逐位相同。
+	rate := effectiveMonsterItemRate(c)
+	if rate == 0 || !table.Declared {
 		return out, nil
 	}
 	var candidates []catalog.MonsterItemPair
@@ -69,7 +71,7 @@ func rollMonsterItems(c catalog.LootCatalog, table catalog.MonsterItemTable, see
 		return out, nil
 	}
 	rng := RNG{seed}
-	if rng.Next(MonsterItemDropDenominator) < c.OrdinaryMonsterItemRate {
+	if rng.Next(MonsterItemDropDenominator) < rate {
 		ticket := uint64(rng.Next(uint32(total)))
 		for _, p := range candidates {
 			if ticket < uint64(p.Value) {

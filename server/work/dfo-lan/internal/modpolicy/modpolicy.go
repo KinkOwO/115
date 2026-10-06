@@ -14,6 +14,9 @@
 // 没有任何 mod 调用 Configure 时，规则都是零值 ⇒ 服务端行为与装 mod 之前一致。
 // 生效状态由 `cmd/wireprobe` 在启动装配结束时打进日志（`odyssey mode rules: …`），
 // 所以"规则没生效"永远看得出来，不会静默。
+//
+// 同一套机制还提供**掉落倍率**能力（`DropRules` / `ConfigureDrops`，启动日志里是
+// `drop rate rules: …`）：服务端只提供"能乘"，数值来自 mod 自己的配置。
 package modpolicy
 
 import (
@@ -85,9 +88,11 @@ func Odyssey() OdysseyRules {
 	return odyssey
 }
 
-// Reset 清空全部规则（测试用；生产路径只走 Configure）。
+// Reset 清空全部规则（测试用；生产路径只走 Configure / ConfigureDrops）。
+// 掉落倍率也在内：runGateway 进出各清一次，防"上一台服务端的倍率"漏给下一次。
 func Reset() {
 	mu.Lock()
 	odyssey = OdysseyRules{}
+	drops = DropRules{}
 	mu.Unlock()
 }
