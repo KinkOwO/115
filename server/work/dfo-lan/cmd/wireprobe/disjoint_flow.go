@@ -53,7 +53,7 @@ func (w *worldSession) disjointItem(p []byte, event func(map[string]any)) ([]out
 	if e != nil {
 		return nil, e
 	}
-	refresh, e := accountMaterialRefreshPackets(materials, saved)
+	refresh, e := accountMaterialRefreshPackets(materials, saved, w.activeDungeon != nil)
 	if e != nil {
 		return nil, e
 	}

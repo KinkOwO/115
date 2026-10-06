@@ -426,7 +426,7 @@ func (w *worldSession) claimMail(ctx context.Context, p, keys []byte, key string
 		swept, materials, err = sweepAccountMaterials(ctx, w.store, saved)
 		if err == nil {
 			saved = swept
-			updates, err = accountMaterialRefreshPackets(materials, saved)
+			updates, err = accountMaterialRefreshPackets(materials, saved, w.activeDungeon != nil)
 		} else {
 			log.Printf("mail claim account material sweep deferred for character %d: %v", saved.ID, err)
 		}

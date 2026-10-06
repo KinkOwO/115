@@ -69,7 +69,7 @@ func (w *worldSession) boostStepRequest(ctx context.Context, p []byte, id uint16
 			}
 			// donor 基线是三参（材料快照, 变更前角色, 变更后角色）；本树两参版本
 			// 从同一份快照取金币，这里前后角色相同，直接去掉重复实参。
-			updates, err := accountMaterialRefreshPackets(m, next)
+			updates, err := accountMaterialRefreshPackets(m, next, false)
 			if err != nil {
 				return nil, err
 			}

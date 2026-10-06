@@ -169,9 +169,30 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 			w.venus = nil
 			return nil, append(append([]outboundPacket{ack}, route[1:]...), closed), nil
 		}
+		// BUG3（第二十二轮）：撤退不清进度——保留 cleared/stage，回待机区
+		// 重新选难度开战后从撤退的下一关继续（用户口径）。第三十三轮起难度
+		// 与遗物一并保留（2290 规格：官服 C72 返回等待区「保留原run、难度
+		// 及遗物」）：waiting 向量带权威已选难度（VenusChosenInfo），客户端
+		// 按钮意图 getter 按 Choice≠FF 直接进「变更提示」（已选择X。确定要
+		// 进入吗？，变更难度按钮置灰）——不再弹三卡片自由重选窗，重选低档
+		// 造成的终点回退类状态分裂（172342 会话「stage 3 beyond endpoint」）
+		// 从根上不可能发生。
+		kept := w.venus.clearedCount()
+		choice := w.venus.choice
+		relicMask := w.venus.relicMask
 		w.venus.resetRun()
+		w.venus.choice = choice
+		w.venus.relicMask = relicMask
+		w.venus.entered = true
+		for i := 0; i < kept; i++ {
+			w.venus.cleared[i] = true
+		}
+		trailing := legion.VenusReopenInfo(kept)
+		if choice != 0xff {
+			trailing = legion.VenusChosenInfo(choice, kept)
+		}
 		plan := append(append([]outboundPacket{ack}, route[1:]...),
-			outboundPacket{"venus_info_waiting", 0, legion.NotiVenusInfo, legion.VenusWaitingInfo()})
+			outboundPacket{"venus_info_waiting", 0, legion.NotiVenusInfo, trailing})
 		return nil, plan, nil
 	}
 	// 苏醒之森阶段本的 CMD72 不走通用翻牌/结算（维纳斯同款形状）。演出后

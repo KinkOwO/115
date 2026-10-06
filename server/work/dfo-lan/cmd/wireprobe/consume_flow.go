@@ -27,6 +27,17 @@ func (w *worldSession) useStackable(p []byte, event func(map[string]any)) ([]out
 	if refused := w.forestPotionGate(r); refused != nil {
 		return refused, nil
 	}
+	// 维纳斯军团口径：同款每关 8 次（BUG2，用户确认副本内无法使用任何
+	// 消耗品——缺 N1584 许可，见 dungeon_flow）。
+	if refused := w.venusPotionGate(r); refused != nil {
+		return refused, nil
+	}
+	// 奥德赛模式口径（业主 2026-10-06，由服务端 mod 打开）：副本内禁止使用任何
+	// 消耗品、可以携带；城镇不受影响。客户端本来就不发 N1584 = 界面已灰，
+	// 这里挡的是权威侧（改过的客户端绕过界面也拿不到药）。
+	if refused := w.odysseyConsumableGate(r); refused != nil {
+		return refused, nil
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	before, e := inventory.ReadBag(w.role.State)

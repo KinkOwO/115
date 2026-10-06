@@ -98,7 +98,7 @@ func (s *equipmentSession) raiseSoleQuality(service *workflow.WearService, w *wo
 	if storageTouched {
 		if counts, e := service.Store.AccountMaterials(ctx, saved.AccountID); e == nil {
 			if materials, e2 := inventory.ReadAccountMaterials(counts); e2 == nil {
-				refresh, e3 := accountMaterialRefreshPackets(materials, saved)
+				refresh, e3 := accountMaterialRefreshPackets(materials, saved, w.activeDungeon != nil)
 				if e3 == nil {
 					plan = append(plan, refresh...)
 				}
@@ -209,7 +209,7 @@ func (s *equipmentSession) raiseSoleCreate(service *workflow.WearService, w *wor
 	if storageTouched {
 		if counts, e := service.Store.AccountMaterials(ctx, saved.AccountID); e == nil {
 			if materials, e2 := inventory.ReadAccountMaterials(counts); e2 == nil {
-				refresh, e3 := accountMaterialRefreshPackets(materials, saved)
+				refresh, e3 := accountMaterialRefreshPackets(materials, saved, w.activeDungeon != nil)
 				if e3 == nil {
 					plan = append(plan, refresh...)
 				}
@@ -231,7 +231,7 @@ func (s *equipmentSession) raiseSoleCreate(service *workflow.WearService, w *wor
 		"template": out.Template, "slot": out.Slot, "selector": r.Selector,
 		"group_index": out.GroupIndex, "gold": out.Gold, "spent": spentDetail,
 		"movie_time": out.MovieTime, "wait_time": out.WaitTime,
-		"handle_ms": time.Since(started).Milliseconds(),
+		"handle_ms":      time.Since(started).Milliseconds(),
 		"payload_offset": r.PayloadOffset, "request_hex": hex.EncodeToString(p)})
 	plan = w.appendFameUpdate(plan, event)
 	// —— 结果刷新包的时机实验（2026-10-02）——

@@ -83,8 +83,9 @@ var VenusPhase1Carriers = [3]uint32{109016980, 109016981, 109016982}
 
 // VenusSelectionSeconds is the operation-selection window duration from the
 // source table (venus.cos, 2290 doc: 源表60秒是时长，需加到冻结开始秒数形成
-// 截止时间).
-const VenusSelectionSeconds uint32 = 60
+// 截止时间). BUG5（第三十二轮，业主口径）：实机选难度倒计时改为 15 秒
+// （60 秒太长），超时仍走 venusOperationClose 的原生 close ACK 自动关窗。
+const VenusSelectionSeconds uint32 = 15
 
 // VenusPhaseLimits is the per-stage countdown limit (seconds) announced as
 // NOTI1474 DUNGEON_TIMEOUT_TIME when a phase dungeon finishes loading.
@@ -303,17 +304,21 @@ func VenusLeaveInfo(choice byte, stage int, relicMask uint32) []byte {
 
 // VenusClosedInfo is the run-over close state: State0 is the only documented
 // panel-close value (2655 doc: State0 = 失败关闭 — the mode closes). Sent on
-// the post-clear town exit so the top-right operation panel and the relic
-// display stay gone for the finished run.
+// the post-clear town exit and on leaving the party (return-to-character-
+// select / CMD13) so the top-right operation panel, the relic display and the
+// manager's cached run state all reset for the abandoned/finished run.
 func VenusClosedInfo() []byte {
 	return VenusInfo(VenusInfoState{Choice: 0xff, State: 0, Targets: [4]byte{0, 0xff, 0xff, 0xff}})
 }
 
 // VenusChosenInfo publishes the confirmed difficulty before the CMD2290
 // action2 ACK (2290 doc: 选择后的N2655先于Action2 ACK，保证原生确认回调
-// 发送C2045前已拿到权威选择). Stage stays 0: C2045 confirms the first stage.
-func VenusChosenInfo(choice byte) []byte {
-	return VenusInfo(VenusInfoState{Choice: choice, State: 2, Targets: [4]byte{0, 0xff, 0xff, 0xff}})
+// 发送C2045前已拿到权威选择).
+// BUG3（第二十二轮回归）：Stage 必须携带下一个待进阶段——撤退/失败保留进度
+// 后重开时 C2045 确认的不是第 0 关；固定 0 会让客户端请求已通关的第 0 关
+// 被拒，表现为「点进入地下城后框关了、人还在城镇」。
+func VenusChosenInfo(choice byte, stage int) []byte {
+	return VenusInfo(VenusInfoState{Choice: choice, State: 2, Stage: uint32(stage), Targets: stageTargets(stage)})
 }
 
 // VenusReopenInfo publishes the unchosen waiting state for CMD2290 action4

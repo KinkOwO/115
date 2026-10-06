@@ -412,9 +412,14 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 	// 0953 会话实证 N28 48B 单独无效，限制载体是本包）。
 	dungeonInfo := protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition})
 	var stackableLimit []outboundPacket
+	// N1584 STACKABLE_DUNGEON_LIMIT：副本消耗品许可（@0 = 每关上限 8）。
+	// 森林与维纳斯军团本都需要：没有这一帧客户端把副本消耗品全部本地禁用
+	//（两个团本的会话均零 CMD44 实证；伊斯 replay 同款、副本内可用药）。
 	if w.forest != nil && legion.IsForestStageDungeonAny(sel.ID) {
 		dungeonInfo = protocol.ForestDungeonInfo(sel.ID, s.Maze.Index, s.Maze.Boss, seed)
 		stackableLimit = []outboundPacket{{"forest_stackable_dungeon_limit", 0, 1584, protocol.StackableDungeonLimit(8, seed)}}
+	} else if w.venus != nil && legion.IsVenusStageDungeon(sel.ID) {
+		stackableLimit = []outboundPacket{{"venus_stackable_dungeon_limit", 0, 1584, protocol.StackableDungeonLimit(8, seed)}}
 	}
 	plan = append(plan, []outboundPacket{
 		{"dungeon_info_sent", 0, 28, dungeonInfo},

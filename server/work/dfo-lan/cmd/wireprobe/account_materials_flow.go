@@ -81,7 +81,14 @@ func radiantSoulSnapshot(m inventory.AccountMaterials) ([]byte, error) {
 
 // accountMaterialRefreshPackets sends list35, list42, then the full list0
 // bag snapshot that triggers the client-side harvest.
-func accountMaterialRefreshPackets(m inventory.AccountMaterials, role database.Character) ([]outboundPacket, error) {
+//
+// BUG5（第二十二轮）：副本内（inDungeon）跳过 22KB 的全量背包快照——
+// 军团本战斗中技能消耗材料（无色小晶块等，CMD18）每次触发这三连发，
+// 22KB 的 InventoryRestore 解析期间客户端打断当前施法（觉醒必断，
+// 135312 会话实证每次 CMD18 后三连发）。副本内只发 list35/list42 两个
+// 账号库快照（约 2.9KB），背包显示回城后由任意全量刷新校正；官服副本内
+// 同命令也只有一条 32B 轻量应答。城镇路径维持三连发不变。
+func accountMaterialRefreshPackets(m inventory.AccountMaterials, role database.Character, inDungeon bool) ([]outboundPacket, error) {
 	storageBody, e := accountMaterialSnapshot(m)
 	if e != nil {
 		return nil, e
@@ -89,6 +96,12 @@ func accountMaterialRefreshPackets(m inventory.AccountMaterials, role database.C
 	soulBody, e := radiantSoulSnapshot(m)
 	if e != nil {
 		return nil, e
+	}
+	if inDungeon {
+		return []outboundPacket{
+			{"account_materials_restored", 0, 13, storageBody},
+			{"radiant_souls_restored", 0, 13, soulBody},
+		}, nil
 	}
 	b, e := inventory.ReadBag(role.State)
 	if e != nil {

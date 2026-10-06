@@ -67,7 +67,14 @@ type worldSession struct {
 	forest *forestRun
 	// forestPartyHard 记录待机区建队选择的模式（CMD12 类型 0x19 =
 	// Extreme/ForestOfAwakeningHard），开战时带入 forestRun.hard。
-	forestPartyHard        bool
+	forestPartyHard bool
+	// lastVenusResetCharacter 是最近一次发过遗物 UI 重置（N2655 mask=0）
+	// 的角色 WireID：同一频道连接内切角色时触发一次（BUG4）。
+	lastVenusResetCharacter int64
+	// pendingRelicReset 挂起「遗物 UI 待归零」标记：终局视频播完置位，
+	// 同连接内角色变化的首个 CMD35 补发后清除（第二十三轮两段式，避免
+	// 首次进频道就误发等待态 UI——015424 会话回归实证）。
+	pendingRelicReset      bool
 	blackPurgatory         blackPurgatoryState
 	adventureEliteSnapshot [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
