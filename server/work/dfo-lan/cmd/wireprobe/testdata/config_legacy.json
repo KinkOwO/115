@@ -9,7 +9,6 @@
     "AttunementRewards": "",
     "BagRules": "configs/inventory.compat90.json",
     "BleedingMineRewards": "",
-    "BoostUpChallenge": false,
     "BoostUpEvent": true,
     "BoosterCatalog": "",
     "BoosterGageHide": true,

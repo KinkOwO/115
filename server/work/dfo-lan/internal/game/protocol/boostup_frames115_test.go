@@ -3,6 +3,7 @@ package protocol
 import (
 	"bytes"
 	"encoding/hex"
+	"strings"
 	"testing"
 )
 
@@ -63,5 +64,55 @@ func TestBoostTrainingStatusGraduatedFrame(t *testing.T) {
 	// 训练中（mode=0）不受影响。
 	if got, e := BoostTrainingStatus115(BoostTrainingState115{Mode: 0, Step: 11, Phase: 1, Active: true}); e != nil || !bytes.Equal(got, []byte{0x00, 0x0b, 0x01, 0x00, 0x01}) {
 		t.Fatalf("训练中帧 = % x err=%v", got, e)
+	}
+}
+
+
+// TestDecodeBoostCapsule115BufferVariant 钉住两种胶囊的实机正文（同会话
+// 2026-10-06 18:38:49 / 18:41:44，均 64 字节明文）：
+//
+//	43000000000000510100000000000000…  普通胶囊 590015870，源变体 0，参数格 0
+//	43000000000000510100000100000000…  缓冲（奶系）胶囊 590015871，源变体 1，参数格 1
+//
+// 第二帧曾被通用 CMD507 零校验拒成 "unsupported stackable action fields"，
+// 玩家侧表现为「奶系专用胶囊使用没有效果」。
+func TestDecodeBoostCapsule115BufferVariant(t *testing.T) {
+	plain, _ := hex.DecodeString("43000000000000510100000000000000" + strings.Repeat("00", 48))
+	buffer, _ := hex.DecodeString("43000000000000510100000100000000" + strings.Repeat("00", 48))
+	for name, p := range map[string][]byte{"普通": plain, "缓冲": buffer} {
+		if len(p) != 64 {
+			t.Fatalf("%s 帧长度 %d", name, len(p))
+		}
+		r, e := DecodeBoostCapsule115(p)
+		if e != nil || r.Slot != 67 || r.Space != 0 {
+			t.Fatalf("%s 胶囊帧被拒：%v (%v)", name, r, e)
+		}
+	}
+	// 参数格不参与变体判定：两帧解出的请求必须完全相同（变体只认模板）。
+	a, _ := DecodeBoostCapsule115(plain)
+	b, _ := DecodeBoostCapsule115(buffer)
+	if a != b {
+		t.Fatalf("参数格影响了请求：普通=%+v 缓冲=%+v", a, b)
+	}
+	// 通用零校验仍然照旧拒这一帧——分流是对的，不是把通用解码器放松。
+	if _, _, e := DecodeStackableAction(buffer); e == nil {
+		t.Fatal("通用 stackable 解码器接受了缓冲胶囊的参数格")
+	}
+	// 动作号与长度仍是硬门禁；槽后第 3~6 字节的 u32 必须为 0。
+	wrong := append([]byte{}, buffer...)
+	wrong[7] = 0x52
+	if _, e := DecodeBoostCapsule115(wrong); e == nil {
+		t.Fatal("非胶囊动作被接受")
+	}
+	if _, e := DecodeBoostCapsule115(buffer[:58]); e == nil {
+		t.Fatal("短帧被接受")
+	}
+	if _, e := DecodeBoostCapsule115(append([]byte{}, buffer[:59]...)); e != nil {
+		t.Fatalf("59 字节原生长度帧应可解：%v", e)
+	}
+	mutated := append([]byte{}, buffer...)
+	mutated[15] = 1
+	if _, e := DecodeBoostCapsule115(mutated); e == nil {
+		t.Fatal("参数格之后的非零字节被接受")
 	}
 }

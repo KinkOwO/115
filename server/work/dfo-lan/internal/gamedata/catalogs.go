@@ -127,8 +127,6 @@ type CatalogInputs struct {
 	RandomOptionPath, ShieldPath, WearRulesPath, OathPath, VaultPath, VaultPolicyPath              string
 	TownPath, DungeonPath, TrainingDungeonPath, TutorialDungeonPath, ScenePolicyPath               string
 	EnhancementPolicyPath                                                                          string
-	// BoostChallenge 打开活动 662 毕业后的可选挑战（665）源绑定；关闭时不解析，挑战路径 fail-closed。
-	BoostChallenge bool
 }
 
 type CatalogAdapters struct {

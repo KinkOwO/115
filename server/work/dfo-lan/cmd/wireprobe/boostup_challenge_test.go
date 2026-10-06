@@ -7,6 +7,7 @@ import (
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/character"
 	"dfolan/internal/database"
+	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"encoding/binary"
@@ -63,8 +64,12 @@ func assertBoostChallengeSQL(t *testing.T, ctx context.Context, store *database.
 	binary.LittleEndian.PutUint32(request, 665)
 	plan, e := w.boostStepRequest(ctx, request, 680, []byte("unique-transport-frame-1"))
 	must115(t, e)
+	// 2722 在 ACK 之前：布局已由 IDA 闭环（见 boostChallengeFrameProven 的注释）。
 	if len(plan) != 2 || plan[0].ID != 2722 || plan[1].ID != 680 {
 		t.Fatal("status must precede ACK", plan)
+	}
+	if len(plan[0].Payload) != protocol.BoostChallengeBodyLen {
+		t.Fatalf("2722 包体 %d B, want 客户端读取的 %d B", len(plan[0].Payload), protocol.BoostChallengeBodyLen)
 	}
 	_, e = w.boostStepRequest(ctx, request, 680, []byte("unique-transport-frame-1"))
 	must115(t, e)

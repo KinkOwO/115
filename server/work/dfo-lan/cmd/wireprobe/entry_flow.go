@@ -149,6 +149,10 @@ type entryPayloads struct {
 	// 124 之后（任务面板对象这时才存在）—— 见 TestBoostGiftEntryOrderingAndPerRoleRestore。
 	BoostGifts    []byte
 	BoostTraining []byte
+	// BoostChallenge 是 NOTI2722（665 毕业后挑战记录块）。官服登录时就推这一帧
+	// （cap43 抓包的前两帧），客户端面板只认推送；不补它时重登录后面板停在 0。
+	// 只在角色真已登记挑战时才有值，普通角色进城序列保持逐字节不变。
+	BoostChallenge []byte
 	// Peers carries the USERINFO of every actor already standing in the scene.
 	// It is emitted after this actor's own placement but before the area list,
 	// because the client only places actors it already knows.
@@ -351,6 +355,8 @@ func (p entryPayloads) packets() []outboundPacket {
 		// 训练进度帧排在 124 之后：任务面板对象在进城完成前不存在，早到的 2638
 		// 会被丢掉，客户端的活动关卡停在旧值（实机第三关「面板不刷新」同一坑）。
 		outboundPacket{"boost_training_progress_restored", 0, 2638, p.BoostTraining},
+		// 2722 与 2638 同一道栅栏之后：面板对象在 124 之前还不存在，早到的帧会被丢掉。
+		outboundPacket{"boost_challenge_progress_restored", 0, 2722, p.BoostChallenge},
 		// NOTI398 displayValue=0 collapses the top-left Liberation Trace panel
 		// (see docs/protocol/next52-liberation-trace-booster-gage-398.md). It
 		// must follow 124: the panel object is not initialized before it. The
