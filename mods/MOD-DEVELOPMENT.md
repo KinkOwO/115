@@ -223,10 +223,11 @@ MyMod.zip
 > 2. **目标服务端必须有 mod 宿主**：宿主代码在
 >    `server/work/dfo-lan/internal/servermod`，把已装 mod 的 `Register()` 接上主程序的线在
 >    `cmd/wireprobe/servermods.go`（它调 `mods.RegisterMods()`）。源码树缺宿主时，
->    `modkit install`（启动器 v1.7.7 起）**在写盘之前就拒绝装 server 层 mod**，
+>    `modkit install`（启动器 **v1.7.6 起**；`dbb9970` 实现、`2000645` 随 1.7.6 发布）
+>    **在写盘之前就拒绝装 server 层 mod**，
 >    并在计划里写明两条出路 —— ① 用启动器「更新」换一份带宿主的新服务端包；
 >    ② 本机有 Go 工具链时点启动器「编译服务端」（或 `server/Build-Server.ps1`）重编当前源码
->    （启动器仓 `internal/modkit/modhost.go:233-255` 的 `hostGate`，
+>    （启动器仓 `internal/modkit/modhost.go:233-254` 的 `hostGate`，
 >    判据 = `cmd/wireprobe/servermods.go` / `internal/servermod/` / `mods/zz_mods_gen.go` 三者任一存在
 >    即算有宿主，`:104-115`）。
 >
@@ -274,8 +275,9 @@ MyMod.zip
 - 不能是 `package main` —— Go 不允许 import 程序，会报
   `import "dfolan/mods/x" is a program, not an importable package`；
 - 必须**统一**叫 `modpkg` —— 加载器是按这个约定包名生成 import 与调用的：
-  1 个 mod 时用默认 import（引用名就是 `modpkg`），**≥2 个 mod 时每条 import 都带别名**，
-  引用名变成别名（见 §4.8）。所以包名必须统一，**不能各写各的**。
+  1 个 mod 时用默认 import（引用名就是 `modpkg`），**≥2 个 mod 时每条 import 都带别名**
+  （形如 `mod_<清洗后的 id>`），引用名变成别名（见 §4.8）。
+  所以包名必须统一，**不能各写各的**。
 
 ```go
 // 服务端模块 mods/<mod-id>/mod.go
@@ -606,24 +608,32 @@ mod 在启动时调 `Register()`"，而 `<启动器根>\mods\*.lua` 是服务端
 要停掉一条落盘规则，只能删掉/移走那个 `.lua`（管理页给的就是删除，不做"重命名式停用"——
 那等于发明第二套启用状态）。
 
-### 4.8 能同时装几个 server 层 mod？（**按启动器版本分两段写，别混**）
+### 4.8 能同时装几个 server 层 mod？（**已落地：支持多个**）
 
-这条必须写清**依据的版本**，因为"已发布版"和"下一版"的行为不一样：
+**结论先说**：**>=2 个 server 层 mod 可以共存** —— 生成器在**>=2 个** mod 时给
+**每一条 import 都写一个显式别名**，`RegisterMods()` 按别名逐条调用各自的 `Register()`。
+1 个 mod 时仍走默认 import（`modpkg.Register()`），**产物逐字节不变**。
 
-| | 已发布版本：启动器 **v1.7.7**（仓 `115us-dfolauncher` HEAD `8c87358`） | 下一版起：工作区未提交的修复 |
-| --- | --- | --- |
-| `mods/zz_mods_gen.go` 里每个 import | **默认 import**（不带别名），`RegisterMods()` 里统一写 `modpkg.Register()` | **≥2 个 mod 时每条 import 都带显式别名**，`RegisterMods()` 按别名逐条调用 |
-| 同时装 ≥2 个 server 层 mod | ❌ **不行**：所有 mod 都声明 `package modpkg`，同一文件里 `import` 两个同名包 ⇒ `modpkg redeclared in this block` | ✅ **支持多个**（别名把"包名"与"本文件里的引用名"解耦） |
-| 失败在哪一步 | **安装期**就被拦下并**回滚**：`go build ./mods/` 报「生成的 mod 加载器编译失败（已回滚）」，不会留下一个编不过的服务端 | — |
-| 依据 | `internal/modkit/support.go` 的 `renderServerModsGen`（commit `8c87358`）、`internal/modkit/install2.go:633-645`；`8c87358` 的提交正文把"两个及以上 server 层 mod"明确列为**未闭环（另案）** | 启动器仓工作区 `internal/modkit/support.go` 的 `serverModGoImportAlias()` + `renderServerModsGen` 的 "≥2 个 mod" 分支、`internal/modkit/support_gen_loader_test.go` 的 `TestServerModsGenMultiModLoaderBuilds`（真跑 `go build ./mods/`，含旧形态必红的反向证据）——**尚未提交、未发布** |
+| | 现状 |
+| --- | --- |
+| `mods/zz_mods_gen.go` 里每个 import | 0 / 1 个 mod：**默认 import**（不带别名）；**≥2 个 mod：每条 import 都带显式别名**，`RegisterMods()` 按别名调用 |
+| 同时装 ≥2 个 server 层 mod | ✅ **支持**。别名把"包名"与"本文件里的引用名"解耦，所以 `modpkg redeclared in this block` 不再发生 |
+| 别名怎么来 | `mod_<清洗后的 mod id>`：id 里所有**非** `[A-Za-z0-9_]` 的字符换成 `_`，加固定前缀 `mod_`（兜住"数字开头"与"清洗后为空"）；**撞名**时按稳定排序追加 `_2` / `_3`…（第一个拿原名）。纯函数、确定性（正序/逆序/重复输入产出逐字节相同结果） |
+| 依据（代码） | 启动器仓 `internal/modkit/support.go:196` 的 `serverModGoImportAlias()`、`:266-313` 的 `renderServerModsGen()`（`:277-289` 单 mod 分支、`:290-312` ≥2 个 mod 分支） |
+| 依据（回归） | `internal/modkit/support_gen_loader_test.go`：2 个 / 3 个 mod 的**逐字节 golden**、别名纯函数单测（合法性/互不相同/确定性/撞名去重/数字开头与中文兜底）、以及**临时模块里按真实安装路径装 3 个 mod 后真跑 `go build ./mods/`**（新形态 exit 0；旧的默认 import 形态 exit 1 且报 `modpkg redeclared in this block`，反向证明判据不恒真） |
+| 依据（发布） | 启动器仓 commit `0bd67dc`（2026-10-07 03:03），**版号仍为 1.7.7**（业主指定不升版号）但 exe 字节变了：`version.json` 的 `exe_size 64764416 → 64770048`、`exe_sha256` 更新。**该提交已在远端 `fork/master`** |
 
-结论（写作者视角）：**在 v1.7.7 上，一个整合包只能同时启用一个 server 层 mod**（想换就
-先 `modkit uninstall` 旧的）；**不要**靠"装两个试试"来发现这条限制，安装期会明确报错并回滚。
-`client` 层 / `pvf` 层 / `resource` 层 / 只带 `scripts` 的规则脚本 mod **不受这条限制**
-（它们不进加载器）。
+**包名仍然必须统一为 `modpkg`**：别名只解耦"包名"与"引用名"，包名门禁
+（`validateModPackageNames`）**没有放宽** —— 各写各的包名照样会被拒。
+固定包名的好处没变：生成器不必去猜每个 mod 的包名。
 
-> 包名统一为 `modpkg` 是**刻意**的（`internal/modkit/support.go` 的 `ModPackageName`）：
-> 统一之后生成器不必去猜每个 mod 的包名；多 mod 共存靠别名解决，而不是靠各写各的包名。
+> **历史提醒**：在 `0bd67dc` **之前**的那一版 1.7.7（commit `8c87358`）上，≥2 个 server 层 mod
+> 会触发 `modpkg redeclared`，由安装期新增的 `go build ./mods/` 校验拦下并回滚
+> （报「生成的 mod 加载器编译失败」，`internal/modkit/install2.go:633-645`）。
+> 如果你手上的启动器 exe 是那一版（可以按 `version.json` 的 `exe_sha256` 区分），
+> 就要按"只能装一个"来操作 —— **升级到带 `0bd67dc` 的 1.7.7 即可多装**。
+> `client` 层 / `pvf` 层 / `resource` 层 / 只带 `scripts` 的规则脚本 mod 一向不受这条限制
+> （它们不进加载器）。
 
 
 ## 5. client 层
@@ -925,10 +935,10 @@ end)
 | `请先退出游戏` | `DFO.exe` 在运行 | 退游戏再装/卸 |
 | `找不到 pwsh 7` | pvf 层需要 pwsh | 装 PowerShell 7，或 `--pwsh` 指定，或放 `<客户端工作区>\tools\pwsh7\pwsh.exe` |
 | `服务端 mod 目录已存在且不属于本 mod` | 有同名目录但无来源标记 | 人工确认后移走；引擎不覆盖不认识的目录 |
-| `生成的 mod 加载器编译失败` | `mods/zz_mods_gen.go` 重写后整个 `./mods/` 包编不过（**不要**先去怀疑自己的 mod） | 看报错行；若是 ≥2 个 server 层 mod 共存导致的 `modpkg redeclared`，见 §4.8 —— v1.7.7 上只能同时装一个 |
+| `生成的 mod 加载器编译失败` | `mods/zz_mods_gen.go` 重写后整个 `./mods/` 包编不过（**不要**先去怀疑自己的 mod） | 看报错行。若是 ≥2 个 server 层 mod 导致的 `modpkg redeclared`，说明启动器是 `0bd67dc` 之前那一版 1.7.7（commit `8c87358`）—— 升级到带 `0bd67dc` 的 1.7.7 即可多装，见 §4.8 |
 | `server 层静态验证编译失败` | 你的 Go 代码编不过 | 按报错改；安装已自动回滚 |
 | `本 mod 声明了 server 层的 Go 钩子…但找不到 Go 工具链` | 声明 `hooks` 但本机没 Go | 装 Go，或改用只带 `scripts` 的规则脚本 mod（不需要 Go） |
-| `目标服务端的源码树里没有 mod 宿主（…都不存在）：装上去也不会生效` | 这份服务端的源码树没有 mod 宿主（启动器 v1.7.7 起的**安装期硬门禁**） | 按报错里的两条出路：① 用启动器「更新」拿带宿主的新服务端包；② 有 Go 时点「编译服务端」重编当前源码 |
+| `目标服务端的源码树里没有 mod 宿主（…都不存在）：装上去也不会生效` | 这份服务端的源码树没有 mod 宿主（启动器 **v1.7.6 起**的**安装期硬门禁**，`dbb9970`） | 按报错里的两条出路：① 用启动器「更新」拿带宿主的新服务端包；② 有 Go 时点「编译服务端」重编当前源码 |
 | `依赖 mod X 当前被禁用：请先在 MOD 列表里启用它` | 依赖装了但被 `enabled.json` 禁用 | 先在 MOD 列表启用依赖，再装 |
 | `计划被阻断`（exit 2） | 冲突/缺依赖/缺前置/缺宿主 | 看 `plan` 输出的 `冲突：` 与 `宿主门禁未通过：` 行 |
 

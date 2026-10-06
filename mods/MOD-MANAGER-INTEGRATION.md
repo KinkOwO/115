@@ -120,14 +120,15 @@
 - 含 `exe.patch`：**"修改 DFO.exe 字节；没有整文件哈希门——现场 sha256 与清单声明不符只警告、不阻断；能不能打由逐处 `before` 字节比对决定"**；
 - 含 Go 钩子但本机没有 Go 工具链：**"安装会在落位前硬失败（找不到 Go 工具链）"**；
 - 预编译服务端程序**可能没有 mod 宿主**，但要分成两件事说（**安装期门禁** vs **日志判据**）：
-  - **安装期（启动器 v1.7.7 起，硬门禁）**：`modkit install` 在**写盘之前**探测目标服务端，
+  - **安装期（启动器 v1.7.6 起，硬门禁；`dbb9970` 实现、`2000645` 随 1.7.6 发布）**：
+    `modkit install` 在**写盘之前**探测目标服务端，
     判据 = `<模块根>/cmd/wireprobe/servermods.go` / `internal/servermod/` / `mods/zz_mods_gen.go`
     三者任一存在即算"源码树有宿主"。
     - **源码树也没有宿主 ⇒ 直接拒绝安装 server 层 mod**（报「计划被阻断：目标服务端的源码树里没有
       mod 宿主…」），并给出两条出路：① 用启动器「更新」拿带宿主的新服务端包；
       ② 有 Go 工具链时点「编译服务端」重编当前源码。**一个字节都不写**（连 modkit 状态目录都不建）；
     - **源码有宿主、已编译产物里搜不到宿主标记** ⇒ **只提示**「装完要重新编译服务端」，**不阻断**。
-    （启动器仓 `internal/modkit/modhost.go:233-263` 的 `hostGate`，装在 `install2.go:103-113`
+    （启动器仓 `internal/modkit/modhost.go:233-263` 的 `hostGate`，接在 `install2.go:108`
     写盘之前的宿主门禁位置。管理器应当把这段输出原样展示，不要自己再判一次。）
   - **日志判据（运行期）**：这时装好的 mod 一个都不会装载，**启动日志里连 `servermod:` 都不出现** ——
     管理器要提示"换成按当前源码编译的服务端"。
@@ -242,17 +243,19 @@ $env:DFO_SERVERMOD_CONSOLE = "<mod-id> status"             # 问某个 mod 自�
     （启动器仓 `internal/modkit/modsadmin.go:281-298`）。
 - modkit **不做加载顺序拓扑**：所有启用的 mod 都按 `Register()` 的稳定顺序注册，
   它们之间不应互相 import（同名包 `modpkg`，Go 里无法区分）；
-- ⚠️ **同时能装几个 server 层 mod，取决于启动器版本**（管理器要在 UI 上讲清，别让玩家自己撞墙）：
-  - **当前已发布版本：启动器 v1.7.7**（仓 `115us-dfolauncher` HEAD `8c87358`）——
-    生成的加载器用**默认 import**（不带别名）并统一写 `modpkg.Register()`，
-    所以**同时装 ≥2 个 server 层 mod 会 `modpkg redeclared in this block`**：
-    安装期就会以「生成的 mod 加载器编译失败（已回滚）」拦下（`install2.go:633-645`），
-    **不会**留下一个编不过的服务端。**结论：v1.7.7 上一个整合包只保证 1 个 server 层 mod**；
-  - **下一版起（启动器仓工作区未提交的修复）**：≥2 个 mod 时**每条 import 都带按 mod id 生成的
-    显式别名**，`RegisterMods()` 按别名逐条调用 ⇒ **支持多个 server 层 mod 共存**
-    （`internal/modkit/support.go` 的 `serverModGoImportAlias()` + `renderServerModsGen`
-    的 "≥2 个 mod" 分支；回归 `internal/modkit/support_gen_loader_test.go` 的
-    `TestServerModsGenMultiModLoaderBuilds`）。**尚未提交、未发布**，依据是那个工作区版本，不是已发布版。
+- ⚠️ **同时装 ≥2 个 server 层 mod：已支持**（启动器仓 commit `0bd67dc`，2026-10-07 03:03，
+  **已在远端 `fork/master`**；版号仍是 1.7.7、exe 已重出 —— `version.json` 的
+  `exe_size 64764416 → 64770048`）：
+  - 生成器在 **≥2 个 mod** 时给**每条 import 一个显式别名**（`mod_<清洗后的 id>`，撞名追加 `_2`/`_3`），
+    `RegisterMods()` 按别名逐条调用 ⇒ 不再有 `modpkg redeclared in this block`；
+    **0 个 / 1 个 mod 的产物逐字节不变**（已装 1 个 mod 的机器上那份加载器不会被动到）；
+  - 依据：`internal/modkit/support.go:196` 的 `serverModGoImportAlias()`、`:266-313` 的
+    `renderServerModsGen()`；回归 `internal/modkit/support_gen_loader_test.go`（2/3 个 mod 逐字节 golden +
+    临时模块里真跑 `go build ./mods/`，含旧的默认 import 形态必红的反向证据）。
+  - **历史版本**：`0bd67dc` 之前那一版 1.7.7（commit `8c87358`）**只能装 1 个**，
+    第二个会让 `mods/zz_mods_gen.go` 报 `modpkg redeclared in this block`，
+    由安装期 `go build ./mods/` 拦下并回滚（`install2.go:633-645`）。按 `version.json`
+    的 `exe_sha256` 可以区分手上那份 exe 是哪一版。
   - 与 `layers.server.scripts`（只带 Lua 规则脚本）无关：那条路径不进加载器，装几个都不冲突。
 - 需要在 mod 之间协作时，走 `servermod` 的钩子与宿主机操作，不要直接耦合。
 
@@ -369,12 +372,11 @@ reward rules enabled (embedded scripts + 1 mod script(s))
    （`enabled.json`）：业主 2026-10-06 定的界面是"安装状态只做展示 + 批量装与卸"，
    开关仍只有 `modkit mods enable/disable` 与手工编辑那份文件两个入口；
 3. mod 的**加载顺序**没有显式依赖排序（只有 `requires` 存在性检查）；
-   - **同时装 ≥2 个 server 层 mod：已发布版（启动器 v1.7.7 / commit `8c87358`）不支持** ——
-     生成器用默认 import，第二个 mod 会让 `mods/zz_mods_gen.go` 报 `modpkg redeclared in this block`，
-     安装期被 `go build ./mods/` 拦下并回滚（`install2.go:633-645`）。
-     **下一版起支持**（按 mod id 生成 import 别名，见 §5 与 `MOD-DEVELOPMENT.md` §4.8）——
-     那段修复**目前只在启动器仓工作区，未提交、未发布**。
-     本文档在它发布前都以"v1.7.7 只保证 1 个 server 层 mod"为准；
+   - **同时装 ≥2 个 server 层 mod：已支持**（启动器仓 commit `0bd67dc`，版号仍 1.7.7、
+     已推到 `fork/master`）：≥2 个 mod 时生成器给每条 import 一个显式别名
+     （`mod_<清洗后的 id>`），按别名调用各自的 `Register()`。
+     `0bd67dc` 之前那一版 1.7.7（`8c87358`）只保证 1 个，第二个会被安装期拦下并回滚 ——
+     见 §5 与 `MOD-DEVELOPMENT.md` §4.8；
 4. 启用/禁用**不能热生效**（需重启服务端）——这是奖励脚本一次性加载带来的边界，
    要热摘需要把 Lua state 做成可重建的，属独立工作；
 5. **落盘规则脚本没有"停用"开关**：服务端无条件加载 `<启动器根>\mods\*.lua`，`enabled.json`
