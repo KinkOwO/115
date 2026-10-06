@@ -168,6 +168,11 @@ func (s *Service) Create(ctx context.Context, account int64, p []byte) (Characte
 			Name:          created.Name,
 			Level:         stateLevel(created.State),
 			ConfigVersion: created.ConfigVersion,
+			// 职业信息：建号这一刻就是已知的（基础职业来自请求、转职来自上面的落账结果）。
+			// 规则常用它来决定发哪一套（例如输出/辅助两套宝珠、辅助不发换装套装）。
+			Profession:    int32(created.Profession),
+			Advancement:   int32(initial.Advancement),
+			HasProfession: true,
 		})
 	}
 	return created, nil

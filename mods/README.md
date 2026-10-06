@@ -77,6 +77,25 @@ build-mod.py / build-mod.cmd      打包
 `模板 <N> 取不到奖励耐久（equipment definition missing）`。
 先确认模板在那份目录里，再放进池子。
 
+## 整合包自带的 mod
+
+### `newchar-kit/` —— 新角色出厂补给（两个**独立**规则脚本）
+
+`server` 层只声明 `scripts`（**没有 Go 代码**）的真实例子：新角色创建时按两层发补给。
+它也是"两层 = 两个互相独立的脚本"的样板 —— 服务端按脚本文件名区分事件与幂等键，
+所以两个脚本谁也不顶掉谁、其中一个出错也不连累另一个：
+
+```
+mod.json                             permissions=["server.script"]，layers.server.scripts 两份
+server/rules/newchar-general.lua     ① 通用层：任何角色都发（金币/点券/堆叠物/宠物装备/宝珠套）
+server/rules/newchar-class.lua       ② 职业层：要 ctx.profession + ctx.advancement，拿不到整段跳过
+build-mod.py                         打包 → dist\（只有 mod.json + README + server/）
+README.md                            两层各发什么、输出/辅助怎么判、装/卸、做不到的部分
+```
+
+装它**不需要 Go 工具链、也不重新编译服务端**：脚本落到 `<服务端模块>/mods/scripts/`，
+**重启服务端**即生效；卸载按注册表逐个核对哈希撤掉。
+
 ## 打包
 
 每个示例自带 `build-mod.py`（逻辑）+ `build-mod.cmd`（ASCII 启动器）：
