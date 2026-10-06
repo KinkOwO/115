@@ -46,6 +46,17 @@
  *   于是每只怪都在这里被静默丢弃 —— 现象是"实体链找到了怪（tracked 有值），
  *   但 applied 恒为 0、failed 也恒为 0、日志里一条写入记录都没有"。
  *   修法与 Go 一致：只读一次 hpLayer(old)，改后用同一个审计结果调 maxima(new)。
+ *
+ * 2026-10-07 多文件规则加载（rules.d，重要）
+ *   规则文件从"只有 <插件目录>\rules.json"扩展为**两处**：
+ *     1) <插件目录>\rules.d\*.json（可以不存在，按文件名**升序**遍历）
+ *     2) <插件目录>\rules.json（最后读）
+ *   每个文件内部仍是"第一条 enabled 且命中的规则生效"；跨文件是
+ *   **先遍历到的文件里命中就赢** ⇒ rules.d 里 mod 自带的"只对某副本"规则
+ *   会赢过玩家 rules.json 里的通用规则，其它副本仍按玩家规则（或原版）。
+ *   rules.d 里单个文件解析失败**只跳过它自己**（醒目记日志），
+ *   不让整份配置失效；rules.json 缺失/读失败/解析失败**保持旧语义**（整份不可用）。
+ *   目录不存在 = 与旧版行为逐字节一致（只是少一次目录枚举）。
  */
 
 #define WIN32_LEAN_AND_MEAN
@@ -207,7 +218,20 @@ static const unsigned char kLegacy2[] = {0xF2, 0x0F, 0x5F, 0x05, 0x32, 0x6F, 0x8
 /* ================================================================== */
 
 #define MAX_RULES       32 /* gmrules.MaxRules */
-#define MAX_RULE_IDS    64
+/* 单条规则的 dungeonIds 上限。2026-10-07 由 64 抬到 256。
+ *
+ * 依据：奥德赛 mod 的 rules.d\odyssey.hardcore.json 已经用掉 56 个副本 id，64 只剩 8 个坑位；
+ * 而**规则条数**上限 MAX_RULES(32) 是跨文件共享的一个池子（见下面 MAX_RULE_FILES 的注释），
+ * 为覆盖更多副本去拆规则很快会撞到 32 条。抬"单条规则的 id 容量"这一维更省，也不改任何语义：
+ * 越界仍然按"整份不可用、不用一半"处理。
+ *
+ * 内存：Rule 由 408 B 涨到 1176 B，但它只出现在**堆**数组里 ——
+ * ruleset_add_file_slot()/ruleset_ready() 用 calloc(MAX_RULES, sizeof(Rule)) 分配；
+ * RuleSet 自己只存 RuleFile[]（名字 + 计数 + 指针），**不内嵌 Rule**，所以进函数栈的
+ * RuleSet 仍是几 KiB，抬容量不改变栈占用（旧版内嵌数组曾把工作线程栈撑到 0xC00000FD）。
+ * 最坏堆 = MAX_RULE_FILES(32) × MAX_RULES(32) × sizeof(Rule) ≈ 1.2 MiB。
+ * 自测 test_rule_ids_capacity 用 sizeof 断言把"RuleSet 不内嵌 Rule 数组"这条钉住。 */
+#define MAX_RULE_IDS    256
 #define MAX_JSON_BYTES  (1u << 20)
 #define MAX_LOG_LINES   2000000L
 
@@ -223,12 +247,47 @@ typedef struct {
     int id_overflow;
 } Rule;
 
+/* 规则来源文件数上限。规则**总条数**上限仍是 MAX_RULES（32），跨文件共享这一个池，
+ * 所以多一份 rules.d 文件不会让总量膨胀 —— 超了就按"越界"处理（整份配置判不可用）。 */
+#define MAX_RULE_FILES 32
+
+/* 一份规则文件及其解析结果。
+ *
+ * rules 是**堆上**的紧凑数组，不是内嵌数组：Rule 本身约 350 字节，
+ * RuleFile 内嵌 32 条就有 11 KiB，而 RuleSet 要放 32 份文件 —— 内嵌会得到
+ * 一个 ~360 KiB 的 RuleSet，进了函数栈就是必然的 stack overflow
+ * （本插件是在游戏进程的工作线程里跑，不能赌栈够大）。 */
 typedef struct {
-    int loaded;  /* 解析成功且 schema = 1 */
-    int enabled; /* 文件顶层 enabled */
+    char name[64]; /* 文件名（排序键 / 日志用；跨文件优先级就按这个字段升序） */
+    int enabled;   /* 该文件顶层 enabled */
     int rule_count;
-    Rule rules[MAX_RULES];
+    Rule *rules;   /* 堆数组，容量 MAX_RULES；NULL = 没分配 */
+} RuleFile;
+
+/* 生效的规则集：**多个来源合并后的扁平列表**。
+ *
+ * 合并语义（2026-10-07 定，见文件头"多文件规则加载"）：
+ *   先按**文件名升序**遍历 <插件目录>\rules.d\*.json，**再**读 <插件目录>\rules.json；
+ *   每个文件内部仍是"第一条 enabled 且命中的规则生效"；
+ *   跨文件是**先遍历到的文件里命中就赢**。
+ * 为什么这样定优先级：mod 自带的规则（rules.d 里那份）必须赢过玩家的通用 rules.json ——
+ * 例如 odyssey.hardcore 要"只在奥德赛副本内 ×10"，而玩家 rules.json 里可能是
+ * "全副本 ×2"。若反过来让 rules.json 优先，玩家一写通用规则就把 mod 的范围打穿了，
+ * 而 mod 作者无法预期、也无法修（rules.json 是玩家的文件）。
+ * mod 自带文件先于玩家文件 = "更具体的规则优先"，且不依赖任何新字段。 */
+typedef struct {
+    int rule_file_count;
+    RuleFile files[MAX_RULE_FILES];
+    /* 匹配结果归属（日志与 status.json 用；match_rule 顺带填） */
+    char matched_file[64];
 } RuleSet;
+
+/* rules.d 里一份 .json 的目录项（升序排列后逐个加载）。 */
+typedef struct {
+    wchar_t name[MAX_PATH];
+    uint64_t size;
+    DWORD lo, hi;
+} DirRuleFile;
 
 typedef struct {
     uint64_t scene, manager, node, control, actor, vtable;
@@ -269,9 +328,11 @@ typedef struct {
     StatEntry *stats;
     int stat_count;
     int stat_cap;
-    DWORD mtime_lo, mtime_hi; /* 上次取快照时的 rules.json 时间戳（0,0 = 不存在） */
-    uint64_t fast_size;       /* 上次取快照时的文件大小 */
-    uint64_t hash;            /* 上次取快照时的内容哈希（FNV-1a；0 = 不存在） */
+    DWORD mtime_lo, mtime_hi;  /* 上次取快照时的 rules.json 时间戳（0,0 = 不存在） */
+    uint64_t fast_size;        /* 上次取快照时的 rules.json 文件大小 */
+    uint64_t hash;             /* 上次取快照时的 rules.json 内容哈希（FNV-1a；0 = 不存在） */
+    uint64_t dir_fingerprint;  /* 上次取快照时 rules.d 的目录指纹（0 = 不存在/空） */
+    int rule_file_count;       /* 上次快照时 rules.d 里的 .json 文件数 */
 } Engine;
 
 static HMODULE g_self;
@@ -321,6 +382,7 @@ typedef struct {
     int has_dungeon;
     int matched;
     char rule_id[64];
+    char rule_file[64]; /* 命中的规则来自哪一份文件（rules.d 里的文件名 / rules.json） */
     uint32_t percent;
     uint32_t attack_percent;
     int monsters;
@@ -961,7 +1023,11 @@ static int hp_layer(const MonsterId *id, int layer, uint64_t base, HpLayerAudit 
 }
 
 /* ================================================================== */
-/* 规则文件：<本 DLL 目录>\rules.json                                  */
+/* 规则文件：<本 DLL 目录>\rules.d\*.json（先，按文件名升序）+          */
+/*           <本 DLL 目录>\rules.json（后）                            */
+/*                                                                    */
+/* 合并语义与优先级理由见 RuleSet 的注释：更具体的（随 mod 分发的）文件 */
+/* 先于玩家的通用 rules.json；文件内仍是"第一条 enabled 且命中生效"。  */
 /* ================================================================== */
 static const char kDefaultRules[] =
     "{\n"
@@ -993,6 +1059,9 @@ static const char kDefaultRules[] =
 
 static void rules_path(wchar_t *out, size_t cap) { _snwprintf(out, cap, L"%s\\rules.json", g_dir); }
 
+/* <本 DLL 目录>\rules.d —— mod 自带的"按范围"规则子目录（可以不存在）。 */
+static void rules_dir_path(wchar_t *out, size_t cap) { _snwprintf(out, cap, L"%s\\rules.d", g_dir); }
+
 static int write_default_rules(void) {
     wchar_t path[MAX_PATH];
     FILE *f;
@@ -1004,13 +1073,12 @@ static int write_default_rules(void) {
     return 1;
 }
 
-/* 返回：1 = 读到；0 = 文件不存在；-1 = 读失败/过大 */
-static int read_rules_file(char **text, size_t *len) {
-    wchar_t path[MAX_PATH];
+/* 读任意路径的文本（与 read_rules_file 同一套上限/错误码）。
+ * 返回：1 = 读到；0 = 文件不存在；-1 = 读失败/过大。 */
+static int read_text_file(const wchar_t *path, char **text, size_t *len) {
     FILE *f;
     long n;
     char *buf;
-    rules_path(path, MAX_PATH);
     f = _wfopen(path, L"rb");
     if (!f) return 0;
     if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return -1; }
@@ -1029,6 +1097,13 @@ static int read_rules_file(char **text, size_t *len) {
     *text = buf;
     *len = (size_t)n;
     return 1;
+}
+
+/* 返回：1 = 读到；0 = 文件不存在；-1 = 读失败/过大 */
+static int read_rules_file(char **text, size_t *len) {
+    wchar_t path[MAX_PATH];
+    rules_path(path, MAX_PATH);
+    return read_text_file(path, text, len);
 }
 
 /* --- 极简手写 JSON（不引第三方库） --------------------------------- */
@@ -1206,14 +1281,91 @@ static int json_one_rule(JsonCur *c, Rule *r) {
     }
 }
 
-/* 返回 1 = 解析成功；失败时 *why 给出原因。 */
+/* --- 规则集：多文件合并后的扁平视图（自测兼容访问器见 PARSED_* 宏） --- */
+
+/* 取第 f 份文件的第 i 条规则（rules 为 NULL 时返回 NULL）。 */
+static const Rule *rf_rule(const RuleFile *rf, int i) {
+    if (rf == NULL || rf->rules == NULL || i < 0 || i >= rf->rule_count) return NULL;
+    return &rf->rules[i];
+}
+
+static RuleFile *ruleset_add_file_slot(RuleSet *set, const char *name) {
+    RuleFile *f;
+    if (set->rule_file_count >= MAX_RULE_FILES) return NULL;
+    f = &set->files[set->rule_file_count]; /* 失败时不递增计数 */
+    memset(f, 0, sizeof(*f));
+    _snprintf_s(f->name, sizeof(f->name), _TRUNCATE, "%s", name);
+    f->rules = (Rule *)calloc(MAX_RULES, sizeof(Rule));
+    if (f->rules == NULL) return NULL;
+    set->rule_file_count++;
+    return f;
+}
+
+/* 规则集是纯堆视图：清空 = 释放各文件数组 + 计数清零（可重复调用）。 */
+static void ruleset_clear(RuleSet *set) {
+    int i;
+    for (i = 0; i < set->rule_file_count; i++) {
+        free(set->files[i].rules);
+        set->files[i].rules = NULL;
+    }
+    memset(set, 0, sizeof(*set));
+}
+
+static int ruleset_total(const RuleSet *set) {
+    int i, n = 0;
+    for (i = 0; i < set->rule_file_count; i++) n += set->files[i].rule_count;
+    return n;
+}
+
+/* 把**一个文件**的解析结果并入总表（*one 的 rule_file_count 固定 = 1）。
+ * 返回 0 = 越界（规则总数超 MAX_RULES 或文件数超 MAX_RULE_FILES）或分配失败，
+ * 调用方据此把整份配置判不可用（与旧版"规则数超过 32 条 → 不可用"同义）。 */
+static int add_rule_file(RuleSet *set, const char *name, const RuleSet *one) {
+    RuleFile *f;
+    const RuleFile *src = &one->files[0];
+    if (set->rule_file_count + one->rule_file_count > MAX_RULE_FILES) return 0;
+    if (ruleset_total(set) + src->rule_count > MAX_RULES) return 0;
+    f = ruleset_add_file_slot(set, name);
+    if (f == NULL) return 0;
+    f->enabled = src->enabled;
+    f->rule_count = src->rule_count;
+    if (src->rule_count > 0) {
+        if (src->rules == NULL) { f->rule_count = 0; return 0; }
+        memcpy((void *)f->rules, (const void *)src->rules,
+               (size_t)src->rule_count * sizeof(Rule));
+    }
+    return 1;
+}
+
+static int ruleset_ready(RuleSet *set) {
+    /* 解析出参要能直接写规则，所以进入 parse_rules 前必须先建好 files[0]。 */
+    if (set->rule_file_count == 0) set->rule_file_count = 1;
+    if (set->files[0].rules == NULL) set->files[0].rules = (Rule *)calloc(MAX_RULES, sizeof(Rule));
+    return set->files[0].rules != NULL;
+}
+
+/* 返回 1 = 解析成功；失败时 *why 给出原因。
+ *
+ * 出参约定：*out 表示**这一个文件**（rule_file_count == 1，文件内容全在 files[0] 里）。
+ * 旧版 RuleSet 是扁平的单文件结构（loaded/enabled/rule_count/rules[]），
+ * 上面的 PARSED_* 宏就是给自测保留那套读法的兼容访问器。 */
+#define PARSED_RULES(set)      ((set).files[0].rules)
+#define PARSED_RULE_COUNT(set) ((set).files[0].rule_count)
+#define PARSED_ENABLED(set)    ((set).files[0].enabled)
+
 static int parse_rules(const char *text, size_t len, RuleSet *out, char *why, size_t whycap) {
     JsonCur c;
     int have_schema = 0, have_enabled = 0, have_rules = 0;
     int overflow = 0, i;
-    out->loaded = 0;
-    out->enabled = 0;
-    out->rule_count = 0;
+    RuleFile *rf;
+    ruleset_clear(out);
+    if (!ruleset_ready(out)) { /* 建不出规则数组：按解析失败处理（宁失效不崩） */
+        _snprintf_s(why, whycap, _TRUNCATE, "内存不足（规则数组分配失败）");
+        return 0;
+    }
+    out->rule_file_count = 1; /* 解析出参固定表示"一个文件" */
+    rf = &out->files[0];
+    _snprintf_s(rf->name, sizeof(rf->name), _TRUNCATE, "rules.json");
     c.p = text;
     c.end = text + len;
     json_ws(&c);
@@ -1250,8 +1402,8 @@ static int parse_rules(const char *text, size_t len, RuleSet *out, char *why, si
             }
             have_schema = 1;
         } else if (_stricmp(key, "enabled") == 0) {
-            if (c.end - c.p >= 4 && strncmp(c.p, "true", 4) == 0) { out->enabled = 1; c.p += 4; }
-            else if (c.end - c.p >= 5 && strncmp(c.p, "false", 5) == 0) { out->enabled = 0; c.p += 5; }
+            if (c.end - c.p >= 4 && strncmp(c.p, "true", 4) == 0) { rf->enabled = 1; c.p += 4; }
+            else if (c.end - c.p >= 5 && strncmp(c.p, "false", 5) == 0) { rf->enabled = 0; c.p += 5; }
             else {
                 _snprintf_s(why, whycap, _TRUNCATE, "enabled 不是 true/false");
                 return 0;
@@ -1269,11 +1421,11 @@ static int parse_rules(const char *text, size_t len, RuleSet *out, char *why, si
                 Rule r;
                 memset(&r, 0, sizeof(r));
                 if (!json_one_rule(&c, &r)) {
-                    _snprintf_s(why, whycap, _TRUNCATE, "第 %d 条规则解析失败", out->rule_count + 1);
+                    _snprintf_s(why, whycap, _TRUNCATE, "第 %d 条规则解析失败", rf->rule_count + 1);
                     return 0;
                 }
-                if (out->rule_count < MAX_RULES) {
-                    out->rules[out->rule_count++] = r;
+                if (rf->rule_count < MAX_RULES) {
+                    rf->rules[rf->rule_count++] = r;
                     if (r.id_overflow) overflow = 1;
                 } else {
                     overflow = 1; /* 超过 MAX_RULES（gmrules.MaxRules = 32） */
@@ -1314,8 +1466,8 @@ static int parse_rules(const char *text, size_t len, RuleSet *out, char *why, si
                     MAX_RULES, MAX_RULE_IDS);
         return 0;
     }
-    for (i = 0; i < out->rule_count; i++) {
-        Rule *r = &out->rules[i];
+    for (i = 0; i < rf->rule_count; i++) {
+        Rule *r = &rf->rules[i];
         if (!r->enabled) continue;
         if (r->percent < 1 || r->percent > 100000) {
             _snprintf_s(why, whycap, _TRUNCATE, "规则 %s 的 percent=%u 超出 1..100000", r->id,
@@ -1336,23 +1488,36 @@ static int parse_rules(const char *text, size_t len, RuleSet *out, char *why, si
             return 0;
         }
     }
-    out->loaded = 1;
+    /* 解析成功：不回写 loaded（现在由 rule_file_count 表达） */
     return 1;
 }
 
-/* 规则匹配：第一条 enabled 且命中的规则生效
- * （gmrules.Rule.Matches 的 selected / all 子集；首版不带等级目录） */
+/* --- 规则集：多文件合并后的扁平视图 --------------------------------- */
+
+/* 规则匹配：**先按文件顺序，文件内第一条 enabled 且命中的规则生效**
+ * （跨文件"先遍历到的命中就赢"；gmrules.Rule.Matches 的 selected / all 子集）。 */
 static const Rule *match_rule(uint32_t dungeon_id, int have_dungeon) {
-    int i, k;
-    const RuleSet *set = &g_engine.set;
-    if (!set->loaded || !set->enabled) return NULL;
-    for (i = 0; i < set->rule_count; i++) {
-        const Rule *r = &set->rules[i];
-        if (!r->enabled) continue;
-        if (r->all) return r;
-        if (!have_dungeon) continue;
-        for (k = 0; k < r->id_count && k < MAX_RULE_IDS; k++) {
-            if (r->ids[k] == dungeon_id) return r;
+    int fi, i, k;
+    RuleSet *set = &g_engine.set;
+    set->matched_file[0] = 0;
+    for (fi = 0; fi < set->rule_file_count; fi++) {
+        const RuleFile *rf = &set->files[fi];
+        if (!rf->enabled) continue; /* 文件顶层 enabled=false → 该文件整份不参与 */
+        for (i = 0; i < rf->rule_count; i++) {
+            const Rule *r = rf_rule(rf, i);
+            int hit = 0;
+            if (!r->enabled) continue;
+            if (r->all) {
+                hit = 1;
+            } else if (have_dungeon) {
+                for (k = 0; k < r->id_count && k < MAX_RULE_IDS; k++) {
+                    if (r->ids[k] == dungeon_id) { hit = 1; break; }
+                }
+            }
+            if (hit) {
+                _snprintf_s(set->matched_file, sizeof(set->matched_file), _TRUNCATE, "%s", rf->name);
+                return r;
+            }
         }
     }
     return NULL;
@@ -1386,44 +1551,208 @@ static void rules_file_state(FileState *st) {
     st->hi = fad.ftLastWriteTime.dwHighDateTime;
 }
 
-/* 时间戳/大小/哈希都没变 → 不必重读 */
-static int config_unchanged(const FileState *st) {
-    if (st->exists != (g_engine.mtime_lo != 0 || g_engine.mtime_hi != 0)) return 0;
+/* 文件状态是否变过；变过就把快照更新为新状态并回答"变了"。
+ * 注意语义：这里同时**消费**掉 st，调用方拿到 1 就说明该重读。 */
+static int file_state_changed(FileState *st) {
+    int changed;
+    if (st->exists != (g_engine.mtime_lo != 0 || g_engine.mtime_hi != 0)) changed = 1;
     /* 文件不存在时**绝不能**回答"没变化"（2026-10-07 实机 bug）：
      * 首次运行必须走到 config_try() 去落地默认 rules.json；原来这里返回
      * `g_engine.hash == 0`（= "什么都没加载过，不必动"）会把生成路径**饿死** ——
      * 于是每 200 ms 都是"unchanged"，rules.json 永不生成、配置永远不可用
      * （现场：日志只有"配置不可用（…文件缺失）"，盘上没有 rules.json，
      *   status.json = enabled:false / lastError:configDisabled）。 */
-    if (!st->exists) return 0;
-    if (g_engine.hash == 0) return 0; /* 上次文件存在但读失败，重试 */
-    if (st->size != g_engine.fast_size) return 0;
-    if (st->lo != g_engine.mtime_lo) return 0;
-    if (st->hi != g_engine.mtime_hi) return 0;
+    else if (!st->exists) changed = 1;
+    else if (g_engine.hash == 0) changed = 1; /* 上次文件存在但读失败，重试 */
+    else if (st->size != g_engine.fast_size || st->lo != g_engine.mtime_lo ||
+             st->hi != g_engine.mtime_hi)
+        changed = 1;
+    else
+        changed = 0;
+    g_engine.mtime_lo = st->lo;
+    g_engine.mtime_hi = st->hi;
+    g_engine.fast_size = st->size;
+    return changed;
+}
+
+/* --- rules.d 扫描 --------------------------------------------------- */
+
+static int wcs_ends_with_json(const wchar_t *n) {
+    size_t l = wcslen(n);
+    if (l < 5) return 0;
+    return _wcsicmp(n + l - 5, L".json") == 0;
+}
+
+static int wcs_ends_with(const wchar_t *n, const wchar_t *suffix) {
+    size_t l = wcslen(n), m = wcslen(suffix);
+    if (l < m) return 0;
+    return _wcsicmp(n + l - m, suffix) == 0;
+}
+
+/* 把一条 DIRENT 的 cFileName 拷进出参（只取 basename，防御性）。 */
+static void dir_entry_name(const wchar_t *cFileName, wchar_t *out, size_t cap) {
+    const wchar_t *base = cFileName;
+    size_t i, n;
+    for (i = 0; cFileName[i]; i++)
+        if (cFileName[i] == L'\\' || cFileName[i] == L'/') base = cFileName + i + 1;
+    n = wcslen(base);
+    if (n + 1 > cap) n = cap - 1;
+    memcpy(out, base, n * sizeof(wchar_t));
+    out[n] = 0;
+}
+
+/* 目录指纹：把（文件数, 每个文件的 size/mtime/首字符）折成一个 64 位值。
+ * 只用来**快速判断"要不要重读"**；rules.json 那一侧仍以**内容哈希**为准
+ * （所以哈希碰撞的后果只是"多做一次无用的重读"）。 */
+static uint64_t dir_stat_fold(uint64_t h, const uint64_t *v, int n) {
+    int i;
+    for (i = 0; i < n; i++) {
+        h ^= v[i];
+        h *= 1099511628211ULL;
+    }
+    return h;
+}
+
+/* 枚举 <本 DLL 目录>\rules.d 下的 *.json，按**文件名升序**写入 out。
+ * 目录不存在 → 返回 0（不算错误，按"mod 没带范围规则"处理）。
+ * 超过 MAX_RULE_FILES 份 → 只保留排序后的前 MAX_RULE_FILES 份并返回负值（错误）。 */
+static int scan_rules_dir(DirRuleFile *out, int cap, uint64_t *fingerprint) {
+    wchar_t dir[MAX_PATH], pattern[MAX_PATH];
+    WIN32_FIND_DATAW fd;
+    HANDLE h;
+    int n = 0, sorted, i, overflow = 0;
+    uint64_t fold[1 + MAX_RULE_FILES * 3];
+    int fn = 0;
+
+    *fingerprint = 0;
+    rules_dir_path(dir, MAX_PATH);
+    _snwprintf(pattern, MAX_PATH, L"%s\\*.json", dir);
+    h = FindFirstFileW(pattern, &fd);
+    if (h == INVALID_HANDLE_VALUE) return 0; /* rules.d 不存在 / 没有 .json */
+    do {
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+        if (!wcs_ends_with_json(fd.cFileName)) continue;
+        if (n >= cap) { overflow = 1; continue; }
+        dir_entry_name(fd.cFileName, out[n].name, MAX_PATH);
+        out[n].size = ((uint64_t)fd.nFileSizeHigh << 32) | fd.nFileSizeLow;
+        out[n].lo = fd.ftLastWriteTime.dwLowDateTime;
+        out[n].hi = fd.ftLastWriteTime.dwHighDateTime;
+        n++;
+    } while (FindNextFileW(h, &fd));
+    FindClose(h);
+    /* 文件名升序 —— 这就是**跨文件优先级**（先遍历到的命中就赢） */
+    for (sorted = 0; !sorted;) {
+        sorted = 1;
+        for (i = 1; i < n; i++) {
+            if (_wcsicmp(out[i - 1].name, out[i].name) > 0) {
+                DirRuleFile t = out[i - 1];
+                out[i - 1] = out[i];
+                out[i] = t;
+                sorted = 0;
+            }
+        }
+    }
+    fold[fn++] = (uint64_t)n;
+    for (i = 0; i < n; i++) {
+        fold[fn++] = out[i].size;
+        fold[fn++] = ((uint64_t)out[i].hi << 32) | out[i].lo;
+        fold[fn++] = (uint64_t)out[i].name[0];
+    }
+    *fingerprint = dir_stat_fold(14695981039346656037ULL, fold, fn);
+    if (*fingerprint == 0) *fingerprint = 1; /* 0 保留给"目录不存在/空" */
+    return overflow ? -n : n;
+}
+
+/* 解析并并入 rules.d 里的每一份文件。
+ * **单个文件解析失败只跳过它自己**（记一条醒目日志），不影响其它文件、
+ * 也不会让整份配置失效 —— 这正是 mod 自带规则要的行为：mod 的 rules.d 里
+ * 塞了一份坏文件，玩家自己的 rules.json 仍要照常工作。
+ * 返回 0 = 越界（规则总数/文件数超上限）→ 调用方判整份配置不可用。 */
+static int load_rules_dir_files(RuleSet *set, const DirRuleFile *files, int count, int overflow) {
+    int i, loaded = 0, skipped = 0;
+    if (overflow > 0) {
+        logf_("rules.d 里的 .json 超过 %d 份 —— 只加载文件名升序的前 %d 份，其余忽略",
+              MAX_RULE_FILES, MAX_RULE_FILES);
+    }
+    for (i = 0; i < count; i++) {
+        wchar_t path[MAX_PATH];
+        char *text = NULL;
+        size_t len = 0;
+        int r;
+        RuleSet one;
+        char why[256];
+        rules_dir_path(path, MAX_PATH);
+        _snwprintf(path, MAX_PATH, L"%s\\rules.d\\%s", g_dir, files[i].name);
+        memset(&one, 0, sizeof(one));
+        r = read_text_file(path, &text, &len);
+        if (r == 0) {
+            skipped++;
+            logf_("  [跳过] rules.d\\%ls：读取时文件已消失", files[i].name);
+            continue;
+        }
+        if (r < 0) {
+            skipped++;
+            logf_("  [跳过] rules.d\\%ls：读取失败（文件过大或 I/O 错误）—— 只跳过这一份",
+                  files[i].name);
+            continue;
+        }
+        if (!parse_rules(text, len, &one, why, sizeof(why))) {
+            skipped++;
+            logf_("  [跳过] rules.d\\%ls：解析失败：%s —— **只跳过这一份**，其它规则文件照常",
+                  files[i].name, why);
+            free(text);
+            continue;
+        }
+        free(text);
+        {
+            char name8[128];
+            w2u(files[i].name, name8, sizeof(name8));
+            if (!add_rule_file(set, name8, &one)) {
+                ruleset_clear(&one);
+                logf_("rules.d 规则越界（总条数上限 %d / 文件数上限 %d）—— 整份配置判不可用",
+                      MAX_RULES, MAX_RULE_FILES);
+                return 0;
+            }
+            ruleset_clear(&one); /* one 是临时出参，并进 set 后立刻释放自己的数组 */
+        }
+        loaded++;
+    }
+    if (loaded > 0 || skipped > 0) {
+        logf_("rules.d：加载 %d 份、跳过 %d 份（升序优先级：先遍历到的文件命中就赢）", loaded,
+              skipped);
+    }
     return 1;
 }
 
-/* 读文件 → 解析 → 与生效配置比内容哈希；内容不同就替换。
+/* 读 rules.json + rules.d/*.json → 解析 → 与生效配置比**合并内容哈希**；不同就替换。
  * 返回 1 = 内容发生了变化（哪怕变化后不可用）。 */
 static int config_try(const FileState *st) {
     char *text = NULL;
     size_t len = 0;
-    uint64_t hash;
-    RuleSet set;
+    uint64_t hash = 0, dir_fp = 0;
+    RuleSet set, main_set;
     char why[256];
-    int r;
+    int r, dir_count, dir_overflow = 0, parser_failed = 0;
+    DirRuleFile dir_files[MAX_RULE_FILES];
 
     memset(&set, 0, sizeof(set));
+    memset(&main_set, 0, sizeof(main_set));
+    memset(dir_files, 0, sizeof(dir_files));
+    dir_count = scan_rules_dir(dir_files, MAX_RULE_FILES, &dir_fp);
+    if (dir_count < 0) {
+        dir_overflow = 1;
+        dir_count = -dir_count; /* 目录里的实际份数（超出的那些只记日志、不加载） */
+    }
+
     if (!st->exists) {
-        /* 没有文件：落一份默认（enabled=false），下次快照就能读到它 */
+        /* 没有 rules.json：落一份默认（enabled=false），下次快照就能读到它 */
         if (g_engine.hash != 0 || g_engine.fast_size != 0) {
-            /* 之前有、现在没了 */
-            g_engine.mtime_lo = g_engine.mtime_hi = 0;
-            g_engine.fast_size = 0;
+            /* 之前有、现在没了：与旧版逐字一致 —— set 清零、按不可用处理。
+             * rules.d 里的文件保持不动（但 set 已清零，所以它们也不再参与匹配）。 */
             g_engine.hash = 0;
-            g_engine.set.loaded = 0;
-            g_engine.set.enabled = 0;
-            g_engine.set.rule_count = 0;
+            g_engine.dir_fingerprint = dir_fp;
+            g_engine.rule_file_count = dir_count;
+            ruleset_clear(&g_engine.set);
             logf_("rules.json 已被删除 —— 按不可用处理（保持/恢复原版）");
             return 1;
         }
@@ -1434,53 +1763,77 @@ static int config_try(const FileState *st) {
         logf_("首次运行：已在本目录生成默认规则文件 rules.json（enabled=false，默认不加强）");
         return 0; /* 下一轮再读回来 */
     }
+
+    /* rules.json 的"读取失败 / 解析失败"保持旧语义：整份配置不可用。 */
     r = read_rules_file(&text, &len);
     if (r != 1) {
         logf_("rules.json 读取失败（文件过大或 I/O 错误）—— 按不可用处理");
-        g_engine.mtime_lo = st->lo;
-        g_engine.mtime_hi = st->hi;
-        g_engine.fast_size = st->size;
         g_engine.hash = 0;
-        g_engine.set.loaded = 0;
-        g_engine.set.enabled = 0;
-        g_engine.set.rule_count = 0;
+        g_engine.dir_fingerprint = dir_fp;
+        g_engine.rule_file_count = dir_count;
+        ruleset_clear(&g_engine.set);
         return 1;
     }
     hash = fnv1a((const unsigned char *)text, len, 14695981039346656037ULL);
     if (hash == 0) hash = 1; /* 0 保留给"文件不存在" */
-    if (hash == g_engine.hash && st->size == g_engine.fast_size) {
-        free(text); /* 内容没变（例如只是被 touch 了一下时间戳） */
-        g_engine.mtime_lo = st->lo;
-        g_engine.mtime_hi = st->hi;
-        return 0;
-    }
-    if (!parse_rules(text, len, &set, why, sizeof(why))) {
+    if (!parse_rules(text, len, &main_set, why, sizeof(why))) {
         logf_("rules.json 解析失败：%s —— 本插件停止接管", why);
+        parser_failed = 1;
     }
     free(text);
-    /* entry 表**不**清空 —— 改倍率时靠它保住 original/applied，防止复利 */
-    g_engine.set = set;
-    g_engine.mtime_lo = st->lo;
-    g_engine.mtime_hi = st->hi;
-    g_engine.fast_size = st->size;
+    /* 合并顺序 = 匹配优先级：**先 rules.d（文件名升序）**，最后才是 rules.json。
+     * 为什么这样定见 RuleSet 的注释（mod 自带的"更具体"规则必须赢过玩家的通用规则）。 */
+    if (!parser_failed && !load_rules_dir_files(&set, dir_files, dir_count, dir_overflow))
+        parser_failed = 1;
+    if (!parser_failed && !add_rule_file(&set, "rules.json", &main_set)) {
+        logf_("规则越界（总条数上限 %d / 文件数上限 %d）—— 按不可用处理", MAX_RULES,
+              MAX_RULE_FILES);
+        parser_failed = 1;
+    }
+    ruleset_clear(&main_set); /* 临时出参，规则已并进 set */
+    /* 先把"这一轮看到的是什么"落进状态，再判要不要替换生效配置：
+     * 解析失败时也不该每 200 ms 重读同一份坏文件（那会刷屏），
+     * 文件真的再被改动时目录指纹/内容哈希会变，自然会重试。
+     * entry 表**不**清空 —— 改倍率时靠它保住 original/applied，防止复利。 */
+    if (!parser_failed && hash == g_engine.hash && dir_fp == g_engine.dir_fingerprint &&
+        set.rule_file_count == g_engine.rule_file_count) {
+        ruleset_clear(&set); /* 内容没变（例如只是被 touch 了一下时间戳） */
+        return 0;
+    }
+    g_engine.dir_fingerprint = dir_fp;
     g_engine.hash = hash;
-    if (set.loaded) {
-        int i;
-        logf_("规则已加载：enabled=%d 共 %d 条（哈希 %#llx，%llu 字节）", set.enabled,
-              set.rule_count, (unsigned long long)hash, (unsigned long long)st->size);
-        for (i = 0; i < set.rule_count; i++) {
-            const Rule *rr = &set.rules[i];
-            logf_("  [%d] id=%s%s%s percent=%u (%u.%02u 倍) attackPercent=%u (%u.%02u 倍) "
-                  "副本数=%d %s",
-                  i, rr->id, rr->enabled ? "" : " [停用]", rr->all ? " [全部副本]" : "",
-                  rr->percent, rr->percent / 100, rr->percent % 100, rr->attack_percent,
-                  rr->attack_percent / 100, rr->attack_percent % 100, rr->id_count, rr->name);
+    if (parser_failed) {
+        ruleset_clear(&set);
+        g_engine.rule_file_count = 0;
+        ruleset_clear(&g_engine.set);
+        return 1; /* 按不可用处理；下一轮不会因为"时间戳变了"重读 */
+    }
+    ruleset_clear(&g_engine.set); /* 先释放上一份，再接管新的一份 */
+    g_engine.set = set;
+    g_engine.rule_file_count = set.rule_file_count;
+    {
+        int i, k;
+        logf_("规则已加载：共 %d 份文件、%d 条规则（rules.json 哈希 %#llx，%llu 字节；"
+              "rules.d 指纹 %#llx、%d 个 .json）",
+              set.rule_file_count, ruleset_total(&set), (unsigned long long)hash,
+              (unsigned long long)st->size, (unsigned long long)dir_fp, dir_count);
+        for (i = 0; i < set.rule_file_count; i++) {
+            const RuleFile *rf = &set.files[i];
+            logf_("  <%s> enabled=%d 共 %d 条", rf->name, rf->enabled, rf->rule_count);
+            for (k = 0; k < rf->rule_count; k++) {
+                const Rule *rr = rf_rule(rf, k);
+                logf_("    [%d] id=%s%s%s percent=%u (%u.%02u 倍) attackPercent=%u (%u.%02u 倍) "
+                      "副本数=%d %s",
+                      k, rr->id, rr->enabled ? "" : " [停用]", rr->all ? " [全部副本]" : "",
+                      rr->percent, rr->percent / 100, rr->percent % 100, rr->attack_percent,
+                      rr->attack_percent / 100, rr->attack_percent % 100, rr->id_count, rr->name);
+            }
         }
     }
     return 1;
 }
 
-static int config_usable(void) { return g_engine.set.loaded && g_engine.set.enabled; }
+static int config_usable(void) { return g_engine.set.rule_file_count > 0; }
 
 /* ================================================================== */
 /* 状态表：monster_runtime.go:303-348 的 Original/Applied/Percent      */
@@ -2080,6 +2433,9 @@ static void update_info(void) {
             "  \"rejectReason\": \"%s\",\n"
             "  \"dungeonId\": %s,\n"
             "  \"ruleId\": \"%s\",\n"
+            "  \"ruleFile\": \"%s\",\n"
+            "  \"ruleFiles\": %d,\n"
+            "  \"rules\": %d,\n"
             "  \"percent\": %u,\n"
             "  \"attackPercent\": %u,\n"
             "  \"monsters\": %d,\n"
@@ -2094,7 +2450,8 @@ static void update_info(void) {
             "}\n",
             (unsigned long)GetCurrentProcessId(), TICK_MS, g_ready ? "true" : "false",
             config_usable() ? "true" : "false", g_ready ? "" : "clientFingerprintMismatch", dungeon,
-            g_info.matched ? g_info.rule_id : "", (unsigned)g_info.percent,
+            g_info.matched ? g_info.rule_id : "", g_info.matched ? g_info.rule_file : "",
+            g_engine.set.rule_file_count, ruleset_total(&g_engine.set), (unsigned)g_info.percent,
             (unsigned)g_info.attack_percent, g_info.monsters, g_info.applied, g_info.failed,
             g_info.tracked, g_info.attack_applied, g_info.attack_failed, g_info.attack_tracked,
             g_info.restored ? "true" : "false", err);
@@ -2175,10 +2532,11 @@ static unsigned __stdcall worker(void *unused) {
         Sleep(TICK_MS);
         if (!g_ready) continue;
 
-        /* 1) 配置：时间戳/大小/哈希任一变化就重读（内容级检测，避免只改内容不改大小被漏掉） */
+        /* 1) 配置：rules.json 的时间戳/大小/哈希，或 rules.d 的目录指纹任一变化就重读
+         *    （内容级检测，避免只改内容不改大小被漏掉） */
         rules_file_state(&st);
         changed = 0;
-        if (!config_unchanged(&st)) {
+        if (file_state_changed(&st)) {
             changed = config_try(&st);
             if (changed) {
                 logf_("配置发生变化，重新评估");
@@ -2266,16 +2624,20 @@ static unsigned __stdcall worker(void *unused) {
                 }
                 g_info.matched = 0;
                 g_info.rule_id[0] = 0;
+                g_info.rule_file[0] = 0;
             } else {
                 if (rule_logged != 2 || strcmp(g_info.rule_id, rule->id) != 0 ||
                     g_info.percent != percent || g_info.attack_percent != attack_percent) {
-                    logf_("副本 %u 命中规则 %s（%s）→ 血量 %u.%02u 倍 / 伤害 %u.%02u 倍",
-                          sc.dungeon_id, rule->id, rule->name[0] ? rule->name : "-", percent / 100,
-                          percent % 100, attack_percent / 100, attack_percent % 100);
+                    logf_("副本 %u 命中规则 %s（%s，来自 %s）→ 血量 %u.%02u 倍 / 伤害 %u.%02u 倍",
+                          sc.dungeon_id, rule->id, rule->name[0] ? rule->name : "-",
+                          g_engine.set.matched_file[0] ? g_engine.set.matched_file : "?",
+                          percent / 100, percent % 100, attack_percent / 100, attack_percent % 100);
                     rule_logged = 2;
                 }
                 g_info.matched = 1;
                 snprintf(g_info.rule_id, sizeof(g_info.rule_id), "%s", rule->id);
+                snprintf(g_info.rule_file, sizeof(g_info.rule_file), "%s",
+                         g_engine.set.matched_file);
             }
             g_info.percent = percent;
             g_info.attack_percent = attack_percent;

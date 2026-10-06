@@ -216,15 +216,15 @@ static void test_rules_json(void) {
     /* 默认生成的那份内容必须能被自己的解析器解析 */
     CHECK(parse_rules(kDefaultRules, sizeof(kDefaultRules) - 1, &set, why, sizeof(why)),
           "内置默认规则可解析");
-    CHECK_EQ_I64(set.loaded, 1, "loaded");
-    CHECK_EQ_I64(set.enabled, 0, "默认 enabled = false（不偷偷加强）");
-    CHECK_EQ_I64(set.rule_count, 2, "默认 2 条规则");
-    CHECK_EQ_I64(set.rules[0].enabled, 0, "示例规则 1 停用");
-    CHECK_EQ_I64(set.rules[0].percent, 1000, "示例规则 1 percent=1000");
-    CHECK_EQ_I64(set.rules[0].id_count, 1, "示例规则 1 有 1 个副本 id");
-    CHECK_EQ_U64(set.rules[0].ids[0], 100005014, "示例规则 1 副本 id");
-    CHECK_EQ_I64(set.rules[1].all, 1, "示例规则 2 all=true");
-    CHECK_EQ_I64(set.rules[1].percent, 200, "示例规则 2 percent=200");
+    CHECK_EQ_I64(PARSED_RULE_COUNT(set) > 0, 1, "解析成功（单文件）");
+    CHECK_EQ_I64(PARSED_ENABLED(set), 0, "默认 enabled = false（不偷偷加强）");
+    CHECK_EQ_I64(PARSED_RULE_COUNT(set), 2, "默认 2 条规则");
+    CHECK_EQ_I64(PARSED_RULES(set)[0].enabled, 0, "示例规则 1 停用");
+    CHECK_EQ_I64(PARSED_RULES(set)[0].percent, 1000, "示例规则 1 percent=1000");
+    CHECK_EQ_I64(PARSED_RULES(set)[0].id_count, 1, "示例规则 1 有 1 个副本 id");
+    CHECK_EQ_U64(PARSED_RULES(set)[0].ids[0], 100005014, "示例规则 1 副本 id");
+    CHECK_EQ_I64(PARSED_RULES(set)[1].all, 1, "示例规则 2 all=true");
+    CHECK_EQ_I64(PARSED_RULES(set)[1].percent, 200, "示例规则 2 percent=200");
 
     /* 字符串形式的 id、多余空白、未知键 */
     {
@@ -232,18 +232,18 @@ static void test_rules_json(void) {
                         "\"rules\":[{\"id\":\"a\",\"enabled\":true,\"dungeonIds\":[\"100005014\",2],"
                         "\"percent\":500}]}";
         CHECK(parse_rules(t, strlen(t), &set, why, sizeof(why)), "字符串 id + 未知嵌套键可解析");
-        CHECK_EQ_I64(set.enabled, 1, "enabled=true");
-        CHECK_EQ_I64(set.rules[0].id_count, 2, "字符串与数字混写的 id 数组");
-        CHECK_EQ_U64(set.rules[0].ids[0], 100005014, "字符串 id 转数字");
-        CHECK_EQ_U64(set.rules[0].ids[1], 2, "数字 id");
-        CHECK_EQ_I64(set.rules[0].percent, 500, "percent=500");
+        CHECK_EQ_I64(PARSED_ENABLED(set), 1, "enabled=true");
+        CHECK_EQ_I64(PARSED_RULES(set)[0].id_count, 2, "字符串与数字混写的 id 数组");
+        CHECK_EQ_U64(PARSED_RULES(set)[0].ids[0], 100005014, "字符串 id 转数字");
+        CHECK_EQ_U64(PARSED_RULES(set)[0].ids[1], 2, "数字 id");
+        CHECK_EQ_I64(PARSED_RULES(set)[0].percent, 500, "percent=500");
     }
     /* all:true 不需要 dungeonIds */
     {
         const char *t = "{\"schema\":1,\"enabled\":true,\"rules\":[{\"id\":\"w\",\"enabled\":true,"
                         "\"all\":true,\"percent\":150}]}";
         CHECK(parse_rules(t, strlen(t), &set, why, sizeof(why)), "all:true 可解析");
-        CHECK_EQ_I64(set.rules[0].all, 1, "all=1");
+        CHECK_EQ_I64(PARSED_RULES(set)[0].all, 1, "all=1");
     }
     /* 拒绝：schema 不对 / 缺键 / 语法错 / 空规则范围 / percent 越界 / 规则太多 */
     {
@@ -283,7 +283,7 @@ static void test_rules_json(void) {
     {
         const char *t = "{\"schema\":1,\"enabled\":true,\"rules\":[{\"all\":true,\"percent\":200}]}";
         CHECK(parse_rules(t, strlen(t), &set, why, sizeof(why)), "省略 enabled 的规则可解析");
-        CHECK_EQ_I64(set.rules[0].enabled, 0, "省略 enabled → 默认停用");
+        CHECK_EQ_I64(PARSED_RULES(set)[0].enabled, 0, "省略 enabled → 默认停用");
         memset(&g_engine.set, 0, sizeof(g_engine.set));
         g_engine.set = set;
         CHECK(match_rule(1, 1) == NULL, "省略 enabled 的 all 规则不命中（默认不加强）");
@@ -301,6 +301,259 @@ static void test_rules_json(void) {
         CHECK(!parse_rules(big, strlen(big), &set, why, sizeof(why)), "33 条规则 → 拒绝（上限 32）");
     }
 }
+
+
+/* ================================================================== */
+/* rules.d 多文件加载：合并顺序 = 匹配优先级、坏文件只跳过它自己、         */
+/* 目录不存在时与旧版行为一致。                                          */
+/* ================================================================== */
+#include <direct.h>
+#include <sys/stat.h>
+
+#define TMP_ROOT L"selftest-tmp"
+#define TMP_RULESDIR TMP_ROOT L"\\rules.d"
+
+static void tmp_write_rulesdir(const wchar_t *name, const char *text) {
+    wchar_t path[MAX_PATH];
+    FILE *f;
+    _snwprintf(path, MAX_PATH, L"%s\\%s", TMP_RULESDIR, name);
+    f = _wfopen(path, L"wb");
+    if (!f) {
+        g_fail++;
+        printf("  [FAIL] 写不出 %ls\n", path);
+        return;
+    }
+    fwrite(text, 1, strlen(text), f);
+    fclose(f);
+}
+
+/* 按 scan_rules_dir 的结果加载 rules.d（与 config_try 同一套调用顺序）。
+ * 返回：0 = 目录不存在/没有 .json（不算错误）；1 = 已并入 set。 */
+static int selftest_load_rules_dir(RuleSet *set) {
+    DirRuleFile files[MAX_RULE_FILES];
+    uint64_t fp = 0;
+    int n;
+    n = scan_rules_dir(files, MAX_RULE_FILES, &fp);
+    if (n <= 0) return 0;
+    return load_rules_dir_files(set, files, n, 0);
+}
+
+static void tmp_setup(void) {
+    _wrmdir(TMP_RULESDIR);
+    _wrmdir(TMP_ROOT);
+    _wmkdir(TMP_ROOT);
+    _wmkdir(TMP_RULESDIR);
+}
+
+static void tmp_teardown(void) {
+    const wchar_t *names[] = {L"a-mod.json", L"b-user.json", L"c-broken.json", L"z-last.json",
+                              L"cap-ok.json", L"cap-bad.json"};
+    int i;
+    for (i = 0; i < 6; i++) {
+        wchar_t p[MAX_PATH];
+        _snwprintf(p, MAX_PATH, L"%s\\%s", TMP_RULESDIR, names[i]);
+        _wremove(p);
+    }
+    _wrmdir(TMP_RULESDIR);
+    _wrmdir(TMP_ROOT);
+}
+
+/* 把 g_dir 指到 TMP_ROOT，于是规则路径 = TMP_ROOT\rules.d\*.json / TMP_ROOT\rules.json */
+#define WITH_TMP_DIR_BEGIN()                                                     \
+    {                                                                            \
+        wchar_t saved_dir[MAX_PATH];                                             \
+        wcscpy_s(saved_dir, MAX_PATH, g_dir);                                    \
+        wcscpy_s(g_dir, MAX_PATH, TMP_ROOT);
+
+#define WITH_TMP_DIR_END()                                                       \
+    wcscpy_s(g_dir, MAX_PATH, saved_dir);                                        \
+    }
+
+static void test_rules_dir_multi(void) {
+    char why[256];
+    const char *user_all =
+        "{\"schema\":1,\"enabled\":true,\"rules\":["
+        "{\"id\":\"user-all\",\"enabled\":true,\"all\":true,\"percent\":200}]}";
+    const char *mod_odyssey =
+        "{\"schema\":1,\"enabled\":true,\"rules\":["
+        "{\"id\":\"mod-odyssey\",\"enabled\":true,\"dungeonIds\":[100004934,100004990],"
+        "\"percent\":1000,\"attackPercent\":1000}]}";
+
+    printf("\n-- rules.d 多文件加载（优先级 / 坏文件隔离 / 目录缺失）\n");
+    tmp_setup();
+    WITH_TMP_DIR_BEGIN();
+
+    /* 1) rules.d 不存在：跳过，不动 set，也不算错误（与旧版逐字节一致） */
+    {
+        RuleSet set;
+        _wrmdir(TMP_RULESDIR);
+        memset(&set, 0, sizeof(set));
+        CHECK_EQ_I64(selftest_load_rules_dir(&set), 0, "rules.d 不存在 → 跳过（不算错误）");
+        CHECK_EQ_I64(set.rule_file_count, 0, "rules.d 不存在 → 规则文件数仍为 0");
+        CHECK(config_usable() == 0, "set 为空 → 配置不可用（与旧版同义）");
+        _wmkdir(TMP_RULESDIR);
+    }
+
+    /* 2) 目录存在但一个 .json 都没有：同样跳过 */
+    {
+        RuleSet set;
+        memset(&set, 0, sizeof(set));
+        CHECK_EQ_I64(selftest_load_rules_dir(&set), 0, "rules.d 为空目录 → 跳过");
+        CHECK_EQ_I64(set.rule_file_count, 0, "空目录 → 0 份文件");
+    }
+
+    /* 3) 文件名升序 = 跨文件优先级；mod 自带规则赢过玩家的 all 规则 */
+    tmp_write_rulesdir(L"b-user.json", user_all);
+    tmp_write_rulesdir(L"a-mod.json", mod_odyssey);
+    {
+        RuleSet set, main_set;
+        const char *main_json =
+            "{\"schema\":1,\"enabled\":true,\"rules\":["
+            "{\"id\":\"user-main\",\"enabled\":true,\"all\":true,\"percent\":300}]}";
+        memset(&set, 0, sizeof(set));
+        memset(&main_set, 0, sizeof(main_set));
+        CHECK_EQ_I64(selftest_load_rules_dir(&set), 1, "rules.d 两份文件加载成功");
+        CHECK_EQ_I64(set.rule_file_count, 2, "合并后 2 份文件");
+        CHECK(strcmp(set.files[0].name, "a-mod.json") == 0, "文件顺序 = 文件名升序（a-mod 先）");
+        CHECK(strcmp(set.files[1].name, "b-user.json") == 0, "b-user 在后（优先级更低）");
+        CHECK(parse_rules(main_json, strlen(main_json), &main_set, why, sizeof(why)),
+              "玩家 rules.json 可解析");
+        CHECK_EQ_I64(add_rule_file(&set, "rules.json", &main_set), 1, "rules.json 排最后并入");
+        g_engine.set = set;
+        {
+            const Rule *r = match_rule(100004934, 1);
+            CHECK(r != NULL && strcmp(r->id, "mod-odyssey") == 0,
+                  "奥德赛副本 100004934 → **mod 自带规则赢**（×10）");
+            CHECK(strcmp(g_engine.set.matched_file, "a-mod.json") == 0,
+                  "matched_file = a-mod.json（来源可追溯）");
+            r = match_rule(100004990, 1);
+            CHECK(r != NULL && strcmp(r->id, "mod-odyssey") == 0, "另一个奥德赛副本 → 同一份规则");
+            r = match_rule(12345, 1);
+            CHECK(r != NULL && strcmp(r->id, "user-all") == 0 && r->percent == 200,
+                  "普通副本 → 落到 b-user.json 的通用规则（×2），mod 规则不越界");
+        }
+        /* 优先级反证：把 mod 规则放到"名字更靠后"的文件里，就该轮到它前面的赢 */
+        tmp_write_rulesdir(L"a-mod.json", user_all);
+        tmp_write_rulesdir(L"z-last.json", mod_odyssey);
+        {
+            RuleSet s2;
+            memset(&s2, 0, sizeof(s2));
+            selftest_load_rules_dir(&s2);
+            g_engine.set = s2;
+            {
+                const Rule *r = match_rule(100004934, 1);
+                CHECK(r != NULL && strcmp(r->id, "user-all") == 0,
+                      "把 mod 规则挪到 z-last.json → 前面的 a-mod.json 先命中（证明排序真的生效）");
+            }
+        }
+        _wremove(TMP_RULESDIR L"\\z-last.json");
+        tmp_write_rulesdir(L"a-mod.json", mod_odyssey);
+    }
+
+    /* 4) 坏文件只跳过它自己：另两份好文件照常生效 */
+    tmp_write_rulesdir(L"c-broken.json", "{\"schema\":1,\"enabled\":true,\"rules\":[{\"id\":\"x\",");
+    {
+        RuleSet set;
+        memset(&set, 0, sizeof(set));
+        CHECK_EQ_I64(selftest_load_rules_dir(&set), 1,
+                     "含 1 份坏文件 → rules.d 仍算加载成功（**只跳过那一份**，不让整份失效）");
+        CHECK_EQ_I64(set.rule_file_count, 2, "坏文件不计入 → 仍是 2 份（a-mod / b-user）");
+        CHECK(strcmp(set.files[0].name, "a-mod.json") == 0, "坏文件不影响好文件的顺序");
+        g_engine.set = set;
+        {
+            const Rule *r = match_rule(100004934, 1);
+            CHECK(r != NULL && strcmp(r->id, "mod-odyssey") == 0, "坏文件里的规则一条都没混进来");
+        }
+    }
+    /* 顺带：玩家 rules.json 坏掉仍然是**整份不可用**（旧语义不变）——
+     * 这里用 parse_rules 的返回值代表 config_try 里那条分支。 */
+    {
+        RuleSet bad_set;
+        const char *bad_json = "{\"schema\":1,\"enabled\":true,";
+        memset(&bad_set, 0, sizeof(bad_set));
+        why[0] = 0;
+        CHECK(!parse_rules(bad_json, strlen(bad_json), &bad_set, why, sizeof(why)),
+              "rules.json 坏掉 -> parse_rules 失败（config_try 里对应整份不可用分支）");
+    }
+
+    /* 5) rules.d 里全是坏文件 → 0 份生效（= 配置不可用），但不报"加载失败" */
+    tmp_write_rulesdir(L"a-mod.json", "{ 不是 JSON");
+    tmp_write_rulesdir(L"b-user.json", "[\"顶层是数组\"]");
+    {
+        RuleSet set;
+        memset(&set, 0, sizeof(set));
+        CHECK_EQ_I64(selftest_load_rules_dir(&set), 1, "全坏也返回 1（不把整份配置判死）");
+        CHECK_EQ_I64(set.rule_file_count, 0, "全坏 → 0 份生效文件");
+        g_engine.set = set;
+        CHECK(match_rule(100004934, 1) == NULL, "全坏 → 不命中任何规则（保持原版）");
+        CHECK(config_usable() == 0, "全坏 → 配置不可用（还原并停止接管）");
+    }
+
+    /* 6) 只有 rules.d、没有 rules.json 时，set 非空 ⇒ 可用 */
+    tmp_write_rulesdir(L"a-mod.json", mod_odyssey);
+    _wremove(TMP_RULESDIR L"\\b-user.json");
+    _wremove(TMP_RULESDIR L"\\c-broken.json");
+    {
+        RuleSet set;
+        memset(&set, 0, sizeof(set));
+        CHECK_EQ_I64(selftest_load_rules_dir(&set), 1, "只装 mod 规则（无 rules.json）时加载成功");
+        g_engine.set = set;
+        CHECK(config_usable() == 1, "只有 rules.d 的规则也能用（rules.json 缺失时由 config_try 处理）");
+        g_engine.set = set;
+        {
+            const Rule *r = match_rule(100004934, 1);
+            CHECK(r != NULL && r->percent == 1000, "奥德赛副本 → ×10");
+            r = match_rule(12345, 1);
+            CHECK(r == NULL, "普通副本 → 没有规则（原版，不受影响）");
+        }
+    }
+
+    /* 7) 文件顶层 enabled=false → 整份不参与（mod 想临时关掉自己的范围规则） */
+    {
+        RuleSet set, mod_off, user_set;
+        const char *mod_off_json =
+            "{\"schema\":1,\"enabled\":false,\"rules\":["
+            "{\"id\":\"odyssey-10x\",\"enabled\":true,\"all\":true,\"percent\":1000}]}";
+        memset(&set, 0, sizeof(set));
+        memset(&mod_off, 0, sizeof(mod_off));
+        memset(&user_set, 0, sizeof(user_set));
+        CHECK(parse_rules(mod_off_json, strlen(mod_off_json), &mod_off, why, sizeof(why)),
+              "停用文件可解析");
+        CHECK(parse_rules(user_all, strlen(user_all), &user_set, why, sizeof(why)),
+              "玩家规则可解析");
+        add_rule_file(&set, "odyssey.hardcore.json", &mod_off);
+        add_rule_file(&set, "rules.json", &user_set);
+        g_engine.set = set;
+        {
+            const Rule *r = match_rule(100004934, 1);
+            CHECK(r != NULL && strcmp(r->id, "user-all") == 0,
+                  "mod 文件顶层 enabled=false → 整份跳过，落到玩家规则");
+        }
+    }
+
+    /* 8) 规则总条数上限（跨文件共享 32 条池） */
+    {
+        RuleSet set, one;
+        char big[8192];
+        int i, k = 0;
+        memset(&set, 0, sizeof(set));
+        memset(&one, 0, sizeof(one));
+        k += _snprintf_s(big + k, sizeof(big) - k, _TRUNCATE,
+                         "{\"schema\":1,\"enabled\":true,\"rules\":[");
+        for (i = 0; i < 32; i++)
+            k += _snprintf_s(big + k, sizeof(big) - k, _TRUNCATE,
+                             "%s{\"id\":\"r%d\",\"enabled\":false}", i ? "," : "", i);
+        _snprintf_s(big + k, sizeof(big) - k, _TRUNCATE, "]}");
+        CHECK(parse_rules(big, strlen(big), &one, why, sizeof(why)), "32 条可解析");
+        CHECK_EQ_I64(add_rule_file(&set, "a.json", &one), 1, "第一份 32 条可并入");
+        CHECK_EQ_I64(add_rule_file(&set, "b.json", &one), 0, "再加 32 条 → 超过 32 条上限，拒绝");
+    }
+
+    memset(&g_engine.set, 0, sizeof(g_engine.set));
+    WITH_TMP_DIR_END();
+    tmp_teardown();
+}
+
 
 static void test_rule_match(void) {
     printf("\n-- 规则匹配（第一条命中生效）\n");
@@ -321,9 +574,9 @@ static void test_rule_match(void) {
         CHECK(r != NULL && strcmp(r->id, "all") == 0, "其它副本 → all 规则（150）");
     }
     /* 顶层 enabled=false → 不命中任何规则 */
-    g_engine.set.enabled = 0;
+    g_engine.set.files[0].enabled = 0;
     CHECK(match_rule(100, 1) == NULL, "顶层 enabled=false → 全部保持原版");
-    g_engine.set.enabled = 1;
+    g_engine.set.files[0].enabled = 1;
     /* all 规则优先时，dungeonIds 命中也走 all */
     {
         const char *t2 = "{\"schema\":1,\"enabled\":true,\"rules\":["
@@ -402,8 +655,8 @@ static void test_attack_percent_json(void) {
         const char *t = "{\"schema\":1,\"enabled\":true,\"rules\":["
                         "{\"id\":\"old\",\"enabled\":true,\"all\":true,\"percent\":1000}]}";
         CHECK(parse_rules(t, strlen(t), &set, why, sizeof(why)), "老规则（无 attackPercent）可解析");
-        CHECK_EQ_I64(set.rules[0].percent, 1000, "percent 照旧");
-        CHECK_EQ_I64(set.rules[0].attack_percent, 100, "attackPercent 省略 → 默认 100（不改）");
+        CHECK_EQ_I64(PARSED_RULES(set)[0].percent, 1000, "percent 照旧");
+        CHECK_EQ_I64(PARSED_RULES(set)[0].attack_percent, 100, "attackPercent 省略 → 默认 100（不改）");
     }
     /* 任务书示例 */
     {
@@ -411,8 +664,8 @@ static void test_attack_percent_json(void) {
                         "{\"id\":\"all-10x\",\"enabled\":true,\"all\":true,\"dungeonIds\":[],"
                         "\"percent\":1000,\"attackPercent\":1000}]}";
         CHECK(parse_rules(t, strlen(t), &set, why, sizeof(why)), "示例规则可解析");
-        CHECK_EQ_I64(set.rules[0].percent, 1000, "percent=1000");
-        CHECK_EQ_I64(set.rules[0].attack_percent, 1000, "attackPercent=1000");
+        CHECK_EQ_I64(PARSED_RULES(set)[0].percent, 1000, "percent=1000");
+        CHECK_EQ_I64(PARSED_RULES(set)[0].attack_percent, 1000, "attackPercent=1000");
     }
     /* 边界：1 / 100000 通过；0 / 100001 / 负数 拒绝，且整份配置不可用（不"用一半"） */
     {
@@ -454,8 +707,8 @@ static void test_attack_percent_json(void) {
     {
         CHECK(parse_rules(kDefaultRules, sizeof(kDefaultRules) - 1, &set, why, sizeof(why)),
               "内置默认规则（含 attackPercent）可解析");
-        CHECK_EQ_I64(set.rules[0].attack_percent, 100, "示例 1 attackPercent=100");
-        CHECK_EQ_I64(set.rules[1].attack_percent, 1000, "示例 2 attackPercent=1000");
+        CHECK_EQ_I64(PARSED_RULES(set)[0].attack_percent, 100, "示例 1 attackPercent=100");
+        CHECK_EQ_I64(PARSED_RULES(set)[1].attack_percent, 1000, "示例 2 attackPercent=1000");
     }
 }
 
@@ -799,6 +1052,106 @@ static void test_status_json(void) {
     g_info = saved_info;
 }
 
+/* ================================================================== */
+/* 单条规则的 dungeonIds 容量：256 项通过、257 项整流拒绝（不用一半）      */
+/* ================================================================== */
+
+/* 造一份"单条规则带 n 个副本 id"的 rules 文本（id 依次 1..n）。返回写入长度。 */
+static int build_rule_with_ids(char *buf, size_t cap, int n, unsigned percent) {
+    int i, w = 0;
+    w += _snprintf_s(buf + w, cap - (size_t)w, _TRUNCATE,
+                     "{\"schema\":1,\"enabled\":true,\"rules\":[{\"id\":\"cap\",\"enabled\":true,"
+                     "\"dungeonIds\":[");
+    for (i = 0; i < n; i++)
+        w += _snprintf_s(buf + w, cap - (size_t)w, _TRUNCATE, "%s%u", i ? "," : "",
+                         (unsigned)(i + 1));
+    w += _snprintf_s(buf + w, cap - (size_t)w, _TRUNCATE, "],\"percent\":%u}]}", percent);
+    return w;
+}
+
+static void test_rule_ids_capacity(void) {
+    char why[256];
+    char *buf = (char *)malloc(1u << 16);
+
+    printf("\n-- 单条规则的 dungeonIds 容量（MAX_RULE_IDS=%d）\n", MAX_RULE_IDS);
+    if (!buf) {
+        g_fail++;
+        printf("  [FAIL] 造不出测试缓冲\n");
+        return;
+    }
+
+    /* 0) 内存实测：容量由**堆**数组承载，RuleSet 本身仍很小（进栈安全）。
+     *    这条断言是给"抬容量会不会再把栈撑爆"兜底的 —— 旧版把 Rule 内嵌进 RuleSet 时
+     *    工作线程栈直接 0xC00000FD。 */
+    {
+        size_t rule_sz = sizeof(Rule), file_sz = sizeof(RuleFile), set_sz = sizeof(RuleSet);
+        size_t worst_heap = (size_t)MAX_RULE_FILES * MAX_RULES * rule_sz;
+        printf("  [info] sizeof(Rule)=%lluB sizeof(RuleFile)=%lluB sizeof(RuleSet)=%lluB "
+               "最坏堆=%lluB（%d 份 × %d 条 × Rule）\n",
+               (unsigned long long)rule_sz, (unsigned long long)file_sz,
+               (unsigned long long)set_sz, (unsigned long long)worst_heap, MAX_RULE_FILES,
+               MAX_RULES);
+        CHECK(set_sz < 8u * 1024u, "RuleSet 仍是几 KiB（抬容量不改栈占用）");
+        CHECK(set_sz < rule_sz * MAX_RULES,
+              "RuleSet 不内嵌 Rule 数组（只存指针）—— 内嵌就是几十 KiB 的栈对象");
+    }
+
+    /* 1) 刚好 256 项：通过，且 256 项一个不少、顺序不变 */
+    {
+        RuleSet set;
+        int n = build_rule_with_ids(buf, 1u << 16, MAX_RULE_IDS, 1000);
+        memset(&set, 0, sizeof(set));
+        CHECK(parse_rules(buf, (size_t)n, &set, why, sizeof(why)), "256 个 dungeonIds → 通过");
+        CHECK_EQ_I64(PARSED_RULES(set)[0].id_count, MAX_RULE_IDS, "id_count = 256");
+        CHECK_EQ_I64(PARSED_RULES(set)[0].id_overflow, 0, "没有越界标记");
+        CHECK_EQ_U64(PARSED_RULES(set)[0].ids[0], 1, "第一个 id 保留");
+        CHECK_EQ_U64(PARSED_RULES(set)[0].ids[MAX_RULE_IDS - 1], (unsigned)MAX_RULE_IDS,
+                     "最后一个 id 保留（没被截断到前 64 项）");
+        ruleset_clear(&set);
+    }
+
+    /* 2) 257 项：**整流拒绝**，绝不"只取前 256 项"。 */
+    {
+        RuleSet set;
+        int n = build_rule_with_ids(buf, 1u << 16, MAX_RULE_IDS + 1, 1000);
+        memset(&set, 0, sizeof(set));
+        CHECK(!parse_rules(buf, (size_t)n, &set, why, sizeof(why)),
+              "257 个 dungeonIds → 拒绝（上限 256）");
+        printf("  [info] 拒绝原因：%s\n", why);
+        CHECK(strstr(why, "dungeonIds") != NULL, "拒绝原因点名单条规则的容量");
+        ruleset_clear(&set);
+    }
+
+    /* 3) 端到端（rules.d）：超容那份**整份不可用**（一个 id 都不进 set），
+     *    同目录里另一份好文件照常生效 —— 证明"不用一半"，也证明坏文件只跳过自己。 */
+    {
+        RuleSet set;
+        int n_bad = build_rule_with_ids(buf, 1u << 16, MAX_RULE_IDS + 1, 1000);
+        char *good = (char *)malloc(512);
+        tmp_setup();
+        WITH_TMP_DIR_BEGIN();
+        tmp_write_rulesdir(L"cap-bad.json", buf);
+        CHECK(n_bad > 0, "超容文件已写出");
+        if (good) {
+            _snprintf_s(good, 512, _TRUNCATE,
+                        "{\"schema\":1,\"enabled\":true,\"rules\":[{\"id\":\"cap-ok\","
+                        "\"enabled\":true,\"dungeonIds\":[100004934],\"percent\":1000}]}");
+            tmp_write_rulesdir(L"cap-ok.json", good);
+            free(good);
+        }
+        memset(&set, 0, sizeof(set));
+        CHECK_EQ_I64(selftest_load_rules_dir(&set), 1, "rules.d 加载成功（坏文件只跳过自己）");
+        CHECK_EQ_I64(set.rule_file_count, 1, "超容那份整份不可用：只有 1 份文件进 set");
+        CHECK(set.rule_file_count == 1 && strcmp(set.files[0].name, "cap-ok.json") == 0,
+              "进 set 的是 cap-ok.json（超容的 cap-bad.json 一个 id 都没生效）");
+        ruleset_clear(&set);
+        tmp_teardown();
+        WITH_TMP_DIR_END();
+    }
+
+    free(buf);
+}
+
 int main(void) {
     printf("DifficultyRules 纯逻辑自测（不启动游戏、不读写客户端内存）\n");
     test_attr_crypto();
@@ -810,6 +1163,8 @@ int main(void) {
     test_rules_json();
     test_attack_percent_json();
     test_rule_match();
+    test_rules_dir_multi();
+    test_rule_ids_capacity();
     test_fake_memory_apply();
     test_status_json();
     printf("\n结果：通过 %d，失败 %d\n", g_pass, g_fail);

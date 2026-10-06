@@ -12,7 +12,6 @@ import (
 	"io/fs"
 	"log"
 	"math"
-	"path/filepath"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -63,16 +62,45 @@ func buildRewardService(store *database.Store, awarder *inventory.Awarder, skinU
 	return service
 }
 
-// rewardScriptFS 把内嵌规则集与 mod 规则脚本合成一个只读 fs.FS。
+// rewardScriptFS 把"磁盘/mod 规则脚本"与"内置规则集"合成一个只读 fs.FS。
 //
-// 落盘补充口：<服务端模块>/mods/scripts/*.lua —— 不想重编译就能加一条规则时用。
-// 同名时磁盘优先（便于就地覆盖调试）。
+// 优先级（2026-10-07 定）：**同名时磁盘/mod 脚本胜出，内置规则集退化为兜底**。
+// 口径是"发不发、发什么由 mod/脚本决定"：玩家或 mod 把自己那份命名成 newchar.lua，
+// 就是**覆盖内置规则**；内置那份只在该名字磁盘上没有时才生效。
+// 文档口径见 mods/MOD-DEVELOPMENT.md §4.5.4、mods/MOD-MANAGER-INTEGRATION.md
+// （"同名时磁盘优先"），这里把实现对齐到文档。
+//
+// 落盘补充口（按 rewardScriptsDirs 的顺序，先给者胜；DFO_REWARD_SCRIPTS_DIR 最先）：
+//
+//	<启动器注入 DFO_REWARD_SCRIPTS_DIR>
+//	<包根>/mods/            正式位置：mod 库根，平铺 *.lua
+//	<包根>/mods/scripts/    2026-10-06 过渡位置
+//	<模块根>/mods/scripts/  最早的位置
 func rewardScriptFS() fs.FS {
 	bundled := reward.BundledScripts()
+	// Lua 规则脚本的搜索目录：包根 `<包根>/mods/scripts`（与其它 mod 同级，业主 2026-10-06 口径）
+	// 优先，模块内 `<模块根>/mods/scripts` 兼容；启动器可用 DFO_REWARD_SCRIPTS_DIR 显式指定。
+	// 多个目录合成一个视图：奖励管线按文件名去重，同名只执行先命中的那份。
+	dirs := rewardScriptsDirs()
+	layers := make([]scriptLayer, 0, len(dirs))
+	onDisk := []fs.FS{}
+	for _, dir := range dirs {
+		fsys := servermod.NewRewardScriptFS(dir)
+		layers = append(layers, scriptLayer{dir: dir, fsys: fsys})
+		onDisk = append(onDisk, fsys)
+	}
+	if len(onDisk) == 0 {
+		log.Printf("reward scripts: 没有找到规则脚本目录（期望 %s）；本次只加载内嵌规则集", firstRewardScriptsDir())
+	} else {
+		log.Printf("reward scripts: 磁盘规则脚本目录 %v（奖励管线按文件名去重，同名以先者为准）", dirs)
+	}
 	if bundled == nil {
-		// 内嵌规则集拿不到（二进制异常）：退回只读 mod 脚本，至少不让启动崩。
-		log.Printf("warning: 内嵌奖励规则集不可用，只加载 mod 规则脚本")
-		return servermod.NewRewardScriptFS(filepath.Join(serverModsDir(), "scripts"))
+		// 内嵌规则集拿不到（二进制异常）：退回只读磁盘脚本，至少不让启动崩。
+		log.Printf("warning: 内嵌奖励规则集不可用，只加载磁盘规则脚本")
+		if len(onDisk) == 0 {
+			return servermod.NewRewardScriptFS(firstRewardScriptsDir())
+		}
+		return foldScriptFS(onDisk)
 	}
 	// 注意 second 是**视图**不是快照：构造之后登记的 mod 脚本依然可见
 	// （见 internal/servermod.modScriptFS 的注释）。这里的份数只用于诊断。
@@ -80,13 +108,95 @@ func rewardScriptFS() fs.FS {
 		log.Printf("servermod: 构造奖励规则视图时暂无 mod 脚本（若随后 mod 才登记，" +
 			"视图仍会看到它们；若始终为 0 请检查 mods.RegisterMods() 的调用时机）")
 	}
-	return &compositeScriptFS{
-		first:  bundled,
-		second: servermod.NewRewardScriptFS(filepath.Join(serverModsDir(), "scripts")),
+	if len(onDisk) == 0 {
+		// 一个目录都不存在时，仍把"正式位置"当一层（空）视图挂上：视图不是快照，
+		// 之后落进这个目录的脚本照样会被看到 —— 与旧行为一致，只是这层现在是空的。
+		dir := firstRewardScriptsDir()
+		fsys := servermod.NewRewardScriptFS(dir)
+		layers = append(layers, scriptLayer{dir: dir, fsys: fsys})
+		onDisk = append(onDisk, fsys)
+	}
+	// 把"磁盘覆盖内置"打成日志：覆盖是静默生效的，不点名就只能靠猜。
+	logDiskScriptOverrides(bundled, layers)
+	// **磁盘放 first、内置放 second** —— 这一行就是"磁盘优先"的全部实现。
+	//
+	// 为什么不反过来改 Open/ReadDir 让 second 优先：compositeScriptFS 的契约是"first 胜出"，
+	// 而 foldScriptFS 正是**靠这个契约**表达"多目录里先给的目录胜出"（要求：多目录顺序不变）。
+	// 把契约翻成 second 优先会连它一起反掉。放对层，Open 与 ReadDir 就天然一致：
+	// 两者都按同一契约先看 first（磁盘），所以同名"列出来的"与"读到的"永远是同一份磁盘文件，
+	// 不会出现"列出内置的、读的是磁盘的"这种自相矛盾；内置集只补磁盘没有的名字。
+	return &compositeScriptFS{first: foldScriptFS(onDisk), second: bundled}
+}
+
+// scriptLayer 是一层磁盘规则脚本目录：带来源路径，覆盖日志要点名"哪一份来自哪里"。
+type scriptLayer struct {
+	dir  string
+	fsys fs.FS
+}
+
+// logDiskScriptOverrides 打出"磁盘脚本盖住了哪些内置规则"（文件名 + 来源目录）。
+//
+// 为什么专门记这条：覆盖是**静默**生效的（同名文件落在磁盘上就直接顶掉内置规则），
+// 出问题时最先要回答的就是"我放的那份生效了吗"。逐名点名后，看一眼日志即可判定。
+// 只在实际生效的那一层点名：目录顺序里先命中的才是赢家，后面的同名副本根本没被读。
+func logDiskScriptOverrides(bundled fs.FS, layers []scriptLayer) {
+	if bundled == nil {
+		return
+	}
+	bundledNames := luaScriptNameSet(bundled)
+	if len(bundledNames) == 0 {
+		return
+	}
+	for _, layer := range layers {
+		for _, name := range luaScriptNames(layer.fsys) {
+			if !bundledNames[name] {
+				continue
+			}
+			log.Printf("reward scripts: 磁盘脚本 %s 覆盖内置同名规则（来源 %s）—— 内置集仅作兜底", name, layer.dir)
+			delete(bundledNames, name)
+		}
 	}
 }
 
-// compositeScriptFS 依次在 first、second 里找文件；第一个命中的胜出。
+// luaScriptNames 列出一个平铺脚本视图里的 *.lua 名字（与奖励管线 fs.Glob 的取法一致）。
+func luaScriptNames(src fs.FS) []string {
+	if src == nil {
+		return nil
+	}
+	names, err := fs.Glob(src, "*.lua")
+	if err != nil {
+		return nil
+	}
+	return names
+}
+
+// luaScriptNameSet 同上，返回集合形式。
+func luaScriptNameSet(src fs.FS) map[string]bool {
+	out := map[string]bool{}
+	for _, name := range luaScriptNames(src) {
+		out[name] = true
+	}
+	return out
+}
+
+// foldScriptFS 把多个只读脚本目录折成一个视图：先给的胜出（同名只读一份）。
+func foldScriptFS(dirs []fs.FS) fs.FS {
+	if len(dirs) == 1 {
+		return dirs[0]
+	}
+	out := dirs[len(dirs)-1]
+	for i := len(dirs) - 2; i >= 0; i-- {
+		out = &compositeScriptFS{first: dirs[i], second: out}
+	}
+	return out
+}
+
+// compositeScriptFS 依次在 first、second 里找文件；**第一个命中的胜出**。
+//
+// 契约（不要改）：**first 永远优先**。两个用途都建立在这条契约上：
+//
+//	① foldScriptFS —— 多目录折叠，靠它表达"先给的目录胜出"（目录顺序语义）；
+//	② rewardScriptFS —— 靠"谁放 first"决定内置与磁盘谁赢（现在是磁盘放 first）。
 //
 // 只用于平铺 *.lua 的读取（奖励管线就是这么用的：fs.Glob(src, "*.lua") + fs.ReadFile）。
 type compositeScriptFS struct {
@@ -94,6 +204,7 @@ type compositeScriptFS struct {
 	second fs.FS
 }
 
+// Open：先 first，命中即返回；first 没有这个名字才落到 second（兜底）。
 func (c *compositeScriptFS) Open(name string) (fs.File, error) {
 	if f, err := c.first.Open(name); err == nil {
 		return f, nil
@@ -103,7 +214,12 @@ func (c *compositeScriptFS) Open(name string) (fs.File, error) {
 
 // ReadDir **必须实现**：奖励管线用 fs.Glob(src, "*.lua") 列脚本，而 fs.Glob 走的是
 // ReadDir（不是靠 Open 试探）。少了它，glob 会静默返回空——mod 的规则脚本一份都读不到，
-// 而且**不报错**。这里把两层目录项合并，first 优先（内置规则集在前）。
+// 而且**不报错**。
+//
+// 合并规则与 Open **同一契约**：first 优先。先收 first 的全部 *.lua 并占位，
+// second 里只补 first 没有的名字。rewardScriptFS 把**磁盘层**放 first，所以
+// "列出来的名字"集合与"Open 读到的内容"永远是同一份（同名 = 磁盘那份），
+// 不会出现"列的是内置的、读的是磁盘的"这种自相矛盾；内置集只贡献磁盘里没有的名字。
 func (c *compositeScriptFS) ReadDir(name string) ([]fs.DirEntry, error) {
 	if name != "." && name != "" {
 		return nil, &fs.PathError{Op: "readdir", Path: name, Err: fs.ErrNotExist}

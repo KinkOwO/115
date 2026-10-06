@@ -23,10 +23,11 @@
 ## 它怎么活
 
 ```
-<客户端>\ChineseLocalization.dll          ← 宿主（mod qol.client-host）
-<客户端>\.115us-mods\DifficultyRules.dll  ← 本插件（mod difficulty.rules）
-<客户端>\.115us-mods\rules.json           ← 规则文件（插件首次运行自己生成）
-<客户端>\.115us-mods\difficulty-rules.log ← 日志（超过 4 MB 自动改名为 .log.old）
+<客户端>\ChineseLocalization.dll              ← 宿主（mod qol.client-host）
+<客户端>\.115us-mods\DifficultyRules.dll      ← 本插件（mod difficulty.rules）
+<客户端>\.115us-mods\rules.json               ← 玩家规则文件（插件首次运行自己生成）
+<客户端>\.115us-mods\rules.d\*.json           ← 随 mod 分发的"按范围"规则（可以不存在）
+<客户端>\.115us-mods\difficulty-rules.log     ← 日志（超过 4 MB 自动改名为 .log.old）
 ```
 
 `ModStart()` 返回 0，随后起一个自己的线程每 **200 ms** 轮询一次：
@@ -36,7 +37,35 @@
 2. 读规则文件 → 定位场景 → 取副本 id → 匹配第一条命中规则。
 3. 应用/还原血量与怪物伤害。
 
-## 规则文件：`.115us-mods\rules.json`
+## 规则文件（两处）：`.115us-mods\rules.json` + `.115us-mods\rules.d\*.json`
+
+**2026-10-07 起支持"每个 mod 自己带一份范围规则"。** 插件按固定顺序读两处规则：
+
+1. `<插件目录>\rules.d\*.json` —— 按**文件名升序**遍历（目录不存在 = 跳过，不算错误）；
+2. `<插件目录>\rules.json` —— **最后**读（插件首次运行时自己生成，默认 `enabled: false`）。
+
+**合并语义**：每个文件内部是"第一条 `enabled` 且命中的规则生效"；
+跨文件是**先遍历到的文件里命中就赢**。也就是"文件顺序 = 匹配优先级"，
+`rules.d` 里排在前面的文件优先，`rules.json` 永远排在最后。
+
+**为什么这样定优先级**：`rules.json` 是**玩家的**文件，`rules.d` 是**随 mod 分发的**文件。
+若让玩家的通用规则（例如 `all: true` 的"全副本 ×2"）先命中，mod 作者声明的范围就被打穿，
+而 mod 作者既不能预期也不能修（他改不了玩家的文件）。让 mod 自带文件先于玩家文件
+= "更具体的规则优先"，且不需要引入任何新字段。
+
+`rules.d` 的**失败隔离**：单个文件读失败或解析失败**只跳过它自己**（日志里一行 `[跳过]`），
+不影响同目录其它文件；`rules.json` 缺失 / 读失败 / 解析失败**保持旧语义**
+（整份配置不可用 → 还原已改过的怪并停止接管）。
+`rules.d` 里全是坏文件时，生效文件数为 0 = 配置不可用。
+
+跨文件的硬上限：规则**总条数**仍是 32 条（`gmrules.MaxRules`，多份文件共享这一个池），
+文件数上限 32 份。任何一个越界 → 整份配置判不可用（不"用一半"）。
+
+典型的 `rules.d` 用法（这也是 `odyssey.hardcore` 的用法）：mod 自带一条
+"只对我这个玩法的副本 ×10"的规则，玩家自己的 `rules.json` 保持 `enabled: false` 或写自己的通用规则，
+两者互不干扰。
+
+### `.115us-mods\rules.json`（玩家规则文件）
 
 首次运行自动生成，**默认 `enabled: false`**（不偷偷给玩家加强）。
 
@@ -82,9 +111,10 @@
 - `percent` / `attackPercent` 只有 `enabled: true` 的规则会校验，**超出 `1..100000`（含 `0`）→ 整份配置判为不可用**
   （与旧版 `percent` 同一策略）：插件会**还原已改过的字段并停手**，日志里写明是哪条规则的哪个字段超范围。
   **不会**"用一半"（例如只放大血量、不放大攻击）。停用（`enabled: false`）的规则不校验。
-- 规则数上限 32（`gmrules.MaxRules`），单条 `dungeonIds` 上限 64 项。
-- 改完**存盘即生效**（插件 200 ms 内重载，按"时间戳/大小/内容哈希"三重判定），不用重启游戏。
-  规则文件整体删除 → 插件会**重新生成默认文件**（`enabled: false`）并保留原版。
+- 规则数上限 32（`gmrules.MaxRules`，**rules.d 与 rules.json 共享**），单条 `dungeonIds` 上限 64 项。
+- 改完**存盘即生效**（插件 200 ms 内重载，按"时间戳/大小/内容哈希/`rules.d` 目录指纹"多重判定），
+  不用重启游戏。`rules.json` 整体删除 → 插件会**重新生成默认文件**（`enabled: false`）并保留原版
+  （此时 `rules.d` 里的规则也不再参与匹配 —— 与旧版"文件没了 = 配置不可用"逐字一致）。
 
 ### 行为边界（有意如此）
 
@@ -115,8 +145,11 @@
 `.115us-mods\difficulty-rules.log`（**插件自己所在目录**，遵循 AGENTS §0 第 9 条）。
 宿主日志在客户端根 `client-host.log`。
 
-日志里能看到：指纹校验结果、每条规则的加载情况、当前副本 id、命中的规则、
+日志里能看到：指纹校验结果、**加载了哪些规则文件**（`<文件名> enabled=… 共 N 条`）与每条的
+`id/percent/attackPercent/副本数`、当前副本 id、命中的规则与**它来自哪一份文件**
+（`命中规则 …（…，来自 odyssey.hardcore.json）`）、
 每个怪被改/被还原时的 `层0 旧→新` 与 `当前血量 旧→新`、每个属性字段的 `层0 旧→新`、以及所有跳过原因。
+`rules.d` 里坏文件会打 `[跳过] rules.d\<名>：解析失败：… —— **只跳过这一份**`。
 超过 4 MB 自动改名为 `.log.old`。
 
 **实体链诊断**（2026-10-07 加）：每当"链的状态"变化（找不到场景根 / 收下的怪数量变了 /
@@ -138,6 +171,7 @@
 另外每 5 秒（或状态变化时）会写一份
 `.115us-mods\difficulty-rules.status.json`（给启动器/GM 读的机器可读状态：
 `ready` / `enabled` / `rejectReason` / `dungeonId`（数字或 `null`） / `ruleId` /
+**`ruleFile`（命中规则来自哪份文件）** / **`ruleFiles`（加载了几份文件）** / **`rules`（几条规则）** /
 `percent` / `attackPercent` / `monsters` / `applied` / `failed` / `tracked` /
 `attackApplied` / `attackFailed` / `attackTracked` / `lastError`）。
 （旧版有副本 id 时会落盘成 `"dungeonId": ,` —— 整份不是合法 JSON，已修。）
@@ -200,7 +234,8 @@ python client-patchs\difficulty\build-mod.py
 ```powershell
 # 1) 纯逻辑自测：把从 Go 搬过来的算法在本进程里跑一遍
 #    （属性加解密 / 原生 float 解码 / scaleHP / maxima / rescaleEffectiveHP /
-#     rules.json 解析边界 / 规则优先级）。退出码 0 = 全过。
+#     rules.json 解析边界 / 规则优先级 / **rules.d 多文件加载：升序优先级、
+#     单文件损坏只跳过它自己、rules.d 缺失时与旧版一致**）。退出码 0 = 全过。
 client-patchs\difficulty\selftest\build-selftest.cmd
 
 # 2) 插件 ABI 冒烟：按宿主的方式 LoadLibraryW → GetModuleHandleExW(PIN)
