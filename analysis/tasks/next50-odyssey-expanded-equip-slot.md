@@ -254,3 +254,28 @@
 - 判据链（供下次复核）：`catalog.OdysseyGrowth.ClearLevels[100004969]` → `LevelActions[level]` 含
   `unlock earring` → `odysseySlotActionMask` → `inventory.ExpandEarring(1<<4)` → `UnlockEquipSlots`
   写 `Bag.ExpandEquipFlags`。测试 `internal/character/odyssey_expand_slot_test.go` 已钉住这条映射。
+
+### 2026-10-06 实现（方案 B，**待实机**）：回城补发 EntryAddition
+
+上节复现确认「装备栏挂锁只能由 `EntryAddition`(USERINFO1) 投影」之后，选了**影响面最小**的做法：
+副本内仍只落库 + 置脏标记，**改在回城那一刻补发一次**（回城本就是场景重建时机 —— 服务端此刻已在发
+`town_actor_appearance_restored`(2)，addition 接在它后面，与**登录**（`entry_basic_probe_sent`→`entry_addition_sent`）
+和**进副本**（`dungeon_actor_appearance_sent`→`dungeon_actor_addition_sent`）的配对顺序完全一致）。
+
+| 文件 | 改动 |
+| --- | --- |
+| `cmd/wireprobe/world_flow.go` | `worldSession` 新增 `slotUnlockDirty bool` |
+| `cmd/wireprobe/dungeon_flow.go` | 解锁分支（`afterBag.ExpandEquipFlags != beforeBag.ExpandEquipFlags`）里置 `w.slotUnlockDirty = true`，**不在副本内补发** |
+| `cmd/wireprobe/dungeon_flow.go` | `leaveDungeon` 在 `town_actor_appearance_restored` **紧跟其后**补 `town_actor_addition_restored`(2, `characters.EntryAddition`)，成功后清脏标记；失败只记日志、不阻断回城 |
+| `cmd/wireprobe/slot_unlock_return_test.go` | 新守卫：dirty ⇒ 必须补发且**紧跟 appearance**、载荷 offset 360 == 19、成功后清标记；非 dirty ⇒ 不得多发、appearance 照常 |
+
+- **不做**（保持最小面）：不在副本内补发、不改登录/选角路径、不动 `.qst [slot expansion]` 那条已有的
+  `unlockRefresh` 路径（它在城镇，本来就会发 id=2）。
+- **风险边界**：万一客户端对回城时刻的这一帧走了"清空显示"分支，表现是**装备栏短暂空白 —— 纯显示层，
+  存档不动，重开装备栏/重进即恢复**（9-22 已实测该性质）。回退 = 换回
+  `bin/wireprobe-pvf.exe.before-slotrefresh-20261006`。
+- 编译 `517d8b7e307c3bd5fcb0ea38864883e8a39ce7aea641a1444e0d6ce71cfaf5da`（29,400,576 B，19:27）；
+  `go build` / `go vet` / `go test -p 1 -count=1 ./cmd/wireprobe/` 全绿；
+  二进制自检：`town_actor_addition_restored` 在新 exe 命中 1、在改前基线上为 **0**。
+- **实机验收判据**：清掉一个会解锁扩展装备槽的副本（如 `100004969` 盖波加 → 耳环）
+  → **回城后不重登，装备栏耳环槽应当场点亮**；同时确认回城后装备栏**没有变空**。

@@ -935,6 +935,15 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 		if err == nil {
 			plan = append(plan, outboundPacket{"town_actor_appearance_restored", 0, 2, visual})
 		}
+		// 本局内新写入了扩展装备槽解锁位：趁回城这次机会重建装备栏行对象，把 addition 接在 appearance 之后——与登录/进副本的帧序一致，玩家不必重登就能看到解锁。
+		if w.slotUnlockDirty {
+			if addition, addErr := w.characters.EntryAddition(w.role); addErr == nil {
+				plan = append(plan, outboundPacket{"town_actor_addition_restored", 0, 2, addition})
+				w.slotUnlockDirty = false
+			} else {
+				log.Printf("回城补发装备栏解锁失败：character=%d: %v", w.role.ID, addErr)
+			}
+		}
 		wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
 		if err == nil && len(wornUpdate) > 0 {
 			plan = append(plan, outboundPacket{"town_worn_visuals_restored", 0, 14, wornUpdate})
@@ -1477,6 +1486,8 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 		// 实测只发 id-13 会让槽位窗口变空。注意不要发 entry_addition（NOTI 2）——
 		// 那是进图/登录帧，在副本内发会让客户端把装备栏显示清空（见该文档「重发的坑」）。
 		if afterBag, e := inventory.ReadBag(w.role.State); e == nil && afterBag.ExpandEquipFlags != beforeBag.ExpandEquipFlags {
+			// 装备栏挂锁只能由 EntryAddition 投影，而副本内重发它会把装备栏显示清空；所以这里只置脏标记，留到回城时补发（leaveDungeon）。
+			w.slotUnlockDirty = true
 			if bag, e := inventory.ReadBag(w.role.State); e == nil {
 				if bagBody, e := protocol.InventoryRestore(bag.Rows()); e == nil {
 					plan = append(plan, outboundPacket{"equipment_bag_resynced", 0, 13, bagBody})
