@@ -91,7 +91,8 @@
 
 | 字段 | 来源 |
 | --- | --- |
-| id / 名称 / 版本 / 作者 | 该 mod 的 `mod.json`（装在包里；注册表也存了 id/name/version） |
+| id / 名称 / 版本 | 该 mod 的 `mod.json`（装在包里；注册表也存了 id/name/version） |
+| **作者 / 说明** | `mod.json` 的 `author` / `description`（**可选**）。服务端层从落位目录的 `mods/<id>/mod.json` 读（`mods list --json` 已带出）；客户端层从注册表快照读（`modkit status`）。两者都为空 = 作者没填，**不要显示成"未知"以外的假数据** |
 | **涉及哪几层** | 注册表 `layers`（`server` / `pvf` / `client` / `resource`） |
 | 声明的权限 | `mod.json` 的 `permissions`（展示给玩家看它要动什么） |
 | 依赖 | `mod.json` 的 `requires`（未满足时应标灰并说明） |
@@ -130,8 +131,17 @@ modkit mods disable --id <mod-id>         --root <启动器根> [--by launcher-u
 ```
 
 - 退出码：`0` 成功；`1` 参数/IO 错误；`2` 目标 mod 不存在或依赖不满足；
-- `mods list --json` 输出每个已装 mod 的 `id/name/version/layers/enabled/actions`，
-  管理器直接渲染成勾选列表即可，**不必自己解析 enabled.json**。
+- `mods list --json` 输出每个已装 mod 的
+  `id/name/version/author/description/layers/enabled/hooks/permissions/requires/dir/needsRebuildOnChange/drift`
+  （`hooks`/`permissions`/`requires`/`author`/`description`/`drift` 为空时省略），
+  管理器直接渲染成勾选列表即可，**不必自己解析 enabled.json**；
+  顶层另有 `moduleDir`/`modsDir`/`enabledFile`/`count`/`note`；
+- **`drift` 非空 = 该 mod 目录里没有 `mod.json`**：此时名称退化成 id，
+  作者/说明/层/权限/依赖都不可知。管理器要把 `drift` 原文显示出来，
+  而不是把空字段当成"作者没写"；
+- `author` / `description` 来自该 mod 落位目录里的 `mod.json`（`modkit install` 落的原样副本），
+  两个字段都是 `omitempty`：作者没填就是**键不出现**，管理器按"未填写"显示即可，
+  不要回退去猜包名或作者名。
 
 > 这三个子命令是给管理器用的稳定接口。管理器**不要**直接改 `enabled.json`
 > （绕过依赖检查、也容易写坏 JSON）。
@@ -188,7 +198,15 @@ servermod: mod 提供的奖励规则脚本 1 份：giveaway.random-equipment:giv
    管理器应当把这条错误原样显示；
 5. **PVF 层需要 PowerShell 7**：管理器应在"装之前"提示，而不是等安装失败；
 6. **服务端 mod 的启用状态改动需要重启服务端**：奖励规则脚本在启动时一次性
-   加载进 Lua state，无法热摘。管理器要么提示重启，要么帮玩家重启。
+   加载进 Lua state，无法热摘。管理器要么提示重启，要么帮玩家重启；
+7. **客户端插件自己的开关不归管理器管**：客户端 DLL mod 的 `.115us-mods\*.ini`
+   （如中文输入的 `fix_cancel` / `ime_bridge`）是**插件首次运行时自己生成**、由玩家手改的；
+   管理器不要读改写它、也不要把它当成 mod 的组成部分 —— 它不在包里，
+   `uninstall` 也不会删它（卸载后残留需手工清理）。管理器若要展示，只读、只提示路径；
+8. **客户端 DLL 插件有宿主依赖**：除了宿主本身，其它客户端 DLL mod 都声明
+   `"requires": ["qol.client-host"]`。管理器禁用/卸载**宿主**前必须先处理依赖它的插件
+   （`modkit` 会拒绝：`依赖未安装` / 被依赖），否则插件留在 `.115us-mods\` 里不会生效，
+   玩家会以为"勾了却没反应"。
 
 ---
 
@@ -216,8 +234,10 @@ servermod: mod 提供的奖励规则脚本 1 份：giveaway.random-equipment:giv
 
 ## 9. 未闭环（写明，不假装）
 
-1. `modkit mods list/enable/disable` 三个子命令**本轮尚未实现**——接口形状已按本文定死，
-   实现时按 §4.2 的退出码与 `--json` 字段；
+1. `modkit mods list/enable/disable` **已实现**：`list` 支持 `--json`，`enable/disable` 需 `--id`
+   （可带 `--by` 记录调用者），`--root` 可省略或直接 `cd` 到服务端模块根；退出码 0 / 1 / 2 与 §4.2 一致。
+   2026-10-06 实测 `modkit mods list --root <115 仓>` 会按 §3 的字段表打出
+   **名称 / 作者 / 说明**三行（`author` / `description` 取自各 mod 的 `mod.json`）；
 2. 管理器 UI 本身未做（业主规划为"启动段 mod 管理器接入"的下一步）；
 3. mod 的**加载顺序**没有显式依赖排序（只有 `requires` 存在性检查）；
 4. 启用/禁用**不能热生效**（需重启服务端）——这是奖励脚本一次性加载带来的边界，
