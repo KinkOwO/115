@@ -19,8 +19,9 @@ func (w *worldSession) odysseyModeActive() bool {
 }
 
 // odysseyConsumableGate 是"奥德赛副本内禁用消耗品"的门（业主 2026-10-06 口径：
-// 副本内禁止使用任何消耗品、**可以携带**；城镇不受影响）。形状与 forestPotionGate
-// 一致：命中返回拒绝应答，未命中返回 nil。
+// 副本内禁止使用任何消耗品、**可以携带**；城镇不受影响）。
+// 命中返回**非 nil 的空计划**（已拦截、不回复任何包），未命中返回 nil。
+// 不用 UseStackableRefused 的原因见函数体：那个形状未被实机证实，回它会把客户端打崩。
 //
 // 客户端侧本来就是一致的：奥德赛进图不下发 NOTI1584（STACKABLE_DUNGEON_LIMIT），
 // 按官方客户端实测口径"没有这一帧 = 客户端本地禁用全部消耗品"，界面是灰的；
@@ -30,7 +31,14 @@ func (w *worldSession) odysseyConsumableGate(r protocol.UseStackableRequest) []o
 	if !rules.BanConsumables || !w.odysseyModeActive() {
 		return nil
 	}
-	return []outboundPacket{{"odyssey_consumable_refused", 1, 44, protocol.UseStackableRefused(r)}}
+	// 为什么不回 UseStackableRefused：这个包形状**从未被实机抓包证实** ——
+	// protocol.UseStackableRefused 的注释自己写着「两条 u32 的字段顺序仍需抓包确认」。
+	// 2026-10-06 18:24 实机：回这个包之后客户端 1.3 秒崩退
+	// （client_trace 结尾 <USERCRI>/<USERDMP>，服务端紧接着收到 CMD682 退出帧）。
+	// 改为**什么都不回**：服务端不执行效果、不扣道具，规则照样成立，
+	// 而客户端没有任何东西可以解析错。返回非 nil 的空计划 = 「已拦截、不回复」。
+	// 等抓到实机抓包或反汇编出真正的失败形状，再换回带字段的拒绝包。
+	return []outboundPacket{}
 }
 
 // odysseyReviveGate 是"奥德赛内禁止复活"的门，挂在 useCoinRevive 最前面：

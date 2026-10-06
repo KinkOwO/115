@@ -7,6 +7,7 @@ package main
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/channelrefresh"
+	"dfolan/internal/modpolicy"
 	"dfolan/internal/servermod"
 	"dfolan/mods"
 	"encoding/json"
@@ -42,6 +43,14 @@ func main() {
 
 // runGateway owns listening sockets and runtime resources until serving stops.
 func runGateway(startup Config) error {
+	// 模式策略（internal/modpolicy）是**进程级**状态，而网关可以在同一进程里被反复起停
+	// ——测试 TestRunGatewayReleasesListenerOnStartupError 就会真起一次网关。
+	// 所以策略的生命周期必须跟着**这一次服务端实例**：进来先清空（不继承上一次的规则），
+	// 退出再清空（不给下一次/下一个用例留残留）。少任何一半，都会让「上一台服务端的规则」
+	// 影响本进程里的其它测试：实测 2026-10-06 装上带 server.boot 钩子的 mod 后，
+	// 上游的复活用例与默认放行用例都因此失败。
+	modpolicy.Reset()
+	defer modpolicy.Reset()
 	// —— 服务端层 mod：注册阶段（必须在 prepareRuntime **之前**）——
 	//
 	// 为什么这么早：奖励管线是在 prepareRuntime 内部构造的

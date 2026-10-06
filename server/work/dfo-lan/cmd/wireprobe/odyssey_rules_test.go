@@ -42,8 +42,10 @@ func TestOdysseyConsumableGate(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := w.odysseyConsumableGate(req)
-	if len(got) != 1 || got[0].ID != 44 || got[0].Kind != 1 {
-		t.Fatalf("应回一条 CMD44 拒绝：%+v", got)
+	// 拦截 = 返回「非 nil 但空」的计划（已处理、不回任何包）。
+	// **不能**回 UseStackableRefused：那个形状未被实机证实，2026-10-06 实机回它把客户端打崩了。
+	if got == nil || len(got) != 0 {
+		t.Fatalf("拦截时应回空计划（不回复任何包）：%+v", got)
 	}
 
 	w.activeDungeon.Definition.Odyssey = false

@@ -89,7 +89,20 @@ func (w *worldSession) playerDeath(p []byte, frames ...[]byte) ([]outboundPacket
 //   - **奥德赛禁复活时立即调用**（业主 2026-10-06：死亡即回城，不等倒计时），reason=0。
 //
 // 重复调用是安全的：第一次跑完会清掉 activeDungeon，第二次在入口直接返回。
-func (c *gameConnection) deathFailLeave(reason byte) {
+// deathFailLeave 是失败结算出口：发 NOTI33 FAIL_CLEAR_DUNGEON + 回城链。
+// 超时判负（reason=100）继续用它，行为与加 mod 之前一致。
+func (c *gameConnection) deathFailLeave(reason byte) { c.deathLeave(reason, true) }
+
+// deathGiveUpLeave 是不做失败结算的出口：只走 leaveDungeon() 的放弃/离场链，不发 N33。
+// 为什么需要它（业主 2026-10-06 实机）：用失败结算出口后客户端会进虚弱状态；
+// 服务端没有虚弱这个概念（全仓 grep 无命中），那是客户端收到失败结算后自己进的 ——
+// protocol.DungeonFailClear 注释写明 reason 0 = default defeat/death，
+// 会 trigger the native player death scene and failure settlement。
+// 死亡即回城只需要回城、不需要失败结算 => 走这条链；leaveDungeon() 自带
+// N32 state=1（满血满蓝、解除幽灵态），所以回城是干净的。
+func (c *gameConnection) deathGiveUpLeave() { c.deathLeave(0, false) }
+
+func (c *gameConnection) deathLeave(reason byte, sendFailClear bool) {
 	if c == nil || c.worldState == nil {
 		return
 	}
@@ -100,7 +113,7 @@ func (c *gameConnection) deathFailLeave(reason byte) {
 	}
 	// [AZURE-DEATH-AFTER-CLEAR] 结算已经走完的**只回城、不补 FAIL_CLEAR**：
 	// 补了会把一场已经通关并发了奖的挑战标成失败。
-	if !w.resultSent {
+	if sendFailClear && !w.resultSent {
 		if err := c.output.send(0, 33, protocol.DungeonFailClear(reason)); err != nil {
 			return
 		}

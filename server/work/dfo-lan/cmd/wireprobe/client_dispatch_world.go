@@ -392,11 +392,13 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 				// 驱动失败结算与回城。此前只有 Elvenmere(100003126) 会发，其它副本
 				// 死亡后永远停在 Dead 界面（实机 2026-09-28：倒计时结束不回城，
 				// 剧情叠在死亡界面上卡死）。
+				//
 				// 奥德赛禁复活时不等这 10 秒（业主 2026-10-06：死亡即回城）——
 				// 判负与回城各只有一条出口，动作与下面定时器**同一份代码**。
 				w := client.worldState
 				if w.odysseyImmediateDeathFail() {
-					client.deathFailLeave(0)
+					// 奥德赛禁复活：回城但不做失败结算（否则客户端进虚弱状态）。
+					client.deathGiveUpLeave()
 				} else {
 					select {
 					case <-client.connection.done:
