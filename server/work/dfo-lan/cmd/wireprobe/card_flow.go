@@ -174,6 +174,26 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 			outboundPacket{"venus_info_waiting", 0, legion.NotiVenusInfo, legion.VenusWaitingInfo()})
 		return nil, plan, nil
 	}
+	// 苏醒之森阶段本的 CMD72 不走通用翻牌/结算（维纳斯同款形状）。演出后
+	// 退场作废 run；未终局的退场（中途 ESC）保持 run（cleared 保留，重进
+	// 按已清关序列继续）。
+	if w.forest != nil && w.activeDungeon != nil && legion.IsForestStageDungeonAny(w.activeDungeon.Definition.ID) {
+		ack := outboundPacket{"settlement_focus_ack", 1, 72, protocol.SettlementExitSuccess(r)}
+		if r.State == 2 {
+			return nil, []outboundPacket{ack}, nil
+		}
+		route, e := w.leaveDungeon()
+		if e != nil {
+			return nil, nil, e
+		}
+		w.selectingDungeon = false
+		ack.Name = "settlement_exit_ack"
+		if w.forest.finalDone {
+			w.forest = nil
+			return nil, append([]outboundPacket{ack}, route[1:]...), nil
+		}
+		return nil, append([]outboundPacket{ack}, route[1:]...), nil
+	}
 	if e = w.cardsReady(); e != nil {
 		return nil, nil, e
 	}

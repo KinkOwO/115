@@ -191,6 +191,11 @@ func (client *gameConnection) serve() {
 				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
 					return
 				}
+				// 苏醒之森关卡倒计时到期（60 分钟/关，同款失败链路）。
+				packets = client.worldState.forestStageTimeout(now, client.event)
+				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
+					return
+				}
 				// 维纳斯难度选择窗倒计时归 0：推原生 close ACK 自动关窗。
 				packets = client.worldState.venusOperationClose(now, client.event)
 				if client.sendPlan(packets, client.logWorldResponseBody) != nil {

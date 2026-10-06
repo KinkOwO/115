@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 )
 
 // listenGamePort 绑定游戏监听地址，并在"系统挑的临时端口被拒"时换端口重试。
@@ -55,3 +56,62 @@ func listenGamePort(addr string) (net.Listener, error) {
 // 为什么是 8：保留段通常只覆盖几百个端口，而临时端口范围有 ~1.6 万个，落到保留段的概率不高；
 // 连撞 8 次几乎只可能是"整个范围都被保留"这种极端情况 —— 那时应当尽快报错而不是无限重试。
 const ephemeralListenAttempts = 8
+
+// openGameListeners binds the primary endpoint and its consecutive channel
+// ports as one group. A failed group releases every socket before retrying.
+func openGameListeners(addr string, extraPorts int) ([]net.Listener, error) {
+	if extraPorts < 0 || extraPorts > 65534 {
+		return nil, fmt.Errorf("invalid extra game ports: %d", extraPorts)
+	}
+	host, portText, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+	port := 0
+	if portText != "" {
+		port, err = strconv.Atoi(portText)
+		if err != nil || port < 0 || port > 65535 {
+			return nil, fmt.Errorf("invalid game port %q", portText)
+		}
+	}
+	if port > 0 && port+extraPorts > 65535 {
+		return nil, fmt.Errorf("game port group %d..%d exceeds 65535", port, port+extraPorts)
+	}
+	var last error
+	for attempt := 0; attempt < ephemeralListenAttempts; attempt++ {
+		primary, bindErr := net.Listen("tcp4", net.JoinHostPort(host, strconv.Itoa(port)))
+		if bindErr != nil {
+			last = bindErr
+			continue
+		}
+		block := []net.Listener{primary}
+		base := primary.Addr().(*net.TCPAddr).Port
+		if base+extraPorts > 65535 {
+			last = fmt.Errorf("game port group %d..%d exceeds 65535", base, base+extraPorts)
+			closeGameListeners(block)
+			continue
+		}
+		for offset := 1; offset <= extraPorts; offset++ {
+			listener, channelErr := net.Listen("tcp4", net.JoinHostPort(host, strconv.Itoa(base+offset)))
+			if channelErr != nil {
+				last = channelErr
+				break
+			}
+			block = append(block, listener)
+		}
+		if len(block) == extraPorts+1 {
+			return block, nil
+		}
+		closeGameListeners(block)
+		log.Printf("game listen group: base=%d rejected: %v (attempt %d/%d)", base, last, attempt+1, ephemeralListenAttempts)
+	}
+	return nil, fmt.Errorf("绑定游戏监听组 %s（额外频道 %d，已重试 %d 次）失败: %w", addr, extraPorts, ephemeralListenAttempts, last)
+}
+
+func closeGameListeners(block []net.Listener) {
+	for _, listener := range block {
+		if listener != nil {
+			_ = listener.Close()
+		}
+	}
+}

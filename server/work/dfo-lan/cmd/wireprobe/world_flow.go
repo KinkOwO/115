@@ -56,11 +56,18 @@ type worldSession struct {
 	bleedingMineStart   *bleedingMineStart
 	// ispins 是一次伊斯大陆（内容号 101）挑战的会话状态；nil = 无进行中的
 	// 挑战。字节契约见 ispins_flow.go 与 next78 取证文档。
-	ispins                 *ispinsRun
+	ispins *ispinsRun
 	// venus 是一次美神维纳斯（内容号 106）挑战的会话状态；nil = 无进行中的
 	// 挑战。字节契约见 venus_flow.go、internal/legion/venus.go 与
 	// 包规格/全流程 N2655/2290/2291/1474 规格文档。
-	venus                  *venusRun
+	venus *venusRun
+	// forest 是一次苏醒之森（Forest of Awakening，内容号 104）挑战的会话
+	// 状态；nil = 无进行中的挑战。字节契约见 forest_flow.go 与
+	// internal/legion/forest.go（官服 21:42-21:45 三关完整抓包向量）。
+	forest *forestRun
+	// forestPartyHard 记录待机区建队选择的模式（CMD12 类型 0x19 =
+	// Extreme/ForestOfAwakeningHard），开战时带入 forestRun.hard。
+	forestPartyHard        bool
 	blackPurgatory         blackPurgatoryState
 	adventureEliteSnapshot [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which

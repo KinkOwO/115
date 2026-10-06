@@ -53,6 +53,15 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	if w != nil && w.venus != nil && w.activeDungeon != nil && legion.IsVenusStageDungeon(w.activeDungeon.Definition.ID) {
 		return nil, nil
 	}
+	// 苏醒之森：CMD46 = 下一关作战窗触发器（官服 21:43:02.326→.340：CMD46
+	// 的应答就是 N2563 state6，通用结算面板不适用）。forestResult 内部静默
+	// 收尾副本会话（官服无回城包链，客户端自行完成场景切换）。连战模式下
+	// 客户端在 2062 被拒后还会补发 CMD46——此时 activeDungeon 已被上一轮
+	// forestResult 清掉，所以这里只按 run 存在性分流（0231 会话实证：绕过
+	// 本分支会落进通用结算，弹占位符兜底面板卡死流程）。
+	if w != nil && w.forest != nil {
+		return w.forestResult(p)
+	}
 	if w == nil || w.progression == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || !w.completionSent {
 		return nil, fmt.Errorf("result before committed boss completion")
 	}
