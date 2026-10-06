@@ -231,7 +231,9 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	result.Awards = filterDungeonAwards(d.Definition, result.Awards)
 	// Append this independent pool after map awards; it cannot replace gear.
 	// Deferred/special modes do not consume its RNG or runtime policy.
-	if ordinaryDungeonRewards(d, s.Catalog, s.Attunement) && !excludeRandom && !d.Unowned[entity] && monsterItemsEnabled(s.Rules) && (s.Catalog.OrdinaryMonsterItemRate > 0 || s.Catalog.WorldDrop != nil && s.Catalog.OrdinaryWorldDropPercent > 0) {
+	// 开关用**取用处**的实际速率（目录值 × mod 倍率），不是构造时的旧值：
+	// mod 的 server.boot 跑在 prepareRuntime 之后，固化进目录会漏掉它设的倍率。
+	if ordinaryDungeonRewards(d, s.Catalog, s.Attunement) && !excludeRandom && !d.Unowned[entity] && monsterItemsEnabled(s.Rules) && ordinaryDropPoolsEnabled(s.Catalog) {
 		table, known, err := s.Catalog.MonsterItemTable(monster.Template)
 		if err != nil {
 			result.SkippedKinds = append(result.SkippedKinds, "monster_item_source_refused:"+err.Error())

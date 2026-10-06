@@ -209,6 +209,54 @@ end)
 	require.Contains(t, logged[0], "char.lua")
 }
 
+// TestCtxCarriesProfessionOnlyWhenKnown pins the两个职业字段的曝光口径：
+//   - 知道职业时（character_create）ctx.profession / ctx.advancement 是数，
+//     哪怕是 0（基础职业 0 = 鬼剑士是合法值）；
+//   - 不知道时不写进 ctx（Lua 侧是 nil），规则才能用 `if not ctx.profession then return end`
+//     干净跳过 —— 而不是把 0 当成"没职业"。
+func TestCtxCarriesProfessionOnlyWhenKnown(t *testing.T) {
+	dir := t.TempDir()
+	writeScript(t, dir, "job.lua", `
+on("character_create", function(ctx)
+  if ctx.profession == nil or ctx.advancement == nil then
+    grant_item(1, 1)          -- 拿不到：发 1 号标记
+    return
+  end
+  grant_item(ctx.profession + 100, ctx.advancement + 1)
+end)
+`)
+
+	var grants []grantCall
+	s, err := New(Options{
+		Scripts: os.DirFS(dir),
+		Grant: func(_ context.Context, _ Recipient, key string, items []ItemGrant) error {
+			grants = append(grants, grantCall{key: key, items: items})
+			return nil
+		},
+	})
+	require.NoError(t, err)
+
+	// 知道职业（0/0 也是合法值）：规则读到的是数。
+	s.CharacterCreate(context.Background(), Recipient{
+		CharacterID: 7, Profession: 0, Advancement: 0, HasProfession: true,
+	})
+	require.Len(t, grants, 1)
+	require.Equal(t, []ItemGrant{{ID: 100, Count: 1}}, grants[0].items)
+
+	grants = nil
+	s.CharacterCreate(context.Background(), Recipient{
+		CharacterID: 8, Profession: 5, Advancement: 5, HasProfession: true,
+	})
+	require.Len(t, grants, 1)
+	require.Equal(t, []ItemGrant{{ID: 105, Count: 6}}, grants[0].items)
+
+	// 不知道（例如 level_up 那条路）：字段缺席。
+	grants = nil
+	s.CharacterCreate(context.Background(), Recipient{CharacterID: 9})
+	require.Len(t, grants, 1)
+	require.Equal(t, []ItemGrant{{ID: 1, Count: 1}}, grants[0].items)
+}
+
 func TestNewRejectsSyntaxError(t *testing.T) {
 	dir := t.TempDir()
 	writeScript(t, dir, "broken.lua", `on("level_up", function(ctx)`+"\n")
