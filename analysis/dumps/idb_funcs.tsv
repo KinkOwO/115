@@ -29,3 +29,18 @@ address	name	description
 0x145df0410	RoomEntities_GetMonsterSlotCount	Monster weak-reference vector at manager+392/+400, stride24
 0x145df0390	RoomEntities_GetMonsterBySlot	Weak-reference control+8/ref+16; returns ref-48 only if control live
 0x1452ae370	Handler_NotiDungeonTimeoutTime	NOTI1474 registered1452bb718; u32 duration seconds then start epoch seconds, scene milliseconds and mode start/end pair; next79 current client static20261003
+0x1452ff500	Handler_Noti312CompleteConditionPassGate	NOTI312 registered via sub_1459A3DD0(a1,312,fn) at145314A70; head reads body dword4+byte1 via146EA0BA0/146EA09F0 then uncond dungeon+6264=1(145B459E0) dungeon+8056=1(145B45200); static20261004
+0x14614e440	PathGate_TickRedBlue	per-frame gate obj tick 14614E440..14614ED7F; if dungeon+0xC70!=0 requires hunt flag via145B34D20(dungeon+8056) else stays red; open path calls sub_14614F370(gate,1); static20261004
+0x14614f370	PathGate_SetStateplaysAni	gate state setter plays open/close ani entries; guard dungeon+11864 etc; static20261004
+0x145b34090	Dungeon_RoomEqualsXY	compares current-room deque dungeon+0x1934/0x1938 vs (x,y) gate guarded room; static20261004
+0x145b34d20	Dungeon_GetHuntCompleteFlag	returns byte dungeon+8056 (0x1F78), set ONLY by NOTI312 handler
+0x145b45200	Dungeon_SetHuntCompleteFlag	writes byte dungeon+8056; sole caller 1452FF578 (NOTI312)
+0x145b459e0	Dungeon_SetEntranceCondComplete	writes byte dungeon+6264(0x1878); NOTI312 head
+0x145b1c330	Dungeon_InitFromParsedDef	writes dungeon+0xC70 pending-count from def dword576, appends def vec289/290 dwords into dungeon+0xC90 cond-id vector (14018BD90) and vec293/294 into dungeon+0xCA8; static20261004
+0x146ea09f0	PktStream_Read1	byte read from global cursor qword_14F1BF870, remaining n4
+0x146ea0ba0	PktStream_Read4	dword read from global cursor
+0x146ea1920	PktStream_Read2	word read from global cursor
+0x146ea2160	PktStream_SetCursor	cursor setter, single caller dispatcher 146D74A80
+0x140157C80	Dungeon_GetSub640	returns a1+640 (holds vectors +0xA10..+0xA20 gate-record list)
+0x145b2cb30	Dungeon_GetCompletedGateKey1	dword dungeon+6240(0x1860)
+0x145b2cb40	Dungeon_GetCompletedGateKey2	dword dungeon+6244(0x1864)

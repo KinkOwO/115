@@ -4,17 +4,18 @@ import (
 	"testing"
 
 	"dfolan/internal/catalog"
+	"dfolan/internal/game/protocol"
 )
 
 // [MERGE-20260928-START-LAYER-EXIT] 实机回归（2026-09-28 晦月湖 100004777，闪退）。
 //
 //	(0,0) **既是迷宫起点、又挂着层图 [100015633]**（base 100008953）。
-//	玩家点门走的是 CMD38（服务端合成出口）。若按普通场景房「回 base」处理，就是送回
+//	玩家点门走的是原生 CMD45（layer 切换）。若按普通场景房「回 base」处理，就是送回
 //	起点自己 —— 客户端进这一格本来就会自动播那张层图，于是 层图↔base 往返、重复放
 //	剧情，实测 3 秒内黑屏闪退（events: 266 map=100015633 → 275 map=100008953 →
 //	278 exit_shutdown_signal）。
 //
-// 锁住：起点层图格点门必须**前进**，不能回 base。
+// 锁住：起点层图格的原生换图请求必须**前进**，不能回 base。
 func TestStartLayerSceneDoorAdvancesNotBase(t *testing.T) {
 	c := catalog.LoadNativeFullDungeons(t)
 	d, ok := c.Dungeons[100004777]
@@ -59,8 +60,10 @@ func TestStartLayerSceneDoorAdvancesNotBase(t *testing.T) {
 		t.Fatal("起点层图格应被 LayerAtStart 认出")
 	}
 
-	// 走门（MD38 合成的出口）。
-	next, e := s.ExitSceneRoom(c, mz.Start)
+	// 客户端点门发出的原生换图请求（序列末图、不带落点的形态）。
+	next, e := s.MoveScene(c, protocol.DungeonRoomTransition{
+		Dungeon: 100004777, Position: mz.Start, LayerChange: true,
+	})
 	if e != nil {
 		t.Fatalf("起点层图格点门应能前进，得到: %v", e)
 	}

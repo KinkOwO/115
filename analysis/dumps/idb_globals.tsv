@@ -2,3 +2,5 @@ address	name	description
 0x14e634408	g_QuestCatalog115	Current native quest catalog singleton;1520-byte allocation via145194c50; connect unit lookup14519ae00, metadata lookup14519b210
 0x14e683d40	g_QuestManager115	Current native quest state manager; completed collection+328 and visibility sequence fallback tree+1528;144f3a780,144f4a870,144f542a0
 0x14e6849bd	g_StartMapHeader7_115	NOTI29 byte at body+7 assigned by1452B7100;1456E8B10 checks1 for animation-offset2 Hell wave; mode meaning unresolved, static20261003.
+0x14f1bf870	g_PktStreamReaderCursor	global read cursor used by PktStream_Read1/2/4; set by 146EA2160 from dispatcher 146D74A80; static20261004
+0x14e66c090	g_GameManagerSingleton	holds dungeon getter 1459A9080 / 1459A9240; NOTI312 head

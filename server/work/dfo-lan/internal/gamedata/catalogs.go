@@ -69,6 +69,7 @@ type Catalogs struct {
 	World                        *catalog.WorldCatalog
 	Items                        *catalog.ItemIndex
 	ItemBasics                   *catalog.ItemBasics
+	MaxLevelReward               *catalog.MaxLevelReward
 	Equipment                    *inventory.FullEquipmentCatalog
 	AvatarDisjoint               *inventory.AvatarDisjointRules
 	AvatarSockets                *inventory.AvatarSocketRules
@@ -469,6 +470,13 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		}
 		result.Items = &direct
 		log.Printf("PVF item index prepared: %d templates source=%s", len(direct.Items), direct.Source.Checksum)
+		if selected["items"] {
+			result.MaxLevelReward, e = source.MaxLevelReward(direct)
+			if e != nil {
+				return &result, fmt.Errorf("PVF max level reward: %w", e)
+			}
+			log.Printf("PVF max level reward prepared: template=%d count=%d source=%s", result.MaxLevelReward.Template, result.MaxLevelReward.Count, result.MaxLevelReward.Source)
+		}
 		if selected["loot"] {
 			result.EmblemCompound, e = source.EmblemCompound(direct)
 			if e != nil {

@@ -805,6 +805,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		progressionService = &character.ProgressionService{Store: gameStore, Catalog: data, Professions: characters.Catalog, Rules: rules}
 		progressionService.CompletionRewards = pvfCatalogs.OdysseyCompletionRewards
+		progressionService.MaxLevelReward = pvfCatalogs.MaxLevelReward
 		if path := os.Getenv("DFO_ODYSSEY_GROWTH"); path != "" || pvfCatalogs.OdysseyGrowth != nil {
 			progressionService.Odyssey, e = pvfCatalogs.LoadOdysseyGrowth(path)
 			if e != nil {

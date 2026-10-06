@@ -52,7 +52,7 @@ func TestNextMapPositionMatchesTargetRoom(t *testing.T) {
 	}
 	w := &worldSession{dungeons: &c, activeDungeon: s}
 
-	// 合成「层图序列走完」的门请求（interactDoor 内部正是这种形态）。
+	// 「层图序列走完」的客户端原生 LayerChange 请求形态（CMD45 p10=1）。
 	req := make([]byte, 160)
 	req[0], req[1] = pos[0], pos[1]
 	req[10] = 1 // LayerChange

@@ -13,6 +13,67 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-06：奥德赛关联修复五包落地（红柱与提前通关 / 4125 章节奖励公告 / CMD38 放技能换房 / 层图格走回头路 / 毕业范围与满级礼盒）
+
+来源：外部交付的 5 个方包（`D:\奥德赛关联修复`，2026-10-05）。逐符号核实我方**一个都没有**
+（`interactDoor`/`sceneExitRequest`/`ExitSceneRoom` 仍在，`OnFinishedLayer`/`BossEntranceConditionIDs`/
+`MaxLevelReward`/`odyssey-graduation-v3` 全 0）。评估、合并面与验证点见
+`analysis/tasks/next161-奥德赛五包落地评估-20261006.md`。
+
+**落地姿势（关键）**：交付方是**另一棵树**（`D:/DNF115/115US/115-main`，本机不存在）；其文件与我方
+**0 个逐字节相同**、算 git blob sha1 后在本仓对象库 **0 命中**；用「历史最小差异」定位到基线 ≈
+我方 `10b922c62d`（2026-10-05），而我方已前进 **97 提交 / 429 文件**。⇒ **一律走三路合并
+（base = 我方 `10b922c62d` 版本），禁止整文件覆盖**。5 个包是同一条交付链的前后快照
+（基线 exe：`9eaea33d`→`0a7d8ce4`→`8bcf1d9e`→`2dd64fc0`→`94ba9768`），每个共享文件只取链上最新包。
+
+### 已落地（**未经实机，待业主逐项验收**）
+- ① **红柱与提前通关**：`catalog/dungeons.go` 采集源 `[boss room entrance condition]` type-6 字面量
+  （`BossEntranceConditionIDs`）；`protocol.BossRoomPassGateCompleted`；怪物死亡确认 generic 路径补发
+  **NOTI312**；撤除 `Room.Map==100016294` 合成旁路；`internal/dungeon/completion.go` 的 display-boss
+  兜底补 `&& !s.huntTargetAbsent()`（巴卡尔 100004971 进 Boss 房即通关的另一条分支）。
+- ② **4125 章节奖励公告**：删 `completeDungeon` 的通关爆发 **2856**，改 `leaveDungeon` 回城补发
+  `odyssey_journal_updated_on_return`。
+- ③ **CMD38 放技能换房**：case 38 改不响应；删 `interactDoor`/`sceneExitRequest`/`Session.ExitSceneRoom`/
+  `DungeonRoomTransition.SceneExit`；删 `cmd/wireprobe/scene_exit_record_test.go`。
+- ④ **层图格走回头路**：新增 `Session.OnFinishedLayer()` + `finishedLayerLastMap()`；回头命中时 NOTI29 改
+  **flag 1 + mode 0**（清怪物行 + StartMap 原生默认 18 字节记录）。
+- ⑤ **毕业范围 + 满级礼盒**：删 `q.MinimumLevel >= 115` 平行规则（计划 922→**974**）、收据升 **v3**
+  并带 v2 补偿（`ClearQuests` 只补缺失行）；新增满级礼盒 **10362946** 全链
+  （`etc/titlebook.etc [maxlevel reward]` → catalog → character → database → 回城/登录投递）。
+- 验证：`go build ./cmd/... ./internal/... ./mods/...` 与 `go vet`（覆盖 `_test.go`）**全绿**；
+  `go test -p 1 -count=1` 覆盖 `internal/dungeon|catalog|character|database|gamedata|quest|game/protocol`
+  与 `cmd/wireprobe` 亦**全绿**。
+
+### 刻意分歧（§D：不采纳交付树自带的重构）
+| 包内 | 我方 | 理由 |
+| --- | --- | --- |
+| `levelUpRefresh(before)`（3 处调用 + 配套 `before :=`） | 保留 `automaticSkillRefresh()` | 该符号我方树**不存在**，且与 4125 的 2856 时序修复无关 |
+| `ProgressionService.Awakener` 字段 + `bootstrap.go` 的 `Awakener: characters` | 不采纳 | 交付树另一条线（奥德赛 `[level action]` 觉醒）的接线 |
+| 红柱 netdiff 的 `-4`（删 `appendDungeonWornRandomOptions` 无条件调用） | 不采纳 | 该行正是我方 `10b922c62d` **自己引入**的 ⇒ 是「我方更新」不是包改动 |
+| `internal/database/*` 的 `s.db.Begin` / `pgx.ErrNoRows` / `sqlcgen.New(tx)` | 按我方 SQLite 架构改写为 `s.engine.begin` / `isNoRows` / `tx.queries()` | 我方 2026-10-05 起存储只有 SQLite（`go.mod` 已无 pgx）；交付包的 `max_level_reward_test.go` 是 PG 专用用例（`PostgresDSN`+`CREATE SCHEMA`+`$1`），已按 SQLite 夹具重写 |
+
+### 未修复 / 未闭环（验收点）
+1. **2856 是最高风险项**：红柱包自带的历史条目记着「删通关爆发 2856」的 **attempt 1/3 实机失败**
+   ——「Noblesse Code 通关后卡图无法完成/退出」并已回退；4125 是改良版（删通关爆发 **且** 回城补发）。
+   ⚠️ 必验：章节末本通关 → **4125 弹窗出现**；回城 → 地图即时显示完成、下一站解锁；**全程退图不卡**。
+2. **CMD38 的尾巴**：`interactDoor` 内的 **7113（祭司引导副本）/76026** 硬编码推进已随合成一并删除，
+   原生 CMD45 是否走得通**无实机证据**；引导卡门时第一个回查项即此处。
+3. **层图格覆盖面**：判据是 session 级共享谓词，但历史实机只覆盖 100004968 (0,2) 一例；另有 25 个挂
+   layered 格的奥德赛副本（其中 6 个挂多张序列）**未逐本回头实测**。
+4. **毕业 v2 补偿分支未在实机命中**（交付方自述：取证与实机之间该角色数据被清理过）；
+   本仓由 `TestOdysseyGraduationCompensatesLegacyReceipt`（SQLite 夹具）覆盖。
+5. 礼盒正文仍写 "Level 86"（源 `86_levelup_maxlevel_text` 旧上限遗留）—— 按「PVF 是唯一真源」逐字引用，
+   未自造 115 句子；附件期限沿用本服「永不过期」哨兵，故 tooltip 不显示源里的「剩余 30 天」（**有意偏离**）。
+6. 交付方自述的**缺口 B**（源有 20 条 `[no conditions]`，其中 10 条客户端本地持有、`InitialProgress` 拒绝）未解。
+
+### bug 测试取证
+- 新增：`cmd/wireprobe/pass_gate_noti312_test.go`、`sirocco_boss_door_test.go`、`noblesse_layer_revisit_test.go`；
+  `internal/catalog/dungeon_bossentrance_test.go`、`internal/dungeon/odyssey_bakal_hunt_last_room_native_test.go`；
+  `internal/catalog/max_level_reward_test.go`、`internal/character/max_level_reward_test.go`、
+  `internal/database/max_level_reward_test.go`（SQLite 版）。
+- 删除：`cmd/wireprobe/scene_exit_record_test.go`（专测已删掉的服务端合成路径）。
+- 归档：`analysis/dumps/idb_funcs.tsv` / `idb_globals.tsv` / `idb_struct.json`（NOTI312 的 IDA 结构偏移）。
+- 提交纪律：本轮**只提交到本地、不推远端**；未实机验收前不得把以上任一条写成「已确认」。
 ## 2026-10-06：客户端中文输入修复（mod 交付，业主实机确认）
 
 ### 已修复 / 已完成
