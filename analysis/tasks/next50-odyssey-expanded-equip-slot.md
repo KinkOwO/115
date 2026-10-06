@@ -255,7 +255,7 @@
   `unlock earring` → `odysseySlotActionMask` → `inventory.ExpandEarring(1<<4)` → `UnlockEquipSlots`
   写 `Bag.ExpandEquipFlags`。测试 `internal/character/odyssey_expand_slot_test.go` 已钉住这条映射。
 
-### 2026-10-06 实现（方案 B，**待实机**）：回城补发 EntryAddition
+### 2026-10-06 实现（方案 B，**已实机通过**）：回城补发 EntryAddition
 
 上节复现确认「装备栏挂锁只能由 `EntryAddition`(USERINFO1) 投影」之后，选了**影响面最小**的做法：
 副本内仍只落库 + 置脏标记，**改在回城那一刻补发一次**（回城本就是场景重建时机 —— 服务端此刻已在发
@@ -279,3 +279,25 @@
   二进制自检：`town_actor_addition_restored` 在新 exe 命中 1、在改前基线上为 **0**。
 - **实机验收判据**：清掉一个会解锁扩展装备槽的副本（如 `100004969` 盖波加 → 耳环）
   → **回城后不重登，装备栏耳环槽应当场点亮**；同时确认回城后装备栏**没有变空**。
+
+**实机结果（2026-10-06，业主操作，会话 `…_193331_396576_next37`）**
+
+受控回档把 `test-hy` 的 `expand_equip_flags` 由 **19 降到 3**（备份 `D:/115us-backup/pre-slot-rollback-20261006/`），
+重打 `100004969 Gaebolg` → 回城。**业主确认：不用重登，耳环槽当场点亮。**
+
+`events.jsonl` 帧序（三项契约全中）：
+
+```
+19:36:58.706  town_actor_appearance_restored(2)                      ← 普通回城：不带 addition ✓（非 dirty）
+19:36:59.630  town_actor_appearance_restored(2)                      ← 同上 ✓
+19:38:03.121  odyssey_clear_target_level(37) + equipment_bag_resynced(13)   ← 清关，flags 3→19（置脏标记）
+19:38:09.325  town_actor_appearance_restored(2) → town_actor_addition_restored(2)  ← ★ 回城补发，紧跟其后
+19:38:46.711  town_actor_appearance_restored(2)                      ← 脏标记已消费，不再重发 ✓
+19:38:48.748  town_actor_appearance_restored(2)                      ← 同上 ✓
+```
+
+存档复核：`expand_equip_flags` 已由 3 写回 **19**（重新通关自然复原，无需手工处理）；
+`odyssey_completed_dungeons` 仍 35 条（未改动通关账本）。装备栏**没有出现变空**。
+
+⇒ **「解锁后的当场可见」这一条从「待修复（未闭环）」转为已闭环**：玩家路径不再需要重登/重选角色。
+（另一半仍是未闭环的：`NOTI2855` 从不发送 —— 与本条无关。）
