@@ -57,6 +57,12 @@
   （只有**安装失败/升级的内部回滚**才按登记哈希删脚本。）
 - 这份脚本在管理页下半部分「Lua 规则脚本」可见，来源显示 `mod newchar.kit`，在那儿**只读**。
 
+> ✅ **一个好消息（与 `odyssey.hardcore` 那类 server 层 mod 的差别）**：本 mod 是**只带
+> `server.script` 的规则脚本 mod**，**不参与编译、不进 `mods/zz_mods_gen.go` 那个加载器**，
+> 所以**不受"当前已发布版启动器（v1.7.7）只能同时装 1 个 server 层 mod"的限制** ——
+> 它和别的 server 层 mod 可以同时存在（脚本按文件名平铺，跨 mod 同名才会被 `plan` 拦下）。
+> 两段口径见 [`../MOD-DEVELOPMENT.md`](../MOD-DEVELOPMENT.md) §4.8。
+
 ## 邮件标题为什么是英文
 
 服务端把邮件标题按 GBK 发出去，115 客户端会把中文渲染成乱码。脚本里标题统一

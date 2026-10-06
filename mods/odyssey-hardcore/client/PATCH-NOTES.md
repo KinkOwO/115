@@ -16,6 +16,11 @@ DLL 的源文件是 `client-patchs\difficulty\dist\DifficultyRules.dll`（由
 > （`/.gitignore` 里 `*.dll` 被忽略，见 `client-patchs/AGENTS.md` §1.6「构建产物不入库」）。
 > 打包时由 `build-mod.py` 从上面的 dist 路径取，再算 size/sha256 写进 `mod.json`。
 
+> **本文件（`client/PATCH-NOTES.md`）只是包内的普通文件，不生成任何 manifest op**：
+> `build-mod.py` 的 doc 阶段把 `client/*.md` 拷进 staging（`build-mod.py:161-174`），
+> 于是它随 zip 可读，但**不落位到客户端**、`mod.json` 的 `client.ops` 里也没有它 ——
+> modkit 只按 `ops` 干活，所以"包里多一份说明文档"不会多出任何安装动作。
+
 ---
 
 ## 一、为什么以前用 `exe.patch`

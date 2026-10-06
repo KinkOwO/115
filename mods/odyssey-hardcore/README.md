@@ -271,6 +271,15 @@ python mods\odyssey-hardcore\build-mod.py --rules-only
 > **游戏运行时 modkit 拒绝写入客户端**。要装/卸血量/伤害那一层，先关掉 `DFO.exe`；
 > 打包（`build-mod.py`）不受影响，它只读核对，不改任何文件。
 
+> ⚠️ **它是 server 层 mod，所以受"加载器"那条限制**：当前已发布版启动器（**v1.7.7**，仓
+> `115us-dfolauncher` HEAD `8c87358`）生成的 `mods/zz_mods_gen.go` 对所有 mod 用**默认 import**，
+> 所以**同时装 ≥2 个 server 层 mod 会在安装期被拦下并回滚**
+> （报「生成的 mod 加载器编译失败」；根因是 `modpkg redeclared in this block`）。
+> **下一版起**（启动器仓工作区那条**尚未提交/发布**的修复）会给每条 import 生成按 mod id 的
+> 显式别名，届时支持多个共存。依据与两段口径见
+> [`../MOD-DEVELOPMENT.md`](../MOD-DEVELOPMENT.md) §4.8。
+> 只带规则脚本的 mod（`server.script`）不受这条限制。
+
 卸载后规则立刻回到"全关"（`internal/modpolicy` 是进程内策略，零值 = 原行为），但**同样要重启服务端**。
 
 ## 六、变体与构建开关

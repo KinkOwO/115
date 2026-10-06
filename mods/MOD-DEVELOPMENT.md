@@ -38,10 +38,12 @@ modkit plan --client <客户端根> --mod MyMod.zip --root <启动器根>
 modkit install --client <客户端根> --mod MyMod.zip --root <启动器根>
 
 # 6) 卸（逐字节还原）
-modkit uninstall --client <客户端根> --id my.mod --root <启动器根>
+modkit uninstall --client <客户端根> --id my.mod --root <启动器根> [--dry-run] [--force]
 ```
 
 `--root` = 启动器根（含 `server/work/dfo-lan`）或服务端模块根本身。只有 server 层需要它。
+真实 flag 清单以启动器仓 `cmd/modkit/run2.go` 为准（`verify` 只有 `--mod` / `--allow-dir` / `--json`，
+**没有** `--client`）；`modkit mods list/enable/disable` 见 §4.6。
 
 现成例子：`mods/examples/hello-verify/`（可安装、可验证）。
 
@@ -205,18 +207,41 @@ MyMod.zip
 
 签名写错 → 服务端**编不出来**。所以不存在"装了但没生效"的静默失败。
 `modkit install` 落位后还会先跑一次静态验证编译，编不过就整体回滚。
-**它是逐个已装 mod 目录编译的**（`go build ./mods/<id>`，见启动器仓
-`internal/modkit/install2.go:579-611`），**不是** `go build ./mods/...`：后者会把
-`examples/` 之类目录里的构建产物一起扫进来，用无关错误把"你的 mod 编不过"这个信号淹掉。
+**它编两个目标**（启动器仓 `internal/modkit/install2.go:589-647`，v1.7.7 起）：
+
+1. **逐个已装 mod 目录**：`go build ./mods/<id>`（`:623-632`），**不是** `go build ./mods/...`：
+   后者会把 `examples/` 之类目录里的构建产物一起扫进来，用无关错误把"你的 mod 编不过"这个信号淹掉；
+2. **加载器所在的包**：`go build ./mods/`（`:633-645`），失败时报
+   **「生成的 mod 加载器编译失败（已回滚）」**。这一步是必需的：`mods/zz_mods_gen.go` 是
+   **重写过的生成物**，它自己坏掉时（例如出现两处 `package mods`）逐个 mod 目录都编得过，
+   只有编 `./mods/` 才报错 —— 少了它，这类事故在安装期是 **0 阻断**（v1.7.6 的实际事故）。
 
 > **两个前提必须先满足**（旧文没写，缺了会在安装期硬失败）：
 > 1. **本机要有 Go 工具链**（声明 `hooks` 的 mod 才需要）：找不到就地编译用的 Go 时，
 >    `modkit install` 直接报错退出（`install2.go:113-116`、`install2.go:589-592`），
 >    `--skip-verify-build` 只是跳过"落位后的静态验证"，并不等于不需要 Go；
-> 2. **随包的服务端二进制可能连 mod 宿主都没有**：宿主代码在
->    `server/work/dfo-lan/internal/servermod` 与 `cmd/wireprobe/servermods.go`，只有**按当前服务端源码重编译**
->    的程序才带它。随包的预编译 `wireprobe-pvf.exe` 若没有宿主，装好的 mod 一个都不会被装载，
->    而启动日志里**连 `servermod:` 这一行都不会出现**（判据见 §9）。
+> 2. **目标服务端必须有 mod 宿主**：宿主代码在
+>    `server/work/dfo-lan/internal/servermod`，把已装 mod 的 `Register()` 接上主程序的线在
+>    `cmd/wireprobe/servermods.go`（它调 `mods.RegisterMods()`）。源码树缺宿主时，
+>    `modkit install`（启动器 v1.7.7 起）**在写盘之前就拒绝装 server 层 mod**，
+>    并在计划里写明两条出路 —— ① 用启动器「更新」换一份带宿主的新服务端包；
+>    ② 本机有 Go 工具链时点启动器「编译服务端」（或 `server/Build-Server.ps1`）重编当前源码
+>    （启动器仓 `internal/modkit/modhost.go:233-255` 的 `hostGate`，
+>    判据 = `cmd/wireprobe/servermods.go` / `internal/servermod/` / `mods/zz_mods_gen.go` 三者任一存在
+>    即算有宿主，`:104-115`）。
+>
+>    **配套的另一半（只提示、不阻断）**：源码树有宿主、但**已编译产物里搜不到宿主标记**
+>    （在 `<启动器根>/server/work/dfo-lan/bin/wireprobe-pvf.exe` 里全文搜 `internal/servermod`）时，
+>    门禁只提示「**装完要重新编译服务端**」—— 那属于正常的源码流程，不算失败
+>    （`modhost.go:256-262`）。真正的失败只有"源码树也没有宿主"那一种。
+>
+>    **发布包的时间线（别再按旧文一概而论）**：**2026-10-07 起重打的包已经带宿主**
+>    （`tools/tools-server-bin.zip` 85 条目 / 含 `internal/servermod`、`RegisterMods`、
+>    `DFO_REWARD_SCRIPTS_DIR`；`tools/tools-server-src.zip` 1973 条目 / 含 `internal/servermod/**`
+>    与 `cmd/wireprobe/servermods.go`，且已无 `sql/postgres`），
+>    但**那批包在分支 `mr/packages-20261007` 上，尚未合并到上游主源**；
+>    **在此之前发布的包没有宿主**。现场判据：启动日志里**一行 `servermod:` 都没有**
+>    （连"未装载"都没有）就是这一份（见 §9 ②）。装之前也可以先看安装期是否被上面那道门禁拦下。
 
 ### 4.2 三个钩子点
 
@@ -248,8 +273,9 @@ MyMod.zip
 
 - 不能是 `package main` —— Go 不允许 import 程序，会报
   `import "dfolan/mods/x" is a program, not an importable package`；
-- 必须**统一**叫 `modpkg` —— 生成的 import 清单用默认 import，
-  于是引用的标识符就是包名，不统一就对不上。
+- 必须**统一**叫 `modpkg` —— 加载器是按这个约定包名生成 import 与调用的：
+  1 个 mod 时用默认 import（引用名就是 `modpkg`），**≥2 个 mod 时每条 import 都带别名**，
+  引用名变成别名（见 §4.8）。所以包名必须统一，**不能各写各的**。
 
 ```go
 // 服务端模块 mods/<mod-id>/mod.go
@@ -314,8 +340,9 @@ func observe(conn string, opcode uint16, body []byte) {
 **注意**：`RegisterBoot` 的回调里 `return error` = 服务端起不来。别拿它做可选检查——
 可选信息请只记日志。
 
-**固定包名的约束**：`mods/` 下每个 mod 都叫 `modpkg`，所以**不要**在 mod 之间互相 import
-（Go 里同名包无法区分）。mod 之间的协作请走 `servermod` 的钩子与操作，不要直接耦合。
+**固定包名的约束**：`mods/` 下每个 mod 都叫 `modpkg`（这是刻意统一的，见 §4.8）。
+所以**不要**在 mod 之间互相 import（Go 里同名包无法区分）；mod 之间的协作请走 `servermod`
+的钩子与操作，不要直接耦合。
 
 ---
 
@@ -457,18 +484,23 @@ func Register() {
 
 - 规则来源有两份，合成一个只读视图交给奖励管线：
   ① **内置规则集**（编译进二进制，`internal/reward/scripts/level.lua`、`newchar.lua`、`quest.lua`）；
-  ② **磁盘/mod 脚本**（下面这四层目录）。
+  ② **磁盘/mod 脚本**（下面那四层目录：启动器注入的环境变量目录、`<包根>\mods\`、
+  `<包根>\mods\scripts\`、`<模块根>\mods\scripts\` —— 服务端 `cmd/wireprobe/servermods.go:63-90`
+  的 `rewardScriptsDirs()`）。
 - **同名时磁盘/mod 脚本胜出，内置集只是"兜底"**：磁盘上没有同名脚本时才轮到内置那份
   （启动器仓 `internal/modkit/rewardscripts.go:26-35`、`:432-436` 的 `ProvidedBy` 注释口径）。
-- ⚠️ **实现核对状态（2026-10-07）**：文档按**磁盘优先 + 上面的四层搜索顺序**写，
-  但**已提交的 `fork/main` 基线还没有这一版实现** —— 它的 `rewardScriptFS()` 仍是
-  "`compositeScriptFS{first: bundled, second: <模块根>/mods/scripts}`"（**内置在前**），
-  且 `cmd/wireprobe/servermods.go` 里**没有** `rewardScriptsDirs()`、**不认** `DFO_REWARD_SCRIPTS_DIR`。
-  带多目录 + 环境变量的那一版目前只在**工作区**（另一个任务正在把它带进 fork）。
-  **本文档不迁就旧实现**，按已定口径写"磁盘优先"；实现落地后本节即为事实。
-  在它落地前，请按 §9 的自证手段（尤其 `reward rules enabled …` 与 `reward scripts: 磁盘规则脚本目录 …` 两行）
-  确认现场到底是哪一份在跑，并**别用 `level.lua` / `newchar.lua` / `quest.lua` 这三个名字**
-  （旧实现下会静默被内置顶掉）。
+- ✅ **实现核对状态（2026-10-07 复核：已落地）**：磁盘优先与上面的四层搜索顺序**已经在当前
+  `fork/main` 里实现**，不再是"只在工作区/待落地"：
+  - `cmd/wireprobe/reward_flow.go:128` 的出口就是
+    `return &compositeScriptFS{first: foldScriptFS(onDisk), second: bundled}` —— **磁盘在前、内置在后**
+    （该类型的契约是"first 胜出"，所以这行就是"磁盘优先"的全部实现，见 `:121-127` 的注释）；
+  - `cmd/wireprobe/servermods.go:49` 定义 `DFO_REWARD_SCRIPTS_DIR`、`:63-90` 的 `rewardScriptsDirs()`
+    按四层顺序探测目录（`:81` 读环境变量、`:85` 正式位置 `<包根>/mods`、`:87-88` 两个历史位置）；
+  - "磁盘脚本盖住内置规则"**不再静默**：同名时逐名打一行
+    `reward scripts: 磁盘脚本 <名> 覆盖内置同名规则（来源 <目录>）—— 内置集仅作兜底`
+    （`cmd/wireprobe/reward_flow.go:155` 的 `logDiskScriptOverrides`）。
+  - 证据提交：`51e84c0a`（"Lua 规则脚本磁盘优先"）。
+  现场自证仍按 §9 的两行日志（`reward rules enabled …` 与 `reward scripts: 磁盘规则脚本目录 …`）。
 
 **磁盘脚本的搜索顺序**（多个目录合成一个视图，按**文件名**去重、同名只执行先命中的那份）：
 
@@ -482,9 +514,10 @@ func Register() {
 （`cmd/wireprobe/servermods.go` 的 `rewardScriptsDirs()`；①优先于②，②③④只读兼容。
 "包根"= 服务端模块根往上三级，本机就是整合包根 `C:\Game\dof\115us\115`。）
 
-> **命名警告**：别把自己的脚本叫成 `level.lua` / `newchar.lua` / `quest.lua`（内置规则集的名字），
-> 除非你**确实要覆盖内置规则**。叫了这三个名字，在"磁盘优先"落地后就是**静默顶掉内置那一份**；
-> 在它落地前则是你那份被内置顶掉、一条都不跑。两种情况都很难查。
+> **命名警告**：别把自己的脚本叫成 `level.lua` / `newchar.lua` / `quest.lua`（内置规则集的名字）。
+> 现在是**磁盘优先**，叫了这三个名字就是**你自己那份赢、内置那份退场**（静默顶掉，但日志里有一行
+> `reward scripts: 磁盘脚本 <名> 覆盖内置同名规则…` 可以查）。所以：**只有确实要覆盖内置规则时**
+> 才用这三个名字；只是"随便起个名"而撞上它，会变成"我这份跑没跑"和"内置那份怎么没了"两头都要查。
 
 **它也是"只带规则、不带代码"的 mod 的落位目标**（2026-10-06 起）。这样的 mod
 不需要写任何 Go、也不需要重新编译服务端 —— 清单里声明 `scripts` 就行：
@@ -508,6 +541,19 @@ func Register() {
   落位文件名校验很严：必须平铺、不许带目录、不许以 `.` 开头：服务端就是按平铺 `*.lua` 枚举脚本的，
   带目录的名字它读不到（那种"装了却没生效"必须在落位前报出来）；
 - **文件名是平铺的**：同一个 mod 内不能重名、跨 mod 也不能同名 —— 后者会被 `plan` 拦下；
+- **`mods/README.md`（服务端侧）一个字节都不会被生成器动**：这是服务端仓里人写的文档，
+  modkit **只在它不存在时创建**一份初始说明，**已存在就一个字节都不碰**
+  （启动器仓 `internal/modkit/support.go:239-276` 的 `ensureServerModsReadme`
+  —— 旧文"生成器会按模板整份重写 README"**已过时**，那正是"每次 install 都把别人写的节覆盖掉"的事故）；
+  **加载器 `mods/zz_mods_gen.go` 不适用这条**：它是生成物，本来就由引擎整份重写
+  （`support.go:223-237` 的 `rewriteServerModsGen`），只有它的**注释文案**要与服务端仓已提交的
+  **干净形态逐字节一致**（唯一真源见 `support.go` 的 `serverModsGenComment`），
+  这样在干净 `mods/` 上重算**不会**产生"把别人维护的注释改回去"的噪音 diff；
+- **生成器要求仓库里提交的那份加载器是干净形态**（不 import 任何 mod 的合法加载器）：
+  `server/Build-Server.ps1` 编译前会机械扫一遍加载器里的 `dfolan/mods/<id>` import，
+  逐个用 `git ls-files` 核对是否入库，**有未入库的就报错并中止编译**（`Build-Server.ps1:27-83`；
+  本机确实要带着已装 mod 编译时用 `-SkipModGenGate`）。所以**别把本机那份加载器提交上去**
+  （服务端侧说明见 `server/work/dfo-lan/mods/README.md`）；
 - 一份清单里 `hooks` 与 `scripts` 可以同时写；**只写 `scripts` 时包里不需要 `.go` 文件**，
   装的时候不建 `mods/<mod-id>/`、不改加载器、也不跑编译；
 - 权限位要 `server.script`（和 Go 钩子的 `server.hook` 分开：后者要重编译，前者不要）；
@@ -559,6 +605,25 @@ mod 只读；写只有两个入口：管理器 UI、或 `modkit mods enable/disa
 mod 在启动时调 `Register()`"，而 `<启动器根>\mods\*.lua` 是服务端**无条件**读盘的。
 要停掉一条落盘规则，只能删掉/移走那个 `.lua`（管理页给的就是删除，不做"重命名式停用"——
 那等于发明第二套启用状态）。
+
+### 4.8 能同时装几个 server 层 mod？（**按启动器版本分两段写，别混**）
+
+这条必须写清**依据的版本**，因为"已发布版"和"下一版"的行为不一样：
+
+| | 已发布版本：启动器 **v1.7.7**（仓 `115us-dfolauncher` HEAD `8c87358`） | 下一版起：工作区未提交的修复 |
+| --- | --- | --- |
+| `mods/zz_mods_gen.go` 里每个 import | **默认 import**（不带别名），`RegisterMods()` 里统一写 `modpkg.Register()` | **≥2 个 mod 时每条 import 都带显式别名**，`RegisterMods()` 按别名逐条调用 |
+| 同时装 ≥2 个 server 层 mod | ❌ **不行**：所有 mod 都声明 `package modpkg`，同一文件里 `import` 两个同名包 ⇒ `modpkg redeclared in this block` | ✅ **支持多个**（别名把"包名"与"本文件里的引用名"解耦） |
+| 失败在哪一步 | **安装期**就被拦下并**回滚**：`go build ./mods/` 报「生成的 mod 加载器编译失败（已回滚）」，不会留下一个编不过的服务端 | — |
+| 依据 | `internal/modkit/support.go` 的 `renderServerModsGen`（commit `8c87358`）、`internal/modkit/install2.go:633-645`；`8c87358` 的提交正文把"两个及以上 server 层 mod"明确列为**未闭环（另案）** | 启动器仓工作区 `internal/modkit/support.go` 的 `serverModGoImportAlias()` + `renderServerModsGen` 的 "≥2 个 mod" 分支、`internal/modkit/support_gen_loader_test.go` 的 `TestServerModsGenMultiModLoaderBuilds`（真跑 `go build ./mods/`，含旧形态必红的反向证据）——**尚未提交、未发布** |
+
+结论（写作者视角）：**在 v1.7.7 上，一个整合包只能同时启用一个 server 层 mod**（想换就
+先 `modkit uninstall` 旧的）；**不要**靠"装两个试试"来发现这条限制，安装期会明确报错并回滚。
+`client` 层 / `pvf` 层 / `resource` 层 / 只带 `scripts` 的规则脚本 mod **不受这条限制**
+（它们不进加载器）。
+
+> 包名统一为 `modpkg` 是**刻意**的（`internal/modkit/support.go` 的 `ModPackageName`）：
+> 统一之后生成器不必去猜每个 mod 的包名；多 mod 共存靠别名解决，而不是靠各写各的包名。
 
 
 ## 5. client 层
@@ -860,10 +925,12 @@ end)
 | `请先退出游戏` | `DFO.exe` 在运行 | 退游戏再装/卸 |
 | `找不到 pwsh 7` | pvf 层需要 pwsh | 装 PowerShell 7，或 `--pwsh` 指定，或放 `<客户端工作区>\tools\pwsh7\pwsh.exe` |
 | `服务端 mod 目录已存在且不属于本 mod` | 有同名目录但无来源标记 | 人工确认后移走；引擎不覆盖不认识的目录 |
+| `生成的 mod 加载器编译失败` | `mods/zz_mods_gen.go` 重写后整个 `./mods/` 包编不过（**不要**先去怀疑自己的 mod） | 看报错行；若是 ≥2 个 server 层 mod 共存导致的 `modpkg redeclared`，见 §4.8 —— v1.7.7 上只能同时装一个 |
 | `server 层静态验证编译失败` | 你的 Go 代码编不过 | 按报错改；安装已自动回滚 |
 | `本 mod 声明了 server 层的 Go 钩子…但找不到 Go 工具链` | 声明 `hooks` 但本机没 Go | 装 Go，或改用只带 `scripts` 的规则脚本 mod（不需要 Go） |
+| `目标服务端的源码树里没有 mod 宿主（…都不存在）：装上去也不会生效` | 这份服务端的源码树没有 mod 宿主（启动器 v1.7.7 起的**安装期硬门禁**） | 按报错里的两条出路：① 用启动器「更新」拿带宿主的新服务端包；② 有 Go 时点「编译服务端」重编当前源码 |
 | `依赖 mod X 当前被禁用：请先在 MOD 列表里启用它` | 依赖装了但被 `enabled.json` 禁用 | 先在 MOD 列表启用依赖，再装 |
-| `计划被阻断`（exit 2） | 冲突/缺依赖/缺前置 | 看 `plan` 输出的 `冲突：` 行 |
+| `计划被阻断`（exit 2） | 冲突/缺依赖/缺前置/缺宿主 | 看 `plan` 输出的 `冲突：` 与 `宿主门禁未通过：` 行 |
 
 ---
 

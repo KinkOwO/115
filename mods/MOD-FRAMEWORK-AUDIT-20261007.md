@@ -3,6 +3,31 @@
 > 只读取证，未改动任何文件、未启动游戏或服务端。
 > 证据索引在 §7；括号里的 `文件:行号` 均指向本机当前工作树。
 
+## ⚠️ 阅读前必看：本文档是**当日快照**，其中若干条目已被后续提交解决
+
+本文写于 2026-10-07 早些时候。**同一天后续的提交已经落地了其中几项**，
+所以下面 §1/§2/§3/§5/§6 里对这些点的描述**只代表写本文那一刻的事实**，
+不要再当成现状引用。以下是对照表（每条都能在代码/提交里复核）：
+
+| 本文原结论 | 2026-10-07 之后的现状 | 依据 |
+| --- | --- | --- |
+| §3.1 F3 / §6 待决策 1：**内置优先**，"同名时磁盘优先"只是文档口径 | ✅ **已改成磁盘优先**：`compositeScriptFS{first: foldScriptFS(onDisk), second: bundled}`，并新增覆盖日志 | `server/work/dfo-lan/cmd/wireprobe/reward_flow.go:121-128`（出口）、`:142-159`（`logDiskScriptOverrides`）；提交 `51e84c0a` |
+| §1 矩阵②：Lua 规则脚本"随包服务端不认识 `DFO_REWARD_SCRIPTS_DIR`" ⇒ 静默失效 | ✅ 服务端源码已认这个变量与多目录（`rewardScriptsDirs()`）；**卡点只剩"发布包里的二进制带不带宿主"** | `server/work/dfo-lan/cmd/wireprobe/servermods.go:49,63-90` |
+| §5 的 P0（重打发布包）/ P1（modkit 加宿主探测） | ✅ **两件都已做**，但都**尚未合并上游**：包重打在分支 `mr/packages-20261007`（`tools-server-bin.zip` **85 条目**、`tools-server-src.zip` **1973 条目**，实测与 manifest 的 size/sha256 一致）；宿主探测门禁进了启动器 `dbb9970`（v1.7.7 的一部分） | 分支 `mr/packages-20261007` 的 `tools/manifest.json`；启动器仓 `internal/modkit/modhost.go`、`install2.go:103-113` |
+| §2.2：本地/远端 `tools\` 两个包更旧、仍带 `sql/postgres` 与 `pgx` | `mr/packages-20261007` 上的 `tools-server-src.zip` 已含 `internal/servermod/**` 与 `cmd/wireprobe/servermods.go`、**无 `sql/postgres`** | 解包核验（同分支 blob 24,498,678 B / 11,401,694 B） |
+| §2.3 覆盖风险 | **风险仍在**（`server-bin` 包的 check 路径就是 `bin/wireprobe-pvf.exe`），未被本日提交修掉 | 未变 |
+| §3.2 F19 / §3.3 文案 | 安装期编译**已补第二个目标** `./mods/`（加载器），失败报「生成的 mod 加载器编译失败」 | 启动器仓 `internal/modkit/install2.go:589-647`（v1.7.7） |
+
+**另有一条本文没写、但与"能力边界"直接相关**：当前**已发布**的启动器 **v1.7.7**（`8c87358`）
+生成的加载器对每个 import 用**默认 import**，所以**同时装 ≥2 个 server 层 mod 会
+`modpkg redeclared in this block`**（安装期被 `go build ./mods/` 拦下并回滚）；
+**下一版起**改为按 mod id 生成 import 别名、支持多 mod 共存（该修复**目前只在启动器仓工作区，
+未提交/未发布**）。两段口径见
+[`MOD-DEVELOPMENT.md`](MOD-DEVELOPMENT.md) §4.8 与
+[`MOD-MANAGER-INTEGRATION.md`](MOD-MANAGER-INTEGRATION.md) §5/§9。
+
+（本文正文保持当日原文不动，便于对照"当时结论 vs 现在的实现"。）
+
 ## 0. 一句话结论
 
 - **玩家无源码自制 mod**：**客户端层 / 资源层 ✅ 成立**；**Lua 规则脚本 ❌**（随包与远端发布的服务端程序**都没有 mod 宿主**，落盘成功但无人读取 ⇒ 静默失效）；**Go 钩子 mod ❌**（安装期静态验证编译失败并回滚）。

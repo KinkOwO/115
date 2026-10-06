@@ -111,7 +111,13 @@
 - `percent` / `attackPercent` 只有 `enabled: true` 的规则会校验，**超出 `1..100000`（含 `0`）→ 整份配置判为不可用**
   （与旧版 `percent` 同一策略）：插件会**还原已改过的字段并停手**，日志里写明是哪条规则的哪个字段超范围。
   **不会**"用一半"（例如只放大血量、不放大攻击）。停用（`enabled: false`）的规则不校验。
-- 规则数上限 32（`gmrules.MaxRules`，**rules.d 与 rules.json 共享**），单条 `dungeonIds` 上限 64 项。
+- 规则数上限 32（`gmrules.MaxRules`，**rules.d 与 rules.json 共享**），
+  单条 `dungeonIds` 上限 **256** 项（`src/difficulty-rules.c:234` 的 `MAX_RULE_IDS`；
+  2026-10-07 由 64 抬到 256 —— 依据是 `odyssey.hardcore.json` 一条规则就用掉 56 个副本 id，
+  而规则**条数**上限 32 是跨文件共享的池子，为覆盖更多副本去拆规则更快撞 32 条）。
+  越界仍按"整份配置不可用、不用一半"处理（`difficulty-rules.c:1464-1468`）。
+  代价只在堆上：`sizeof(Rule)` 408 B → 1176 B，最坏堆 = `MAX_RULE_FILES(32) × MAX_RULES(32) × 1176 B
+  ≈ 1.2 MiB`，`RuleSet` 不内嵌 Rule 数组所以函数栈占用不变（`difficulty-rules.c:228-233`）。
 - 改完**存盘即生效**（插件 200 ms 内重载，按"时间戳/大小/内容哈希/`rules.d` 目录指纹"多重判定），
   不用重启游戏。`rules.json` 整体删除 → 插件会**重新生成默认文件**（`enabled: false`）并保留原版
   （此时 `rules.d` 里的规则也不再参与匹配 —— 与旧版"文件没了 = 配置不可用"逐字一致）。
@@ -178,8 +184,9 @@
 
 ## 怎么开 / 怎么关
 
-1. 装宿主：`modkit install --client <客户端根> --mod client-host-1.0.0.zip`。
-2. 装本 mod：`modkit install --client <客户端根> --mod difficulty-1.0.0.zip`。
+1. 装宿主：`modkit install --client <客户端根> --mod client-host-1.0.0.zip --root <启动器根>`
+   （`--root` 是安装参数；卸载才要 `--client` + `--id` + `--root`）。
+2. 装本 mod：`modkit install --client <客户端根> --mod difficulty-1.0.0.zip --root <启动器根>`。
 3. 进图前把 `rules.json` 的 `enabled` 改成 `true`，把要用的规则 `enabled` 改成 `true`。
 4. **临时关**：把 `rules.json` 的 `enabled` 改回 `false`（存盘后插件会立刻还原并停手）。
 5. **彻底卸载**：`modkit uninstall --client <客户端根> --id difficulty.rules`。
