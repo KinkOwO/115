@@ -6,11 +6,6 @@ import (
 	"errors"
 	"sync"
 	"time"
-
-	"dfolan/internal/database/sqlcgen"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // errAdminGuardBusy is what both engines report when another session holds the shared
@@ -25,8 +20,8 @@ var errAdminGuardBusy = errors.New("已有 GM 写入正在进行，请稍后重�
 // begin returns the manual transaction form the store already uses throughout
 // (begin, defer rollback, commit); inTx wraps it for callers that prefer a callback.
 // An earlier design put WithTx on the shared interface, which cannot work: it hands
-// back a transaction handle (pgx.Tx versus *sql.Tx), so no single signature describes
-// it - confining that difference here keeps every call site engine-neutral.
+// back a transaction handle whose type differs per engine, so no single signature
+// describes it - confining that difference here keeps every call site engine-neutral.
 type engine interface {
 	queries() querySet
 	begin(ctx context.Context) (txHandle, error)
@@ -35,7 +30,7 @@ type engine interface {
 }
 
 // txHandle is a transaction-bound query surface. commit and rollback take a context
-// for symmetry with pgx; database/sql's versions take none.
+// so the interface stays stable even though database/sql's versions take none.
 type txHandle interface {
 	queries() querySet
 	// exec runs raw SQL. The migration runner needs it: DDL has no generated query,
@@ -56,100 +51,6 @@ func inTx(ctx context.Context, e engine, fn func(txHandle) error) error {
 		return err
 	}
 	return tx.commit(ctx)
-}
-
-
-// rawPool returns the PostgreSQL pool behind the engine, or a clear error when the
-// engine has none. Only the test fixture and the diagnostics exception use it; both
-// are PostgreSQL-only by design (sec.3.4), and they must say so rather than silently
-// doing nothing on SQLite.
-func (s *Store) rawPool() (*pgxpool.Pool, error) {
-	if access, ok := s.engine.(poolAccess); ok {
-		return access.rawPool(), nil
-	}
-	return nil, errPostgresOnly
-}
-
-// errPostgresOnly marks the operations that deliberately have no SQLite equivalent.
-var errPostgresOnly = errors.New("this operation requires the PostgreSQL engine")
-// poolAccess is implemented by engines that can hand out their raw PostgreSQL pool.
-// Only the test fixture uses it, to create and drop an isolated schema; a SQLite
-// deployment isolates with its own database file instead (D18), so the fixture
-// reports that it needs PostgreSQL rather than pretending otherwise.
-type poolAccess interface {
-	rawPool() *pgxpool.Pool
-}
-
-// ---------------------------------------------------------------------------
-// PostgreSQL
-// ---------------------------------------------------------------------------
-
-type postgresEngine struct {
-	pool *pgxpool.Pool
-	q    *sqlcgen.Queries
-}
-
-func newPostgresEngine(pool *pgxpool.Pool) *postgresEngine {
-	return &postgresEngine{pool: pool, q: sqlcgen.New(pool)}
-}
-
-func (e *postgresEngine) queries() querySet { return e.q }
-
-func (e *postgresEngine) begin(ctx context.Context) (txHandle, error) {
-	tx, err := e.pool.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return &postgresTx{tx: tx, q: e.q.WithTx(tx)}, nil
-}
-
-func (e *postgresEngine) rawPool() *pgxpool.Pool { return e.pool }
-
-func (e *postgresEngine) close() error {
-	e.pool.Close()
-	return nil
-}
-
-type postgresTx struct {
-	tx pgx.Tx
-	q  *sqlcgen.Queries
-}
-
-func (t *postgresTx) queries() querySet { return t.q }
-func (t *postgresTx) exec(ctx context.Context, statement string) error {
-	_, err := t.tx.Exec(ctx, statement)
-	return err
-}
-func (t *postgresTx) commit(ctx context.Context) error   { return t.tx.Commit(ctx) }
-func (t *postgresTx) rollback(ctx context.Context) error { return t.tx.Rollback(ctx) }
-
-// holdAdminGuard keeps a dedicated connection holding the shared advisory lock, which
-// is also what releases it: the lock lives with the connection, so closing that
-// connection on release (or on process death) frees the guard with no bookkeeping.
-func (e *postgresEngine) holdAdminGuard(ctx context.Context) (func(), error) {
-	conn, err := e.pool.Acquire(ctx)
-	if err != nil {
-		return nil, err
-	}
-	ok, err := sqlcgen.New(conn).TrySharedAdminGuard(ctx)
-	if err != nil || !ok {
-		conn.Release()
-		if err != nil {
-			return nil, err
-		}
-		return nil, errAdminGuardBusy
-	}
-	var once sync.Once
-	return func() {
-		// Releasing twice would return the same pooled connection twice.
-		if !onceAllowed(&once) {
-			return
-		}
-		closeCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-		_ = conn.Conn().Close(closeCtx)
-		conn.Release()
-	}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -196,8 +97,9 @@ func (t *sqliteTx) commit(ctx context.Context) error {
 func (t *sqliteTx) rollback(ctx context.Context) error { return t.tx.Rollback() }
 
 // holdAdminGuard uses the lease file the adapter implements (design doc sec.3.3);
-// releasing removes it, which is the equivalent of PostgreSQL dropping the advisory
-// lock when the connection closes.
+// releasing removes it. SQLite is the only engine since 2026-10-05 (owner decision, see
+// root AGENTS.md §0.6), so this is the only guard implementation there is: the
+// PostgreSQL advisory-lock variant went with the engine.
 func (e *sqliteEngine) holdAdminGuard(ctx context.Context) (func(), error) {
 	ok, err := e.q.TrySharedAdminGuard(ctx)
 	if err != nil {
@@ -236,11 +138,4 @@ func (e *sqliteEngine) holdAdminGuard(ctx context.Context) (func(), error) {
 			_ = e.q.ReleaseAdminGuardLease(context.Background())
 		})
 	}, nil
-}
-
-// onceAllowed runs the guarded body exactly once, for releases that must not repeat.
-func onceAllowed(once *sync.Once) bool {
-	allowed := false
-	once.Do(func() { allowed = true })
-	return allowed
 }

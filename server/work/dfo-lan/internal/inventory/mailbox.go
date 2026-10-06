@@ -90,6 +90,9 @@ func (b Bag) TakeMailItem(c catalog.LootCatalog, equipment *EquipmentCatalog, r 
 		if row.Slot != r.Slot {
 			continue
 		}
+		if b.TutorialSealed(row) {
+			return fail(ErrMailUntradeable)
+		}
 		if row.Template != r.Template || r.Amount != 1 || equipment == nil {
 			return fail(ErrMailUntradeable)
 		}

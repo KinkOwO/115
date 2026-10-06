@@ -254,12 +254,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("读取存储配置失败：%v", err)
 	}
-	// 存储没起来就自己拉起来（pg_ctl 不需要管理员权限）；SQLite 档没有服务可起，
-	// 这里只回报数据库文件位置，不再去拉 PostgreSQL。
+	// 存储档校验：SQLite 是唯一引擎，没有服务可起，这里只回报数据库文件位置。
+	// PostgreSQL 的 pg_ctl 自动拉起随引擎一起移除（2026-10-05，见根 AGENTS.md §0.6）。
 	if sc, e := loadStorageConfig(p.storage); e != nil {
-		log.Printf("读取存储档失败（跳过自动启动存储）：%v", e)
-	} else if note, e := startStorage(sc, filepath.Dir(p.storage)); e != nil {
-		log.Printf("自动启动存储失败：%v", e)
+		log.Printf("读取存储档失败（跳过存储档校验）：%v", e)
+	} else if note, e := startStorage(sc); e != nil {
+		log.Printf("存储档校验失败：%v", e)
 	} else if note != "" {
 		log.Printf("%s", note)
 	}

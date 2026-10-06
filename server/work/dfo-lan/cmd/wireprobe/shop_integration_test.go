@@ -16,12 +16,8 @@ import (
 	"time"
 )
 
-// Opt in with DFO_TEST_POSTGRES_DSN; all writes use a new temporary schema.
+// The fixture opens its own disposable SQLite database; all writes stay inside it.
 func TestShopQuantityDatabaseAndWire(t *testing.T) {
-	dsn := os.Getenv("DFO_TEST_POSTGRES_DSN")
-	if dsn == "" {
-		t.Skip("isolated PostgreSQL integration")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	fixture, e := database.OpenTestFixture(ctx)

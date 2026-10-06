@@ -7,15 +7,11 @@ import (
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"encoding/json"
-	"os"
 	"reflect"
 	"testing"
 )
 
 func TestAutomaticSkillPersistence(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("isolated schema integration")
-	}
 	ctx := context.Background()
 	fixture, err := database.OpenTestFixture(ctx)
 	if err != nil {

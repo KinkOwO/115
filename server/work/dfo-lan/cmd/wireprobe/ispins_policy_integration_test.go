@@ -5,16 +5,12 @@ import (
 	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"encoding/json"
-	"os"
 	"strings"
 	"testing"
 	"time"
 )
 
 func TestIspinsUnlimitedReceiptFailureKeepsSettlementIntegration(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("isolated PostgreSQL schema")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	dbFixture, e := database.OpenTestFixture(ctx)

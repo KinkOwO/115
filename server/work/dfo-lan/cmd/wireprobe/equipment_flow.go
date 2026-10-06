@@ -12,8 +12,9 @@ import (
 )
 
 type equipmentSession struct {
-	nonce       [16]byte
-	initialized bool
+	// requestKeySession 提供本连接的幂等键（nonce + 传输帧摘要）；它是独立轮子，
+	// 装备线与活动线各持有自己的实例。
+	requestKeySession
 	// 增幅摧毁装备后，客户端会把金币**显示**清成 0（存档里的金币是对的，重登即恢复）。
 	// 单独补发一次金币包没用 —— 客户端是在「装备破坏」动画之后才刷 UI 的，
 	// 所以这里把金币包挂起来，等主循环到点后再补发一次（同一 goroutine 串行发送，不并发写 socket）。
@@ -21,8 +22,13 @@ type equipmentSession struct {
 	pendingGoldDue  time.Time
 }
 
-// requestKey shares the session nonce; callers retain their operation prefixes.
-func (s *equipmentSession) requestKey(raw []byte) (string, error) {
+// requestKeySession shares the session nonce; callers retain their operation prefixes.
+type requestKeySession struct {
+	nonce       [16]byte
+	initialized bool
+}
+
+func (s *requestKeySession) requestKey(raw []byte) (string, error) {
 	if !s.initialized {
 		if _, e := rand.Read(s.nonce[:]); e != nil {
 			return "", e
@@ -227,6 +233,13 @@ func (s *equipmentSession) handle(service *workflow.WearService, w *worldSession
 		if loyaltyErr == nil {
 			plan = append(plan, loyaltyPackets...)
 		}
+	}
+	// 训练关卡的穿戴事实（第一/二/七/八/十关）不能等客户端来问：实机 2026-10-04 18:11
+	// 会话里领完第一关奖励后连发 11 条 CMD19 穿戴，之后只有心跳 2127，没有任何进度请求，
+	// 面板因此停在旧关卡。穿戴落库后按**当前库存耐久事实**重算一次，只在真前进时补一帧
+	// NOTI2638；重算失败只记日志，已提交的穿戴不回滚（口径同分解/技能关）。
+	if moveTouchesWorn(r) {
+		plan = append(plan, w.reconcileBoostEquipment()...)
 	}
 	return plan, nil
 }

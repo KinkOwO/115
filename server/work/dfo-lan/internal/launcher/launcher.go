@@ -22,35 +22,26 @@ import (
 )
 
 // StorageConfig is the part of runtime/storage/local.json the launcher needs.
+//
+// SQLite is the only engine since 2026-10-05 (owner decision, see root AGENTS.md
+// §0.6), so the PostgreSQL fields (postgres_dsn / postgres_bin / postgres_data)
+// are gone: a profile still carrying them parses, but they are ignored.
 type StorageConfig struct {
-	Driver       string `json:"driver"`
-	SQLitePath   string `json:"sqlite_path"`
-	PostgresDSN  string `json:"postgres_dsn"`
-	PostgresBin  string `json:"postgres_bin"`
-	PostgresData string `json:"postgres_data"`
+	Driver     string `json:"driver"`
+	SQLitePath string `json:"sqlite_path"`
 }
 
-// DriverName reports the effective driver, mirroring the server's
-// engineForConfig (internal/database): an explicit driver wins, a named DSN means
-// PostgreSQL, and only a configuration that names nothing but sqlite_path is SQLite.
-//
-// The two rules must stay identical. When they drift, the launcher starts one engine while
-// the server reads the other - a running PostgreSQL and an empty SQLite file, which reaches
-// the player as "my account is gone" (2026-10-05, pgsql 端无法登录).
+// DriverName reports the effective driver. SQLite is the only engine, so an
+// explicit driver is taken as written (the plan builders reject anything that is
+// not sqlite) and an empty configuration means SQLite.
 func (c StorageConfig) DriverName() string {
 	if driver := strings.ToLower(strings.TrimSpace(c.Driver)); driver != "" {
 		return driver
 	}
-	if strings.TrimSpace(c.PostgresDSN) != "" {
-		return "postgres"
-	}
-	if strings.TrimSpace(c.SQLitePath) != "" {
-		return "sqlite"
-	}
-	return "postgres"
+	return "sqlite"
 }
 
-// postgresImages are the server processes the launcher owns. They are killed by image
+// serverImages are the server processes the launcher owns. They are killed by image
 // name because the launcher no longer holds their process handles.
 var serverImages = []string{
 	"wireprobe-dungeon39.exe",
@@ -64,8 +55,7 @@ var serverImages = []string{
 }
 
 const (
-	PostgresPort = 25438
-	GatewayPort  = 7001
+	GatewayPort = 7001
 
 	// portProbeTimeout is short on purpose: a dependency check must not hang on a
 	// port that is filtered rather than closed.
@@ -75,16 +65,15 @@ const (
 // Action is one planned step. Keeping them as data (rather than executing inline) is
 // what lets --dry-run show exactly what a real run would do.
 type Action struct {
-	Kind   string // "kill" | "pg-stop" | "pg-force" | "lease-clear"
+	Kind   string // "kill" | "lease-clear"
 	Target string
-	Path   string // pg-stop: the data directory to stop; lease-clear: the lease file
+	Path   string // lease-clear: the lease file
 	Detail string
 }
 
 // StopPlan decides what stopping this environment requires. It performs no side effects.
 func StopPlan(cfg StorageConfig) ([]Action, error) {
 	switch cfg.DriverName() {
-	case "postgres":
 	case "sqlite":
 		// A sqlite profile has no service to stop: the database is a file the engine
 		// opens and closes itself.
@@ -96,53 +85,28 @@ func StopPlan(cfg StorageConfig) ([]Action, error) {
 	for _, image := range serverImages {
 		plan = append(plan, Action{Kind: "kill", Target: image, Detail: "game server or probe process"})
 	}
-	if cfg.DriverName() != "postgres" {
-		// Last, and only after the kills above: a forced stop leaves the SQLite admin
-		// lease behind, and the next start is refused until its 60s TTL runs out. If a
-		// lease is present, plan to clear it once we know its recorded holder is gone
-		// (see adminlease.go - the executor re-checks at run time, because a clean
-		// shutdown may already have removed it).
-		if path, applicable := AdminLeasePath(cfg); applicable {
-			if _, err := os.Stat(path); err == nil {
-				plan = append(plan, Action{
-					Kind:   "lease-clear",
-					Path:   path,
-					Detail: "clear the SQLite admin lease if its recorded holder is gone",
-				})
-			}
-		}
-		return plan, nil
-	}
-
-	if cfg.PostgresBin != "" && cfg.PostgresData != "" {
-		pgCtl := filepath.Join(cfg.PostgresBin, "pg_ctl.exe")
-		if _, err := os.Stat(pgCtl); err == nil {
-			if _, err := os.Stat(cfg.PostgresData); err == nil {
-				plan = append(plan, Action{
-					Kind:   "pg-stop",
-					Target: pgCtl,
-					Path:   cfg.PostgresData,
-					Detail: "pg_ctl stop -D " + cfg.PostgresData + " -m fast",
-				})
-			}
+	// Last, and only after the kills above: a forced stop leaves the SQLite admin
+	// lease behind, and the next start is refused until its 60s TTL runs out. If a
+	// lease is present, plan to clear it once we know its recorded holder is gone
+	// (see adminlease.go - the executor re-checks at run time, because a clean
+	// shutdown may already have removed it).
+	if path, applicable := AdminLeasePath(cfg); applicable {
+		if _, err := os.Stat(path); err == nil {
+			plan = append(plan, Action{
+				Kind:   "lease-clear",
+				Path:   path,
+				Detail: "clear the SQLite admin lease if its recorded holder is gone",
+			})
 		}
 	}
-	// Needed whenever a server survives the graceful stop, including when the config
-	// names no data directory at all.
-	plan = append(plan, Action{
-		Kind:   "pg-force",
-		Target: "postgres.exe",
-		Detail: fmt.Sprintf("only if port %d is still listening", PostgresPort),
-	})
 	return plan, nil
 }
 
 // StopReport records what actually happened, so the caller can print an honest summary.
 type StopReport struct {
-	Executed   []Action
-	PostgresUp bool
-	GatewayUp  bool
-	DryRun     bool
+	Executed  []Action
+	GatewayUp bool
+	DryRun    bool
 }
 
 // PortListening reports whether something accepts connections on the loopback port.
@@ -175,22 +139,6 @@ func Stop(ctx context.Context, cfg StorageConfig, dryRun bool, logf func(string,
 			}
 			logf("stopping %s (%s)", action.Target, action.Detail)
 			killByImage(ctx, action.Target)
-		case "pg-stop":
-			if dryRun {
-				logf("would run %s", action.Detail)
-				continue
-			}
-			logf("stopping PostgreSQL (fast checkpoint)")
-			stopPostgres(ctx, action)
-		case "pg-force":
-			if PortListening(PostgresPort, 500*time.Millisecond) {
-				if dryRun {
-					logf("port %d is open: would force-terminate %s", PostgresPort, action.Target)
-					continue
-				}
-				logf("port %d still open, force-terminating %s", PostgresPort, action.Target)
-				killByImage(ctx, action.Target)
-			}
 		case "lease-clear":
 			// Re-inspected here rather than trusting the plan: the server may have shut
 			// down cleanly during the kills above and removed its own lease already.
@@ -213,9 +161,8 @@ func Stop(ctx context.Context, cfg StorageConfig, dryRun bool, logf func(string,
 		report.Executed = append(report.Executed, action)
 	}
 
-	// Reported from the same probes the summary uses, so a dry run states current
+	// Reported from the same probe the summary uses, so a dry run states current
 	// reality rather than a prediction it cannot verify.
-	report.PostgresUp = PortListening(PostgresPort, 500*time.Millisecond)
 	report.GatewayUp = PortListening(GatewayPort, 500*time.Millisecond)
 	return report, nil
 }
@@ -226,14 +173,11 @@ func killByImage(ctx context.Context, image string) {
 	_ = cmd.Run()
 }
 
-func stopPostgres(ctx context.Context, action Action) {
-	cmd := exec.CommandContext(ctx, action.Target,
-		"stop", "-D", action.Path, "-m", "fast", "-w", "-t", "15")
-	_ = cmd.Run()
-}
-
-// LoadStorageConfig reads runtime/storage/local.json below root. A missing file yields
-// the PostgreSQL default, matching the Python behaviour of continuing without config.
+// LoadStorageConfig reads runtime/storage/local.json below root. A missing file yields an
+// empty configuration, which DriverName reports as SQLite - the single fallback both this
+// launcher and the server use (2026-10-05 业主口径「默认 sqlite」). The server then fails
+// with an explicit "sqlite storage configuration incomplete" instead of opening a database
+// nobody asked for.
 func LoadStorageConfig(root string) (StorageConfig, error) {
 	path := filepath.Join(root, "server", "work", "dfo-lan", "runtime", "storage", "local.json")
 	data, err := os.ReadFile(path)

@@ -69,20 +69,25 @@ func TestSQLiteCoreSliceRoundTrip(t *testing.T) {
 	if ledgerRows != len(sqliteMigrationSections) {
 		t.Errorf("ledger rows = %d, want %d (one per section)", ledgerRows, len(sqliteMigrationSections))
 	}
-	// The real driver must have created exactly the PostgreSQL table set. The
-	// parser is the same one the parity gate uses.
-	pgRaw, err := fs.ReadFile(migrationSQL, initialMigrationFile)
+	// The real driver must have created every table the SQLite schema declares. The
+	// parser is the same one the section-coverage gate uses. (Until 2026-10-05 this
+	// compared against the PostgreSQL schema, which was the reference the SQLite fork
+	// was mirrored from; the engine and that tree are gone.)
+	liteRaw, err := fs.ReadFile(sqliteMigrationSQL, sqliteInitialMigrationFile)
 	if err != nil {
-		t.Fatalf("read PostgreSQL schema: %v", err)
+		t.Fatalf("read SQLite schema: %v", err)
 	}
-	pgTables, _ := parseDDL(pgRaw)
+	liteTables, _ := parseDDL(liteRaw)
+	if len(liteTables) == 0 {
+		t.Fatal("parsed no SQLite tables; the parser or the schema layout changed")
+	}
 	var tableCount int
 	if err := db.QueryRowContext(ctx,
 		"SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").Scan(&tableCount); err != nil {
 		t.Fatal(err)
 	}
-	if tableCount != len(pgTables) {
-		t.Errorf("SQLite created %d tables, PostgreSQL declares %d", tableCount, len(pgTables))
+	if tableCount != len(liteTables) {
+		t.Errorf("SQLite created %d tables, the schema declares %d", tableCount, len(liteTables))
 	}
 
 	q := sqlcgensqlite.New(db)

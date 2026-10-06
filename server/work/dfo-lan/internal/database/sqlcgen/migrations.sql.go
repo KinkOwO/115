@@ -15,7 +15,7 @@ SELECT pg_advisory_xact_lock(11520261004)
 
 // Transaction-scoped; released automatically even when initialization fails.
 func (q *Queries) LockMigrations(ctx context.Context) error {
-	_, err := q.db.Exec(ctx, lockMigrations)
+	_, err := q.db.ExecContext(ctx, lockMigrations)
 	return err
 }
 
@@ -24,7 +24,7 @@ SELECT checksum FROM storage_migrations WHERE name=$1
 `
 
 func (q *Queries) MigrationChecksum(ctx context.Context, name string) (string, error) {
-	row := q.db.QueryRow(ctx, migrationChecksum, name)
+	row := q.db.QueryRowContext(ctx, migrationChecksum, name)
 	var checksum string
 	err := row.Scan(&checksum)
 	return checksum, err
@@ -41,6 +41,6 @@ type RecordMigrationParams struct {
 }
 
 func (q *Queries) RecordMigration(ctx context.Context, arg RecordMigrationParams) error {
-	_, err := q.db.Exec(ctx, recordMigration, arg.Name, arg.Checksum)
+	_, err := q.db.ExecContext(ctx, recordMigration, arg.Name, arg.Checksum)
 	return err
 }

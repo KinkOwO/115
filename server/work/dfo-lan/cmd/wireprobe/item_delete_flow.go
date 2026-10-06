@@ -64,6 +64,9 @@ func (w *worldSession) deleteItems(p, raw []byte) ([]outboundPacket, error) {
 				if v.Template != r.Template || r.Count != 1 {
 					return nil, nil, fmt.Errorf("insufficient owned item")
 				}
+				if bag.TutorialSealed(*v) {
+					return nil, nil, fmt.Errorf("training-reward equipment cannot be discarded")
+				}
 				bag.Equipment = append(bag.Equipment[:i], bag.Equipment[i+1:]...)
 				removed = true
 				break

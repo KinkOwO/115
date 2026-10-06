@@ -2,13 +2,12 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 
 	"dfolan/internal/database/sqlcgen"
 	"dfolan/internal/mail"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var (
@@ -155,7 +154,7 @@ func (s *Store) SendMail(ctx context.Context, account, id int64, version, key, n
 	}
 	// 当前客户端 DSTR 23016 明确说明未读邮件和附件保留 15 天。
 	receipt.RecipientID = recipient
-	receipt.MessageID, err = q.InsertPlayerMail(ctx, sqlcgen.InsertPlayerMailParams{SenderID: pgtype.Int8{Int64: id, Valid: true}, RecipientID: recipient, SenderName: role.Name, Body: body, Assets: encoded})
+	receipt.MessageID, err = q.InsertPlayerMail(ctx, sqlcgen.InsertPlayerMailParams{SenderID: sql.NullInt64{Int64: id, Valid: true}, RecipientID: recipient, SenderName: role.Name, Body: body, Assets: encoded})
 	if err != nil {
 		return fail(err)
 	}

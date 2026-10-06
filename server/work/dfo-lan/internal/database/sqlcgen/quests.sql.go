@@ -24,11 +24,15 @@ type AbandonQuestParams struct {
 }
 
 func (q *Queries) AbandonQuest(ctx context.Context, arg AbandonQuestParams) (int64, error) {
-	result, err := q.db.Exec(ctx, abandonQuest, arg.CharacterID, arg.AccountID, arg.QuestID)
+	result, err := q.db.ExecContext(ctx, abandonQuest, arg.CharacterID, arg.AccountID, arg.QuestID)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const acceptQuest = `-- name: AcceptQuest :exec
@@ -45,7 +49,7 @@ type AcceptQuestParams struct {
 }
 
 func (q *Queries) AcceptQuest(ctx context.Context, arg AcceptQuestParams) error {
-	_, err := q.db.Exec(ctx, acceptQuest,
+	_, err := q.db.ExecContext(ctx, acceptQuest,
 		arg.CharacterID,
 		arg.QuestID,
 		arg.ConfigVersion,
@@ -68,11 +72,15 @@ type ClearActQuestsParams struct {
 }
 
 func (q *Queries) ClearActQuests(ctx context.Context, arg ClearActQuestsParams) (int64, error) {
-	result, err := q.db.Exec(ctx, clearActQuests, arg.CharacterID, arg.QuestIds, arg.ConfigVersion)
+	result, err := q.db.ExecContext(ctx, clearActQuests, arg.CharacterID, arg.QuestIds, arg.ConfigVersion)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const clearQuests = `-- name: ClearQuests :execrows
@@ -91,7 +99,7 @@ type ClearQuestsParams struct {
 }
 
 func (q *Queries) ClearQuests(ctx context.Context, arg ClearQuestsParams) (int64, error) {
-	result, err := q.db.Exec(ctx, clearQuests,
+	result, err := q.db.ExecContext(ctx, clearQuests,
 		arg.ConfigVersion,
 		arg.QuestIds,
 		arg.CharacterID,
@@ -100,7 +108,11 @@ func (q *Queries) ClearQuests(ctx context.Context, arg ClearQuestsParams) (int64
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const completeGraduationQuests = `-- name: CompleteGraduationQuests :exec
@@ -120,7 +132,7 @@ type CompleteGraduationQuestsParams struct {
 }
 
 func (q *Queries) CompleteGraduationQuests(ctx context.Context, arg CompleteGraduationQuestsParams) error {
-	_, err := q.db.Exec(ctx, completeGraduationQuests,
+	_, err := q.db.ExecContext(ctx, completeGraduationQuests,
 		arg.CharacterID,
 		arg.ConfigVersion,
 		arg.ProgressModel,
@@ -143,7 +155,7 @@ type CompleteQuestMapObjectiveParams struct {
 }
 
 func (q *Queries) CompleteQuestMapObjective(ctx context.Context, arg CompleteQuestMapObjectiveParams) error {
-	_, err := q.db.Exec(ctx, completeQuestMapObjective,
+	_, err := q.db.ExecContext(ctx, completeQuestMapObjective,
 		arg.CharacterID,
 		arg.QuestID,
 		arg.ConfigVersion,
@@ -168,7 +180,7 @@ type CompleteQuestObjectiveParams struct {
 }
 
 func (q *Queries) CompleteQuestObjective(ctx context.Context, arg CompleteQuestObjectiveParams) (int64, error) {
-	result, err := q.db.Exec(ctx, completeQuestObjective,
+	result, err := q.db.ExecContext(ctx, completeQuestObjective,
 		arg.AccountID,
 		arg.CharacterID,
 		arg.QuestID,
@@ -178,7 +190,11 @@ func (q *Queries) CompleteQuestObjective(ctx context.Context, arg CompleteQuestO
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const completeQuestUseObjective = `-- name: CompleteQuestUseObjective :execrows
@@ -201,7 +217,7 @@ type CompleteQuestUseObjectiveParams struct {
 }
 
 func (q *Queries) CompleteQuestUseObjective(ctx context.Context, arg CompleteQuestUseObjectiveParams) (int64, error) {
-	result, err := q.db.Exec(ctx, completeQuestUseObjective,
+	result, err := q.db.ExecContext(ctx, completeQuestUseObjective,
 		arg.AccountID,
 		arg.CharacterID,
 		arg.EventKey,
@@ -213,7 +229,11 @@ func (q *Queries) CompleteQuestUseObjective(ctx context.Context, arg CompleteQue
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const completeRewardedQuest = `-- name: CompleteRewardedQuest :exec
@@ -227,7 +247,7 @@ type CompleteRewardedQuestParams struct {
 }
 
 func (q *Queries) CompleteRewardedQuest(ctx context.Context, arg CompleteRewardedQuestParams) error {
-	_, err := q.db.Exec(ctx, completeRewardedQuest, arg.CharacterID, arg.QuestID)
+	_, err := q.db.ExecContext(ctx, completeRewardedQuest, arg.CharacterID, arg.QuestID)
 	return err
 }
 
@@ -249,7 +269,7 @@ type CompletedQuestIDsRow struct {
 }
 
 func (q *Queries) CompletedQuestIDs(ctx context.Context, arg CompletedQuestIDsParams) ([]CompletedQuestIDsRow, error) {
-	rows, err := q.db.Query(ctx, completedQuestIDs, arg.AccountID, arg.ConfigVersion, arg.QuestIds)
+	rows, err := q.db.QueryContext(ctx, completedQuestIDs, arg.AccountID, arg.ConfigVersion, arg.QuestIds)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +299,7 @@ type HasCompletedQuestParams struct {
 }
 
 func (q *Queries) HasCompletedQuest(ctx context.Context, arg HasCompletedQuestParams) (bool, error) {
-	row := q.db.QueryRow(ctx, hasCompletedQuest, arg.CharacterID, arg.QuestID)
+	row := q.db.QueryRowContext(ctx, hasCompletedQuest, arg.CharacterID, arg.QuestID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -310,7 +330,7 @@ type LockOwnedCharacterIncludingDeletedRow struct {
 }
 
 func (q *Queries) LockOwnedCharacterIncludingDeleted(ctx context.Context, arg LockOwnedCharacterIncludingDeletedParams) (LockOwnedCharacterIncludingDeletedRow, error) {
-	row := q.db.QueryRow(ctx, lockOwnedCharacterIncludingDeleted, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, lockOwnedCharacterIncludingDeleted, arg.AccountID, arg.CharacterID)
 	var i LockOwnedCharacterIncludingDeletedRow
 	err := row.Scan(
 		&i.ID,
@@ -337,7 +357,7 @@ type LockOwnedCharacterStateParams struct {
 }
 
 func (q *Queries) LockOwnedCharacterState(ctx context.Context, arg LockOwnedCharacterStateParams) (json.RawMessage, error) {
-	row := q.db.QueryRow(ctx, lockOwnedCharacterState, arg.CharacterID, arg.AccountID)
+	row := q.db.QueryRowContext(ctx, lockOwnedCharacterState, arg.CharacterID, arg.AccountID)
 	var state json.RawMessage
 	err := row.Scan(&state)
 	return state, err
@@ -361,7 +381,7 @@ type LockQuestRow struct {
 }
 
 func (q *Queries) LockQuest(ctx context.Context, arg LockQuestParams) (LockQuestRow, error) {
-	row := q.db.QueryRow(ctx, lockQuest, arg.CharacterID, arg.QuestID)
+	row := q.db.QueryRowContext(ctx, lockQuest, arg.CharacterID, arg.QuestID)
 	var i LockQuestRow
 	err := row.Scan(
 		&i.Status,
@@ -388,7 +408,7 @@ type MarkMeetNPCQuestParams struct {
 }
 
 func (q *Queries) MarkMeetNPCQuest(ctx context.Context, arg MarkMeetNPCQuestParams) (int64, error) {
-	result, err := q.db.Exec(ctx, markMeetNPCQuest,
+	result, err := q.db.ExecContext(ctx, markMeetNPCQuest,
 		arg.AccountID,
 		arg.CharacterID,
 		arg.QuestID,
@@ -398,7 +418,11 @@ func (q *Queries) MarkMeetNPCQuest(ctx context.Context, arg MarkMeetNPCQuestPara
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const quest = `-- name: Quest :one
@@ -419,7 +443,7 @@ type QuestRow struct {
 }
 
 func (q *Queries) Quest(ctx context.Context, arg QuestParams) (QuestRow, error) {
-	row := q.db.QueryRow(ctx, quest, arg.CharacterID, arg.QuestID)
+	row := q.db.QueryRowContext(ctx, quest, arg.CharacterID, arg.QuestID)
 	var i QuestRow
 	err := row.Scan(
 		&i.Status,
@@ -442,7 +466,7 @@ type QuestRewardReceiptParams struct {
 }
 
 func (q *Queries) QuestRewardReceipt(ctx context.Context, arg QuestRewardReceiptParams) (json.RawMessage, error) {
-	row := q.db.QueryRow(ctx, questRewardReceipt, arg.CharacterID, arg.QuestID, arg.SourceVersion)
+	row := q.db.QueryRowContext(ctx, questRewardReceipt, arg.CharacterID, arg.QuestID, arg.SourceVersion)
 	var receipt json.RawMessage
 	err := row.Scan(&receipt)
 	return receipt, err
@@ -462,7 +486,7 @@ type QuestsRow struct {
 }
 
 func (q *Queries) Quests(ctx context.Context, characterID int64) ([]QuestsRow, error) {
-	rows, err := q.db.Query(ctx, quests, characterID)
+	rows, err := q.db.QueryContext(ctx, quests, characterID)
 	if err != nil {
 		return nil, err
 	}
@@ -500,7 +524,7 @@ type RecordLegacyQuestRepairParams struct {
 }
 
 func (q *Queries) RecordLegacyQuestRepair(ctx context.Context, arg RecordLegacyQuestRepairParams) error {
-	_, err := q.db.Exec(ctx, recordLegacyQuestRepair,
+	_, err := q.db.ExecContext(ctx, recordLegacyQuestRepair,
 		arg.CharacterID,
 		arg.QuestID,
 		arg.BeforeState,
@@ -522,7 +546,7 @@ type RecordQuestMapClearParams struct {
 }
 
 func (q *Queries) RecordQuestMapClear(ctx context.Context, arg RecordQuestMapClearParams) (int64, error) {
-	result, err := q.db.Exec(ctx, recordQuestMapClear,
+	result, err := q.db.ExecContext(ctx, recordQuestMapClear,
 		arg.CharacterID,
 		arg.RunID,
 		arg.MapID,
@@ -531,7 +555,11 @@ func (q *Queries) RecordQuestMapClear(ctx context.Context, arg RecordQuestMapCle
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const recordQuestReward = `-- name: RecordQuestReward :exec
@@ -548,7 +576,7 @@ type RecordQuestRewardParams struct {
 }
 
 func (q *Queries) RecordQuestReward(ctx context.Context, arg RecordQuestRewardParams) error {
-	_, err := q.db.Exec(ctx, recordQuestReward,
+	_, err := q.db.ExecContext(ctx, recordQuestReward,
 		arg.CharacterID,
 		arg.QuestID,
 		arg.SourceVersion,
@@ -575,7 +603,7 @@ type RepairLegacyQuestParams struct {
 }
 
 func (q *Queries) RepairLegacyQuest(ctx context.Context, arg RepairLegacyQuestParams) (int64, error) {
-	result, err := q.db.Exec(ctx, repairLegacyQuest,
+	result, err := q.db.ExecContext(ctx, repairLegacyQuest,
 		arg.Progress,
 		arg.ProgressModel,
 		arg.AccountID,
@@ -586,5 +614,9 @@ func (q *Queries) RepairLegacyQuest(ctx context.Context, arg RepairLegacyQuestPa
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }

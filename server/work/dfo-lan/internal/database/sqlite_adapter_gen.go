@@ -15,7 +15,6 @@ import (
 	"dfolan/internal/database/sqlcgensqlite"
 	"encoding/json"
 	"time"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type sqliteQueries struct {
@@ -62,7 +61,7 @@ func fromPgFixtureInventoryItemsParams(v sqlcgen.FixtureInventoryItemsParams) (s
 func toPgInsertPlayerMailParams(v sqlcgensqlite.InsertPlayerMailParams) (sqlcgen.InsertPlayerMailParams, error) {
 	var out sqlcgen.InsertPlayerMailParams
 	if v.SenderID != nil {
-		out.SenderID = pgtype.Int8{Int64: *v.SenderID, Valid: true}
+		out.SenderID = sql.NullInt64{Int64: *v.SenderID, Valid: true}
 	}
 	out.RecipientID = v.RecipientID
 	out.SenderName = v.SenderName
@@ -376,6 +375,16 @@ func fromPgLockMailboxParams(v sqlcgen.LockMailboxParams) (sqlcgensqlite.LockMai
 	var out sqlcgensqlite.LockMailboxParams
 	out.RecipientID = v.RecipientID
 	out.IncludeDeleted = v.IncludeDeleted
+	// nil keeps NULL, and NULL is the "no id filter" sentinel of the query:
+	// `CAST(?3 AS TEXT) IS NULL OR id IN (SELECT value FROM json_each(CAST(?3 AS TEXT)))`.
+	// Marshalling it would bind the four-byte JSON text "null", which is *not* NULL, so
+	// json_each('null') would match nothing and a claim would read an empty mailbox -
+	// the mail list would offer an attachment id the claim could never resolve.
+	// An empty (non-nil) set still marshals to "[]" and therefore keeps matching nothing,
+	// which is what PostgreSQL's id=ANY('{}') does.
+	if v.MessageIds == nil {
+		return out, nil
+	}
 	b, err := json.Marshal(v.MessageIds)
 	if err != nil {
 		return out, err
@@ -744,7 +753,7 @@ func toPgClaimAdminGrantParams(v sqlcgensqlite.ClaimAdminGrantParams) (sqlcgen.C
 	out.GrantID = v.GrantID
 	out.AccountID = v.AccountID
 	if v.CharacterID != nil {
-		out.CharacterID = pgtype.Int8{Int64: *v.CharacterID, Valid: true}
+		out.CharacterID = sql.NullInt64{Int64: *v.CharacterID, Valid: true}
 	}
 	out.Request = v.Request
 	out.Operator = v.Operator

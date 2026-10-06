@@ -269,6 +269,17 @@ loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除�
 
 ## 0.1 当前确认边界（历史确认记录）
 
+- **2026-10-05 SQLite 主路线领取邮件附件已确认**：业主实机确认「邮件领到了」。修复点是 SQLite 适配器
+  `fromPgLockMailboxParams` 对 nil 保留 SQL NULL（nil 曾被 marshal 成文本 `"null"`，使 `LockMailbox` 的
+  「不过滤编号」静默变成「读 0 行」，CMD95 一律被 `errMailMissing` 拒）；**未改 SQL、未改协议**。
+  回归测试 `internal/database/sqlite_mailbox_claim_test.go`（修复前 FAIL）。实机会话
+  `runtime/roles_..._20261005_160813_822603_next37`（角色 3）：08:09:36 CMD96 列表含附件 `id=1`，
+  08:09:37 CMD95 `mailbox_claimed` + CMD14/CMD134 回执，08:13:36 邮箱已空。
+  程序基线 `bin/wireprobe-pvf.exe` SHA256 `671FBB43BE13C5B8E82749997509B248C180A1FFE7020E5F0F767D3234693702`
+  （与候选同哈希；业主授权 `Build-Server.ps1 -UpdatePVFDefault` 发布，旧默认 `1293028F…2A6CA6`
+  备份在 `.tmp/mailfix-backup-20261005-155949/`）。**确认范围仅 SQLite 主路线的邮件附件领取**，
+  不扩展为其它玩法或 PostgreSQL 第二路线的逐项验收。详见 `../../CHANGELOG`（2026-10-05 节）。
+
 - **2026-10-02 秘宝精度提升（CMD2288）已实现（实机通过）**：按项目现行规则 **Go 直读内层 PVF** `etc/115lvability/soleequipmentsystem.cos`（**未新增任何 `configs/*.json`**），精度真源 = 装备实例行 `+172`（与 `fame.go` 消费同一格，**不设镜像字段**）。协议：请求 24 字节（13 信封 + `container u8` + `slot u16` + `selector u32`），应答 **kind 1**、体 = `u8 1 + container + slot`（**必须回包**，否则客户端期望回包树清不掉、精度窗口卡死）；失败分支也回显该包。规则：三件秘宝（`100354181` Venus / `100391142` Nabel / `100346156` Diregie）各两组成本，**组号由请求的 `selector` 决定**（实测 `selector=1 → 组 0` 实物 `10401346×800`、`selector=0 → 组 1` 金币 4,000,000；**不是按精度推的**，2026-10-02 实机纠正），`[max quality] 100`，单次增量 5..20（源无此表、业主实机口径）。材料走账号共享仓库优先 + `CommitAccountMaterialEvent` 幂等；回包刷新要**同时**发账号材料刷新包与背包 id14 行。`2288` 已登记进 `observedGameRequest`。实机：角色 11 的 Diregie 连续提升 0→83、增量均落在 5..20、selector 切换生效、扣料与金币核对一致。详见 `../analysis/tasks/next150-秘宝精度提升-直读PVF实现.md`。
 - **2026-10-02 装备调适升品路径已确认**：用户实机确认升品可用 —— 稀有防具 `100051304` 第 1–3 次阶推进（0→1→2→3）、**第 4 次升品成功**（模板 → `100051275`、阶段归 0、花费 `神器灵魂×40 + 虚无之魂×1 + 金币 100000` = `[condition] 115 rare 3` 的行 3），升品后第 5 次面板显示 `300000 金币 + 神器灵魂×35`（= `[condition] 115 unique` 的行 0）⇒ **升品 = 换模板 + 阶段归 0、随后按新品质匹配档位**，纳入 confirmed baseline。本轮修掉两个缺陷：**升品候选必须跨 `[condition]` 块查**（`Rules.Upgrades` 全局表 + `UpgradeSource()`；源把 `100051304` 的条目写在 `rare 1` 块而升品发生在阶 3）、**落库顺序必须先改 `Template` 再生成实例行**（写反会让 `ValidateRecord` 在**读装备那一步**就报 `equipment instance template mismatch`，连 `GET_USERINFO` 都被拒 ⇒ 全部角色在选角界面消失）；新增 `healAwakeningRecord()` 自愈与写回前 `ValidateRecord()` 兜底。客户端侧取证到 `EquipmentAwakeningOptionSystem` 的解析器 `sub_1477E07E0`，按同一套标签顺序读 `EquipmentAwakeningOption.lst`（两端同源）。未做：`GET_USERINFO` 逐件降级（业主决定暂不改）、`mode=1` 返还。**非 100% 成功率已全量排查（2026-10-02）**：源里没有依据 —— 调适 `[rates]` 84 条全 = 100%、秘宝源搜 `rate`/`prob`/`success` 零命中、强化/增幅源本就无成功率表（唯一带成功率的是增幅券自身段值）⇒ 业主决定**保持"每次必成功"**，秘宝随机性只在**单次增量 5..20**。**同轮还修掉"同一会话第 9 次调适被拒"（业主实机复现的"8 次上限"）**：`cmd/wireprobe/main.go` 把帧校验和判定 `verified` 写在 `retainRequestBody()` 分支内部，而该函数对未登记 `observedGameRequest` 的命令有 `BodySampleLimit=8` 的日志正文采样配额（CMD2258 漏登记，同族 2259 已登记）⇒ 同一会话第 9 帧起 `verified` 恒 false、被 `equipment_awakening_rejected` 挡下，重进客户端配额重置故"又能 8 次"；现改为 `verified` 始终计算、仅日志正文受配额约束，并把 2258 登记进豁免（同类先例 CMD2329，2026-09-27）。实机确认调适全链路 `100051304`(rare)→`100051275`(unique)→`100051276`(legendary)→`100051277`(epic 史诗) 与**星蕴石**均可调适并正常升品；**誓约（primer）客户端无 Tune/Promote 按钮**（非服务端缺口）。详见 `../analysis/tasks/next149-装备调适升品语义与缺陷修复.md`。
 - **2026-10-01 装备调适（CMD2258）已确认**：用户实机确认调适可用（左侧 Tune/Promote 面板按成功刷新并播放调适动画），纳入confirmed baseline。实现为**唯一内容真源 = 内层 PVF**：规则直读 `etc/115lvability/equipmentawakeningoptionsystem.cos`（`[max awakening]`/`[condition]`/`[need materials]`/`[refund materials]`/`[rates]`/`[upgrade result]`）与 `equipmentawakeningoption.lst`（263 条选项），**未新增任何 JSON 链路**。协议按 IDA 闭环：请求体 25 字节（`+13` 模式、`+14..17` 材料组、`+18` 空间、`+19..20` 槽位、`+21..24` 目标模板），应答体 `u8 状态 + u16 结果码`，**状态 1 = 成功**（状态 0 会连面板一起复位——这正是"面板不刷新、无反馈"的根因）。调适阶段落在装备实例行 `+170`（与 `fame.go` 同一映射），升品换模板并清零该字节，其余实例字节与存档未知字段保留；材料 + 金币走同一 PostgreSQL 事务（账号材料仓库优先、背包兜底），按 `(角色, 幂等键)` 防重放。实机（角色 11 / 模板 100261128）连续三次 `0→1→2→3` 成功、`payload_offset=13`，请求 hex 逐字节与实现一致。本轮未做：`mode=1` 初始化/返还、非 100% 成功率、套装积分、CMD2259 转换里的调适联动。取证与清单见 `../analysis/tasks/next148-装备调适-直读PVF实现.md`。
@@ -318,7 +329,7 @@ loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除�
 
 - **服务端主体**：Go 1.26（模块根目录位于 `server/work/dfo-lan/`，通过 `go.mod` / `go.sum` 管理依赖）。
 - **服务启动编排**：**仓库内 Go 启动器**（`server/work/dfo-lan/bin/dfolauncher.exe`，源码 `cmd/dfolauncher` + `internal/launcher`）。2026-10-05 起启动链**不再需要 Python**：`launch_local.py`、`channel_probe.py`、`bootstrap_local.py`、`stop_environment.py` 已删除，入口只走 `scripts\storage-route.ps1` → `dfolauncher launch`。
-- **数据持久化**：PostgreSQL 16.4 便携版（端口 25438），连接配置 `runtime/storage/local.json`，数据目录 `runtime/storage/pgdata/`。
+- **数据持久化**：**只有 SQLite**（单文件 `runtime/storage/dfolan.sqlite3`，无需起库服务，见根 `AGENTS.md` §0.6）；PostgreSQL 16.4（端口 25438）支持已于 2026-10-05 **整体移除**（引擎、`pgx`、`sql/postgres/**`、`pg_ctl` 启动链、PG 启动脚本全部删除）。服务端与启动器都只读同一份活动配置 `runtime/storage/local.json`，排障走 `scripts\storage-route.cmd show|clear-guard`（操作真源 `docs/sqlite-operations.md`）。
 
 ## 2. 服务入口与端点约定
 
@@ -326,9 +337,9 @@ loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除�
 | ------------------------- | ------------------------------------------------------------ |
 | `127.0.0.1:7001`          | Channel 频道目录与刷新服务（HTTP / 专有协议）                |
 | `127.0.0.2:<动态端口>`    | Game 游戏接入网关（TCP，由 probe 协同引导连接）              |
-| `scripts/启动游戏.cmd`     | 玩家与完整测试入口（需管理员权限，自动拉起存储、服务与客户端） |
-| `scripts/启动服务端.cmd`   | 纯服务端调试入口（`storage-route.ps1 server-*` → `dfolauncher launch --server-only`）     |
-| `scripts/停止游戏环境.cmd` | 安全关闭客户端、游戏服务、PostgreSQL (做 checkpoint) |
+| `scripts/启动游戏-SQLite.cmd` | 玩家与完整测试入口（管理员权限；SQLite 存档，无需起库服务，拉起服务与客户端） |
+| `scripts/启动服务端-SQLite.cmd` | 纯服务端调试入口（`storage-route.ps1 server-*` → `dfolauncher launch --server-only`） |
+| `scripts/停止游戏环境.cmd` | 安全关闭客户端与游戏服务，并清理 SQLite 管理租约 |
 | `server/Build-Server.ps1` | 服务端编译脚本（执行测试、vet 并编译候选版）                 |
 
 ## 3. 目录职责（`server/work/dfo-lan/`）
@@ -344,11 +355,11 @@ loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除�
 | `internal/quest/`               | 任务链、任务目标推进（NPC 对话、范围到达、通关检查等）与奖励 |
 | `internal/dungeon/`             | 副本会话状态机、房间切换、门控制、怪物清场与通关结算         |
 | `internal/world/`               | 城镇场景、区域跳转、传送逻辑与位置保存                       |
-| `internal/database/`             | PostgreSQL 数据库事务 (pgxpool)、角色存档持久化  |
+| `internal/database/`             | 存储层：引擎判定（`EngineForConfig`，只认 sqlite，档里写 postgres 会明确报错）+ SQLite（`modernc.org/sqlite`）事务与角色存档持久化；`sqlcgen` 是内部查询/类型层（保留但**已不再由 sqlc 生成**） |
 | `internal/catalog/`             | 游戏规则驱动目录与静态数据索引解析                           |
 | `configs/`                      | 导出的全量 JSON 规则配置（任务、地图、装备、掉落等）         |
 | `scripts/`                      | PVF 导出/审计等开发工具与 `Generate-SQL.ps1`；**启动编排已全部收进 Go**（`cmd/dfolauncher` + `internal/launcher`） |
-| `runtime/storage/`              | 本地存储：`pgdata/`、`local.json`（严禁入库） |
+| `runtime/storage/`              | 本地存储：`dfolan.sqlite3`(+`-wal`/`-shm`)、`local.json`、管理租约；历史 `pgdata/`（PG 时代存档，只读留档，可救路径见根 `AGENTS.md` §0.6 第 3 条）（全部严禁入库） |
 | `runtime/roles_*/`              | 运行会话追踪日志（`run.json`、`events.jsonl`、`helper.err`） |
 | `reference/analysis-tools/*.py` | 分析辅助脚本                                                 |
 
@@ -357,15 +368,16 @@ loot 与 equipment-selection 的运行 JSON 回退、隐式 baseline 已移除�
 1. **测试门禁**：修改协议或业务逻辑后，在 `server/work/dfo-lan/` 执行 `go test ./...` 与 `go vet ./...`。
 2. **数据库集成**：`go run ./cmd/dfo-tool charactercheck` 校验角色存储与 schema 兼容性。
 3. **候选隔离**：源码编译输出 `bin/wireprobe-handoff-source.exe`，**严禁直接覆盖 39 版归档基线 `wireprobe-dungeon39.exe`**；实机完整回归确认后方可升级基准。
-4. **实机回归**：关闭已有游戏会话后 `./scripts/启动游戏.cmd --source-build`，由用户手动操作。
+4. **实机回归**：关闭已有游戏会话后 `.\scripts\启动游戏-SQLite.cmd --source-build`，由用户手动操作（存储只有这一条路线，见根 `AGENTS.md` §0.6）。
 
 ## 5. 变更事务与数据安全
 
 1. **一次假设、一次 commit**：每次协议 A/B 测试、功能补齐或状态机修复单独 commit，不堆叠未提交改动。
-2. **存档向后兼容**：PostgreSQL 角色数据是玩家核心资产，数据库变更必须支持已有角色无损升级，严禁随意删除已初始化的 `pgdata/`。
+2. **存档向后兼容**：玩家角色数据是核心资产（SQLite 的 `dfolan.sqlite3`）。数据库/schema 变更必须支持已有角色无损升级并写明兼容范围；严禁随意删除已初始化的库文件或历史 `pgdata/`。
 3. **工作区隔离与忽略规则**：
-   - 严禁提交 `server/work/dfo-lan/runtime/storage/pgdata/`
-   - 严禁提交 `server/work/dfo-lan/runtime/storage/*.log`、`local.json`
+   - 严禁提交 `server/work/dfo-lan/runtime/storage/pgdata/`（PG 时代的历史存档，只读留档）
+   - 严禁提交 `server/work/dfo-lan/runtime/storage/dfolan.sqlite3`（**主路线存档**）及其 `-wal`/`-shm`、管理租约文件
+   - 严禁提交 `server/work/dfo-lan/runtime/storage/*.log`、`local.json`、`local.<driver>.json`
    - 严禁提交动态会话目录 `server/work/dfo-lan/runtime/roles_*/`
    - 严禁提交本地编译的中间文件或未授权的大型二进制
 

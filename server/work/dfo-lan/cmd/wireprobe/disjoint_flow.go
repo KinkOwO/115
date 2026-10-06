@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/workflow"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -88,6 +89,26 @@ func (w *worldSession) disjointItem(p []byte, event func(map[string]any)) ([]out
 		// 一件都没登记上时也要留痕：这正是"分解了但图鉴没进"的排查入口。
 		event(map[string]any{"kind": "disjoint_journal_skipped", "id": 26,
 			"character_id": saved.ID, "skipped": len(receipt.JournalSkipped)})
+	}
+	// 第九关的任务就是分解训练装备（源：`[step info][no] 9 → [mission] [type] disjoint`，
+	// 无件数条件）。分解落库后**由服务端自己**推进关卡并补一帧 NOTI2638：实机
+	// 2026-10-03 19:45 会话里，CMD26 成功之后客户端只发心跳（2127），没有任何进度请求，
+	// 任务面板因此永远不刷新（玩家报告「分解成功后没有刷新任务完成状态」）——
+	// 推进不能等客户端来问，与第一/二关穿戴(CMD19)、第三关技能(CMD29)同一口径。
+	// 判定只认**这次事务真删了装备**；失败一律只记日志，已经提交的分解不得被事件层回滚。
+	if w.boostup != nil && w.account == w.role.AccountID && len(receipt.DeletedSlots) > 0 {
+		prior := w.role
+		next, advanced, bErr := (&workflow.LootService{Store: w.store, Loot: w.loot}).ReconcileBoostDisjoint(ctx, prior, w.boostup, true)
+		if bErr != nil {
+			if event != nil {
+				event(map[string]any{"kind": "disjoint_boost_mission_failed", "id": 26,
+					"character_id": saved.ID, "reason": bErr.Error()})
+			}
+			log.Printf("boost disjoint reconcile role=%d: %v", saved.ID, bErr)
+		} else if advanced {
+			w.role = next
+			plan = append(plan, boostMissionProgress("boost_disjoint_mission_progress", w.boostup, prior, next)...)
+		}
 	}
 	return plan, nil
 }

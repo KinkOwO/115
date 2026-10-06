@@ -7,7 +7,6 @@ import (
 	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"errors"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -15,9 +14,6 @@ import (
 )
 
 func TestFatigueRunLoadingIntegration(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("isolated PostgreSQL schema")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	fixture, err := database.OpenTestFixture(ctx)

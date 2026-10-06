@@ -21,7 +21,7 @@ type FixtureAccountCurrencyParams struct {
 }
 
 func (q *Queries) FixtureAccountCurrency(ctx context.Context, arg FixtureAccountCurrencyParams) error {
-	_, err := q.db.Exec(ctx, fixtureAccountCurrency, arg.AccountID, arg.Cera)
+	_, err := q.db.ExecContext(ctx, fixtureAccountCurrency, arg.AccountID, arg.Cera)
 	return err
 }
 
@@ -35,7 +35,7 @@ type FixtureArchivedCharacterRow struct {
 }
 
 func (q *Queries) FixtureArchivedCharacter(ctx context.Context, characterID int64) (FixtureArchivedCharacterRow, error) {
-	row := q.db.QueryRow(ctx, fixtureArchivedCharacter, characterID)
+	row := q.db.QueryRowContext(ctx, fixtureArchivedCharacter, characterID)
 	var i FixtureArchivedCharacterRow
 	err := row.Scan(&i.Archived, &i.State)
 	return i, err
@@ -58,7 +58,7 @@ type FixtureCashInventoryCountParams struct {
 }
 
 func (q *Queries) FixtureCashInventoryCount(ctx context.Context, arg FixtureCashInventoryCountParams) (int64, error) {
-	row := q.db.QueryRow(ctx, fixtureCashInventoryCount,
+	row := q.db.QueryRowContext(ctx, fixtureCashInventoryCount,
 		arg.AccountID,
 		arg.ClaimState,
 		arg.Template,
@@ -74,7 +74,7 @@ SELECT count(*) FROM cash_orders WHERE account_id=$1
 `
 
 func (q *Queries) FixtureCashOrderCount(ctx context.Context, accountID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, fixtureCashOrderCount, accountID)
+	row := q.db.QueryRowContext(ctx, fixtureCashOrderCount, accountID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -91,7 +91,7 @@ type FixtureCashOrderSourceParams struct {
 }
 
 func (q *Queries) FixtureCashOrderSource(ctx context.Context, arg FixtureCashOrderSourceParams) (string, error) {
-	row := q.db.QueryRow(ctx, fixtureCashOrderSource, arg.AccountID, arg.OrderKey)
+	row := q.db.QueryRowContext(ctx, fixtureCashOrderSource, arg.AccountID, arg.OrderKey)
 	var column_1 string
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -109,7 +109,7 @@ type FixtureCharacterSnapshotParams struct {
 }
 
 func (q *Queries) FixtureCharacterSnapshot(ctx context.Context, arg FixtureCharacterSnapshotParams) error {
-	_, err := q.db.Exec(ctx, fixtureCharacterSnapshot, arg.State, arg.ConfigVersion, arg.CharacterID)
+	_, err := q.db.ExecContext(ctx, fixtureCharacterSnapshot, arg.State, arg.ConfigVersion, arg.CharacterID)
 	return err
 }
 
@@ -118,7 +118,7 @@ SELECT state FROM characters WHERE id=$1
 `
 
 func (q *Queries) FixtureCharacterState(ctx context.Context, characterID int64) (json.RawMessage, error) {
-	row := q.db.QueryRow(ctx, fixtureCharacterState, characterID)
+	row := q.db.QueryRowContext(ctx, fixtureCharacterState, characterID)
 	var state json.RawMessage
 	err := row.Scan(&state)
 	return state, err
@@ -137,7 +137,7 @@ type FixtureCompletedQuestParams struct {
 }
 
 func (q *Queries) FixtureCompletedQuest(ctx context.Context, arg FixtureCompletedQuestParams) error {
-	_, err := q.db.Exec(ctx, fixtureCompletedQuest,
+	_, err := q.db.ExecContext(ctx, fixtureCompletedQuest,
 		arg.CharacterID,
 		arg.QuestID,
 		arg.ConfigVersion,
@@ -151,7 +151,7 @@ DELETE FROM character_birth WHERE character_id=$1
 `
 
 func (q *Queries) FixtureDeleteBirth(ctx context.Context, characterID int64) error {
-	_, err := q.db.Exec(ctx, fixtureDeleteBirth, characterID)
+	_, err := q.db.ExecContext(ctx, fixtureDeleteBirth, characterID)
 	return err
 }
 
@@ -160,7 +160,7 @@ SELECT count(*) FROM character_events WHERE ($1::bigint=0 OR character_id=$1::bi
 `
 
 func (q *Queries) FixtureEventCount(ctx context.Context, characterID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, fixtureEventCount, characterID)
+	row := q.db.QueryRowContext(ctx, fixtureEventCount, characterID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -177,7 +177,7 @@ type FixtureFatigueRoomStatsRow struct {
 }
 
 func (q *Queries) FixtureFatigueRoomStats(ctx context.Context, characterID int64) (FixtureFatigueRoomStatsRow, error) {
-	row := q.db.QueryRow(ctx, fixtureFatigueRoomStats, characterID)
+	row := q.db.QueryRowContext(ctx, fixtureFatigueRoomStats, characterID)
 	var i FixtureFatigueRoomStatsRow
 	err := row.Scan(&i.Count, &i.Cost)
 	return i, err
@@ -195,7 +195,7 @@ type FixtureFatigueUsageParams struct {
 }
 
 func (q *Queries) FixtureFatigueUsage(ctx context.Context, arg FixtureFatigueUsageParams) error {
-	_, err := q.db.Exec(ctx, fixtureFatigueUsage, arg.Used, arg.UsedMax, arg.CharacterID)
+	_, err := q.db.ExecContext(ctx, fixtureFatigueUsage, arg.Used, arg.UsedMax, arg.CharacterID)
 	return err
 }
 
@@ -209,7 +209,7 @@ type FixtureFatigueUsedParams struct {
 }
 
 func (q *Queries) FixtureFatigueUsed(ctx context.Context, arg FixtureFatigueUsedParams) error {
-	_, err := q.db.Exec(ctx, fixtureFatigueUsed, arg.Used, arg.CharacterID)
+	_, err := q.db.ExecContext(ctx, fixtureFatigueUsed, arg.Used, arg.CharacterID)
 	return err
 }
 
@@ -224,7 +224,7 @@ type FixtureInventoryItemsParams struct {
 }
 
 func (q *Queries) FixtureInventoryItems(ctx context.Context, arg FixtureInventoryItemsParams) error {
-	_, err := q.db.Exec(ctx, fixtureInventoryItems, arg.Items, arg.CharacterID)
+	_, err := q.db.ExecContext(ctx, fixtureInventoryItems, arg.Items, arg.CharacterID)
 	return err
 }
 
@@ -239,7 +239,7 @@ type FixtureLegacyQuestParams struct {
 }
 
 func (q *Queries) FixtureLegacyQuest(ctx context.Context, arg FixtureLegacyQuestParams) error {
-	_, err := q.db.Exec(ctx, fixtureLegacyQuest, arg.CharacterID, arg.QuestID)
+	_, err := q.db.ExecContext(ctx, fixtureLegacyQuest, arg.CharacterID, arg.QuestID)
 	return err
 }
 
@@ -253,7 +253,7 @@ type FixtureMapClearCountParams struct {
 }
 
 func (q *Queries) FixtureMapClearCount(ctx context.Context, arg FixtureMapClearCountParams) (int64, error) {
-	row := q.db.QueryRow(ctx, fixtureMapClearCount, arg.CharacterID, arg.RunID)
+	row := q.db.QueryRowContext(ctx, fixtureMapClearCount, arg.CharacterID, arg.RunID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -269,7 +269,7 @@ type FixtureMergeCharacterFieldsParams struct {
 }
 
 func (q *Queries) FixtureMergeCharacterFields(ctx context.Context, arg FixtureMergeCharacterFieldsParams) error {
-	_, err := q.db.Exec(ctx, fixtureMergeCharacterFields, arg.Fields, arg.CharacterID)
+	_, err := q.db.ExecContext(ctx, fixtureMergeCharacterFields, arg.Fields, arg.CharacterID)
 	return err
 }
 
@@ -279,7 +279,7 @@ WHERE character_id=$1 AND event_key LIKE 'monster:%'
 `
 
 func (q *Queries) FixtureMonsterEventCount(ctx context.Context, characterID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, fixtureMonsterEventCount, characterID)
+	row := q.db.QueryRowContext(ctx, fixtureMonsterEventCount, characterID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -291,7 +291,7 @@ WHERE ($1::bigint=0 OR character_id=$1::bigint)
 `
 
 func (q *Queries) FixtureQuestCount(ctx context.Context, characterID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, fixtureQuestCount, characterID)
+	row := q.db.QueryRowContext(ctx, fixtureQuestCount, characterID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -309,7 +309,7 @@ type FixtureQuestProgressParams struct {
 }
 
 func (q *Queries) FixtureQuestProgress(ctx context.Context, arg FixtureQuestProgressParams) error {
-	_, err := q.db.Exec(ctx, fixtureQuestProgress, arg.Progress, arg.CharacterID, arg.QuestID)
+	_, err := q.db.ExecContext(ctx, fixtureQuestProgress, arg.Progress, arg.CharacterID, arg.QuestID)
 	return err
 }
 
@@ -329,7 +329,7 @@ type FixtureQuestRecordRow struct {
 }
 
 func (q *Queries) FixtureQuestRecord(ctx context.Context, arg FixtureQuestRecordParams) (FixtureQuestRecordRow, error) {
-	row := q.db.QueryRow(ctx, fixtureQuestRecord, arg.CharacterID, arg.QuestID)
+	row := q.db.QueryRowContext(ctx, fixtureQuestRecord, arg.CharacterID, arg.QuestID)
 	var i FixtureQuestRecordRow
 	err := row.Scan(&i.Status, &i.ProgressModel)
 	return i, err
@@ -349,7 +349,7 @@ type FixtureQuestRecordSeedParams struct {
 }
 
 func (q *Queries) FixtureQuestRecordSeed(ctx context.Context, arg FixtureQuestRecordSeedParams) error {
-	_, err := q.db.Exec(ctx, fixtureQuestRecordSeed,
+	_, err := q.db.ExecContext(ctx, fixtureQuestRecordSeed,
 		arg.CharacterID,
 		arg.QuestID,
 		arg.Status,
@@ -364,7 +364,7 @@ SELECT count(*) FROM character_quest_repairs WHERE character_id=$1
 `
 
 func (q *Queries) FixtureQuestRepairCount(ctx context.Context, characterID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, fixtureQuestRepairCount, characterID)
+	row := q.db.QueryRowContext(ctx, fixtureQuestRepairCount, characterID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -381,7 +381,7 @@ type FixtureQuestRewardCountParams struct {
 }
 
 func (q *Queries) FixtureQuestRewardCount(ctx context.Context, arg FixtureQuestRewardCountParams) (int64, error) {
-	row := q.db.QueryRow(ctx, fixtureQuestRewardCount, arg.CharacterID, arg.QuestID)
+	row := q.db.QueryRowContext(ctx, fixtureQuestRewardCount, arg.CharacterID, arg.QuestID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -397,7 +397,7 @@ type FixtureReadCharacterSnapshotRow struct {
 }
 
 func (q *Queries) FixtureReadCharacterSnapshot(ctx context.Context, characterID int64) (FixtureReadCharacterSnapshotRow, error) {
-	row := q.db.QueryRow(ctx, fixtureReadCharacterSnapshot, characterID)
+	row := q.db.QueryRowContext(ctx, fixtureReadCharacterSnapshot, characterID)
 	var i FixtureReadCharacterSnapshotRow
 	err := row.Scan(&i.State, &i.ConfigVersion)
 	return i, err
@@ -409,7 +409,7 @@ SELECT current_schema()::text
 
 // These queries are used only by the isolated charactercheck fixture.
 func (q *Queries) FixtureSchema(ctx context.Context) (string, error) {
-	row := q.db.QueryRow(ctx, fixtureSchema)
+	row := q.db.QueryRowContext(ctx, fixtureSchema)
 	var column_1 string
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -425,7 +425,7 @@ type FixtureVaultItemsParams struct {
 }
 
 func (q *Queries) FixtureVaultItems(ctx context.Context, arg FixtureVaultItemsParams) error {
-	_, err := q.db.Exec(ctx, fixtureVaultItems, arg.Items, arg.CharacterID)
+	_, err := q.db.ExecContext(ctx, fixtureVaultItems, arg.Items, arg.CharacterID)
 	return err
 }
 
@@ -440,6 +440,6 @@ type FixtureWalletGoldParams struct {
 }
 
 func (q *Queries) FixtureWalletGold(ctx context.Context, arg FixtureWalletGoldParams) error {
-	_, err := q.db.Exec(ctx, fixtureWalletGold, arg.Gold, arg.CharacterID)
+	_, err := q.db.ExecContext(ctx, fixtureWalletGold, arg.Gold, arg.CharacterID)
 	return err
 }

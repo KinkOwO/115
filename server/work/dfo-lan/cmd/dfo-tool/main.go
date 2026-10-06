@@ -15,6 +15,7 @@ import (
 	"dfolan/internal/toolcmd/dungeonscenesaudit"
 	"dfolan/internal/toolcmd/equipfields"
 	"dfolan/internal/toolcmd/equipmentfull"
+	"dfolan/internal/toolcmd/eventinfogate"
 	"dfolan/internal/toolcmd/framedump"
 	"dfolan/internal/toolcmd/initialrepair"
 	"dfolan/internal/toolcmd/loginchannel"
@@ -27,7 +28,6 @@ import (
 	"dfolan/internal/toolcmd/setlevel"
 	"dfolan/internal/toolcmd/shieldaudit"
 	"dfolan/internal/toolcmd/skillaudit"
-	"dfolan/internal/toolcmd/sqliteconvert"
 	"dfolan/internal/toolcmd/storagecheck"
 	"dfolan/internal/toolcmd/townprobe"
 )
@@ -49,6 +49,7 @@ var commands = []command{
 	{"dungeonscenesaudit", "audit", "[options]", true, 0, dungeonscenesaudit.Run},
 	{"equipfields", "catalog", "[options]", true, 0, equipfields.Run},
 	{"equipmentfull", "catalog", "[options]", true, 0, equipmentfull.Run},
+	{"eventinfogate", "audit", "[options]", true, 0, eventinfogate.Run},
 	{"framedump", "protocol", "<label> <key.bin> <stream.bin> <all|id|offset:size> [header]", false, 4, framedump.Run},
 	{"initialrepair", "maintenance", "[options]", true, 0, initialrepair.Run},
 	{"loginchannel", "protocol", "<input.bin> <output.bin> <channel-type>", false, 3, loginchannel.Run},
@@ -61,7 +62,6 @@ var commands = []command{
 	{"setlevel", "maintenance", "[options]", true, 0, setlevel.Run},
 	{"shieldaudit", "audit", "[options]", true, 0, shieldaudit.Run},
 	{"skillaudit", "audit", "[options]", true, 0, skillaudit.Run},
-	{"sqliteconvert", "maintenance", "[options]", true, 0, sqliteconvert.Run},
 	{"storagecheck", "maintenance", "[options]", true, 0, storagecheck.Run},
 	{"townprobe", "catalog", "[options]", true, 0, townprobe.Run},
 }

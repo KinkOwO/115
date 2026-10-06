@@ -35,7 +35,7 @@ type ListGMMailRow struct {
 }
 
 func (q *Queries) ListGMMail(ctx context.Context, arg ListGMMailParams) ([]ListGMMailRow, error) {
-	rows, err := q.db.Query(ctx, listGMMail, arg.AccountID, arg.Status)
+	rows, err := q.db.QueryContext(ctx, listGMMail, arg.AccountID, arg.Status)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ WHERE id=$1 AND status IN ('unread','read') RETURNING id
 `
 
 func (q *Queries) RevokeGMMail(ctx context.Context, id int64) (int64, error) {
-	row := q.db.QueryRow(ctx, revokeGMMail, id)
+	row := q.db.QueryRowContext(ctx, revokeGMMail, id)
 	var id_2 int64
 	err := row.Scan(&id_2)
 	return id_2, err
@@ -90,7 +90,7 @@ type SendGMMailParams struct {
 }
 
 func (q *Queries) SendGMMail(ctx context.Context, arg SendGMMailParams) (int64, error) {
-	row := q.db.QueryRow(ctx, sendGMMail,
+	row := q.db.QueryRowContext(ctx, sendGMMail,
 		arg.AccountID,
 		arg.CharacterID,
 		arg.Template,

@@ -57,6 +57,31 @@ func TestAddSkinStorageCaptured(t *testing.T) {
 	}
 }
 
+// boostCapsuleCapture 是实机 2026-10-04 17:56:59 使用直升胶囊的 64 字节正文：
+// 背包格 65、list 0、动作 337（0x151，占 p[7:8] 两字节）。动作号是 u32，它自己的
+// 高位不是「未知字段」——按单字节动作校验会把胶囊拒死成 unsupported stackable
+// action fields。
+var boostCapsuleCapture = "4100" + strings.Repeat("00", 5) + "5101" + strings.Repeat("00", 55)
+
+func TestBoostCapsuleCapturedActionIsU32(t *testing.T) {
+	p, e := hex.DecodeString(boostCapsuleCapture)
+	if e != nil || len(p) != 64 {
+		t.Fatal(len(p), e)
+	}
+	slot, action, e := DecodeStackableAction(p)
+	if e != nil || slot != 65 || action != CapsuleAction {
+		t.Fatal(slot, action, e)
+	}
+	r, e := DecodeBoostCapsule115(p)
+	if e != nil || r.Slot != 65 || r.Space != 0 {
+		t.Fatal(r, e)
+	}
+	// 疲劳药水仍然不能接手这一帧，两条 507 线路不互串。
+	if _, e := DecodeFatigueAction(p); e == nil {
+		t.Fatal("fatigue decoder accepted the capsule frame")
+	}
+}
+
 // AddSkinStorageVector is the 64-byte plain body the client sent for bag slot 71
 // holding template 10358669.
 var AddSkinStorageVector = "4700" + strings.Repeat("00", 6) + "a9" + strings.Repeat("00", 55)

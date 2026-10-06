@@ -5,6 +5,8 @@ var (
 	BuffFixtureForTest           = buffFixture
 	OdysseyGrowthFixtureForTest  = odysseyGrowthFixture
 	AwakeningGrantFixtureForTest = loadAwakeningGrantFixture
+	// 第三关 VP 的存储回归复用同一份源钉住的分配序列，不再另建一套 fixture。
+	BoostVPFixtureForTest = boostVPFixture
 )
 
 func KnownSkillsForTest(s *Service, role Character, state State, tree int) (map[uint16]byte, error) {

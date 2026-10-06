@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"testing"
 )
@@ -306,8 +307,8 @@ func TestEventInfoTableRidesAnnounce(t *testing.T) {
 	if copies != 1 {
 		t.Fatalf("announce carries %d non-empty NOTI108 frames, want exactly 1", copies)
 	}
-	if !bytes.Equal(got, eventInfoTable) {
-		t.Fatalf("announce 108 body drifted from the fixed table (%d vs %d bytes)", len(got), len(eventInfoTable))
+	if !bytes.Equal(got, townEventInfoTable) {
+		t.Fatalf("announce 108 body drifted from the town table (%d vs %d bytes)", len(got), len(townEventInfoTable))
 	}
 	// Official post-selection position: 706 -> 108 -> 537.
 	if !(at[706] < at[108] && at[108] < at[537]) {
@@ -315,19 +316,33 @@ func TestEventInfoTableRidesAnnounce(t *testing.T) {
 	}
 }
 
-// Fixed-table body sanity (next79 §16): the V3 verdict is only reproducible
-// if the shipped body stays anchored to the experiment's winning bytes - a
-// 2-byte count of 1 followed by the 52-byte Ispins Legion Open record, raw
-// (never zlib, which the private client rejects with CMD217).
+// Fixed-table body sanity（001 全频道方案）：19 条官服门记录 + 计数 + 空表尾，
+// RAW 裸格式（zlib 体被私服客户端拒收 → CMD217 冻结，V2 判定）；必须含全部
+// 关键门名（含 Venus Open / 巴卡尔 / 攻坚战各团本），且不带 URL/xui 横幅负载
+// （选角界面渲染崩溃）。
 func TestEventInfoTableBody(t *testing.T) {
-	if len(eventInfoTable) != 54 {
-		t.Fatalf("fixed table len=%d, want 54 (2-byte count + 52-byte Ispins record)", len(eventInfoTable))
+	const wantLen = 1141 // 2-byte count + 19 gate records + 1-byte tail
+	if len(eventInfoTable) != wantLen {
+		t.Fatalf("fixed table len=%d, want %d (count + 19 gate records + tail)", len(eventInfoTable), wantLen)
 	}
-	if eventInfoTable[0] != 1 || eventInfoTable[1] != 0 {
-		t.Fatalf("record count=%d, want 1", eventInfoTable[0])
+	if eventInfoTable[0] != 19 || eventInfoTable[1] != 0 {
+		t.Fatalf("record count=%d, want 19", binary.LittleEndian.Uint16(eventInfoTable[:2]))
 	}
-	if !bytes.Contains(eventInfoTable, []byte("Ispins Legion Open")) {
-		t.Fatal("fixed table missing the Ispins Legion Open record")
+	if eventInfoTable[len(eventInfoTable)-1] != 0 {
+		t.Fatal("table must end with the empty 0x00 schedule tail")
+	}
+	for _, name := range []string{
+		"Ispins Legion Open", "Apocalypse Channel",
+		"DefaultEvent(ENTER_BAKAL_RAID)", "DefaultEvent(ENTER_ASRAHAN_RAID)",
+		"DefaultEvent(ENTER_ARTIFICIAL_GOD_RAID)", "DefaultEvent(ENTER_DELEZIE_RAID)",
+		"DefaultEvent(ENTER_INAE_DUSK_WAR)", "Venus Open", "Dusky Island Open",
+	} {
+		if !bytes.Contains(eventInfoTable, []byte(name)) {
+			t.Fatalf("fixed table missing the %q gate record", name)
+		}
+	}
+	if bytes.Contains(eventInfoTable, []byte("http")) || bytes.Contains(eventInfoTable, []byte(".xui")) {
+		t.Fatal("gate table must stay payload-free; banner records crash the select screen")
 	}
 	if bytes.HasPrefix(eventInfoTable, []byte{0x78, 0x9c}) {
 		t.Fatal("fixed table must stay raw; zlib bodies freeze the private client (V2 verdict)")

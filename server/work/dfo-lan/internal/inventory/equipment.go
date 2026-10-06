@@ -131,6 +131,10 @@ type BagEquipment struct {
 	// 玩家已经锻出来的等级就会读成 0（或者读到上一次写歪的残留值）。
 	// 行内那格只是给客户端渲染用的镜像，不影响判定。
 	Refine byte `json:"refine,omitempty"`
+	// TutorialLocked 是**来源标记**：教学模式（Starter Boost 训练轨道）内新建的装备行
+	// 盖上它，出关后仍然存在，只用来配合「当前是否仍在训练轨道」做门禁。
+	// 老存档没有该字段 → false，向前兼容。分解刻意不受它约束（第九关任务就是拆训练装备）。
+	TutorialLocked bool `json:"tutorial_locked,omitempty"`
 }
 
 // IsCloneAvatar reports whether this equipment has PVF category "clear avatar".
@@ -439,7 +443,7 @@ func (b Bag) AddEquipment(c *EquipmentCatalog, slots [2]uint16, id, count uint32
 	}
 	b.Equipment = append([]BagEquipment(nil), b.Equipment...)
 	for _, n := range available {
-		b.Equipment = append(b.Equipment, BagEquipment{Slot: n, Template: id, Durability: d})
+		b.Equipment = append(b.Equipment, BagEquipment{Slot: n, Template: id, Durability: d, TutorialLocked: b.tutorialActive})
 	}
 	return b, available, nil
 }

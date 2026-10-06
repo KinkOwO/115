@@ -8,16 +8,12 @@ import (
 	"dfolan/internal/game/protocol"
 	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"testing"
 	"time"
 )
 
 func TestBranchlessAwakeningAndLearningPersistence(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("DFO_TEST_POSTGRES_DSN requires dedicated test storage")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	fixture, err := database.OpenTestFixture(ctx)

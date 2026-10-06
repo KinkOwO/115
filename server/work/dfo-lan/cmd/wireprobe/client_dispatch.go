@@ -28,6 +28,9 @@ var beforeClientTypeDispatch = [...]clientDispatchStage{
 	// dispatchIspins 必须首位（next79）：伊斯族 CMD2043/2045/2046 与末世录
 	// 共用信封、按内容号分流，终局剧情 191 也须先于通用 191 处理器。
 	(*gameConnection).dispatchIspins,
+	// dispatchVenus 紧随其后：维纳斯待机区 CMD12/13 与家族拦截（内容 106）
+	// 必须先于 dispatchLegion，防止落进末世录处理器。
+	(*gameConnection).dispatchVenus,
 	(*gameConnection).dispatchSpecialContent,
 	(*gameConnection).dispatchCashshopAndBoxes,
 	(*gameConnection).dispatchStoryAndAdvancement,
@@ -50,6 +53,7 @@ var commandDispatch = [...]clientDispatchStage{
 	(*gameConnection).dispatchWorldAndQuests,
 	(*gameConnection).dispatchCharacterEntry,
 	(*gameConnection).dispatchRoster,
+	(*gameConnection).dispatchBoostEvent,
 	(*gameConnection).dispatchFixtureResponse,
 }
 

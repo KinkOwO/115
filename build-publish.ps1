@@ -8,8 +8,8 @@
 #       一键打包.cmd -IncludeDevDocs       离线包里额外带上开发者文档（默认不带）
 #       一键打包.cmd -ListPruned           只列出「会被裁掉的条目」和最终顶层分布，不写 zip（试跑/审计用）
 #       一键打包.cmd -VerifyZip <zip 路径>  只校验一个已存在的包（不打新包；抽查/复验用，-Kind 决定按哪套规则校验）
-# 流程: git 分支导出 -> 加入 tools/{pg}(排除 pgAdmin 4) ->
-#       **复制预编译产物**(服务端程序 / 会话编排 CLI / WFP 探针 / configs) ->
+# 流程: git 分支导出 ->
+#       **复制预编译产物**(服务端程序 / 会话编排 CLI / WFP 探针 / configs / **依赖缓存整包 gopath-mod**) ->
 #       launcher.local.json 模板(相对路径) ->
 #       **按 -Kind 裁掉非白名单条目**(离线包只留必要项；见下方 $OfflineAllowed) ->
 #       Python 标准 zip(正斜杠/UTF-8) -> 逐项校验(必需项在 + 排除项不在 + 条目全在白名单内)
@@ -49,9 +49,18 @@ if (-not $OutDir) { $OutDir = Split-Path -Parent $ROOT }
 # 「开始游戏」就会报"缺少服务端 Go 编排 CLI / 服务端程序"。启动器虽然能按发布仓库的
 # manifest 自动补齐（见 internal/prebuilt），但**包本该自带**，别让它为了开玩先下 22 MB。
 $PrebuiltFiles = @(
+    # 启动器 exe（2026-10-05 追加）：包内的它必须与**当前工作区刚构建的那份**一致 ——
+    # git 分支里那份是历史提交（45.9 MB，没有本轮的内置资源释放与受管资源校验），
+    # 只从 git 导出会让"整包分发"的玩家拿到旧逻辑，正是这次要修的问题之一。
+    'DFO-115US单机一键启动器.exe',
     'server\work\dfo-lan\bin\dfolauncher.exe',   # Go 会话编排 CLI（launch / stop / prepare-inner-pvf / init-storage…）
     'server\work\dfo-lan\bin\wireprobe-pvf.exe', # 服务端程序（PVF 直读默认档 configs\pvf-default.json 指向它）
-    'server\work\dfo_probe_tools\probe.exe'      # 客户端宿主回退路径（WFP 回环隔离后拉起客户端）
+    'server\work\dfo_probe_tools\probe.exe',     # 客户端宿主回退路径（WFP 回环隔离后拉起客户端）
+    # 依赖缓存整包（2026-10-05 业主定调「tools 可以加回来」）：让离线包自带编译能力，玩家不必再从
+    # 发布源下载 gopath-mod —— 它 62.7 MB，正是单次推送被远端断开、只能在仓库里分片存放的那个。
+    # 该成品不入库（仓库里只有 tools/tools-gopath-mod.zip.part01..04），所以按"工作区带进包"处理；
+    # 缺失时下面的 [3/6] 会先调 scripts/assemble-gopath-mod.ps1 拼出来（按 manifest 校验 size/sha256）。
+    'tools\tools-gopath-mod.zip'
 )
 # 备份与半截文件绝不许进包：*.previous-* 是发布 PVF 默认程序时留下的旧版备份（36 MB 一份），
 # *.exe~ 是编辑器/收尾工具留下的半成品 —— 它们白占体积，还可能被误当成可用程序。
@@ -80,16 +89,15 @@ $OfflineAllowed = @(
     'LICENSE',
     'CHANGELOG',                 # 业主的变更记录（纯文本，34 KB）；docs/ 下已无 CHANGELOG.md，这里就是它的位置
     'launcher.settings.json',    # 启动器设置（更新分支/窗口尺寸）；缺失时启动器会自建，但包内带上更省一次自举
+    '资源清单.json',              # 包内受管文件的 size+sha256 清单（路 1 自校验的依据，见 build-publish.ps1 第 5.5 步）
     'scripts/README.md',         # 四个入口的用法与踩坑说明（排错最需要的一份文本）
 
     # —— 启动入口（缺一个就少一条路）——
     # 中文文件名照旧（Explorer / PowerShell 按 UTF-16 处理没问题；内容才是纯 ASCII，见 scripts/README.md）。
     'scripts/启动游戏.cmd',            # 默认档入口（走 storage-route.ps1 game-current）
-    'scripts/启动游戏-SQLite.cmd',     # SQLite 档（不需要 PostgreSQL）
-    'scripts/启动游戏-PostgreSQL.cmd', # PostgreSQL 档（自动起库）
+    'scripts/启动游戏-SQLite.cmd',     # SQLite 档（与本启动链唯一的存储引擎一致）
     'scripts/启动服务端.cmd',          # 只起服务端（默认档）
     'scripts/启动服务端-SQLite.cmd',
-    'scripts/启动服务端-PostgreSQL.cmd',
     'scripts/启动游戏-奥德赛.cmd',     # 整档强制奥德赛模式；小且是可选项，留着
     'scripts/停止游戏环境.cmd',
     'scripts/storage-route.ps1',       # 双库双路线切换 + 启动链调用（入口内部调用）
@@ -111,6 +119,13 @@ $OfflineAllowed = @(
     # 共 168 字节。它们与 testdata 同源，缺了会让 fixture 走别的分支，留着最省心。
     'server/work/dfo-lan/runtime/*.bin',
     'server/work/dfo_probe_tools/probe.exe',
+
+    # —— 编译依赖包（2026-10-05 业主定调「tools 可以加回来」）——
+    # 离线包自带 Go 工具链 / 模块缓存 / 源码包 / 服务端预编译包与清单，玩家离线也能跑
+    # `--build-server` 编译，不必依赖启动器从发布源下载。gopath-mod 的成品由 $PrebuiltFiles
+    # 从工作区带进包（入库存的是分片），其余包在 git 里本就是单文件。
+    'tools/*.zip',
+    'tools/manifest.json',
 
     # —— 字体补丁（小、面向客户端；纯 Python 脚本，不依赖仓库根的 tools\，删掉 tools\ 后照跑）——
     'client-patchs/**'
@@ -143,11 +158,11 @@ $ForbiddenRules = @(
     @{ kinds = @('all'); pattern = 'server/work/dfo-lan/runtime/storage/local.json'
        why = '作者的存储档位选择（应在本机由启动器按默认档位生成）' }
     @{ kinds = @('all'); pattern = 'server/work/dfo-lan/runtime/storage/local.*.json'; unless = '**/local.example.json'
-       why = '作者的两条路线档（local.sqlite.json / local.postgres.json）；仓库里的样例 local.example.json 不算' }
+       why = '作者的存储档位选择（local.sqlite.json 等）；仓库里的样例 local.example.json 不算' }
     @{ kinds = @('all'); pattern = 'server/work/dfo-lan/runtime/storage/backups/**'
        why = '作者存档备份' }
     @{ kinds = @('all'); pattern = 'server/work/dfo-lan/runtime/storage/pgdata/**'
-       why = '作者的 PostgreSQL 数据目录（体积大且是作者存档）' }
+       why = '历史 PostgreSQL 存档目录（引擎已移除，但这是作者存档，体积大且绝不许进包）' }
     @{ kinds = @('all'); pattern = 'server/work/dfo-lan/runtime/storage/*.log'
        why = '运行日志（作者机器上的运行痕迹）' }
     @{ kinds = @('all'); pattern = 'server/work/dfo-lan/runtime/roles_*'
@@ -160,8 +175,8 @@ $ForbiddenRules = @(
        why = '增量更新缓存（可重建的派生物）' }
     @{ kinds = @('all'); pattern = '.tmp/**'
        why = '打包/调试临时目录' }
-    @{ kinds = @('all'); pattern = 'tools/**'
-       why = '便携运行环境（PG 等）；启动链只走仓库内 Go 启动器，不需要它（业主也明确要求 tools\ 保留在仓库里、不入包）' }
+    @{ kinds = @('all'); pattern = 'tools/tools-gopath-mod.zip.part*'
+       why = '依赖缓存包的**分片**（只为 git 传输：成品 62.7 MB 单次推送会被远端断开）；成品自身随包分发，见 $PrebuiltFiles' }
     @{ kinds = @('all'); pattern = '**/*.previous-*'
        why = '旧版程序备份（*.previous-* 一份 36 MB），白占体积还可能被误当成可用程序' }
     @{ kinds = @('all'); pattern = '**/*~'
@@ -449,7 +464,6 @@ function Assert-PublishZip {
         $need = @(
             'scripts/启动游戏.cmd',
             'scripts/启动游戏-SQLite.cmd',
-            'scripts/启动游戏-PostgreSQL.cmd',
             'scripts/启动服务端.cmd',
             'scripts/停止游戏环境.cmd',
             'scripts/storage-route.ps1',
@@ -464,7 +478,6 @@ function Assert-PublishZip {
         foreach ($rel in $PrebuiltFiles) { $need += ($rel -replace '\\', '/') }
         # 分发给玩家的正式形态就是这个启动器 exe；包里也带上它（解压即可双击），所以列为必需项。
         $need += 'DFO-115US单机一键启动器.exe'
-        if (Test-Path (Join-Path $ROOT 'tools\pg')) { $need += 'tools/pg/pgsql/bin/initdb.exe' }
 
         $miss = @()
         foreach ($n in $need) {
@@ -586,7 +599,7 @@ if ($LASTEXITCODE -ne 0) { throw "分支不存在: $Branch（本地没有这个�
 $stamp = Get-Date -Format 'yyyyMMdd'
 # 产物名带定位：**分发给玩家的是单个 exe，这个 zip 只是离线自用/应急包**，
 # 名字里写清楚，免得以后有人误把它当成玩家分发物。
-$zipName = if ($Kind -eq 'dev') { "DFO-115US-开发发布包-$stamp.zip" } else { "DFO-115US-离线自用包-$stamp.zip" }
+$zipName = if ($Kind -eq 'dev') { "DFO-115US-开发发布包-$stamp.zip" } else { "DFO-115US-发布包-$stamp.zip" }
 $zipOut = Join-Path $OutDir $zipName
 $work = Join-Path $env:TEMP "df-publish-$stamp-$Kind"
 $tar  = Join-Path $env:TEMP "df-publish-$stamp-$Kind.tar.zip"
@@ -598,7 +611,7 @@ if ($Kind -ne 'dev') {
 }
 
 if (Test-Path $work) { Remove-Item $work -Recurse -Force }
-New-Item -ItemType Directory -Path $work | Out-Null
+New-Item -ItemType Directory -Force -Path $work | Out-Null
 try {
     # 1. 从 git 分支导出发布内容（不依赖工作区状态）
     Write-Host '[1/6] git 分支导出...'
@@ -606,27 +619,29 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'git archive 失败' }
     [IO.Compression.ZipFile]::ExtractToDirectory($tar, $work)
 
-    # 2. 加入便携运行环境（pg，按需），排除 pgAdmin 4
-    Write-Host '[2/6] 复制便携运行环境...'
-    $tools = Join-Path $ROOT 'tools'
-    New-Item -ItemType Directory -Path (Join-Path $work 'tools') | Out-Null
-    foreach ($d in @('pg')) {
-        $src = Join-Path $tools $d
-        if (-not (Test-Path $src)) { Write-Warning "缺少运行环境目录 tools\$d (跳过)"; continue }
-        if ($Kind -ne 'dev') { Write-Host ("   - 离线包不带 tools\{0}（启动链只走仓库内 Go 启动器；见排除清单）" -f $d); continue }
-        Copy-Item $src (Join-Path $work "tools\$d") -Recurse -Force
-    }
-    $pga = Join-Path $work 'tools\pg\pgsql\pgAdmin 4'
-    if (Test-Path $pga) { Remove-Item $pga -Recurse -Force; Write-Host '   已排除 pgAdmin 4' }
+    # 2. 便携运行环境：PostgreSQL 支持已于 2026-10-05 移除（业主口径，见 AGENTS §0.6），
+    #    启动链只走仓库内 Go 启动器 + SQLite 单文件，包内不再需要任何便携运行时。
+    Write-Host '[2/6] 便携运行环境：已无（PostgreSQL 支持已移除）...'
 
     # 3. 复制预编译产物 + configs（git 里没有这些文件，必须从工作区带进包）
-    Write-Host '[3/6] 复制预编译产物（服务端程序 / 编排 CLI / 探针 / configs）...'
+    Write-Host '[3/6] 复制预编译产物（服务端程序 / 编排 CLI / 探针 / configs / 依赖缓存整包）...'
+    # 依赖缓存整包缺失而分片在 → 先拼装（业主 2026-10-05 指示：编译/打包时自动触发，整包不存在就触发）。
+    # 拼装脚本按 tools/manifest.json 的 size/sha256 自校验，幂等（已就绪则零写入）。
+    $gopathPack = Join-Path $ROOT 'tools\tools-gopath-mod.zip'
+    if (-not (Test-Path -LiteralPath $gopathPack -PathType Leaf)) {
+        $gopathParts = @(Get-ChildItem -LiteralPath (Join-Path $ROOT 'tools') -File -Filter 'tools-gopath-mod.zip.part*' -ErrorAction SilentlyContinue)
+        if ($gopathParts.Count -gt 0) {
+            Write-Host ("   依赖缓存整包缺失，发现 {0} 个分片：先拼装。" -f $gopathParts.Count)
+            & (Join-Path $ROOT 'scripts\assemble-gopath-mod.ps1') -RepoRoot $ROOT
+            if ($LASTEXITCODE -ne 0) { throw ("拼装 tools-gopath-mod.zip 失败（exit {0}）" -f $LASTEXITCODE) }
+        }
+    }
     $lackPrebuilt = @()
     foreach ($rel in $PrebuiltFiles) {
         $src = Join-Path $ROOT $rel
         if (-not (Test-Path $src -PathType Leaf)) { $lackPrebuilt += $rel; continue }
         $dst = Join-Path $work $rel
-        New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dst)  | Out-Null
         Copy-Item $src $dst -Force
         $mb = [math]::Round((Get-Item $src).Length / 1MB, 1)
         Write-Host ("   + {0}  ({1} MB)" -f $rel, $mb)
@@ -643,7 +658,7 @@ try {
         throw "工作区里缺少 $ConfigsRel（服务端运行必需的配置目录），无法打包"
     }
     $cfgDst = Join-Path $work $ConfigsRel
-    New-Item -ItemType Directory -Path $cfgDst -Force | Out-Null
+    New-Item -ItemType Directory -Force -Path $cfgDst  | Out-Null
     $cfgCount = 0
     $cfgSkipped = @()
     Get-ChildItem $cfgSrc -Recurse -File | ForEach-Object {
@@ -651,7 +666,7 @@ try {
         if ($_.Name -like '*.local.json') { $cfgSkipped += $_.Name; return }
         $rel = $_.FullName.Substring($cfgSrc.Length).TrimStart('\')
         $dst = Join-Path $cfgDst $rel
-        New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dst)  | Out-Null
         Copy-Item $_.FullName $dst -Force
         $cfgCount++
     }
@@ -673,7 +688,7 @@ try {
         Remove-EmptyDirs -Tree $work
         foreach ($d in $OfflineScaffoldDirs) {
             $p = Join-Path $work $d
-            if (-not (Test-Path $p)) { New-Item -ItemType Directory -Path $p -Force | Out-Null; Write-Host ("   + 预建空目录 {0}" -f ($d -replace '\\', '/')) }
+            if (-not (Test-Path $p)) { New-Item -ItemType Directory -Force -Path $p  | Out-Null; Write-Host ("   + 预建空目录 {0}" -f ($d -replace '\\', '/')) }
         }
         Write-Host ("   - 裁掉 {0} 个条目（白名单之外）" -f $removedCount)
         $summary.Keys | Sort-Object { -$summary[$_] } | ForEach-Object {
@@ -704,6 +719,54 @@ try {
             Group-Object | Sort-Object Count -Descending | ForEach-Object { Write-Host ("     {0,6}  {1}" -f $_.Count, $_.Name) }
         return
     }
+
+    # 5.5 资源清单（正式发布包的自校验依据）
+    #
+    # 业主 2026-10-05 口径：zip 分发要能**自校验**。清单写在包根，逐条记录受管文件的
+    # 相对路径 + size + sha256 + 版本；玩家/启动器拿它核对"包内资源完整 / 缺失 / 被改坏 / 过期"。
+    # 口径与发布仓库的 tools/manifest.json 一致（那边是包的哈希，这里是包内文件的哈希），
+    # 所以同一个校验器（启动器 internal/resources 的 Audit）既能核 zip 包，也能核源链补下来的东西。
+    Write-Host '[5.5/7] 写资源清单（资源清单.json）...'
+    $manifestEntries = New-Object System.Collections.Generic.List[object]
+    $managedGlobs = @(
+        'server/work/dfo-lan/configs/**',
+        'server/work/dfo-lan/cmd/wireprobe/testdata/**',
+        'server/work/dfo-lan/runtime/*.bin',
+        'server/work/dfo-lan/bin/*.exe',
+        'server/work/dfo_probe_tools/probe.exe'
+    )
+    foreach ($pattern in $managedGlobs) {
+        $full = Join-Path $work ($pattern -replace '/', '\')
+        Get-ChildItem -Path $full -File -ErrorAction SilentlyContinue | Sort-Object FullName | ForEach-Object {
+            $rel = $_.FullName.Substring($work.Length + 1).Replace('\', '/')
+            $sum = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            $manifestEntries.Add([ordered]@{ path = $rel; size = $_.Length; sha256 = $sum })
+        }
+    }
+    # 版本号真源 = **包内启动器 exe 自己的 VERSIONINFO**（115 仓库里没有 version.json，
+    # 依赖它会得到 0.0.0）；exe 读不到时才退回 version.json（老包可能带），最后才落 0.0.0。
+    $verText = ''
+    $exeInPack = Join-Path $work 'DFO-115US单机一键启动器.exe'
+    if (Test-Path -LiteralPath $exeInPack) {
+        $verText = ([string](Get-Item -LiteralPath $exeInPack).VersionInfo.ProductVersion).Trim()
+    }
+    if (-not $verText) {
+        $verFile = Join-Path $work 'version.json'
+        if (Test-Path -LiteralPath $verFile) {
+            $verDoc = Get-Content -LiteralPath $verFile -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($verDoc.version) { $verText = [string]$verDoc.version }
+        }
+    }
+    if (-not $verText) { $verText = '0.0.0' }
+    $manifestDoc = [ordered]@{
+        schema       = 1
+        version      = $verText
+        generated_at = (Get-Date).ToString('o')
+        entries      = $manifestEntries
+    }
+    $manifestPath = Join-Path $work '资源清单.json'
+    [System.IO.File]::WriteAllText($manifestPath, ($manifestDoc | ConvertTo-Json -Depth 5), (New-Object System.Text.UTF8Encoding($false)))
+    Write-Host ("     受管文件 {0} 项（版本 {1}）" -f $manifestEntries.Count, $verText)
 
     # 6. Python 标准 zip 打包（正斜杠分隔符、UTF-8 文件名、无 ./ 前缀）
     Write-Host '[6/7] 压缩为 zip...'
