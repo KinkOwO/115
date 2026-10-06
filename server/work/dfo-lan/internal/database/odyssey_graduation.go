@@ -8,7 +8,14 @@ import (
 	"fmt"
 )
 
-const OdysseyGraduationEvent = "odyssey-graduation-v2"
+const (
+	// OdysseyGraduationEvent is the receipt of the current graduation rule.
+	// A character carrying an older receipt re-runs the plan as a compensation
+	// pass (see compensated below), so a source-scope fix reaches live saves.
+	OdysseyGraduationEvent = "odyssey-graduation-v3"
+	// compensatedPriorEvent is the previous rule version's receipt key.
+	compensatedPriorEvent = "odyssey-graduation-v2"
+)
 
 // CommitOdysseyGraduation commits mode, quests and receipt under the same
 // character lock. A v1 receipt must not suppress migration of an older save.
@@ -41,6 +48,20 @@ func (s *Store) CommitOdysseyGraduation(ctx context.Context, account, id int64, 
 		return role, false, err
 	}
 	queries := tx.queries()
+	// 老收据（v2）说明该角色已按上一版规则毕业过：这一轮只补缺失行，
+	// 不动玩家正在进行的任务（其交任务与奖励保持原样），也不重发奖励。
+	priorCompensated, priorErr := queries.CharacterEventModel(ctx, sqlcgen.CharacterEventModelParams{CharacterID: id, EventKey: compensatedPriorEvent})
+	compensated := false
+	switch {
+	case priorErr == nil:
+		if priorCompensated != compensatedPriorEvent {
+			return role, false, fmt.Errorf("Odyssey graduation prior model mismatch")
+		}
+		compensated = true
+	case isNoRows(priorErr):
+	default:
+		return role, false, priorErr
+	}
 	paid, err := queries.OdysseyGraduationAlreadyPaid(ctx, id)
 	if err != nil {
 		return role, false, err
@@ -58,7 +79,11 @@ func (s *Store) CommitOdysseyGraduation(ctx context.Context, account, id int64, 
 		}
 	}
 	if len(quests) > 0 {
-		err = queries.CompleteGraduationQuests(ctx, sqlcgen.CompleteGraduationQuestsParams{CharacterID: id, QuestIds: questIDsToInt32(quests), ConfigVersion: version, ProgressModel: OdysseyGraduationEvent})
+		if compensated {
+			_, err = queries.ClearQuests(ctx, sqlcgen.ClearQuestsParams{ConfigVersion: version, QuestIds: questIDsToInt32(quests), CharacterID: id, AccountID: account})
+		} else {
+			err = queries.CompleteGraduationQuests(ctx, sqlcgen.CompleteGraduationQuestsParams{CharacterID: id, QuestIds: questIDsToInt32(quests), ConfigVersion: version, ProgressModel: OdysseyGraduationEvent})
+		}
 		if err != nil {
 			return role, false, err
 		}

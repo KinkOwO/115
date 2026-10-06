@@ -49,7 +49,7 @@ func TestLayerSequenceExitAdvancesInsteadOfLooping(t *testing.T) {
 	}
 	clearScene(s)
 
-	// 无记录的门请求（interactDoor 合成的正是这种形态）。
+	// 无记录的 LayerChange 请求（客户端在层图里点门发的正是这种形态）。
 	next, e := s.MoveScene(c, protocol.DungeonRoomTransition{
 		Dungeon: 100004968, Position: pos, LayerChange: true,
 	})

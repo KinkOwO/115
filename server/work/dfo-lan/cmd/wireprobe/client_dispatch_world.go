@@ -369,7 +369,12 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 				townArrivalLoading = false
 			}
 		case 38:
-			pending, plan, e = client.worldState.interactDoor(requestData.plaintext)
+			// C2S38 = ENUM_CMDPACKET_USE_SKILL。官服抓包 2026-10-05（贵族机要段
+			// 连续上百条 38）证实：官服对它不回包、不换房。此前把 38 当「点门」
+			// 走 interactDoor，导致演出层图里每次放技能都合成跳房（实机
+			// 2026-10-05 100004968 贵族机要，放技能即从 100016356 弹到 100016357）。
+			// 换房的真实路径是客户端踩门后原生发 CMD45（见下面的 case 45）。
+			// 帧本身仍由 client_frame 事件记录，这里不响应。
 		case 39:
 			client.worldState.completionErr = nil
 			plan, e = client.worldState.monsterDeath(requestData.plaintext, client.event)
@@ -756,6 +761,7 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 			client.worldState.approvedDungeonGate = 0
 		}
 		if returnedToTown(plan) {
+			client.worldState.deliverMaxLevelRewardAtTown()
 			refresh, err := client.worldState.graduateOdysseyAtTown()
 			if err != nil {
 				client.event(map[string]any{"kind": "odyssey_graduation_error", "character_id": client.selectedCharacterID, "reason": err.Error()})

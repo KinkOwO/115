@@ -174,6 +174,20 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "odyssey_honor_mail_committed", "character_id": role.ID})
 			}
 		}
+		// 源 `etc/titlebook.etc` `[maxlevel reward]`：满级礼盒属于任何模式的满级角色，
+		// 不在奥德赛分支内。收据是事件键，所以已到 115 的老角色在这里补发一次，
+		// 之后每次登录都是 no-op。
+		if client.progressionService != nil && client.progressionService.MaxLevelReward != nil {
+			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+			updated, rewardApplied, rewardErr := client.progressionService.MaxLevelRewardMail(ctx, role)
+			cancel()
+			role = updated
+			if rewardErr != nil {
+				client.event(map[string]any{"kind": "max_level_reward_pending", "character_id": role.ID, "reason": rewardErr.Error()})
+			} else if rewardApplied {
+				client.event(map[string]any{"kind": "max_level_reward_mail_committed", "character_id": role.ID, "template": client.progressionService.MaxLevelReward.Template})
+			}
+		}
 		profile := *client.selectProbe
 		if client.itemService != nil && client.itemService.Boxes != nil {
 			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)

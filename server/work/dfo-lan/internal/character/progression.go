@@ -19,6 +19,7 @@ type ProgressionService struct {
 	Odyssey           *catalog.OdysseyGrowth
 	Chapters          *catalog.OdysseyChapters
 	CompletionRewards *catalog.OdysseyCompletionRewards
+	MaxLevelReward    *catalog.MaxLevelReward
 	CompletionAwarder *inventory.Awarder
 	Store             ProgressionStore
 	Catalog           catalog.Progression

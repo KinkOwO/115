@@ -155,5 +155,12 @@
   "MapDefinitionChannelLimitFields115": {
     "channel_limit_npc_tree": {"type": "void*", "offset": 7184},
     "evidence": "1471c6bb2 case6577 source[pvp channel limit npc]14b22fb38;1471cea67..ceaaf inserts integer IDs;146d00a80 applies show/hide by scene channel-property3 predicate; partial layout"
+  },
+  "DungeonPathGateFields115": {
+    "pending_condition_count": {"type": "int32", "offset": 3184},
+    "hunt_condition_templates": {"type": "uint32 vector begin/capacity/end at 3216/3224/3232", "offset": 3216},
+    "condition_passed_flag": {"type": "int32", "offset": 8056},
+    "legacy_clear_flag": {"type": "int32", "offset": 6264},
+    "evidence": "static20261004: 145B1C330 copies def Src+1156/1160 vec into dungeon+0xC90 (3216) and count into dungeon+0xC70 (3184, def dword576); NOTI312 handler 1452FF500 reads <u32 conditionID><u8 completed> from body then unconditionally sets dungeon+6264=1 and 145B45200/145B459E0 write dungeon+0x1F78=1 (8056, sole writers); gate tick 14614E440 blocks open animation while 0xC70!=0 unless 0x1F78 set; getter 145B34D20"
   }
 }

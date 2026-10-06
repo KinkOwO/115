@@ -196,7 +196,22 @@ func (s *Session) tryComplete() {
 		// boss is a non-combat display actor. The source map and boss position
 		// must both match; layer scenes reuse the boss position while changing
 		// maps. An actual fightable boss must still wait for its check.
-		if s.Loaded && s.atSourceBossMap() && !s.hasFightableBoss() && s.roomEnemiesDead() && s.reportableDisplayBoss() != 0 {
+		//
+		// [MERGE-20261005-ODYSSEY-HUNT-DISPLAY-BOSS] 同样要先问一句：脚本声明的
+		// [hunt boss] 在场吗。奥德赛巴卡尔 100004971 的 maze 把 boss 坐标标在 (6,0)
+		// 的 100016540，那张图里只有 109019144（rank3/team100 但 NonCombat 的三阶段演出
+		// 假身，就是玩家屏幕上那只 99% 血条的巴卡尔）和一只 team0 剧情 actor；脚本声明的
+		// 109019257 摆在最后一格 (8,0) 的 100016548 里（rank3/team100 可击杀）。
+		// 玩家一进 (6,0)、客户端发完 CMD37，本条四项判据全部成立（假身 NonCombat ⇒
+		// roomEnemiesDead 空转成立、reportableDisplayBoss≠0），副本当场结算：
+		// 实机 2026-10-05 抓包 16:52:59 与 16:56:45 两次都是「进 boss 房 300ms 内」发出
+		// N37/N291/N115/N31 通关链，随后玩家在 boss 房死亡 ⇒ 无主复活（resultSent 已置位，
+		// 金币/ Pilot/硬币三条复活路径一律拒绝）⇒ 10 秒失败结算弹回城镇。
+		// 与 [MERGE-20261001-ODYSSEY-HUNT-LAST-ROOM] 同一形制：声明了 hunt 目标的副本
+		// 不允许在「目标根本不在场」的房间里靠房间清空结算；目标所在那一格照常结算
+		// （客户端为 rank3 真身发 CMD117，奥德赛 BossCheck 立即受理）。HuntBoss 只在
+		// Odyssey 解析（catalog/dungeons.go），普通副本的这条兜底行为不变。
+		if s.Loaded && s.atSourceBossMap() && !s.hasFightableBoss() && s.roomEnemiesDead() && s.reportableDisplayBoss() != 0 && !s.huntTargetAbsent() {
 			s.completed = true
 			return
 		}
