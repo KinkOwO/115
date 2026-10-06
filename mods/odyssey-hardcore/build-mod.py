@@ -116,6 +116,7 @@ def make_client_ops():
                     "size": os.path.getsize(disk_src), "sha256": sha256_of(disk_src),
                     "note": note})
         disk.append((src, disk_src))
+    ops.sort(key=lambda op: op["target"])  # 清单顺序稳定：只受内容影响，不受源码书写顺序影响
     return ops, disk
 
 
@@ -157,6 +158,20 @@ def main():
         print("client layer: %d file(s)" % len(client_ops))
         for op in client_ops:
             print("  file.add %-46s %8d B  %s…" % (op["target"], op["size"], op["sha256"][:16]))
+        # client 层的**说明文档**：只随包可看（zip 内的普通文件），**不是安装动作** ——
+        # 它不进 manifest 的 ops，modkit 不会把它落位到启动器 mods 目录。
+        n_doc = 0
+        for name in sorted(os.listdir(os.path.join(HERE, "client"))):
+            if not name.endswith(".md"):
+                continue
+            src = os.path.join(HERE, "client", name)
+            if not os.path.isfile(src):
+                continue
+            dest = os.path.join(staging, "client", name)
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            shutil.copy2(src, dest)
+            n_doc += 1
+            print("  doc(仅包内)   %-40s %8d B" % ("client/" + name, os.path.getsize(src)))
     else:
         print("client layer: 无（--rules-only）")
 
