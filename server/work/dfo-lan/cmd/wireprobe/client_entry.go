@@ -25,6 +25,13 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		if e == nil {
 			e = prepareRolePVFDetails(ctx, client.characters, client.questService, client.lootService, role)
 		}
+		if e == nil && client.wearService != nil {
+			var migrated bool
+			role, migrated, e = client.wearService.MigrateCloneAvatars(ctx, role)
+			if migrated {
+				client.event(map[string]any{"kind": "clone_avatar_save_migrated", "character_id": role.ID})
+			}
+		}
 		cancel()
 		// Legacy third-awakened saves predate the 5-point VP grant: the
 		// panel may show 5 points while the ledger still reads zero, and
@@ -459,6 +466,11 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			}
 		}
 		plan.SecondaryVault = secondaryVaultPayload
+		plan.CloneSources, e = cloneAvatarSourcePackets(role.State)
+		if e != nil {
+			client.event(map[string]any{"kind": "clone_avatar_source_restore_error", "error": e.Error()})
+			return dispatchHandled
+		}
 		collectionCtx, collectionCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		collectionEquipment, collectionErr := client.gameStore.AdventureCollectionEquipment(collectionCtx, role.AccountID, role.ID)
 		collectionCancel()

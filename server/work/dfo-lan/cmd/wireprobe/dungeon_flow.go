@@ -380,6 +380,11 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 			return nil, err
 		}
 		if enabled {
+			sources, sourceErr := cloneAvatarSourcePackets(w.role.State)
+			if sourceErr != nil {
+				return nil, sourceErr
+			}
+			plan = append(plan, sources...)
 			restore, err := inventory.NonAvatarWornSpaceUpdate(w.role.State)
 			if err != nil {
 				return nil, err
@@ -664,6 +669,11 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 			return nil, err
 		}
 		if enabled && !directEntry {
+			sources, sourceErr := cloneAvatarSourcePackets(w.role.State)
+			if sourceErr != nil {
+				return nil, sourceErr
+			}
+			plan = append(plan, sources...)
 			cloneReattached = true
 			restore, restoreErr := inventory.NonAvatarWornSpaceUpdate(w.role.State)
 			if restoreErr != nil {
@@ -902,6 +912,28 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 		wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
 		if err == nil && len(wornUpdate) > 0 {
 			plan = append(plan, outboundPacket{"town_worn_visuals_restored", 0, 14, wornUpdate})
+		}
+		// Return reconstructs the actor just as entry/loading does. Reapply
+		// the owned source table and existing verified Clone row layouts,
+		// restoring non-avatar slots after both absolute mode1 packets.
+		reset, full, enabled, cloneErr := w.characters.CloneReattachPackets(w.role)
+		if cloneErr != nil {
+			return nil, cloneErr
+		}
+		if enabled {
+			sources, sourceErr := cloneAvatarSourcePackets(w.role.State)
+			if sourceErr != nil {
+				return nil, sourceErr
+			}
+			restore, restoreErr := inventory.NonAvatarWornSpaceUpdate(w.role.State)
+			if restoreErr != nil {
+				return nil, restoreErr
+			}
+			plan = append(plan, sources...)
+			plan = append(plan, outboundPacket{"town_clone_detached", 0, 2, reset}, outboundPacket{"town_clone_reattached", 0, 2, full})
+			if len(restore) > 0 {
+				plan = append(plan, outboundPacket{"town_nonavatar_worn_restored", 0, 14, restore})
+			}
 		}
 		if inventory.HasEquippedCreature(w.role.State) {
 			clPayload, err := inventory.CreatureListPayload(w.role.State)

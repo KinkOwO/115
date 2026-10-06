@@ -111,14 +111,19 @@ func NewEquipmentCatalog(c EquipmentCatalog, source string) (*EquipmentCatalog, 
 }
 
 type BagEquipment struct {
-	Slot          uint16 `json:"slot"`
-	Template      uint32 `json:"template"`
-	Group         byte   `json:"group,omitempty"`
-	Durability    uint16 `json:"durability"`
-	Record        []byte `json:"record,omitempty"`
-	AvatarOptions []byte `json:"avatar_options,omitempty"`
-	AvatarSockets []byte `json:"avatar_sockets,omitempty"`
-	Period        uint32 `json:"period,omitempty"`
+	// Future/private instance fields survive moves and save upgrades.
+	ExtraFields map[string]json.RawMessage `json:"-"`
+	// CloneSource references the physical look instance in the avatar bag.
+	// Missing in old saves; old dual-Worn rows are migrated transactionally.
+	CloneSource   *CloneAvatarSource `json:"clone_source,omitempty"`
+	Slot          uint16             `json:"slot"`
+	Template      uint32             `json:"template"`
+	Group         byte               `json:"group,omitempty"`
+	Durability    uint16             `json:"durability"`
+	Record        []byte             `json:"record,omitempty"`
+	AvatarOptions []byte             `json:"avatar_options,omitempty"`
+	AvatarSockets []byte             `json:"avatar_sockets,omitempty"`
+	Period        uint32             `json:"period,omitempty"`
 	// Refine 是锻造（Refine / CMD430）等级，服务端权威状态。
 	//
 	// 为什么要单独存一格而不是只读行内字节：装备行里锻造等级那一格（configs/refine.json

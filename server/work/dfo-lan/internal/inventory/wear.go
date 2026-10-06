@@ -246,6 +246,13 @@ func (s *WearService) MoveOrdinary(role Role, r protocol.ItemMoveRequest) (json.
 	if e != nil {
 		return nil, e
 	}
+	b, _, e = s.NormalizeCloneAvatars(b)
+	if e != nil {
+		return nil, e
+	}
+	if raw, handled, err := s.moveNativeClone(role, b, r); handled {
+		return raw, err
+	}
 	if r.DestinationList == 1 && r.DestinationSlot >= protocol.AvatarInventorySlots(b.AvatarExpansion) {
 		// Existing legacy rows stay in the save and can still move out; new
 		// placements must fit the capacity the native client can display.
@@ -462,6 +469,7 @@ func (s *WearService) MoveOrdinary(role Role, r protocol.ItemMoveRequest) (json.
 	}
 	replace(r.SourceList, r.SourceSlot, srcGroup, z)
 	replace(r.DestinationList, r.DestinationSlot, dstGroup, a)
+	b.RebaseCloneAvatarSources(r)
 	if _, e = EquipmentPayload(3, b.WornBaseItems(), false); e != nil {
 		return nil, e
 	}

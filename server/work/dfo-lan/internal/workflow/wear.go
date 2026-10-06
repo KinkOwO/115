@@ -20,11 +20,25 @@ func (s *WearService) Move(ctx context.Context, role database.Character, key str
 		return role, false, fmt.Errorf("wear storage unavailable")
 	}
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "ordinary-equipment-move-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
+		bag, err := inventory.ReadBag(current.State)
+		if err != nil {
+			return nil, nil, err
+		}
+		_, migrated, err := s.rules().NormalizeCloneAvatars(bag)
+		if err != nil {
+			return nil, nil, err
+		}
 		raw, e := s.rules().MoveOrdinary(InventoryRole(current), r)
 		if e != nil {
 			return nil, nil, e
 		}
 		receipt, e := json.Marshal(r)
+		if migrated {
+			receipt, e = json.Marshal(struct {
+				protocol.ItemMoveRequest
+				Before, After json.RawMessage
+			}{r, current.State, raw})
+		}
 		return raw, receipt, e
 	})
 	saved.WireID = role.WireID
