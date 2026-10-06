@@ -69,6 +69,64 @@ func TestBoostGiftEntryOrderingAndPerRoleRestore(t *testing.T) {
 	}
 }
 
+// 实机缺陷（业主 2026-10-06）：奥德赛角色（截图角色 Poison，1 级，创建选项
+// option[10]=2）与 115 级满级角色进城都会弹「千海之空 BOOST UP」直升活动窗口。
+//
+// 弹窗谓词是客户端自己的（IDA 闭环，取证见 analysis/dumps/eventgift-popup6/）：
+// sub_144D4ACC0 按 eventgift.evt 的 [first login open popup] 把礼盒登记进首登弹窗表
+// （sub_144D4B8E0），谓词 sub_144D4AA80 读 NOTI2265 写进 manager+448 的可用性树，
+// 只有「本礼盒值 == 1 且 [link gift index]（117→118）也全部 == 1」才返回不弹；
+// **行缺失按 0 处理 ⇒ 照弹**。所以抑制只能是"把所有行标成已处理"（官服同口径，
+// 抓包里的 2265 就是 {118:1}），不能靠不发这一帧。
+func TestBoostGiftOfferSuppressedForOdysseyAndMaxLevel(t *testing.T) {
+	c := &boostup.Catalog{Gifts: []boostup.Gift{{ID: 117}, {ID: 118}}, GoalLevel: 115}
+	odysseyRequest := func() []byte {
+		p := append([]byte{0, 4, 0, 0, 0}, []byte("test")...)
+		p = append(p, 0, 0, 0, 0, 0, 0, 255, 0, 1, 0, 2, 0) // option[10]=2 ⇒ Arad Odyssey 用户
+		for len(p)%8 != 0 {
+			p = append(p, 0)
+		}
+		return p
+	}
+	for _, tc := range []struct {
+		name string
+		role database.Character
+		want []byte
+	}{
+		{"普通 1 级仍在报价内", database.Character{State: json.RawMessage(`{"level":1}`)}, []byte{2, 0, 117, 0, 0, 118, 0, 0}},
+		{"普通 114 级仍在报价内", database.Character{State: json.RawMessage(`{"level":114}`)}, []byte{2, 0, 117, 0, 0, 118, 0, 0}},
+		{"满级 115 不再报价", database.Character{State: json.RawMessage(`{"level":115}`)}, []byte{2, 0, 117, 0, 1, 118, 0, 1}},
+		{"奥德赛 1 级不再报价", database.Character{Request: odysseyRequest(), State: json.RawMessage(`{"level":1}`)}, []byte{2, 0, 117, 0, 1, 118, 0, 1}},
+	} {
+		gifts, e := boostGiftAvailability(c, tc.role)
+		must115(t, e)
+		if !bytes.Equal(gifts, tc.want) {
+			t.Errorf("%s: 2265 = %v, want %v", tc.name, gifts, tc.want)
+		}
+	}
+	// 报价只看角色自身的创建标记：DFO_ODYSSEY_MODE 的启动器覆盖既不能把普通角色
+	// 挤出报价，也不能把奥德赛角色放回报价（与进城准入用同一个 per-character 判据）。
+	t.Setenv("DFO_ODYSSEY_MODE", "1")
+	normal := database.Character{State: json.RawMessage(`{"level":1}`)}
+	gifts, e := boostGiftAvailability(c, normal)
+	if e != nil || !bytes.Equal(gifts, []byte{2, 0, 117, 0, 0, 118, 0, 0}) {
+		t.Errorf("launcher mode override moved a normal character out of the offer: %v (%v)", gifts, e)
+	}
+	t.Setenv("DFO_ODYSSEY_MODE", "0")
+	pilot := database.Character{Request: odysseyRequest(), State: json.RawMessage(`{"level":1}`)}
+	if gifts, e = boostGiftAvailability(c, pilot); e != nil || !bytes.Equal(gifts, []byte{2, 0, 117, 0, 1, 118, 0, 1}) {
+		t.Errorf("launcher mode off let an Odyssey character back into the offer: %v (%v)", gifts, e)
+	}
+	// 报价内的角色仍按自己的领取状态出行：领了 117 不该被满级/奥德赛口径连带改写。
+	claimed, e := boostup.WriteState(json.RawMessage(`{"level":1}`), boostup.State{Version: 1, Gifts: map[uint16]bool{117: true}})
+	must115(t, e)
+	gifts, e = boostGiftAvailability(c, database.Character{State: claimed})
+	must115(t, e)
+	if !bytes.Equal(gifts, []byte{2, 0, 117, 0, 1, 118, 0, 0}) {
+		t.Errorf("per-role claim lost: %v", gifts)
+	}
+}
+
 // 第三关的完成是在 CMD29 技能事务里落地的：只有训练状态真的前进时才补发
 // 一条 NOTI2638，任务面板才会刷新；同一状态重复下发会让已完成的引导再弹一次。
 func TestBoostTrainingProgressFrameOnlyOnRealAdvance(t *testing.T) {

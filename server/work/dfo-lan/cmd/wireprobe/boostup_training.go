@@ -111,7 +111,7 @@ func (w *worldSession) boostStepRequest(ctx context.Context, p []byte, id uint16
 				w.role = next
 				body, e := loot.BoostChallengeSnapshot(w.boostup, workflow.LootRole(next))
 				if e == nil {
-					plan = append(plan, outboundPacket{"boost_challenge_enrolled", 0, 2722, body})
+					plan = append(plan, boostChallengePackets("boost_challenge_enrolled", body)...)
 				} else {
 					log.Printf("boost challenge graduation snapshot role=%d: %v", w.role.ID, e)
 				}

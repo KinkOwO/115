@@ -1,4 +1,0 @@
-LIBRARY DifficultyRules
-EXPORTS
-    ModStart
-    ModName

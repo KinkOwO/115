@@ -157,6 +157,7 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 			return nil, err
 		}
 	}
+	preClear := w.role
 	w.role, w.level = role, experience[0]
 	// Starter Boost 662：引导通关在结算里推进训练关卡（源里的 [guide] dungeon）。
 	// 结算已经提交，补帧失败只记日志——不能让进度校验把玩家卡在已通关的副本里。
@@ -171,6 +172,9 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	}
 	plan := []outboundPacket{{"dungeon_play_result", 0, 34, notice}, {"dungeon_clear_experience", 0, 37, experience}, {"dungeon_clear_reward", 0, 35, reward}}
 	plan = append(plan, boostPlan...)
+	// 665 的通关计数就藏在这笔结算事务里，面板只认 2722：不补这一帧，玩家打完
+	// 「秩序终结者」回到城里看到的还是旧计数（实机 2026-10-06 16:43）。
+	plan = append(plan, boostChallengeClearProgress(w.boostup, preClear, w.role)...)
 	if len(itemUpdate) != 0 {
 		plan = append(plan, outboundPacket{"tower_inventory_reward", 0, 14, itemUpdate})
 	}
