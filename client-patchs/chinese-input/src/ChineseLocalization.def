@@ -1,0 +1,5 @@
+LIBRARY ChineseLocalization
+EXPORTS
+    ModStart
+    ModName
+    StartLocalization

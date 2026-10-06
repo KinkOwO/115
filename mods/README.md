@@ -32,8 +32,15 @@ $mod = "<某个 mod 的 zip>"
 
 | 文件 | 读者 | 内容 |
 | --- | --- | --- |
-| [`MOD-DEVELOPMENT.md`](MOD-DEVELOPMENT.md) | **写 mod 的人** | 四层架构、包结构、`mod.json` 模板、权限、钩子、NPK 格式、装/卸语义、游戏内验证清单、常见报错 |
-| [`MOD-MANAGER-INTEGRATION.md`](MOD-MANAGER-INTEGRATION.md) | **把 mod 管理器接进启动器的人** | 管理器在启动链的位置、三份状态、`enabled.json` 格式、程序接口、显示字段、边界 |
+| [`MOD-DEVELOPMENT.md`](MOD-DEVELOPMENT.md) | **写 mod 的人** | 四层架构、包结构、`mod.json` 模板、权限、钩子、**客户端 DLL 插件通道（§5.1）**、NPK 格式、装/卸语义、游戏内验证清单、常见报错 |
+| [`MOD-MANAGER-INTEGRATION.md`](MOD-MANAGER-INTEGRATION.md) | **把 mod 管理器接进启动器的人** | 管理器在启动链的位置、三份状态、`enabled.json` 格式、程序接口、显示字段（含作者/说明）、边界 |
+
+## 可分享的客户端 mod 包
+
+[`client-mods/`](client-mods/README-安装与分享.md) —— 已经实机验证过的客户端 mod 成品包（宿主 /
+中文输入 / 删角色免打字三个 zip），带安装、卸载、分享须知与原理说明。
+源码在 [`../client-patchs/`](../client-patchs/)（连 DLL 一起改的规则见
+[`../client-patchs/AGENTS.md`](../client-patchs/AGENTS.md)）。
 
 ## 示例
 

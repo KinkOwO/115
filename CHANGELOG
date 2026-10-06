@@ -74,6 +74,52 @@
 - 删除：`cmd/wireprobe/scene_exit_record_test.go`（专测已删掉的服务端合成路径）。
 - 归档：`analysis/dumps/idb_funcs.tsv` / `idb_globals.tsv` / `idb_struct.json`（NOTI312 的 IDA 结构偏移）。
 - 提交纪律：本轮**只提交到本地、不推远端**；未实机验收前不得把以上任一条写成「已确认」。
+## 2026-10-06：客户端中文输入修复（mod 交付，业主实机确认）
+
+### 已修复 / 已完成
+
+- **客户端无法输入中文（业主实机确认「已经好了」）**。取证（`analysis/tasks/chinese-input-probe-20261006.md`）：
+  客户端 IME 通路的两个门禁是「IME 管理器布局 ∈ {E0080404,E0090404,E00E0804}」+「`ImmGetIMEFileNameW`
+  返回 5 个 XP 时代 IME 文件名之一」；本机是 `0x08040804` 且文件名取不到 ⇒ 通路从不启用。
+  真正的拦路虎是**客户端（Themida 加壳）调 user32/imm32 走它自己的导入桩**（`FF 25` → `.rdata` 槽，
+  RVA `0x9186160..0x9187988`），改导出表（EAT）对它完全无效；最后一块拼图是客户端每次按键都
+  `ImmNotifyIME(NI_COMPOSITIONSTR, CPS_CANCEL)` 取消组字。
+- 交付 schema 2 四层 mod 包：`qol.client-host` v1.0.0（宿主，占住客户端唯一的自动加载 DLL 槽位）、
+  `qol.chinese-input-probe` **v2.0.2**（槽修正 + 门禁/布局写入点钩子 + `ImmIsIME` 对传统布局
+  改报「是输入法」+ `fix_cancel` + `ime_bridge` 兜底；显示名改为「中文输出支持」，宿主改为「客户端DLL框架」）。
+  实机日志锚点：`Themida 槽修正 12 处` → `★ 吞掉 ImmNotifyIME(CPS_CANCEL) ×43` → 组字串开始累积
+  （`'a'`→`"a's'd"`）→ `WM_IME_COMPOSITION … RESULTSTR` → `ImmGetCompositionStringW(idx=0x800) -> "模拟器"`。
+- **删角色免打字**：`qol.auto-confirm` v1.0.0（把删角色窗编辑框的「取文本」虚表槽按实例替换）。
+  实机日志确认补丁动作发生（短语取到「删除角色」、编辑框文本被替换）；删除流程本身业主未单独确认。
+- **mod 元数据（作者/描述）支持**（启动器仓 `115us-dfolauncher`）：`internal/modkit` 新增
+  `Author`/`Description` 字段与 `Credit()` 拼接，`modkit mods`/`status` 展示署名；
+  新增 `internal/modkit/credit_test.go`（3 用例）。验证：`go build ./...` = 0、`go test ./internal/modkit/` ok。
+- **客户端补丁目录规范**：新增 `client-patchs/AGENTS.md`（根 §1 索引此前引用了不存在的文件）与
+  `client-patchs/README.md`；`.gitignore` 补 `*.obj` / `*.exp` / `client-patchs/*/dist/`；
+  `client-patchs` 下 10 个 `.cmd` 归一化为纯 ASCII + CRLF（根 §0.4.2）；机制自测 4 项入 `client-patchs/tests/`。
+- **modkit 简易页面** `mods/modkit-web/`（Go，单文件服务 + 内嵌单页 UI；`scripts\启动modkit.cmd` 一键起）：
+  分页列表（名称/**描述**/添加日期/启用/制作人）、多选批量启停删、导入导出 zip（支持「zip 根即 mod 根」
+  与「一组 mod 子目录」两种形态），导入前按 `mods/MOD-DEVELOPMENT.md` 校验清单；运行 exe 不需要 Go。
+
+
+### 未修复 / 未闭环
+
+- 客户端补丁的 RVA 与槽区间是**版本相关**的（仅在本机这一版 `DFO.exe`，258,972,712 字节上验证）；
+  换构建会逐字节核对失败并静默跳过（不崩，但也不生效）——分享给他人前必须说明。
+- 客户端带 BlackCipher：本机加载这两个 DLL 未被拦；其它环境未验证。
+- `qol.auto-confirm` 的删除流程业主未逐项确认（只确认了补丁动作发生）。
+
+### bug 测试取证
+
+- 机制自测（都不碰真客户端、可复跑）：`client-patchs/tests/` 下
+  `inline_test.c`（inline 跳转 + 跳板）、`vtable_test.c`（虚表槽按实例替换）、
+  `gate_test.c`（复刻客户端 IME 门禁，装插件前"不启用"→ 装后"启用"）、
+  `slot_test.c`（假客户端真 Themida 槽 → 被换成包装 → 通过槽调用拿到 `0xE00E0804`）。
+  四项 `RUN_EXIT=0`。
+- 自测过程中修掉的真缺陷：桥与目标距离未校验导致 rel32 越界崩、读目标字节前未验证内存可读、
+  `/O2` 把撑大镜像的 `.bss` 消掉（测试自身）；以及实机暴露的「改导出表对 Themida 导入桩无效」。
+
+---
 
 ## 2026-10-06：662 直升活动「入口 → 第10关变换 → 第11关毕业」三处修复（十一关全通 + 毕业实机确认）
 
@@ -211,6 +257,7 @@
 
 | # | 阶段 | 时间区间 | 归档行 | 主题 |
 | --- | --- | --- | --- | --- |
+| 7 | 客户端中文输入 | 2026-10-06 | 本文件 | 客户端 IME 门禁取证与 mod 修复（含 mod 元数据支持、客户端补丁目录规范、modkit 简易页面） |
 | 6 | 规范与门禁 | 2026-10-05 | 本文件 | 提交/目录/开发规范、提交前门禁、远端合并与 SQLite 环境适配 |
 | 5 | SQLite 双引擎收口 | 2026-10-04 | L3–L752（34 节） | SQLite 引擎缝/适配器/schema 分叉、去 Python、Go 启动器、双引擎门禁 |
 | 4 | 工具整理与 cmd 收敛 | 2026-10-03–10-04 | L753–L1472（26 节） | 39 工具删除、`cmd` 四入口、数据库访问集中 sqlc、蔚蓝号落地 |

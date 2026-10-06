@@ -76,8 +76,8 @@ MyMod.zip
   "id": "my.qol.mod",              // 小写字母/数字/./-，≤64，全局唯一
   "version": "1.0.0",
   "name": "我的体验 mod",
-  "author": "你的名字",
-  "description": "一句话说清它改什么",
+  "author": "你的名字",             // 可选：署名。会显示在 modkit 输出与 mod 管理器里
+  "description": "一句话说清它改什么", // 可选：一句话说明；与 author 走同一条展示链
   "permissions": ["server.hook", "client.file.write"],   // 必须覆盖下面所有动作
   "requires": ["other.mod"],       // 可选：必须先装的 mod
 
@@ -137,6 +137,21 @@ MyMod.zip
 ```
 
 占位符（脚本参数与 `args` 里可用）：`{client}` 客户端根、`{pack}` 包根、`{work}` 本步骤工作目录。
+
+### 2.1 署名与说明（`author` / `description`）
+
+- **填写位置只有一处**：包根的 `mod.json`。两个字段**都可选**，不填不影响校验与安装。
+- **传播链**（装完之后包往往已不在盘上，所以引擎会留快照）：
+  - `modkit install` 把清单**原样**落一份到服务端模块的 `mods/<mod-id>/mod.json`，
+    并把 `author` / `description` **快照**进客户端注册表 `.launcher-mods/modkit/registry.json`；
+  - `modkit verify` / `plan` 直接打印它们；
+  - `modkit status` 从注册表快照读（包删了也还看得到）；
+  - `modkit mods list [--json]` 从落位目录的 `mod.json` 读，字段名 `author` / `description`
+    （为空时省略）——**管理器就渲染这两个字段**。
+- **展示规则**：说明里的换行在命令行输出里会被压成一行（避免把后续行顶歪）；
+  JSON 输出保持原文。
+- **兼容**：旧 mod（schema 1，或压根没填这两项）照旧装、照旧跑——缺字段不会被拒装，
+  展示侧也不会凭空编造。
 
 ---
 
@@ -384,6 +399,37 @@ mod 只读；写只有两个入口：管理器 UI、或 `modkit mods enable/disa
   然后逐字节核对每处 `before` 再写 `after`。这是设计行为，不是缺陷。
 
 **注意**：client 层会让 modkit 要求游戏退出（装/卸都要求 `DFO.exe` 不在运行）。
+
+### 5.1 客户端 DLL：只有一个槽位，多个 DLL 走插件通道
+
+客户端**只有一个**能被自动加载的 DLL 槽位（115us 整合包里的 `dinput8.dll` 代理会
+`LoadLibraryEx` 客户端根下的 `ChineseLocalization.dll`，再调它的 `StartLocalization`）。所以：
+
+1. **第一个**客户端 DLL mod 直接占这个槽位（`file.add ChineseLocalization.dll`），
+   而且它应当只干一件事：把 `<客户端>\.115us-mods\*.dll` 按文件名顺序加载起来 ——
+   这就是宿主 [`qol.client-host`](../../client-patchs/client-host/HOST-README.md)；
+2. **其它**客户端 DLL mod 一律当**插件**投放（`file.add .115us-mods/<你的>.dll`），
+   并在 `mod.json` 里声明 `"requires": ["qol.client-host"]`：宿主没装时 `plan` 会直接挡下
+   （`依赖未安装`），这是设计行为；
+3. 插件导出约定（宿主按名解析；缺 `ModStart` 时回退 `StartLocalization`，两个都没有只记日志不崩）：
+
+   | 导出 | 必需 | 说明 |
+   | --- | --- | --- |
+   | `DWORD WINAPI ModStart(void)` | 是 | 插件入口。宿主在**自己的线程**上调用它 → 插件要干重活请自建线程，别阻塞宿主 |
+   | `const char *WINAPI ModName(void)` | 否 | 展示名，宿主日志里会打出来 |
+   | `DWORD WINAPI StartLocalization(void)` | 否 | 兼容名（早期代理就是按这个名字调的） |
+
+4. **日志**：每个插件写**自己所在目录**（解析自身模块路径，不依赖进程当前目录、
+   更不要写游戏根目录）；宿主日志固定写在客户端根 `client-host.log`；
+5. **改内存的纪律**（inline 跳转 / 虚表槽替换 / 改导入表）：动手前**逐字节核对期望字节**，
+   地址不可读或字节不符就**跳过并记日志** —— 客户端版本一变，宁可失效也不能崩。
+   细则见 [`client-patchs/AGENTS.md`](../../client-patchs/AGENTS.md)，可复跑的机制自测在
+   [`client-patchs/tests/`](../../client-patchs/tests/)（inline 跳转 / 虚表替换 / 门禁复刻 / Themida 导入槽）；
+6. **开关文件由插件首次运行时自己生成**，不要放进包里：`file.add` 不允许覆盖
+   「已存在且内容不同」的文件，把 ini 放包里会让**下一次升级被 `plan` 阻断**；
+7. 现成例子：中文输入 [`qol.chinese-input-probe`](../../client-patchs/chinese-input/PROBE-README.md)、
+   删角色免打字 [`qol.auto-confirm`](../../client-patchs/auto-confirm/AUTO-CONFIRM-README.md)；
+   可直接分享的包在 [`../mods/client-mods/`](client-mods/README-安装与分享.md)。
 
 ---
 
