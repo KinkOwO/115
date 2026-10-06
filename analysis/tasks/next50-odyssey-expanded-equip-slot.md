@@ -229,3 +229,28 @@
 想真正解决有两条路：
 1. 解开 §5 未解项 —— 反向出"装备行记录（181B）里哪个字段映射到槽对象 `+0x358`、解锁值是多少"，然后确认客户端是否有"重建槽行数组"的入口；
 2. 换锚点：看客户端是否有别的命令会让它重新构造装备栏（例如某种窗口刷新），用 frida 在"重登""重开背包"两条路径上对比 `0x140584ed0`（槽行数组遍历）的调用差异。
+
+
+---
+
+## 2026-10-06 复现（业主实机，盖波加 100004969 → 耳环位 1<<4）
+
+业主报「Gaebolg 应该解锁耳环特殊槽，但打完耳环礼盒发了、装备栏还是锁的」。**复现 §「就地重同步」的结论，
+不是新缺陷、也不是 2026-10-06 那批外部方包引入的**：
+
+| 观察点 | 2026-09-22（卢克 100004953） | **2026-10-06（盖波加 100004969）** |
+| --- | --- | --- |
+| 存档 `expand_equip_flags` | ✅ 19 | ✅ **19**（支援 1 + 魔法石 2 + 耳环 16 全写入） |
+| 通关账本 `odyssey_completed_dungeons` | 含 100004953 | 含 **100004969**（第 35 项） |
+| 解锁刷新帧（id-13 + id-14） | 已发 | ✅ 已发（`equipment_bag_resynced`(13) / `equipment_worn_resynced`(13) / `equipment_slots_updated`(14) / `equipment_worn_window_refreshed`(14)，与 `odyssey_clear_target_level`(37) 同毫秒） |
+| 装备栏显示 | ✅ 正常（未清空） | ✅ 正常 |
+| **槽当场点亮** | ❌ 否，需重登/重选角色 | ❌ **否**（业主截图：耳环槽仍是挂锁） |
+
+- 事件时间（会话 `…_175630_174831_next37`）：`19:07:41` 进 100004969 → `19:08:42.773` 清关，
+  同毫秒发出上述五帧 ⇒ 刷新分支**确实执行**（说明 `afterBag.ExpandEquipFlags != beforeBag.ExpandEquipFlags`
+  成立，即这一关真的把耳环位写进去了）。
+- ⇒ **"解锁后的当场可见" 仍是未闭环项**（本节末的两条路线未推进）；服务端只负责落库，客户端在它自己的
+  重建时机（**登录 / 选角 / 进入新副本**）读取。**进入下一本即可看到耳环槽点亮**，与「重登/重选角色」等效。
+- 判据链（供下次复核）：`catalog.OdysseyGrowth.ClearLevels[100004969]` → `LevelActions[level]` 含
+  `unlock earring` → `odysseySlotActionMask` → `inventory.ExpandEarring(1<<4)` → `UnlockEquipSlots`
+  写 `Bag.ExpandEquipFlags`。测试 `internal/character/odyssey_expand_slot_test.go` 已钉住这条映射。
