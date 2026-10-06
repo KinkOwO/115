@@ -170,13 +170,22 @@ type BoostRosterRow115 struct {
 	Mode byte
 }
 
-// BoostRoster115 编码 2639 包体：u32 行数 + 每行 {u32 名单槽位, u8 轨道模式}。
-// donor-live：空账号 = {0,0,0,0}（交付测试钉住），非空按旧端同形状；未过 IDA 门禁。
-//
-// ⚠️ 2026-10-07：本帧行宽存在**两套互斥证据**（我方 7 字节 vs 上游 9 字节上限护栏）。
-// 本 MR 按业主裁决**暂维持旧端 5 字节形态**（配合 cmd/wireprobe/boostup_roster.go 的
-// maxVerifiedBoostRosterBytes=9），修法与三重证据留档在
-// docs/protocol/next53-boost-662-roster-2639-row-width.md，待与上游对齐后再落。
+// 客户端读取链（IDA 闭环：handler sub_140C131D0，游标 sub_146EA09F0=1 字节 /
+// sub_146EA0BA0=4 字节，顺序 u8→u32→u8→u8）：包体 = u32 行数 + 每行**定长 7 字节**
+// {u8 轨道, u32 名单位次, u8 状态, u8 保留}，按 u32 次序插入 ctx+776 的树；
+// 访问器 sub_140C13650 用 node+40 != 2 判定「仍在训练中」，与 Mode 的 2=已毕业同口径。
+// 轨道/保留取自官服 2639 帧（cap43 全 11 帧：`01 00 00 00 | 03 00 00 00 00 01 00 | …`，
+// 12 角色账号仍是这一条），详见 analysis/dumps/noti2639/。
+const (
+	BoostRosterRowBytes115 = 7
+	boostRosterTrack115    = 3
+)
+
+// BoostRoster115 编码 2639 包体：u32 行数 + 每行 {u8 轨道, u32 名单槽位, u8 轨道状态, u8 保留}。
+// 旧端 donor 布局把行宽写成 5 字节（{u32 槽位, u8 模式}）：1 行时 4+5=9 ≤ 补齐后的 16
+// 字节侥幸被收下，2 行时客户端要 18 字节而包体只有 16 ⇒ 游标越界，客户端回
+// CMD217(OVERFLOW) 且体内 0x0A4F=2639（2026-10-06 实机：同账号第二个角色直升后卡在赛利亚、
+// 选角名单空白，都是这一条越界）。
 func BoostRoster115(rows []BoostRosterRow115) ([]byte, error) {
 	seen := map[uint32]bool{}
 	p := add32(nil, uint32(len(rows)))
@@ -188,8 +197,9 @@ func BoostRoster115(rows []BoostRosterRow115) ([]byte, error) {
 		if r.Mode != 0 && r.Mode != 2 {
 			return nil, fmt.Errorf("unsupported boost roster mode %d", r.Mode)
 		}
+		p = append(p, boostRosterTrack115)
 		p = add32(p, r.Slot)
-		p = append(p, r.Mode)
+		p = append(p, r.Mode, 0)
 	}
 	return p, nil
 }
