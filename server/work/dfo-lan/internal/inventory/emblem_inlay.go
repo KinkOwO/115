@@ -47,9 +47,17 @@ func (r *EmblemInlayReceipt) prepare(state json.RawMessage) error {
 	if err != nil {
 		return err
 	}
-	for _, row := range b.Special[1] {
+	// [FIX-20261007 穿戴镶嵌] NOTI 14 的 space 跟随请求：space=3 时目标在 Worn
+	// （穿戴时装），payload 也用穿戴视图 space=3；space=1 走背包 Special[1]。
+	targetSpace := byte(1)
+	rows := b.Special[1]
+	if r.Request.Space == 3 {
+		targetSpace = 3
+		rows = b.Worn
+	}
+	for _, row := range rows {
 		if row.Slot == r.Request.AvatarSlot && row.Template == r.Request.Template {
-			r.Avatar, err = EquipmentPayload(1, []BagEquipment{row}, false)
+			r.Avatar, err = EquipmentPayload(targetSpace, []BagEquipment{row}, false)
 			if err != nil {
 				return err
 			}
@@ -126,18 +134,35 @@ func (b Bag) UseEmblems(c catalog.LootCatalog, eq *EquipmentCatalog, rules *Embl
 		return fail(fmt.Errorf("avatar emblem source unavailable or mismatched"))
 	}
 	target := -1
-	for i, row := range b.Special[1] {
-		if row.Slot == req.AvatarSlot {
-			if target >= 0 {
-				return fail(fmt.Errorf("duplicate avatar emblem target slot"))
+	wornTarget := req.Space == 3
+	var item BagEquipment
+	if req.Space == 1 {
+		for i, row := range b.Special[1] {
+			if row.Slot == req.AvatarSlot {
+				if target >= 0 {
+					return fail(fmt.Errorf("duplicate avatar emblem target slot"))
+				}
+				target = i
+				item = row
 			}
-			target = i
+		}
+	} else {
+		// [FIX-20261007 穿戴镶嵌] 客户端对穿在身上的时装以 space=3（穿戴视图）
+		// 发起镶嵌请求，目标在 Worn（slot 0-7 时装位）。此前只搜 Special[1]（背包），
+		// 穿戴时装永远找不到目标，表现为"必须脱下才能镶嵌"。
+		for i, row := range b.Worn {
+			if row.Slot == req.AvatarSlot {
+				if target >= 0 {
+					return fail(fmt.Errorf("duplicate avatar emblem target slot"))
+				}
+				target = i
+				item = row
+			}
 		}
 	}
-	if target < 0 || b.Special[1][target].Template != req.Template {
+	if target < 0 || item.Template != req.Template {
 		return fail(fmt.Errorf("missing or stale avatar emblem target"))
 	}
-	item := b.Special[1][target]
 	if err := item.ValidateRecord(); err != nil {
 		return fail(err)
 	}
@@ -220,7 +245,14 @@ func (b Bag) UseEmblems(c catalog.LootCatalog, eq *EquipmentCatalog, rules *Embl
 		next.Special[space] = append([]BagEquipment(nil), rows...)
 	}
 	item.AvatarOptions = options
-	next.Special[1][target] = item
+	if wornTarget {
+		// [FIX-20261007 穿戴镶嵌] 目标在 Worn：写回 Worn 并复制 slice，
+		// 避免与传入的 b 共享底层数组造成隐式修改。
+		next.Worn = append([]BagEquipment(nil), b.Worn...)
+		next.Worn[target] = item
+	} else {
+		next.Special[1][target] = item
+	}
 	return next, nil
 }
 
@@ -258,6 +290,11 @@ func SaveEmblemInlay(state json.RawMessage, b Bag) (json.RawMessage, error) {
 	}
 	oldBag["items"] = newBag["items"]
 	oldBag["emblem_inlay_seq"] = newBag["emblem_inlay_seq"]
+	// [FIX-20261007 穿戴镶嵌] 穿戴时装（space=3）镶嵌把更新写回 Worn；保存时
+	// 若不合并 Worn，applied=true 但存档仍是旧值，重进游戏后徽章并不存在。
+	if wornRaw, ok := newBag["worn"]; ok {
+		oldBag["worn"] = wornRaw
+	}
 	oldSpaces["1"] = newSpaces["1"]
 	oldBag["special_equipment"], err = json.Marshal(oldSpaces)
 	if err != nil {
