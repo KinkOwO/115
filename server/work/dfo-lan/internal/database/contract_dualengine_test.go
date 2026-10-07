@@ -2,30 +2,21 @@ package database
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 )
 
-// The engine contract: behaviour the Store must show no matter which engine is
-// underneath. Running one body against both engines is what turns "SQLite works in its
-// own tests" into "the two engines are interchangeable", which is the property the
-// dual-engine design actually promises.
-//
-// PostgreSQL runs only when DFO_TEST_POSTGRES_DSN selects the dedicated test database;
-// SQLite always runs, because it needs nothing but a temporary file.
+// The engine contract: behaviour the Store must show. It used to run one body against
+// both engines, which is what turned "SQLite works in its own tests" into "the two
+// engines are interchangeable". SQLite is the only engine since 2026-10-05 (owner
+// decision, see root AGENTS.md §0.6), so the body now runs against it alone - the
+// contract itself is unchanged and still worth pinning.
 func TestEngineContract(t *testing.T) {
 	cases := []struct {
 		name string
 		open func(t *testing.T) *Store
 	}{
 		{"sqlite", openContractSQLite},
-	}
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") != "" {
-		cases = append(cases, struct {
-			name string
-			open func(t *testing.T) *Store
-		}{"postgres", openContractPostgres})
 	}
 	for _, engineCase := range cases {
 		t.Run(engineCase.name, func(t *testing.T) {
@@ -46,24 +37,6 @@ func openContractSQLite(t *testing.T) *Store {
 	}
 	t.Cleanup(store.Close)
 	return store
-}
-
-func openContractPostgres(t *testing.T) *Store {
-	t.Helper()
-	fixture, err := OpenTestFixture(context.Background())
-	if err != nil {
-		t.Fatalf("open fixture: %v", err)
-	}
-	t.Cleanup(func() { _ = fixture.Close() })
-	if err := fixture.Migrate(context.Background()); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
-	// The mailbox sequence is what NextMailID allocates from, and it is created by its
-	// own section rather than by core.
-	if err := fixture.MigrateMailbox(context.Background()); err != nil {
-		t.Fatalf("migrate mailbox: %v", err)
-	}
-	return fixture.fixtureStore
 }
 
 func runEngineContract(t *testing.T, store *Store) {

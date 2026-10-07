@@ -62,9 +62,9 @@ func legionStandbyPartyReply(name []byte, actor uint16, channel [2]byte, partyTy
 	binary.LittleEndian.PutUint32(p[14:], uint32(len(name)))
 	copy(p[18:], name)
 	q := p[len(name):]
-	q[20] = 4                              // 容量：4 人军团队
-	q[25] = 5                              // 普通难度，同黑鸦原生建队发送器
-	q[29], q[95] = partyType, partyType    // 队伍类型（各内容自带）
+	q[20] = 4                                // 容量：4 人军团队
+	q[25] = 5                                // 普通难度，同黑鸦原生建队发送器
+	q[29], q[95] = partyType, partyType      // 队伍类型（各内容自带）
 	binary.LittleEndian.PutUint16(q[30:], 1) // 模式 1，同 CMD12 请求
 	copy(q[46:54], []byte{1, 1, 2, 4, 7, 7, 7, 7})
 	q[69] = 1

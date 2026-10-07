@@ -51,9 +51,9 @@ func TestDescribeReadsLevelExperienceAndGold(t *testing.T) {
 	}
 }
 
-// 读路径必须对两个引擎给出同一份结论：这里在 SQLite 上端到端跑一遍（真实驱动），
-// PostgreSQL 侧由 internal/database 的 DFO_TEST_POSTGRES_DSN 用例覆盖同一批
-// Store 方法（Accounts / AccountCera / AdminCharacters）。
+// 读路径必须给出同一份结论：这里在 SQLite 上端到端跑一遍（真实驱动，也是唯一引擎）。
+// 同一批 Store 方法（Accounts / AccountCera / AdminCharacters）另由 internal/database 的
+// 引擎契约用例覆盖。
 func TestAccountsAndCharactersReadOnSQLite(t *testing.T) {
 	ctx := context.Background()
 	store, err := database.Open(ctx, database.Config{SQLitePath: filepath.Join(t.TempDir(), "accountlist.db")})

@@ -12,8 +12,8 @@ import (
 // 两者都表示 OpenProcess 明确说「没有这个进程」；Access denied（5）不在其中，那种情况
 // 归 PidUnknown（保守不动）。
 const (
-	errInvalidParameter = syscall.Errno(87)  // ERROR_INVALID_PARAMETER（本机实测：不存在的 pid）
-	errFileNotFound     = syscall.Errno(2)   // ERROR_FILE_NOT_FOUND（部分 Windows 版本的回答）
+	errInvalidParameter = syscall.Errno(87) // ERROR_INVALID_PARAMETER（本机实测：不存在的 pid）
+	errFileNotFound     = syscall.Errno(2)  // ERROR_FILE_NOT_FOUND（部分 Windows 版本的回答）
 )
 
 // realProcessStatus 在 Windows 上靠 OpenProcess（os.FindProcess 的底层）判断 pid 是否存在。

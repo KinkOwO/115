@@ -124,6 +124,8 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 		if client.moonConfig != nil && client.channel == client.moonConfig.Channel {
 			client.worldState.moonConfig = client.moonConfig
 		}
+		// Starter Boost 662：会话拿装配层冻结的活动目录；nil = 活动关闭，一切照旧。
+		client.worldState.boostup = client.boostCatalog
 	}
 	if client.worldState != nil {
 		defer client.worldState.departArea()
@@ -188,6 +190,11 @@ func (client *gameConnection) serve() {
 				}
 				// 维纳斯阶段倒计时到期：判定挑战失败、回待机区并复位 run（venus_stage_timeout）。
 				packets = client.worldState.venusStageTimeout(now, client.event)
+				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
+					return
+				}
+				// 苏醒之森关卡倒计时到期（60 分钟/关，同款失败链路）。
+				packets = client.worldState.forestStageTimeout(now, client.event)
 				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
 					return
 				}

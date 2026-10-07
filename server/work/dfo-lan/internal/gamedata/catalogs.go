@@ -23,70 +23,70 @@ import (
 // verifies complete effective projections; source checks remain mandatory in
 // normal direct mode as well as audit mode.
 type Catalogs struct {
-	selected                                     map[string]bool
-	prepared                                     map[string]bool
-	SourceChecksum                               string
-	ItemShops                                    *catalog.ItemShops
-	Boxes                                        *inventory.BoxCatalog
-	CashShop                                     *cashshop.Pilot
-	Characters, SourceCharacters                 *catalog.Characters
-	LayerRevisits                                *catalog.LayerRevisitOverlay
-	ScriptWarps                                  []catalog.ScriptWarpRoute
-	FameRules                                    *character.FameRules
-	AwakeningRules                               *catalog.EquipmentAwakeningRules
-	AwakeningOptions                             *catalog.EquipmentAwakeningOptions
-	SoleRules                                    *catalog.SoleEquipmentRules
-	ChannelDirectory                             *catalog.ChannelDirectory
-	ChannelInfo                                  *catalog.ChannelInfo
-	ChannelTowns                                 map[uint32]catalog.TownArea
-	RosterBackgrounds                            *character.RosterBackgroundTicketCatalog
-	OdysseyRoutes                                *catalog.OdysseyJournalRoutes
-	SeasonRules                                  *adventure.SeasonRules
-	RecommendedRules                             *adventure.RecommendedRules
-	AdventureRules                               *adventure.Rules
-	LotteryTables                                *catalog.LotteryTables
-	SelectionBoxes                               *catalog.SelectionBoxes
-	TerminalScenes                               *catalog.TerminalSceneOverlay
-	TournamentMaps                               *catalog.SourceMapOverlay
-	Mine                                         *loot.BleedingMineRewards
-	BlackPurgatory                               *loot.BlackPurgatoryRewards
-	ClearCube                                    *catalog.LootItem
-	OdysseyGrowth                                *catalog.OdysseyGrowth
-	OdysseyChapters                              *catalog.OdysseyChapters
-	OdysseyCompletionRewards                     *catalog.OdysseyCompletionRewards
-	OdysseyWeapons                               *catalog.OdysseyWeaponChoices
-	OdysseyDrop                                  *loot.OdysseyChapterDrop
-	OdysseyCurrency                              *loot.OdysseyCurrency
-	Attunement                                   *loot.AttunementRewards
-	Apocalypse                                   *catalog.ApocalypseCatalog
-	MaxLevelReward                               *catalog.MaxLevelReward
-	Bakal                                        *catalog.BakalRaidRules
-	BoostUp                                      *boostup.Catalog
-	RaidEntrances                                map[uint32]catalog.RaidEntrance
-	MazeRates                                    *catalog.MazeChanceOverlay
-	HellMaps                                     *catalog.SourceMapOverlay
-	HellRules                                    *catalog.HellPartyRules
-	Grief                                        *catalog.TowerGriefOverlay
-	Dazzlement                                   *catalog.DazzlementOverlay
-	Quests                                       *catalog.QuestCatalog
-	Progression                                  *catalog.Progression
-	World                                        *catalog.WorldCatalog
-	Items                                        *catalog.ItemIndex
-	ItemBasics                                   *catalog.ItemBasics
-	Equipment                                    *inventory.FullEquipmentCatalog
-	AvatarDisjoint                               *inventory.AvatarDisjointRules
-	AvatarSockets                                *inventory.AvatarSocketRules
-	EmblemInlay                                  *inventory.EmblemInlayRules
-	AvatarRecast                                 *inventory.AvatarRecastRules
-	EmblemCompound                               *inventory.EmblemCompoundRules
-	Periods                                      []uint32
-	Skins                                        map[uint32]catalog.SkinStorageEntry
-	Journal                                      *catalog.EquipmentJournalRules
-	CreateCost                                   *catalog.EquipmentCreateCost
-	Transform                                    *catalog.EquipmentTransformSystem
+	selected                     map[string]bool
+	prepared                     map[string]bool
+	SourceChecksum               string
+	ItemShops                    *catalog.ItemShops
+	Boxes                        *inventory.BoxCatalog
+	CashShop                     *cashshop.Pilot
+	Characters, SourceCharacters *catalog.Characters
+	LayerRevisits                *catalog.LayerRevisitOverlay
+	ScriptWarps                  []catalog.ScriptWarpRoute
+	FameRules                    *character.FameRules
+	AwakeningRules               *catalog.EquipmentAwakeningRules
+	AwakeningOptions             *catalog.EquipmentAwakeningOptions
+	SoleRules                    *catalog.SoleEquipmentRules
+	ChannelDirectory             *catalog.ChannelDirectory
+	ChannelInfo                  *catalog.ChannelInfo
+	ChannelTowns                 map[uint32]catalog.TownArea
+	RosterBackgrounds            *character.RosterBackgroundTicketCatalog
+	OdysseyRoutes                *catalog.OdysseyJournalRoutes
+	SeasonRules                  *adventure.SeasonRules
+	RecommendedRules             *adventure.RecommendedRules
+	AdventureRules               *adventure.Rules
+	LotteryTables                *catalog.LotteryTables
+	SelectionBoxes               *catalog.SelectionBoxes
+	TerminalScenes               *catalog.TerminalSceneOverlay
+	TournamentMaps               *catalog.SourceMapOverlay
+	Mine                         *loot.BleedingMineRewards
+	BlackPurgatory               *loot.BlackPurgatoryRewards
+	ClearCube                    *catalog.LootItem
+	OdysseyGrowth                *catalog.OdysseyGrowth
+	OdysseyChapters              *catalog.OdysseyChapters
+	OdysseyCompletionRewards     *catalog.OdysseyCompletionRewards
+	OdysseyWeapons               *catalog.OdysseyWeaponChoices
+	OdysseyDrop                  *loot.OdysseyChapterDrop
+	OdysseyCurrency              *loot.OdysseyCurrency
+	Attunement                   *loot.AttunementRewards
+	Apocalypse                   *catalog.ApocalypseCatalog
+	MaxLevelReward               *catalog.MaxLevelReward
+	Bakal                        *catalog.BakalRaidRules
+	BoostUp                      *boostup.Catalog
+	RaidEntrances                map[uint32]catalog.RaidEntrance
+	MazeRates                    *catalog.MazeChanceOverlay
+	HellMaps                     *catalog.SourceMapOverlay
+	HellRules                    *catalog.HellPartyRules
+	Grief                        *catalog.TowerGriefOverlay
+	Dazzlement                   *catalog.DazzlementOverlay
+	Quests                       *catalog.QuestCatalog
+	Progression                  *catalog.Progression
+	World                        *catalog.WorldCatalog
+	Items                        *catalog.ItemIndex
+	ItemBasics                   *catalog.ItemBasics
+	Equipment                    *inventory.FullEquipmentCatalog
+	AvatarDisjoint               *inventory.AvatarDisjointRules
+	AvatarSockets                *inventory.AvatarSocketRules
+	EmblemInlay                  *inventory.EmblemInlayRules
+	AvatarRecast                 *inventory.AvatarRecastRules
+	EmblemCompound               *inventory.EmblemCompoundRules
+	Periods                      []uint32
+	Skins                        map[uint32]catalog.SkinStorageEntry
+	Journal                      *catalog.EquipmentJournalRules
+	CreateCost                   *catalog.EquipmentCreateCost
+	Transform                    *catalog.EquipmentTransformSystem
 	// Points 是逐件「套装积分 / 誓约积分」表（setpointinfo.cos / oathpointinfo.cos），
 	// 与 transform 同域装载；服务端算角色总分、推 NOTI2634 时用。
-	Points *catalog.PointRules
+	Points                                       *catalog.PointRules
 	Learning                                     *character.LearningCatalog
 	Prices                                       *catalog.ShopPrices
 	Materials                                    *catalog.ItemMaterials
@@ -101,6 +101,7 @@ type Catalogs struct {
 	Town                                         *catalog.TownArea
 	Dungeons, TrainingDungeons, TutorialDungeons *catalog.DungeonCatalog
 	Vault                                        *inventory.VaultRules
+	// BoostUp 是活动 662（新手成长胶囊）的原生目录；nil = 该直读域未选中。
 }
 
 type CatalogInputs struct {
@@ -128,6 +129,8 @@ type CatalogInputs struct {
 	RandomOptionPath, ShieldPath, WearRulesPath, OathPath, VaultPath, VaultPolicyPath              string
 	TownPath, DungeonPath, TrainingDungeonPath, TutorialDungeonPath, ScenePolicyPath               string
 	EnhancementPolicyPath                                                                          string
+	// BoostChallenge 打开活动 662 毕业后的可选挑战（665）源绑定；关闭时不解析，挑战路径 fail-closed。
+	BoostChallenge bool
 }
 
 type CatalogAdapters struct {
@@ -322,6 +325,8 @@ func (c *Catalogs) validateSelectedProjections() error {
 			ready = c.Boxes != nil && c.Items != nil
 		case "item-shops":
 			ready = c.ItemShops != nil && c.Items != nil
+		case "boostup":
+			ready = c.BoostUp != nil && c.Items != nil
 		// Empty slices/maps are valid for these native domains. Their selected
 		// membership records that the source import completed successfully.
 		case "boosters":
@@ -469,6 +474,13 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		}
 		result.Items = &direct
 		log.Printf("PVF item index prepared: %d templates source=%s", len(direct.Items), direct.Source.Checksum)
+		if selected["items"] {
+			result.MaxLevelReward, e = source.MaxLevelReward(direct)
+			if e != nil {
+				return &result, fmt.Errorf("PVF max level reward: %w", e)
+			}
+			log.Printf("PVF max level reward prepared: template=%d count=%d source=%s", result.MaxLevelReward.Template, result.MaxLevelReward.Count, result.MaxLevelReward.Source)
+		}
 		if selected["loot"] {
 			result.EmblemCompound, e = source.EmblemCompound(direct)
 			if e != nil {
@@ -548,6 +560,9 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		return &result, err
 	}
 	if err := preparePVFFame(&result, source, selected, inputs); err != nil {
+		return &result, err
+	}
+	if err := preparePVFBoostUp(&result, source, selected, inputs); err != nil {
 		return &result, err
 	}
 	if err := preparePVFEquipmentAwakening(&result, source); err != nil {
@@ -738,6 +753,11 @@ func (c *Catalogs) CheckReport(selection string) (map[string]any, error) {
 	}
 	if c.Items != nil {
 		r["items"] = len(c.Items.Items)
+	}
+	if c.BoostUp != nil {
+		r["boost_steps"] = len(c.BoostUp.Steps)
+		r["boost_gifts"] = len(c.BoostUp.Gifts)
+		r["boost_capsules"] = len(c.BoostUp.Capsules)
 	}
 	if c.Equipment != nil {
 		r["equipment_bindings"] = c.Equipment.RecordCount()

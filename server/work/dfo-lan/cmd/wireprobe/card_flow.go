@@ -169,10 +169,51 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 			w.venus = nil
 			return nil, append(append([]outboundPacket{ack}, route[1:]...), closed), nil
 		}
+		// BUG3（第二十二轮）：撤退不清进度——保留 cleared/stage，回待机区
+		// 重新选难度开战后从撤退的下一关继续（用户口径）。第三十三轮起难度
+		// 与遗物一并保留（2290 规格：官服 C72 返回等待区「保留原run、难度
+		// 及遗物」）：waiting 向量带权威已选难度（VenusChosenInfo），客户端
+		// 按钮意图 getter 按 Choice≠FF 直接进「变更提示」（已选择X。确定要
+		// 进入吗？，变更难度按钮置灰）——不再弹三卡片自由重选窗，重选低档
+		// 造成的终点回退类状态分裂（172342 会话「stage 3 beyond endpoint」）
+		// 从根上不可能发生。
+		kept := w.venus.clearedCount()
+		choice := w.venus.choice
+		relicMask := w.venus.relicMask
 		w.venus.resetRun()
+		w.venus.choice = choice
+		w.venus.relicMask = relicMask
+		w.venus.entered = true
+		for i := 0; i < kept; i++ {
+			w.venus.cleared[i] = true
+		}
+		trailing := legion.VenusReopenInfo(kept)
+		if choice != 0xff {
+			trailing = legion.VenusChosenInfo(choice, kept)
+		}
 		plan := append(append([]outboundPacket{ack}, route[1:]...),
-			outboundPacket{"venus_info_waiting", 0, legion.NotiVenusInfo, legion.VenusWaitingInfo()})
+			outboundPacket{"venus_info_waiting", 0, legion.NotiVenusInfo, trailing})
 		return nil, plan, nil
+	}
+	// 苏醒之森阶段本的 CMD72 不走通用翻牌/结算（维纳斯同款形状）。演出后
+	// 退场作废 run；未终局的退场（中途 ESC）保持 run（cleared 保留，重进
+	// 按已清关序列继续）。
+	if w.forest != nil && w.activeDungeon != nil && legion.IsForestStageDungeonAny(w.activeDungeon.Definition.ID) {
+		ack := outboundPacket{"settlement_focus_ack", 1, 72, protocol.SettlementExitSuccess(r)}
+		if r.State == 2 {
+			return nil, []outboundPacket{ack}, nil
+		}
+		route, e := w.leaveDungeon()
+		if e != nil {
+			return nil, nil, e
+		}
+		w.selectingDungeon = false
+		ack.Name = "settlement_exit_ack"
+		if w.forest.finalDone {
+			w.forest = nil
+			return nil, append([]outboundPacket{ack}, route[1:]...), nil
+		}
+		return nil, append([]outboundPacket{ack}, route[1:]...), nil
 	}
 	if e = w.cardsReady(); e != nil {
 		return nil, nil, e

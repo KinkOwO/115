@@ -83,11 +83,7 @@ func Check(root string, opts CheckOptions) (CheckReport, error) {
 	if err != nil {
 		return report, err
 	}
-	if storage.DriverName() == "sqlite" {
-		report.Storage = fmt.Sprintf("SQLite %s", storage.SQLitePath)
-	} else {
-		report.Storage = fmt.Sprintf("PostgreSQL: %t", PortListening(PostgresPort, portProbeTimeout))
-	}
+	report.Storage = fmt.Sprintf("SQLite %s", storage.SQLitePath)
 
 	report.Binary = selectBinary(module, settingsRoot, settings, opts)
 	profilePath := opts.RepairProfile

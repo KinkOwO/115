@@ -18,10 +18,10 @@ import (
 // path that looks a row up and carries on when it is absent: there is no
 // character_quests row before the first accept, and no character-event row before the
 // first move for that idempotency key. The adapter hands that absence over as
-// ErrNotFound, so a caller that only tested the pgx sentinel took its error branch and
-// refused the action - PostgreSQL kept working, which is exactly what was reported.
+// ErrNotFound, so a caller that only tested the raw driver sentinel took its error
+// branch and refused the action.
 
-func TestIsNoRowsCoversEveryEngineSpelling(t *testing.T) {
+func TestIsNoRowsCoversEverySpelling(t *testing.T) {
 	for name, err := range map[string]error{
 		"ErrNotFound":      ErrNotFound,
 		"sql.ErrNoRows":    sql.ErrNoRows,

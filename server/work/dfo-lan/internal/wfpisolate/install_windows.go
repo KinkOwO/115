@@ -426,6 +426,7 @@ func addFilter(engine windows.Handle, spec FilterLayer, appID []byte) error {
 func ptrFromUintptr(u uintptr) unsafe.Pointer {
 	return *(*unsafe.Pointer)(unsafe.Pointer(&u))
 }
+
 // appIDFromFileName 复刻 FwpmGetAppIdFromFileName0（probe.cpp L54）。返回的字节是
 // UTF-16LE（含结尾 NUL）的 base64；这块内存由 WFP 分配，用完必须 FwpmFreeMemory0。
 func appIDFromFileName(path string) ([]byte, error) {

@@ -76,17 +76,13 @@ func startSession(ctx context.Context, root string, opts LaunchOptions, console 
 		return nil, fmt.Errorf("端口 %d 已在监听；请先检查现有会话再重试。", GatewayPort)
 	}
 
-	// 3. 存储。SQLite 档没有服务要起（引擎自己打开文件），PostgreSQL 档才需要 pg_ctl，
-	//    且只允许启动启动器自己那棵 pgdata。--client-only 不启本机存储（Python L281）。
+	// 3. 存储。SQLite 是唯一引擎：它是个文件，引擎自己打开，没有服务要起。
+	//    --client-only 不碰本机存储（Python L281）。
 	storage, err := LoadStorageConfig(root)
 	if err != nil {
 		return nil, err
 	}
-	if !opts.ClientOnly && storage.DriverName() != "sqlite" {
-		if err := startLaunchStorage(ctx, module, storage); err != nil {
-			return nil, err
-		}
-	}
+	_ = storage
 	if opts.StorageOnly {
 		fmt.Fprintln(console, "Existing storage ready.")
 		return nil, nil
@@ -279,20 +275,6 @@ func commandLine0(args []string) string {
 		return ""
 	}
 	return args[0]
-}
-
-// startLaunchStorage 按 launch_local.py start_storage 的语义起库：只允许启动启动器自己
-// 那棵 pgdata，别处的数据目录归它的所有者。
-func startLaunchStorage(ctx context.Context, module string, storage StorageConfig) error {
-	data := resolveFromWorkingDir(storage.PostgresData)
-	if data != filepath.Join(module, "runtime", "storage", "pgdata") {
-		return fmt.Errorf("数据库未在监听；外部数据目录必须由它的所有者启动。")
-	}
-	logf := func(format string, args ...any) { fmt.Fprintf(os.Stderr, format+"\n", args...) }
-	if _, err := StartStorage(ctx, storage, 40*time.Second, logf); err != nil {
-		return err
-	}
-	return nil
 }
 
 // childProcess 是一个已经拉起的子进程：Wait 由后台 goroutine 负责，因此轮询可以随时问

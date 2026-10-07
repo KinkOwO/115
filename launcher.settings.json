@@ -1,19 +1,13 @@
 {
-  "autofire": {
-    "autoPickup": true,
-    "enabled": false,
-    "entries": [],
-    "hotkey": "F10",
-    "mute": false,
-    "targets": [
-      "dfo.exe"
-    ]
-  },
   "game": {
     "launch": "native"
   },
   "onboarding": {
     "done": true
+  },
+  "selfupdate": {
+    "branch": "master",
+    "endpoint": "https://gitgud.io/yh9/115us-dfolauncher"
   },
   "update": {
     "branch": "main",
@@ -22,12 +16,9 @@
     "endpoint": "https://gitgud.io/fuckworld/115",
     "follow_latest": true
   },
-  "wallpaper": {
-    "enabled": true
-  },
   "window": {
     "height": 909,
     "maximized": false,
-    "width": 1650
+    "width": 1757
   }
 }

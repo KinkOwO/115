@@ -24,6 +24,11 @@ import (
 )
 
 type worldSession struct {
+	// slotUnlockDirty 记录「本局副本内写入了新的扩展装备槽解锁位」。
+	// 装备栏挂锁只能由 EntryAddition（USERINFO1）投影，而客户端只在登录/选角/进副本那种时机构造装备栏行对象，副本内补发它会把装备栏显示清空（2026-09-22 实测）。
+	// 因此解锁只落库，改在回城时补发一次，让玩家不必重登。见 analysis/tasks/next50-odyssey-expanded-equip-slot.md。
+	slotUnlockDirty bool
+
 	npcPresenceIndex    *npcpresence.Index
 	npcPresenceIndexErr error
 	lastFame            uint32
@@ -81,10 +86,10 @@ type worldSession struct {
 	bakalLocation uint32
 	// bakalRules / bakalRewards 由网关构造时注入；nil = 该内容未装载（建团
 	// 被待机区未绑定拒绝，与交接包拒绝实录一致）。
-	bakalRules             *catalog.BakalRaidRules
-	bakalRewards           *workflow.BakalRewardService
-	bakalQuotaRole         int64
-	bakalQuotaBody         []byte
+	bakalRules     *catalog.BakalRaidRules
+	bakalRewards   *workflow.BakalRewardService
+	bakalQuotaRole int64
+	bakalQuotaBody []byte
 	// boostup 是一次新手成长胶囊教学（活动 662）的会话状态。
 	boostup *boostup.Catalog
 	// boostWorldBase / boostOperations / notifyBoostMail 是 Starter Boost 活动
@@ -94,14 +99,13 @@ type worldSession struct {
 	notifyBoostMail func(int64)
 	// 下列字段由 origin 侧的非巴卡尔内容注入：苏醒之森（forest）、维纳斯
 	// （venus）、永夜之城频道刷新与槽位解锁状态。
-	forest                *forestRun
-	forestPartyHard       bool
+	forest                  *forestRun
+	forestPartyHard         bool
 	lastVenusResetCharacter int64
-	pendingRelicReset     bool
-	channelSpawns          map[uint32]database.WorldPosition
-	slotUnlockDirty        bool
-	blackPurgatory         blackPurgatoryState
-	adventureEliteSnapshot [32]byte
+	pendingRelicReset       bool
+	channelSpawns           map[uint32]database.WorldPosition
+	blackPurgatory          blackPurgatoryState
+	adventureEliteSnapshot  [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
 	// source level gate the world service applies: an Arad Odyssey character
 	// follows the client's [odyssey enter level] instead of [need level].
@@ -236,6 +240,7 @@ type worldSession struct {
 	// nil when the gateway runs without a multiplayer hub.
 	hub  *lanHub
 	peer *lanPeer
+	// —— 巴尔卡/使徒 raid 会话状态（raid_bakal_*.go、dungeon_flow.go）——
 	// lastMotion and lastSpeed are the most recent values this client reported with
 	// CMD 35. NOTI 22 carries them so the other clients animate the movement.
 	lastMotion byte
@@ -256,6 +261,14 @@ type worldSession struct {
 	adventureReady      bool
 	seasonLevelSnapshot [32]byte
 	seasonOathSnapshot  [32]byte
+
+	// boostup 是「胶囊加速/新手成长」活动 662 的本连接目录视图（nil = 活动关闭）。
+	// 它由 gatewayRuntime 的同一份只读源解析结果按值共享，不在连接上重复解析。
+	// boostWorldBase 记住被胶囊教学城镇替换掉的普通世界服务，毕业/失效后还原。
+	// notifyBoostMail 把活动邮寄写进角色的未读信箱（唤醒 mailChanges 重发提示）。
+	// boostOperations 是活动领奖幂等键的来源（口径同装备线：连接随机数 + 传输帧
+	// 摘要）。donor 基线把同一个键发生器挂在会话的 itemOperations 上。
+
 }
 
 func (w *worldSession) enter(role database.Character, spawn database.WorldPosition) error {
@@ -314,6 +327,14 @@ func (w *worldSession) enter(role database.Character, spawn database.WorldPositi
 		if e != nil {
 			return e
 		}
+	}
+	// Starter Boost 662：训练中的角色入场落在活动城镇（胶囊教学房）。
+	// enterBoostWorld 是幂等的场景交接：Origin/Activated 早已落库，掉线重连重试
+	// 同一关而不再扣一次胶囊。handled=false 表示与活动无关，照普通世界进入。
+	if boostSaved, boostHandled, boostErr := w.enterBoostWorld(ctx, role, state.Level, saved.Position); boostErr != nil {
+		return boostErr
+	} else if boostHandled {
+		saved = boostSaved
 	}
 	w.role, w.level, w.state, w.odyssey = role, state.Level, saved, odyssey
 	w.ispinsRepeatPending = false

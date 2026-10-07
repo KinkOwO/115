@@ -34,8 +34,6 @@ func main() {
 		os.Exit(runLaunch(os.Args[2:]))
 	case "start-storage":
 		os.Exit(runStartStorage(os.Args[2:]))
-	case "init-storage":
-		os.Exit(runInitStorage(os.Args[2:]))
 	case "prepare-inner-pvf":
 		os.Exit(runPrepareInnerPVF(os.Args[2:]))
 	case "storage-sync":
@@ -95,11 +93,9 @@ func usage() {
 Usage:
   dfolauncher stop  [--root <path>] [--dry-run]
   dfolauncher start-storage [--root <path>] [--dry-run]
-  dfolauncher init-storage [--root <path>] [--postgres-bin <dir>] [--postgres-port <int>] [--dry-run]
   dfolauncher prepare-inner-pvf [--root <path>] [--client <dir>] [--force] [--dry-run]
   dfolauncher storage-sync [--root <path>] [--list] [--backup]
-                           [--copy-to sqlite|postgres] [--restore <备份目录名>]
-                           [--restore-to sqlite|postgres] [--dry-run]
+                           [--restore <备份目录名>] [--dry-run]
   dfolauncher bakal-reset [--root <path>] [--account <name>] [--apply] [--dry-run]
   dfolauncher check [--root <path>] [--server-only|--client-only] [--source-build] [--json-mode]
   dfolauncher launch --check|--dry-run [--root <path>]
@@ -116,12 +112,6 @@ Flags:
   --force     rebuild even when the four-state gate would reuse the archive
   --dry-run   print every action without performing it
   --tag       pin the session tag (default: built from the clock)
-
-init-storage is the first-run storage bootstrap: it is scripts/bootstrap_local.py in Go
-(initdb with a fresh random password + pg_ctl start + createdb + runtime/storage/local.json),
-which is why the launch chain no longer needs Python at all. --postgres-bin defaults to the
-bundled portable PostgreSQL (tools/pg/pgsql/bin, or $DFO_TOOLS); --dry-run prints the steps
-without writing anything or starting a process.
 
 prepare-inner-pvf is Stage 4 of docs/go-launch-migration-plan.md: it replaces
 scripts/ensure_inner_pvf.py + scripts/prepare_inner_pvf.py with the Go generator in
@@ -154,14 +144,10 @@ always injects 0.
 <client.log> <seconds> <ui-mode> [breakpoints.txt] [payload...]): the same positional
 arguments probe.exe takes, so the launcher can hand both paths the same argv.
 
-storage-sync is 双端同步：备份（SQLite 用 VACUUM INTO、PostgreSQL 用 pg_dump -Fc）/
-跨引擎覆盖式复制（--copy-to）/ 还原（--restore）。进度写 stderr，stdout 只留一行结果 JSON；
-退出码 2=参数错、1=失败、0=成功。它**不改** runtime/storage/local.json 与档位模板
-（复制 ≠ 切档），且服务端在跑时（7001 在监听 / SQLite 管理租约仍在）一律拒绝执行。
-
-bakal-reset is scripts/bakal-reset.cmd 的 Go 入口：检测到 DFO.exe / wireprobe 正在
-运行时拒绝执行（避免在线存档覆盖），随后拉起 storage（sqlite/postgres 双引擎）并通过
-internal/toolcmd/bakalreset 重置指定账号的巴卡尔周次数。不带 --apply 仅预览；默认账号 probe。
+storage-sync is 单引擎备份/还原：备份用 SQLite 的 VACUUM INTO，还原前先自动备份被覆盖的那一份。
+进度写 stderr，stdout 只留一行结果 JSON；退出码 2=参数错、1=失败、0=成功。
+它**不改** runtime/storage/local.json 与档位模板，且服务端在跑时（7001 在监听 / SQLite
+管理租约仍在）一律拒绝执行。跨引擎复制已随 PostgreSQL 一起移除（根 AGENTS.md §0.6）。
 `)
 }
 
@@ -186,9 +172,7 @@ func runStop(args []string) int {
 
 	logf := func(format string, args ...any) { fmt.Printf(format+"\n", args...) }
 	fmt.Println("=== Stopping DFO 115us Environment ===")
-	if settings.DriverName() == "sqlite" {
-		fmt.Printf("Storage: sqlite profile (%s), no PostgreSQL service to stop.\n", settings.SQLitePath)
-	}
+	fmt.Printf("Storage: sqlite profile (%s), no service to stop.\n", settings.SQLitePath)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
@@ -199,13 +183,12 @@ func runStop(args []string) int {
 	}
 
 	fmt.Println("Status summary:")
-	fmt.Printf("  PostgreSQL (%d): %s\n", launcher.PostgresPort, state(report.PostgresUp, *dryRun))
 	fmt.Printf("  Gateway    (%d):  %s\n", launcher.GatewayPort, state(report.GatewayUp, *dryRun))
 	if *dryRun {
 		fmt.Println("Dry run: nothing was stopped.")
 		return 0
 	}
-	if !report.PostgresUp && !report.GatewayUp {
+	if !report.GatewayUp {
 		fmt.Println("Environment fully stopped.")
 		return 0
 	}
@@ -341,17 +324,23 @@ func runLaunch(args []string) int {
 	return 0
 }
 
-// runStartStorage brings storage up for the configured driver. It exists because the
-// shipped launcher is a GUI with no CLI mode, so the development entries still need a
-// Go path; see docs/runtime-without-tools-plan.md.
+// runStartStorage exists because the shipped launcher is a GUI with no CLI mode, so the
+// development entries still need a Go path; see docs/runtime-without-tools-plan.md.
+//
+// SQLite is the only engine since 2026-10-05 (owner decision, see root AGENTS.md §0.6) and
+// it is a file the server opens itself, so there is no service to bring up: this command
+// validates the profile and says so. The flags stay accepted so the existing .cmd entries
+// keep working unchanged.
 func runStartStorage(args []string) int {
 	flags := flag.NewFlagSet("start-storage", flag.ContinueOnError)
 	root := flags.String("root", ".", "repository root")
 	dryRun := flags.Bool("dry-run", false, "print the actions without performing them")
-	timeout := flags.Duration("timeout", 40*time.Second, "how long to wait for the service")
+	timeout := flags.Duration("timeout", 40*time.Second, "accepted for compatibility; SQLite starts no service")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
+	_ = dryRun
+	_ = timeout
 	absolute, err := filepathAbs(*root)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
@@ -362,129 +351,16 @@ func runStartStorage(args []string) int {
 		fmt.Fprintf(os.Stderr, "storage config: %v\n", err)
 		return 1
 	}
-	logf := func(format string, args ...any) { fmt.Printf(format+"\n", args...) }
-	if *dryRun {
-		plan, err := launcher.StartStoragePlan(settings)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "start-storage: %v\n", err)
-			return 1
-		}
-		if len(plan) == 0 {
-			logf("storage: sqlite profile, nothing to start")
-			return 0
-		}
-		for _, action := range plan {
-			logf("would run %s", action.Detail)
-		}
-		return 0
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout+15*time.Second)
-	defer cancel()
-	if _, err := launcher.StartStorage(ctx, settings, *timeout, logf); err != nil {
-		fmt.Fprintf(os.Stderr, "start-storage: %v\n", err)
+	if settings.DriverName() != "sqlite" {
+		fmt.Fprintf(os.Stderr, "start-storage: unsupported storage driver %q (SQLite is the only engine)\n", settings.Driver)
 		return 1
 	}
+	if strings.TrimSpace(settings.SQLitePath) == "" {
+		fmt.Fprintln(os.Stderr, "start-storage: sqlite storage configuration incomplete")
+		return 1
+	}
+	fmt.Printf("storage: sqlite profile (%s), no service to start\n", settings.SQLitePath)
 	return 0
-}
-
-// runBakalReset is the Go home for 恢复当前账号巴卡尔次数.cmd: it refuses to touch
-// the quota while a client/gateway is online, makes sure storage is up, then resets
-// the account through the shared bakalreset entry point. --dry-run prints each step
-// without performing the reset.
-func runBakalReset(args []string) int {
-	flags := flag.NewFlagSet("bakal-reset", flag.ContinueOnError)
-	root := flags.String("root", ".", "repository root")
-	account := flags.String("account", "probe", "account whose Bakal quota is restored (wireprobe defaults to probe)")
-	apply := flags.Bool("apply", false, "restore the counters; without it only preview which characters change")
-	dryRun := flags.Bool("dry-run", false, "print every action without performing it")
-	if err := flags.Parse(args); err != nil {
-		if err == flag.ErrHelp {
-			return 0
-		}
-		return 2
-	}
-	absolute, err := filepathAbs(*root)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
-		return 1
-	}
-
-	if !*dryRun {
-		busy, err := sessionProcessesRunning()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "bakal-reset: check running processes: %v\n", err)
-			return 1
-		}
-		if busy {
-			fmt.Fprintln(os.Stderr, "请先停止游戏/网关再恢复次数，避免在线存档覆盖（检测到 DFO.exe 或 wireprobe 在运行）。")
-			return 1
-		}
-	}
-
-	settings, err := launcher.LoadStorageConfig(absolute)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "storage config: %v\n", err)
-		return 1
-	}
-	logf := func(format string, args ...any) { fmt.Printf(format+"\n", args...) }
-	if !*dryRun {
-		ctx, cancel := context.WithTimeout(context.Background(), 55*time.Second)
-		defer cancel()
-		if _, err := launcher.StartStorage(ctx, settings, 40*time.Second, logf); err != nil {
-			fmt.Fprintf(os.Stderr, "bakal-reset: start storage: %v\n", err)
-			return 1
-		}
-	}
-
-	configPath := filepath.Join(absolute, "server", "work", "dfo-lan", "runtime", "storage", "local.json")
-	if *dryRun {
-		fmt.Printf("Account: %s (preview)\n", *account)
-		fmt.Printf("Storage config: %s\n", configPath)
-		fmt.Println("Dry run: storage ensured up, would open " + configPath + " and preview counters.")
-		return 0
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-	fmt.Printf("Restoring Bakal weekly quota for account %q ...\n", *account)
-	if err := bakalreset.RunFromConfig(ctx, configPath, *account, *apply); err != nil {
-		fmt.Fprintf(os.Stderr, "bakal-reset: %v\n", err)
-		return 1
-	}
-	return 0
-}
-
-// sessionProcessesRunning detects the client and every wireprobe*.exe gateway,
-// including source-build and candidates, without stopping any process.
-func sessionProcessesRunning() (bool, error) {
-	out, err := exec.Command("tasklist", "/FO", "CSV", "/NH").Output()
-	if err != nil {
-		return false, err
-	}
-	return bakalSessionProcessList(string(out))
-}
-
-// tasklist's first CSV column is the image name. Include source-build and
-// candidate gateways; a match in a session label/PID column is not an image.
-func bakalSessionProcessList(out string) (bool, error) {
-	reader := csv.NewReader(strings.NewReader(out))
-	reader.FieldsPerRecord = -1
-	for {
-		row, err := reader.Read()
-		if err == io.EOF {
-			return false, nil
-		}
-		if err != nil {
-			return false, fmt.Errorf("parse tasklist: %w", err)
-		}
-		if len(row) == 0 {
-			continue
-		}
-		image := strings.ToLower(strings.TrimSpace(row[0]))
-		if image == "dfo.exe" || strings.HasPrefix(image, "wireprobe") && strings.HasSuffix(image, ".exe") {
-			return true, nil
-		}
-	}
 }
 
 // runPrepareInnerPVF is Stage 4's own entry point: it replaces
@@ -568,4 +444,86 @@ func filepathAbs(path string) (string, error) {
 		path = "."
 	}
 	return filepath.Abs(path)
+}
+
+// runBakalReset restores quota through the shared tool after checking all gateway images.
+func runBakalReset(args []string) int {
+	flags := flag.NewFlagSet("bakal-reset", flag.ContinueOnError)
+	root := flags.String("root", ".", "repository root")
+	account := flags.String("account", "probe", "account whose Bakal quota is restored (wireprobe defaults to probe)")
+	apply := flags.Bool("apply", false, "restore the counters; without it only preview which characters change")
+	dryRun := flags.Bool("dry-run", false, "print every action without performing it")
+	if err := flags.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			return 0
+		}
+		return 2
+	}
+	absolute, err := filepathAbs(*root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
+		return 1
+	}
+
+	if !*dryRun {
+		busy, err := sessionProcessesRunning()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "bakal-reset: check running processes: %v\n", err)
+			return 1
+		}
+		if busy {
+			fmt.Fprintln(os.Stderr, "请先停止游戏/网关再恢复次数，避免在线存档覆盖（检测到 DFO.exe 或 wireprobe 在运行）。")
+			return 1
+		}
+	}
+
+	configPath := filepath.Join(absolute, "server", "work", "dfo-lan", "runtime", "storage", "local.json")
+	if *dryRun {
+		fmt.Printf("Account: %s (preview)\n", *account)
+		fmt.Printf("Storage config: %s\n", configPath)
+		fmt.Println("Dry run: would open " + configPath + " and preview counters.")
+		return 0
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	fmt.Printf("Restoring Bakal weekly quota for account %q ...\n", *account)
+	if err := bakalreset.RunFromConfig(ctx, configPath, *account, *apply); err != nil {
+		fmt.Fprintf(os.Stderr, "bakal-reset: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+// sessionProcessesRunning detects the client and every wireprobe*.exe gateway,
+// including source-build and candidates, without stopping any process.
+func sessionProcessesRunning() (bool, error) {
+	out, err := exec.Command("tasklist", "/FO", "CSV", "/NH").Output()
+	if err != nil {
+		return false, err
+	}
+	return bakalSessionProcessList(string(out))
+}
+
+// tasklist's first CSV column is the image name. Include source-build and
+// candidate gateways; a match in a session label/PID column is not an image.
+func bakalSessionProcessList(out string) (bool, error) {
+	reader := csv.NewReader(strings.NewReader(out))
+	reader.FieldsPerRecord = -1
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			return false, nil
+		}
+		if err != nil {
+			return false, fmt.Errorf("parse tasklist: %w", err)
+		}
+		if len(row) == 0 {
+			continue
+		}
+		image := strings.ToLower(strings.TrimSpace(row[0]))
+		if image == "dfo.exe" || strings.HasPrefix(image, "wireprobe") && strings.HasSuffix(image, ".exe") {
+			return true, nil
+		}
+	}
 }

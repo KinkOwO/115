@@ -7,7 +7,9 @@ package main
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/channelrefresh"
+	"dfolan/internal/modpolicy"
 	"dfolan/internal/servermod"
+	"dfolan/mods"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -41,6 +43,33 @@ func main() {
 
 // runGateway owns listening sockets and runtime resources until serving stops.
 func runGateway(startup Config) error {
+	// 模式策略（internal/modpolicy）是**进程级**状态，而网关可以在同一进程里被反复起停
+	// ——测试 TestRunGatewayReleasesListenerOnStartupError 就会真起一次网关。
+	// 所以策略的生命周期必须跟着**这一次服务端实例**：进来先清空（不继承上一次的规则），
+	// 退出再清空（不给下一次/下一个用例留残留）。少任何一半，都会让「上一台服务端的规则」
+	// 影响本进程里的其它测试：实测 2026-10-06 装上带 server.boot 钩子的 mod 后，
+	// 上游的复活用例与默认放行用例都因此失败。
+	modpolicy.Reset()
+	defer modpolicy.Reset()
+	// —— 服务端层 mod：注册阶段（必须在 prepareRuntime **之前**）——
+	//
+	// 为什么这么早：奖励管线是在 prepareRuntime 内部构造的
+	// （bootstrap.go 的 buildRewardService），它会读一遍 mod 提供的规则脚本。
+	// 若把注册放在 prepareRuntime 之后，规则脚本就赶不上那次构造 ——
+	// 表现是 mod 的规则**静默不生效**，而日志仍显示"已装载/已登记"。
+	// 这正是 2026-10-06 02:22 现场：新角色创建后没收到 mod 的邮件。
+	//
+	// 顺序（三者不能颠倒）：
+	//  1. LoadEnabledList —— 先读"哪些 mod 被勾选"。mod 的 Register() 会问
+	//     servermod.Enabled()，所以清单必须在注册之前就位；
+	//  2. RegisterMods() —— 由 modkit 生成的 mods/zz_mods_gen.go，
+	//     import 每个已装 mod 并按稳定顺序调用它们的 Register()。
+	//     此阶段 mod 只应**登记钩子/规则**，不要读配置或访问存储（都还没就绪）；
+	//  3. prepareRuntime —— 配置与存储初始化，并构造奖励管线（此时能看到规则）；
+	//  4. Boot() —— 跑各 mod 的自检，此时配置与存储已就绪（失败即拒绝启动）。
+	servermod.LoadEnabledList(serverModsDir())
+	mods.RegisterMods()
+
 	prepared, cleanup, err := prepareRuntime(startup)
 	if err != nil {
 		return err
@@ -111,16 +140,6 @@ func runGateway(startup Config) error {
 	moonConfig := prepared.moonConfig
 	raw := prepared.raw
 
-	// 端口抽签可能抽到 Windows 保留段（WinNAT/Hyper-V 动态保留），换端口重试 —— 见 listen.go。
-	l, err := listenGamePort(startup.GameListen)
-	if err != nil {
-		return err
-	}
-	defer l.Close()
-	advertised, err := advertisedGameAddress(startup.AdvertiseHost, gameHost, l.Addr())
-	if err != nil {
-		return err
-	}
 	// One game port per channel. The client dials the port listed for the channel
 	// it picked, and the game connection itself never carries a channel number,
 	// so the port a client arrives on is the only way to tell channels apart.
@@ -189,27 +208,37 @@ func runGateway(startup Config) error {
 				return errors.New("Moon channel must exist with source online type 101")
 			}
 		}
+	}
+
+	// 主监听与频道端口是**一组**：任一端口抽到 Windows 保留段（WinNAT/Hyper-V 动态保留）就整组重抽
+	// —— 见 listen.go。频道端口是主监听基准端口之后的连续端口（base+1 … base+N），所以必须在打开
+	// 监听之前就知道要几个频道。
+	extraPorts := 0
+	if len(channelCfg.Channels) > 1 {
+		extraPorts = len(channelCfg.Channels) - 1
+	}
+	block, err := openGameListeners(startup.GameListen, extraPorts)
+	if err != nil {
+		return err
+	}
+	defer closeGameListeners(block)
+	l := block[0]
+	advertised, err := advertisedGameAddress(startup.AdvertiseHost, gameHost, l.Addr())
+	if err != nil {
+		return err
+	}
+	if startup.ChannelRefreshConfig != "" {
+		_, portText, _ := net.SplitHostPort(l.Addr().String())
+		basePort, convErr := strconv.Atoi(portText)
+		if convErr != nil {
+			return convErr
+		}
 		advHost, _, _ := net.SplitHostPort(advertised)
 		endpoints = map[uint32]channelrefresh.ChannelEndpoint{}
 		for i, ch := range channelCfg.Channels {
-			ln := l
-			if i > 0 {
-				address, addressErr := channelListenAddress(startup.GameListen, l.Addr(), i)
-				if addressErr != nil {
-					return addressErr
-				}
-				ln, err = listenGamePort(address)
-				if err != nil {
-					return err
-				}
-				defer ln.Close()
-			}
-			port, portErr := channelBoundPort(ln.Addr())
-			if portErr != nil {
-				return portErr
-			}
+			ln := block[i]
 			listeners = append(listeners, channelListener{channel: ch.ID, ln: ln})
-			endpoints[ch.ID] = channelrefresh.ChannelEndpoint{ID: ch.ID, Host: advHost, Port: port}
+			endpoints[ch.ID] = channelrefresh.ChannelEndpoint{ID: ch.ID, Host: advHost, Port: uint16(basePort + i)}
 		}
 	} else {
 		listeners = append(listeners, channelListener{channel: 0, ln: l})
