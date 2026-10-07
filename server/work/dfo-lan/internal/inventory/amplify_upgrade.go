@@ -279,16 +279,25 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 	level := amplifyLevel(row[:])
 
 	// 安全增幅按「券槽」位放的材料模板区分（与强化用材料区分 ticket/gold/safe 同套路）。
+	// 便携增幅器（[portable amplify]）恒走普通材料增幅路径（safe=false），只耗道具本身。
 	safe := false
+	portable := false
 	for _, item := range bag.Items {
 		if item.Slot == r.TicketSlot {
 			safe = IsAmplifySafeMaterial(item.Template)
+			portable = IsPortableAmplifyTemplate(item.Template)
 			break
 		}
 	}
+	if portable {
+		safe = false
+	}
 
 	var count, gold uint32
-	if safe {
+	if portable {
+		// 便携增幅器固定消耗 1 个、不耗金币。
+		count, gold = 1, 0
+	} else if safe {
 		// ★ 官方条件原文（dfoneople「Safe Amplification」）："+9 or lower Amplified"。
 		// 也就是**当前 +9 时仍然可以用安全增幅打到 +10**，可行区间是「当前等级 <= +9」。
 		// 早期写成 level >= 9 就拒绝，正好把官方表最后一档 +9→+10（x320 / 5,084,870 Gold）挡掉了 ——
@@ -333,6 +342,11 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 				return nil, out, Refuse(RefusalMaterials, "增幅材料槽位放的不是安全增幅材料（槽 %d 里是模板 %d，需要 10327282）",
 					r.TicketSlot, item.Template)
 			}
+		} else if portable {
+			if !IsPortableAmplifyTemplate(item.Template) {
+				return nil, out, Refuse(RefusalMaterials, "增幅材料槽位放的不是便携增幅器（槽 %d 里是模板 %d）",
+					r.TicketSlot, item.Template)
+			}
 		} else if !IsAmplifyMaterial(item.Template) {
 			return nil, out, Refuse(RefusalMaterials, "增幅材料槽位放的不是矛盾结晶体（槽 %d 里是模板 %d，需要 3242）",
 				r.TicketSlot, item.Template)
@@ -354,7 +368,7 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 	}
 	bag.Gold -= gold
 
-	// 判定成功率（官方页数据）。
+	// 判定成功率（官方页数据；便携增幅器沿用普通增幅成功率表）。
 	percent := AmplifySuccessPercent(level)
 	roll, err := amplifyUpgradeRandomInt(100)
 	if err != nil {

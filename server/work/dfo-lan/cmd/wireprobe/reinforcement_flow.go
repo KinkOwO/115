@@ -84,6 +84,11 @@ func reinforcementBranch(role database.Character, r protocol.ReinforcementReques
 		if inventory.IsReinforcementTicket(item.Template) {
 			return reinforcementTicketBranch, nil
 		}
+		if inventory.IsPortableUpgradeTemplate(item.Template) {
+			// 便携强化器（[portable upgrade]）：走材料强化路径，
+			// ApplyGoldReinforcement 内部识别并只耗道具本身（不耗金币/无色）。
+			return reinforcementGoldBranch, nil
+		}
 		if inventory.IsGoldMaterial(item.Template) || inventory.IsSafeMaterial(item.Template) {
 			return reinforcementGoldBranch, nil
 		}
