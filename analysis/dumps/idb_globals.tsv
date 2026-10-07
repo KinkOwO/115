@@ -2,3 +2,62 @@ address	name	description
 0x14e634408	g_QuestCatalog115	Current native quest catalog singleton;1520-byte allocation via145194c50; connect unit lookup14519ae00, metadata lookup14519b210
 0x14e683d40	g_QuestManager115	Current native quest state manager; completed collection+328 and visibility sequence fallback tree+1528;144f3a780,144f4a870,144f542a0
 0x14e6849bd	g_StartMapHeader7_115	NOTI29 byte at body+7 assigned by1452B7100;1456E8B10 checks1 for animation-offset2 Hell wave; mode meaning unresolved, static20261003.
+0x14ef53b40	g_UDPGameplayNames115	319 native name pointers initialized by1400873E0; IDB uninitialized bytes are zero; main dispatcher14663EF80 handles0..314, static20261004.
+0x14e683c68	g_UDPGameplayManager115	Singleton constructed14663DFC0 and assigned145A25595; vtable14B0A2118 begin-write slot+16=14665C170; static20261004.
+0x14dc6cad0	g_UDPLocalIdentityValue115	Four-byte value set14707EAA0 from CMD1; local seat key source and local peer-info+116; Hex-Rays array casts are not evidence of a pointer, static20261004.
+0x14f0e9620	g_MessageCheckParameterA115	Protected input value218628361 from140092870; decoder146E920A0 in146D77DB0; native UDP vector pending, static20261004.
+0x14f0e9628	g_MessageCheckParameterB115	Protected input value1085313056 from1400928B0; decoder146E920A0 in146D77DB0; native UDP vector pending, static20261004.
+0x14f0e9f40	g_CommandRepeatRules115	Native command-ID repeat rule map;146D817C0 writes source[attack auto key module] for command5,146D81400 consults it; not physical-key binding, static20261004.
+0x14e634230	g_HotkeyOptionsManager115	Native112-byte singleton constructed1403DE110;145CEAA10 gets slot4/5/6 via1403F49B0; static20261004.
+0x14dc678b8	g_NormalAttackInputBufferTime115	Loaded fromEtc/EtcParameter.etc[normal attack input buffer time] at145A1AE17;145D3CC92 scales value into actor+84064; units/full attack interpretation pending, static20261004.
+0x14dc678bc	g_NormalAttackInputBufferValidTime115	Loaded fromEtc/EtcParameter.etc[normal attack input buffer valid time] at145A1AE4D;145D171B8 state8 adds actor+84064; units/full attack interpretation pending, static20261004.
+0x14f1c0b30	Clock_DomainValues115	16 uint32 values initialized146EA8E90,updated146EA8F30 from timeGetTime delta/rates/adjustments;146EA8FC0 getter,static20261004.
+0x14f1c0b70	Clock_DomainRates115	16 int32 rates;146EA8E90 default100 from14B1BEEF0;146EA8F30 multiplies rate*delta*float32(0.01),static20261004.
+0x14f1c0bb0	Clock_DomainPendingAdjustments115	16 float32 adjustments added before cvttps2dq,cleared by146EA8F30;not source animation delay,static20261004.
+0x14f1c0bf0	Clock_LastWallTickMilliseconds115	timeGetTime snapshot,initialized146EA8E90,updated146EA8F30;domains may scale/pause separately,static20261004.
+0x14e683c20	g_PartyInfoManagerPartial115	Native8-seat24-byte shared roster starts128;145F13700 gets member,145F12D90 local seat,NOTI9/1452F2620 updates;ordinary gameplay policy remains user max3bots,static20261004.
+0x14e683c08	g_PeerInfoManagerPartial115	145F0BFA0 uid16 lookup,145F0BA60 local cached info;NOTI11 existing-info updates key/endpoints;not database/account role identity,static20261004.
+0x14a93b060	vtable_BaseActorNamedEventsPartial115	Native virtual1216 at14A93B520->nullsub;145B88D40 invokes this slot with38-byte named record and3 signed coordinates;partial table,static20261004.
+0x14a951340	vtable_CharacterNamedEventsPartial115	Native virtual1216 at14A951800->145D02CE0,dispatches current extension1184/all valid1200;partial table,static20261004.
+0x1495ad718	vtable_ArcherNamedEventsPartial115	Assigned141030B50 for native profession16;virtual1216 at1495ADBD8->1410360A0;CreateArrow/state8 loads ArcherArrowMoveInfo.cos;partial table,static20261004.
+0x14f2ede60	g_NativeUDPFacadePartial115	14707DA90 returns this address,not a stored singleton pointer;facade+40 holds transport context;transport peers2112,active flags2192;read-only observer static20261004.
+0x14b203ec8	vtable_NativeUDPReliableRequestPartial115	147089D30 assigns80-byte send request;payload pointer40 remains plaintext,14708A2A0 copies before transform;not raw packet or codec vector,static20261004.
+0x14f2f55f0	g_NativeCommandNameIndexPartial115	Native name-to-int32 tree loaded1470C9720 from Skill/RDARKeyIndex.dat;72-byte node string32/value64,count14F2F55F8;pool offsets and command IDs separate,static20261004.
+0x14b229ee0	vtable_NativeInputCommandContextPartial115	Assigned1471B1C90 to88-byte context;groups and parallel-prefix sequences retained;not actor action state,static20261004.
+0x14f3515a8	InputCommandModeTagRegistry115	1470C6B40 initializes exact UTF16 strings DOWN/DOWN ONCE/UP/UP ONCE to native dispatch4566/4569/4572/4575 selectingcontext72=0/1/2/3;mode execution contract,not profession content.
+0x1495a47b0	Archer_CrackArrowExtensionVTablePartial115	Constructor14100D5D0/destructor14100D6C0;RTTI COL14BB72650 at-8 signature1 offset0;slot16=14100EE70,384=141010670;factory pair29/3,static20261004.
+0x14ef40380	g_DamageFormulaCoefficient0Partial115	Protectedfloat loaded145A18A49 frometc/(r)etcparameter.etc [damage fomula constant] slot0;divisor in1466317B0 attacktype0;source value not Go constant,static20261005.
+0x14ef403b0	g_DamageFormulaCoefficient6Partial115	Protectedfloat loaded145A18B8B fromsame ETC [damage fomula constant] slot6;divisor in1466317B0 attacktype1,static20261005.
+0x14ef403e0	g_DamageFormulaCoefficient12Partial115	Protectedfloat loaded145A18CC9 fromsame ETC [damage fomula constant] slot12;146631390 element correction base,static20261005.
+0x14ef40488	g_LimitDefenceElement115	Protectedint32 loaded145A1BA48 fromsame ETC [limit defence element];146631390 upper-clamps each active input,static20261005.
+0x14f3707c0	g_CreatureModuleDamageRatiosPartial115	Int32-key/protectedfloat map;1477B8930 [module damage percent] fromcreatureCommon.cre;duplicate module entries multiply via1477B0390;read146631AB0 bymode263,static20261005.
+0x14f3707d0	g_AssaultCreatureDamageRatiosPartial115	Int32-key/protectedfloat map;1477B8930 [assault creature damage penalty] percent pairs;146631AB0 reads onlymode263==8 key271;not generic X policy,static20261005.
+0x14f2f5f00	g_ScriptModeOpenTagMapPartial115	UInt32->nativewstring registry1470CB9A0;getter1470B7720;0..3 shared[dungeon];39/40 lastvalues overwritten by closingtags in original client,static20261005.
+0x14f2f5f40	g_ScriptModeCloseTagMapPartial115	UInt32->nativewstring registry1470CB9A0;getter1470B7820;0..3 shared[/dungeon];missing keys empty;execution contract not PVF contenttable,static20261005.
+0x14e6bae78	g_DamageMathContextKindStackPartial115	Native int32 vectorbegin;end14E6BAE80;145C15100 empty returns2 otherwiseback;source of modifiers0/1 stillpending,static20261005.
+0x14e659e00	Stats_AlternateEffectiveComponentGatePartial115	Plainint32>0 selects actor75856 forvirtual4808(3);not a verified dungeon-mode enum;source setter pending,static20261005.
+0x14e684de8	g_NativeDamagePercentUnit115	Protectedfloat initialized1400542D0 fromrawbits3C23D70A;unit0.01f consumed bybase/element/native stats calculations;execution unit,not damageformula ETC slot;damagecore20261005.
+0x1491be9b0	g_NativePercentUnitLiteral115	Native readonlyfloat32 rawbytes0A D7 23 3C =0.01f;initializer1400542D0;authorityget_bytes verified,damagecore20261005.
+0x14ef40478	g_NativeDefenceBasis115	Protectedfloat assigned by ETC damage fomula constant source slot30 at145A19083;not inferred from contiguous address offset;146632060/4F0 denominator basis,static20261005.
+0x14ef40490	g_NativeSpecialDefenceBasisRate115	Protectedfloat assigned by ETC damage fomula constant source slot31 at145A190B8;146632060 multiplies basis only when context303 set;second helper skips,static20261005.
+0x14ef40480	g_NativeAccumulatedDefenceLimit115	Protectedfloat from independent [limit defence rate]145A1B9CC..1B9FE;14662FE60 caps cumulative ratio except mode4;not a damagecoefficient slot,static20261005.
+0x14ef40400	g_NativeCriticalDamageRate115	Protectedfloat from ETC damage fomula constant source slot16;14662FFD0 applies owner139 modifier then addition143 before damage multiplication,static20261005.
+0x14a7d0e74	g_NativeType2FluctuationLiteral115	Readonlyfloat32 rawbytes29 5C 8F 3D,bits3D8F5C29=0.07f;1466309DE type2 amplitude timesincomingdamage;nativeexecutionconstant notPVFcontent,static20261005.
+0x1492f49c8	g_NativeSelectedElementLiteral115	Readonlyfloat32 rawbytes66 66 86 3F,bits3F866666=1.05f;1466304F2 applieswhen signedselector300!=4 andcorresponding enabled10..13;nativeexecutionconstant,static20261005.
+0x14e684df0	g_NativeOwnerContributionUnit115	Protectedfloat initialized140054290from1491CEED4bits3A83126F=0.001f;145C19100aftercombinedbase,executionunitnotPVFcoefficient,static20261005.
+0x1491ceed4	g_NativeOwnerContributionUnitLiteral115	Readonlyfloat32 bytes6F12833A,bits3A83126F=0.001f;authorityget_bytesverified,initializer140054290 PE matched,static20261005.
+0x14e6bace5	g_OwnerContributionSuppressionFlagPartial115	145C19100returns0ifnonzeroafterbase/percentagecalculation;writer/sourceandmodebindingpending,noeffectmeaninginvented,static20261005.
+0x14e6baf1c	g_ExcludedOwnerContributionSourceKey115	145C20870initializer140E54A10returnsint32-2;comparedagainsthitcontext720forordinarymode0only,notprofessionIDclaim,static20261005.
+0x1492935f0	g_NativeBasicDamageClearThreshold115	Readonlyfloat32 -100 bytes0000C8C2,full4bytesPE/IDBmatch;1474B3870 strictgreater branch;executionconstant,notcontenttable static20261005.
+0x14e684dd0	ProtectedAnimationSpeedFactorPartial115	protected float pair;140054390 default100.0,145C39A70 multiplies rawactor24944 and0.001;dynamic modifier source unresolved;not fixed gameplay value;static20261005.
+0x14e6677e8	g_NativeNamedCallbackRegistryPartial115	144BBE580 name->function +64 registration;1457869B0 lookup outputmissingbyte+8;current PE functions matched;full lifecycle/profession maps pending;static20261005.
+0x14e683b58	PTLDefinitionSourceManager115	145D70830 wholePE/IDB uses shared relative-path loader1401F47E0; native manager routing initial resource-kind binding remains partial; Source PTL parser147503270 and copy0x6d9 retained; static20261005.
+0x14dc68838	NativeParticleCoordinateScale115	12byte currentPE/IDB match int32[3]={100,29,100};146636C80 scales local axes before position/truncation and distance gate; runtime mutation/coordinate consumers not fully audited; no gameplay content table; static20261005.
+0x14f1e5100	NativeTrig_SinTable115	Runtimefloat32[3600] in zero-filled.data tail; initialized1400A1760, lookup146F6FF30 clamp3559; staticPE/IDB zeros are not runtime values; initializer/current constants byteverified; static20261005.
+0x14f1e8940	NativeTrig_CosTable115	Runtimefloat32[3600] in zero-filled.data tail; initialized1400A1760, lookup146F6FED0 clamp3559; staticPE/IDB zeros are not runtime values; initializer/current constants byteverified; static20261005.
+0x14f1ec181	NativeTrig_TablesInitializedFlag115	1400A1760 testsbyte0 and sets1 after all3600sin/cos entries; no source gameplay/save data; static20261005.
+0x14b1da568	NativeTrig_RadiansToIndexMultiplier115	Readonlydouble572.957914,8bytes0BB3D0CEA9E78140 currentPE/IDBmatch; quantized lookup execution constant, not PVF content table; static20261005.
+0x14b1da570	NativeTrig_TableStepLanes115	Readonlyfloat32[4] eachbits3AE4C385; initializer multiplies integer sample indices before native vector trig;16bytes currentPE/IDBmatch; static20261005.
+0x14e683b28	PassiveObjectSourceManager115	Native init145A24434..468 whole59byte PE/IDB match: alloc720, ctor1459C4310(kind2), storeglobal; virtual56 1459F7720 uses dedicated STPassiveObjectScript allocator1459C0600; factory141B64330 preserves scene variants; static20261005.
+0x14f3707e0	NativePassiveObjectSourceIndex115	1459C4310(kind2) binds manager712;1470909B0 queries template ID before source load; Source list/passiveobject.lst preserves original path/callback case; index is source binding, not manual object content table; static20261005.
+0x14a161618	Creator_MainVtable115	143E54A00 constructor +0;verifiedPE/IDB entries9288/9296/9304/9312 at14A163A60..78 ->mouseLeftDown/Up,RightDown/Up;other inheritance slots pending,static20261005.
