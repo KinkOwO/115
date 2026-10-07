@@ -92,6 +92,23 @@ func runGateway(startup Config) error {
 		return err
 	}
 	log.Print(servermod.Description())
+	// —— 声明与注册的一致性核对 ——
+	//
+	// mod.json 里声明了钩子、Go 里却忘了注册 → "装成功、编成功、什么也没发生"，
+	// 这是最难查的一类失败（只有读 mod 源码才看得出来）。所以在开始监听之前
+	// 就把它变成**启动失败**，口径与 Boot 的 fail-closed 一致。
+	// 唯一出路是把该 mod 写进 mods/enabled.json（启动器「MOD 工具」页可做，
+	// 不需要服务端起得来）。
+	if problems, declErr := servermod.CheckDeclarations(serverModsDir()); declErr != nil {
+		return fmt.Errorf("核对 mod 声明失败：%w", declErr)
+	} else if len(problems) > 0 {
+		lines := make([]string, 0, len(problems))
+		for _, p := range problems {
+			log.Printf("servermod: %s", p)
+			lines = append(lines, p.String())
+		}
+		return fmt.Errorf("mod 声明与注册不一致（%d 个）：%s", len(problems), strings.Join(lines, "；"))
+	}
 	if _, disabled, note := servermod.EnabledInfo(); true {
 		if note != "" {
 			log.Printf("servermod: 启用清单：%s", note)
