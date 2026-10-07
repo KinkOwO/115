@@ -265,3 +265,43 @@ const GoldReinforcementMaxLevel = 31
 
 // GoldReinforcementResultCap 是客户端 CMD80 reader 实机接受的结果等级上限（成功分支）。
 const GoldReinforcementResultCap = 15
+
+// AmplifyUpgradeResultCap 是客户端 CMD80 **成功回包**实机接受的新增幅等级上限。
+//
+// 服主 2026-10-07 实机：+1..+15 增幅成功都正常，只有 +16 成功会触发
+// ADD_HACKTYPE_CNT（客户端字符串 60225 "Don't even think about making any
+// unauthorized upgrade attempts!"）并锁死增幅窗口。
+//
+// ⚠️ 这与「装备行能渲染 +31」**并不冲突**，是两道互相独立的检查：
+//   - 装备行 reader：认 0..31（client_trace 实证：+16 / +31 都正常渲染）
+//   - CMD80 成功回包 [13]：只认到 15（服主实机：只有 16 卡）
+// 另外 PVF 的 etc/amplifyupgrade.etc 写 [max upgrade level by rarity]=50、
+// 90US 官方源码写 upgradeMaximumCurrentLevelBeforeReject=30（→+31），
+// 都指的是「装备能拥有的等级」，不是这条回包校验。
+//
+// 因此超过上限时：**落库仍写真实等级**，回包改用 result=1 + new=old 过检，
+// 真实等级靠随后的装备行刷新下发 —— 与仓库处理「降级 8→7 写进回包会
+// ADD_HACKTYPE_CNT」的既有解法同一套路。
+//
+// 上游默认取 15（方案 B 兜底）：无需客户端补丁即可安全运行，+16 播失败
+// 动画但实际成功、装备行刷新真实等级。若已用 tools/patch_client_amplify.py
+// 给客户端 DFO.exe 打过补丁（上限 10→30，与官方 31 上限对齐），可改为 31
+// 让成功回包直接带真实等级、播放成功动画。
+const AmplifyUpgradeResultCap = 15
+
+// ClientAmplifyPatch 记录 115 客户端 DFO.exe 的本地补丁位置，便于回滚与复查。
+//
+// sub_14529B2F0（CMD80 回包 handler）内的等级判据：
+//   0x14529bb33  lea eax, [rdx-1]        ; rdx = 回包 [13] 新等级
+//   0x14529bb36  cmp eax, 0xc   -> ja    ; 新等级 > 15 时走 fallback 分支
+//   ...
+//   0x14529bb71  lea eax, [rdx-1]
+//   0x14529bb74  cmp al, 0xa    -> ja    ; ★ 新等级-1 > 10 就上报 ADD_HACKTYPE_CNT
+// ⇒ 原逻辑：新等级 16 时 16-3=13>12 进 fallback，再 16-1=15>10 → hack。
+//
+// 补丁：文件偏移 0x529bb75 处 0x0a(10) → 0x1e(30)，
+//       使上限变成「新等级-1 <= 30」即**新等级 <= 31**，与官方 31 上限对齐。
+// 原值 0x0a，备份见 .workbuddy/backup-client-20261007/DFO.exe。
+const ClientAmplifyPatchOffset = 0x529bb75
+const ClientAmplifyPatchOrig = 0x0a
+const ClientAmplifyPatchValue = 0x1e
