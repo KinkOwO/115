@@ -77,6 +77,89 @@ func TestSortItemsRefusesCrossingTheModelledBoundary(t *testing.T) {
 	}
 }
 
+// 徽章区（289..360）整理回归：连续无洞时必须幂等。旧实现把 289..320 推成
+// 321..352，下一次又弹回来，玩家每点一次整理整段跳 32 格（2026-10-07 实测）。
+func TestSortItemsKeepsContiguousEmblemsInPlace(t *testing.T) {
+	b := Bag{}
+	for s := uint16(289); s <= 320; s++ {
+		b.Items = append(b.Items, BagItem{Slot: s, Template: 2500000 + uint32(s), Amount: 1})
+	}
+	got, e := SortItems(b, sortRules(), protocol.SortItemRequest{List: 0, Slots: permutation(380)})
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, i := range got.Items {
+		if i.Slot < 289 || i.Slot > 320 {
+			t.Fatalf("emblem pushed out of 289..320: slot %d", i.Slot)
+		}
+	}
+}
+
+// 徽章被旧实现平移走后（321..352），幂等压缩应把它拉回 289..320。
+func TestSortItemsCompactsDisplacedEmblems(t *testing.T) {
+	b := Bag{}
+	for s := uint16(321); s <= 352; s++ {
+		b.Items = append(b.Items, BagItem{Slot: s, Template: 2500000 + uint32(s), Amount: 1})
+	}
+	got, e := SortItems(b, sortRules(), protocol.SortItemRequest{List: 0, Slots: permutation(380)})
+	if e != nil {
+		t.Fatal(e)
+	}
+	slots := make([]uint16, 0, len(got.Items))
+	for _, i := range got.Items {
+		slots = append(slots, i.Slot)
+	}
+	sort.Slice(slots, func(i, j int) bool { return slots[i] < slots[j] })
+	want := make([]uint16, 0, 32)
+	for s := uint16(289); s <= 320; s++ {
+		want = append(want, s)
+	}
+	if !reflect.DeepEqual(slots, want) {
+		t.Fatalf("displaced emblems = %v, want 289..320", slots)
+	}
+}
+
+// 客户端对徽章区发出的排列必须被采纳（真机帧 list=0，old[321..352] -> new 289..320
+// 的一个乱序映射）。徽章区不在 BagRules 里，旧实现会整段跳过。
+func TestSortItemsAdoptsEmblemPermutation(t *testing.T) {
+	// 真机 2026-10-07 22:54 帧：perm[321+i] 的值（i=0..31）。
+	targets := []uint16{
+		296, 289, 298, 311, 301, 320, 319, 297, 290, 305, 312, 306,
+		309, 302, 318, 300, 310, 303, 295, 308, 313, 315, 304, 291,
+		317, 314, 292, 299, 294, 293, 307, 316,
+	}
+	perm := permutation(380)
+	b := Bag{}
+	for i := 0; i < 32; i++ {
+		old := uint16(321 + i)
+		b.Items = append(b.Items, BagItem{Slot: old, Template: 5000000 + uint32(old), Amount: 1})
+		perm[old] = targets[i]
+		// 真机帧里 289..320 同时指向 321..352（保持全表双射）。
+		perm[289+i] = uint16(321 + i)
+	}
+	got, e := SortItems(b, sortRules(), protocol.SortItemRequest{List: 0, Slots: perm})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if len(got.Items) != 32 {
+		t.Fatalf("emblem count changed: %d", len(got.Items))
+	}
+	// 每个徽章必须留在徽章区内（位置由客户端排列决定，压缩后再连续）。
+	seen := map[uint32]bool{}
+	for _, it := range got.Items {
+		if it.Slot < 289 || it.Slot > 320 {
+			t.Fatalf("emblem tpl %d adopted to %d, outside emblem zone", it.Template, it.Slot)
+		}
+		seen[it.Template] = true
+	}
+	for i := 0; i < 32; i++ {
+		tpl := 5000000 + uint32(321+i)
+		if !seen[tpl] {
+			t.Fatalf("emblem tpl %d lost", tpl)
+		}
+	}
+}
+
 func TestSortItemsRejectsForeignListAndTables(t *testing.T) {
 	b := Bag{Items: []BagItem{{Slot: 18, Template: 111, Amount: 1}}}
 	if _, e := SortItems(b, sortRules(), protocol.SortItemRequest{List: 2, Slots: permutation(380)}); e == nil {

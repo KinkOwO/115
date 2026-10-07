@@ -28,7 +28,7 @@ func classifyStackableSlot(r BagRules, stackableType string) ([2]uint16, bool) {
 	}
 	switch {
 	case strings.HasPrefix(norm, "[material]") && strings.HasSuffix(norm, "4"):
-		return [2]uint16{345, 359}, true
+		return [2]uint16{361, 375}, true
 	case strings.HasPrefix(norm, "[material]"):
 		return [2]uint16{121, 176}, true
 	case strings.HasPrefix(norm, "[quest]"):
@@ -36,7 +36,7 @@ func classifyStackableSlot(r BagRules, stackableType string) ([2]uint16, bool) {
 	case strings.HasPrefix(norm, "[material expert job]"):
 		return [2]uint16{233, 288}, true
 	case strings.HasPrefix(norm, "[avatar emblem]"):
-		return [2]uint16{289, 344}, true
+		return [2]uint16{289, 360}, true
 	default:
 		if rng, ok := r.Slots["[throw]"]; ok && rng != [2]uint16{} {
 			return rng, false
