@@ -157,6 +157,12 @@ func (s *Service) entryAdditionWithStats(role Character, state State, stats prot
 				dw.Durability = item.Durability
 				dw.Record = item.Record
 				dw.AvatarOptions = item.AvatarOptions
+				if item.Slot <= 11 && len(dw.AvatarOptions) == 0 && s.Equipment != nil {
+					// 老存档时装未带孔扩展：下发视图按 PVF 默认孔就地补上，
+					// 客户端才能显示孔（镶嵌路径 UseEmblems 同样会补，这里只
+					// 改下发视图、不写回存档）。
+					dw.AvatarOptions = s.Equipment.DefaultAvatarSockets(item.Template)
+				}
 				dw.AvatarSockets = item.AvatarSockets
 				dw.Period = item.Period
 				if item.Slot <= 11 && item.Group == 0 {
