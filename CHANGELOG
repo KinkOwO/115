@@ -13,6 +13,31 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-07：强化/增幅光效等级投影（EntryBasicProbe / AppearanceProbe）—— **业主已实机确认**
+
+依据 `强化特效逻辑说明.md` §4：客户端 reader `145639840` 从外观行 offset 9 读取打包的
+强化/增幅等级（`packed>>1` 得效果等级），据此决定是否创建武器/增幅光效。
+
+### 已修复 / 已完成
+- **等级投影链路补齐**：`protocol.Equipment` 增加 `UpgradeLevel`；`EquipmentAppearance`
+  把 `UpgradeLevel<<1` 写入外观行 offset 9（无模型载荷时即 26 字节尾首字节，等价
+  `EquippedAppearance.Flags`），>127 拒绝避免回绕。`internal/character/appearance.go`
+  （EntryBasicProbe 列表投影）与 `internal/character/service.go`（AppearanceProbe 换装刷新
+  投影）分别从穿戴装备实例 `record[10]` 低 5 位读等级写入。此前两条链路都不读等级，
+  外观包等级恒为 0，穿戴武器强化后无光效（对应说明文档 §6 的「缺光效」现象）。
+- 提交 `0557615b`（3 文件，+48/-1）；提交前门禁 `check-commit-hygiene`（已暂存内容）通过；
+  业主已在本机构建并实机测试通过。
+
+### 未修复 / 未闭环
+- 强化/增幅成功后按说明文档 §3 第 4 点，在穿戴装备**等级变化/碎毁**时补发 **NOTI2 外观快照**，
+  尚未接入 CMD80（`cmd/wireprobe/reinforcement_flow.go`）流程；本提交只闭合等级投影链路。
+- 完整打造名望与全部特殊装备光效仍未闭环（同说明文档 §7）。
+
+### bug 测试取证
+- 说明文档 §8 列出的 `TestEntryBasicPreservesWeaponUpgradeAppearance` /
+  `TestEnhancementRefreshesWornWeaponGlowAfterInstance` 等测试当前仓库尚未落地，本提交未附自动化测试；
+  验证以业主实机为准。
+
 ## 2026-10-07：「直升各种修复-20261006」外部包落地（662/665 六小节）—— **未经实机，待业主逐项验收**
 
 来源：外部交付包 `D:\直升各种修复-20261006.zip`（2026-10-07 00:13 收到，45 个改动文件）。
