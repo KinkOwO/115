@@ -57,6 +57,7 @@ const (
 //     两个命令共享同一「13 字节包头 + u32@13」前缀。
 //  2. 8 条实机样本按 +17 读得 16201/16203/16211/16212，全部落在源表 `[part set index]`
 //     （16201..16213）内；按 +16 读得 16201<<8 之类的值，**不在任何源表里**。
+//
 // 早先按 +16 的版本把测试期望钉成了 0x3f4b00（= 16203<<8）—— 那是把错形状固化了，
 // 已随本次修复一并改正（教训：实测样本必须能对回源表，否则测试只是在复述实现）。
 type EquipmentFavoriteRequest struct {
@@ -206,7 +207,7 @@ func DecodeEquipmentCraftRequest(p []byte) (EquipmentCraftRequest, error) {
 		return out, fmt.Errorf("equipment craft requires an exact %d-byte body, got %d",
 			EquipmentCraftBodySize, len(p))
 	}
-		out.Panel = binary.LittleEndian.Uint32(p[0:4])
+	out.Panel = binary.LittleEndian.Uint32(p[0:4])
 	out.Reserved = binary.LittleEndian.Uint32(p[4:8])
 	out.Context = binary.LittleEndian.Uint32(p[8:12])
 	out.Action = p[12]
@@ -255,7 +256,6 @@ func EquipmentCraftReply(window, variant byte) []byte {
 // 真实归属见 EquipmentCraftOpcode 的纠错说明 —— 它是 **2259** 的应答，
 // 语义见 EquipmentCraftReply。保留只为兼容既有测试与调用方。
 
-//
 // 客户端 handler（sub_145277D00）固定读 6 字节：u32 保留 + u8 窗口选择 + u8 子选择。
 // 两个字节决定打开哪个窗口类（3937 / 2145 两族）。当前服务端尚未实现 2265 的写侧，
 // 这个编码器先把几何钉住。

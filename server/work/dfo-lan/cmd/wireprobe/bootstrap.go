@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/boostup"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
@@ -16,6 +17,7 @@ import (
 	"dfolan/internal/reward"
 	"dfolan/internal/workflow"
 	"dfolan/internal/world"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -36,11 +38,19 @@ type gatewayRuntime struct {
 	apocalypseCatalog     *catalog.ApocalypseCatalog
 	apocalypseClock       *legion.ApocalypseClock
 	boosterCatalog        *BoosterCatalog
+	boostCatalog          *boostup.Catalog
+	boostEventInfo        []byte
 	characters            *character.Service
 	channelDirectory      *catalog.ChannelDirectory
 	channelTowns          map[uint32]catalog.TownArea
 	channelGuides         map[uint32]uint32
 	channelInfo           *catalog.ChannelInfo
+	// raidEntrances 是 PVF 解析出的 raid 入口规则（client_raid_entrance.go 按
+	// channelType 取用）；raidTeams 是巴卡尔建队/分队登记（raid_team.go）。
+	raidEntrances map[uint32]catalog.RaidEntrance
+	raidTeams     raidTeamRegistry
+	// channelSpawns 是各内容频道的专属城镇落点（见 prepareRuntime 的投影）。
+	channelSpawns         map[uint32]database.WorldPosition
 	developmentAccount    int64
 	dungeonCatalog        *catalog.DungeonCatalog
 	fatigueService        *character.FatigueService
@@ -147,6 +157,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		ApocalypsePath:        startup.ApocalypseCatalog,
 		AttunementPath:        startup.AttunementRewards,
 		ContentPolicyPath:     startup.PVFContentPolicy,
+		BoostChallenge:        startup.BoostUpChallenge,
 	}, runtimeCatalogAdapters())
 	// PrepareCatalogs can return partially acquired catalogs alongside an error.
 	if pvfCatalogs != nil {
@@ -1617,8 +1628,57 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		itemService.Equipment = lootService.Equipment
 	}
 
+	// 内容频道通用落点：全部由 clientchannelinfo.etc + 频道目录直接投影，不再
+	// 每个频道写死。82（巴卡尔）在当前 clientchannelinfo.etc 里是 legacy [ui] 记录，
+	// 目录解析不出落点，所以按 73 频道先例硬编码（取自合并前启动日志的 PVF 直读：
+	// channel 82 -> town 152/1, spawn 730,223）。
+	channelSpawns := make(map[uint32]database.WorldPosition, len(pvfCatalogs.ChannelTowns))
+	for channelType, town := range pvfCatalogs.ChannelTowns {
+		x, y := town.Spawn()
+		channelSpawns[channelType] = database.WorldPosition{Town: town.TownID, Area: town.AreaID, X: x, Y: y}
+	}
+	channelSpawns[82] = database.WorldPosition{Town: 152, Area: 1, X: 730, Y: 223}
+
 	if err := validateTownArrivalScenes(worldService, questService, townArrivalScenes); err != nil {
 		return nil, nil, err
+	}
+	// Starter Boost 662 装配：目录来自 PVF 直读（preparePVFBoostUp），NOTI108 活动清单
+	// 只在开关打开时冻结一次。表体是**频道门 + 活动行合并后的那一张**（见
+	// event_info_variant.go）：客户端对 108 是整表替换，只发活动行的第二条会被
+	// 进城那条频道门表抹掉，城里就没有活动礼物图标。
+	var boostCatalog *boostup.Catalog
+	var boostEventInfo []byte
+	if startup.BoostUpEvent {
+		if pvfCatalogs.BoostUp == nil {
+			// 玩法开关默认生效、不留第二套内容源（§0.14）：活动目录只从 PVF 直读来。
+			// JSON/部分直读域的运行方式拿不到真源，本树其它 PVF-only 特性同样是
+			// "缺源就降级 + 记一条 warning"（见 selection box / apocalypse 的告警），
+			// 这里保持一致：活动整体不装配，玩家照常进镇，不伪造内容。
+			log.Printf("warning: Starter Boost 662 disabled; PVF direct-read boostup domain is not prepared (-pvf-catalogs 加 boostup 才开启)")
+			startup.BoostUpEvent = false
+			startup.BoostUpChallenge = false
+		} else if characters == nil || lootService == nil || worldService == nil {
+			return nil, nil, errors.New("Starter Boost 需要持久化角色、掉落与世界服务")
+		} else {
+			// 选角（CMD8）与进城 announce 发同一条表；参考实现
+			// `活动Boost与胶囊教学-20260927` 的两个发送点用的也是同一个快照。
+			rows, ok := buildTownEventInfoTable(startup.BoostUpChallenge)
+			if !ok {
+				return nil, nil, errors.New("Starter Boost 事件表合并失败（频道门表形状异常）")
+			}
+			boostCatalog, boostEventInfo = pvfCatalogs.BoostUp, rows
+			characters.Boost = boostCatalog
+			if progressionService != nil {
+				progressionService.Boost = boostCatalog
+			}
+			// 教学封存谓词： activated 且训练未毕业 = 仍在训练轨道，禁售/丢/寄/入仓生效。
+			inventory.SetInBoostTraining(func(raw json.RawMessage) bool {
+				st, e := boostup.ReadState(raw)
+				return e == nil && st.Activated && !st.Training.Finished
+			})
+			log.Printf("Starter Boost event info snapshot ready: NOTI108 rows=%d bytes=%d",
+				binary.LittleEndian.Uint16(boostEventInfo), len(boostEventInfo))
+		}
 	}
 	prepared = &gatewayRuntime{
 		config:                startup,
@@ -1626,9 +1686,13 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		apocalypseCatalog:     apocalypseCatalog,
 		apocalypseClock:       apocalypseClock,
 		boosterCatalog:        boosterCatalog,
+		boostCatalog:          boostCatalog,
+		boostEventInfo:        boostEventInfo,
 		characters:            characters,
 		channelDirectory:      pvfCatalogs.ChannelDirectory,
 		channelInfo:           pvfCatalogs.ChannelInfo,
+		raidEntrances:         pvfCatalogs.RaidEntrances,
+		channelSpawns:         channelSpawns,
 		channelTowns:          pvfCatalogs.ChannelTowns,
 		channelGuides:         channelGuidesFromDirectory(pvfCatalogs.ChannelDirectory),
 		developmentAccount:    developmentAccount,

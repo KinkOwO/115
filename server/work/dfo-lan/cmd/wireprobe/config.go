@@ -121,6 +121,8 @@ type Config struct {
 	OmenHold                      int    `koanf:"omen-hold" default:"-1" env:"DFO_OMEN_HOLD" help:"诊断：把玩家直接放到指定征兆阶段(0-4)，-1 = 不动；会写回角色存档"`
 	OmenInfo                      string `koanf:"omen-info" env:"DFO_OMEN_INFO" help:"诊断：直接指定 noti 2836「征兆队伍状态」的 69 字节载荷，用来点亮征兆 UI 并实测字段语义。写法见 cmd/wireprobe/omen_info.go；留空 = 按角色存档里的真实档数生成"`
 	ScaleDeathFromHP              bool   `koanf:"scale-death-from-hp" default:"false" env:"DFO_SCALE_DEATH_FROM_HP" help:"诊断：定盘机关血量触底时由服务端兜底宣布死亡（默认关；noti 2838 修好后天平会自己死）"`
+	BoostUpEvent                  bool   `koanf:"boostup-event" default:"true" env:"DFO_BOOSTUP_EVENT" envmode:"not-zero" help:"新手成长活动 662 总开关：训练关卡、礼盒、胶囊与领奖；内容只从 PVF 直读的 boostup 域来，缺该域时本开关自动降级为关并记 warning，DFO_BOOSTUP_EVENT=0 关闭"`
+	BoostUpChallenge              bool   `koanf:"boostup-challenge" default:"false" env:"DFO_BOOSTUP_CHALLENGE" help:"662 毕业后的可选挑战（665）源绑定与领奖，默认关"`
 }
 
 // loadConfig has no file, catalog, storage, listener or process side effects.
@@ -221,6 +223,9 @@ func (c Config) validate() error {
 	}
 	if c.PVFCheckCatalogs && strings.TrimSpace(c.PVFCatalogs) == "" {
 		return fmt.Errorf("pvf-check-catalogs requires explicit pvf-catalogs")
+	}
+	if c.BoostUpChallenge && !c.BoostUpEvent {
+		return fmt.Errorf("boostup-challenge requires boostup-event")
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/boostup"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"encoding/binary"
@@ -84,9 +85,14 @@ func (client *gameConnection) dispatchCashshopAndBoxes(requestData *clientReques
 	if requestData.frame.Type == 1 && client.bootstrapped && requestData.verified && requestData.frame.ID == 681 && client.worldState != nil && client.itemService != nil && client.itemService.Boxes != nil {
 		request, decodeErr := protocol.DecodeRadiantBoxOpen(requestData.plaintext)
 		if decodeErr != nil {
-			// Other events share this opcode; they stay unanswered as
-			// before instead of being answered with a guessed body.
 			client.event(map[string]any{"kind": "event_request_ignored", "id": requestData.frame.ID, "reason": decodeErr.Error()})
+			// 681 是通用事件请求帧：光辉之环宝箱(4202) 与 662 训练引导查询都用它。
+			// 正文点名 662 时不能在这里吞掉，否则 commandDispatch 里的
+			// dispatchBoostEvent 永远收不到（实机 2026-10-04 09:18:37 第三关 681
+			// 只有 event_request_ignored、没有任何回包）。其余未知事件保持原样不回。
+			if request.Event == boostup.EventID {
+				return dispatchNext
+			}
 			return dispatchHandled
 		}
 		count, countErr := radiantBoxOpens(request.Mode)
@@ -356,16 +362,31 @@ func (client *gameConnection) dispatchEquipmentSkillsAndMoves(requestData *clien
 			}
 		}
 		if decodeErr == nil && client.characters != nil && !cloneRefreshed && cloneAvatarRemoval(r, client.wearService.Catalog) {
-			// attempt 3/3: entry's known mode-1 reader restores the ordinary
-			// Avatar association on relog. Send it only after every CMD19
-			// NOTI13/14 and mode-0 refresh, so later slot reconstruction
-			// cannot immediately discard the restored association.
+			// The existing mode-1 repair restores the Avatar association but
+			// clears omitted slots across the actor's 48-slot table. Construct
+			// its non-avatar restore before appending either packet, and send
+			// that restore last, as the dungeon Clone paths already do.
 			addition, additionErr := client.characters.EntryAddition(client.worldState.role)
+			var restore []byte
+			if additionErr == nil {
+				restore, additionErr = inventory.NonAvatarWornSpaceUpdate(client.worldState.role.State)
+			}
 			if additionErr != nil {
 				client.event(map[string]any{"kind": "equipment_avatar_addition_error", "error": additionErr.Error()})
 			} else {
 				plan = append(plan, outboundPacket{"equipment_avatar_addition_refreshed", 0, 2, addition})
+				if len(restore) > 0 {
+					plan = append(plan, outboundPacket{"equipment_nonavatar_worn_restored", 0, 14, restore})
+				}
 			}
+		}
+		if decodeErr == nil && (r.SourceList == 1 || r.DestinationList == 1) {
+			sources, sourceErr := cloneAvatarSourcePackets(client.worldState.role.State)
+			if sourceErr != nil {
+				client.event(map[string]any{"kind": "clone_avatar_source_sync_error", "error": sourceErr.Error()})
+				return dispatchClose
+			}
+			plan = append(plan, sources...)
 		}
 		plan = client.worldState.appendFameUpdate(plan, client.event)
 		if decodeErr == nil && client.characters != nil && client.worldState != nil &&
@@ -502,6 +523,19 @@ func (client *gameConnection) dispatchCosmeticsAndGold(requestData *clientReques
 				return dispatchHandled
 			}
 			if client.sendPlan(packets, client.logCharacterResponse) != nil {
+				return dispatchClose
+			}
+			return dispatchHandled
+		}
+		if len(requestData.plaintext) >= 11 && binary.LittleEndian.Uint32(requestData.plaintext[7:11]) == boostCapsuleAction {
+			// Starter Boost 662 直升胶囊（[action type] 337，S-0904 实测）。
+			// 被拒时沿用本帧既有动作分支的口径：记事件、不凭猜测补造回执。
+			plan, e := client.worldState.useBoostCapsule(requestData.plaintext)
+			if e != nil {
+				client.event(map[string]any{"kind": "boost_capsule_refused", "character_id": client.worldState.role.ID, "reason": e.Error()})
+				return dispatchHandled
+			}
+			if client.sendPlan(plan, client.logWorldAction) != nil {
 				return dispatchClose
 			}
 			return dispatchHandled

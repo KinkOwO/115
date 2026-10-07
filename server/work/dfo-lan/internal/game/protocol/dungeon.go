@@ -357,6 +357,8 @@ func DecodeMoveDungeonRoom(p []byte) ([2]byte, error) {
 }
 
 type DungeonRoomTransition struct {
+	// Server-only authorization for a source Bakal arena-to-entry teleport.
+	RaidReturn  bool
 	Position    [2]byte
 	LayerChange bool
 	Record      [18]byte

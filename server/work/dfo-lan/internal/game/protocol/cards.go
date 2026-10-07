@@ -123,7 +123,7 @@ var settlementExitEchoToken = []byte{0xc5, 0x20, 0x24, 0x76, 0x3f}
 func SettlementExitSuccess(r SettlementExit) []byte { return []byte{1, r.State, r.Option} }
 
 // azureSettlementOptionToken 是 CMD72 16B 体内 p[3:8] 的客户端常量
-//（与 settlementExitEchoToken 同一个值，跨新旧客户端一致）。
+// （与 settlementExitEchoToken 同一个值，跨新旧客户端一致）。
 var azureSettlementOptionToken = [5]byte{0xc5, 0x20, 0x24, 0x76, 0x3f}
 
 // ⚠️ 实测（2026-10-04）：**这三帧不要发**。
@@ -177,4 +177,4 @@ func AzureSettlementOptionOffer(state, option byte) []byte {
 	p = append(p, azureSettlementOptionToken[:]...)
 	return append(p, 0, 0, 0, 0, 0, 0, 0, 0)
 }
-func SettlementExitRefused(option byte) []byte      { return append(Refusal(4), option) }
+func SettlementExitRefused(option byte) []byte { return append(Refusal(4), option) }

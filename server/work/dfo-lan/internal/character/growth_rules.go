@@ -80,7 +80,7 @@ func growthDifficultyIndex(difficulty byte) (byte, error) {
 
 // GrowthMonsterGain takes a zero-based PVF experience column, not a wire code.
 func GrowthMonsterGain(c catalog.Progression, r GrowthRules, d catalog.DungeonDefinition, m protocol.DungeonMonster, level, difficulty byte) (uint64, error) {
-	if m.NonCombat || m.APC || m.Level == 0 {
+	if d.ExperienceDisabled() || m.NonCombat || m.APC || m.Level == 0 {
 		return 0, nil
 	}
 	if level == 0 || m.Rank > 3 || int(difficulty) >= len(c.DifficultyRates) || len(c.MonsterRates) == 0 {

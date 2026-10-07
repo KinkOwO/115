@@ -26,6 +26,9 @@ func dungeonRequest(id uint16) bool {
 // Implemented commands and explicitly observed features are decoded on every
 // request. Unknown commands retain the existing eight-body sampling limit.
 func observedGameRequest(id uint16) bool {
+	if id == 12 || id == 650 || id == 656 || id == 657 || id == 658 || id == 661 || id == 1353 || id == 2121 || id == 2070 || id == 2071 || id == 2072 || id == 2073 || id == 2074 || id == 2089 {
+		return true
+	}
 	if mailboxRequest(id) || id >= 2316 && id <= 2328 {
 		return true
 	}
@@ -43,6 +46,12 @@ func observedGameRequest(id uint16) bool {
 	case 857, 1301, 1395, 1406, 1417, 1418, 1421, 1422, 1426, 1438, 1461, 1462, 1551, 1554, 1565, 1592, 1719:
 		return true
 	case 1722, 1725, 1811, 1852, 1881, 1950, 1951, 1960, 2015, 2047, 2062, 2079, 2139, 2177, 2179, 2258, 2259, 2261:
+		return true
+	case 643, 680:
+		// Starter Boost 662 的两条领奖线路：643 领取创建礼盒、680 领取本关奖励
+		// （681 查看引导已在上面登记）。不登记的话第 BodySampleLimit(8) 次之后正文
+		// 不再落盘、并挂上误导性的 unimplemented_sample —— 2026-10-04 21:58 实机
+		// 会话里 643 就是这样被标出来的（处理与采样已解耦，故只损诊断、不掉功能）。
 		return true
 	case 1654, 2274:
 		// 蔚蓝号（Azure Main，channel 102 / town 213 / dungeon 100004131）实机取证命令。

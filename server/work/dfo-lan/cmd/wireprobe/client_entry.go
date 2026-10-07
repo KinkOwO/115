@@ -25,6 +25,13 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		if e == nil {
 			e = prepareRolePVFDetails(ctx, client.characters, client.questService, client.lootService, role)
 		}
+		if e == nil && client.wearService != nil {
+			var migrated bool
+			role, migrated, e = client.wearService.MigrateCloneAvatars(ctx, role)
+			if migrated {
+				client.event(map[string]any{"kind": "clone_avatar_save_migrated", "character_id": role.ID})
+			}
+		}
 		cancel()
 		// Legacy third-awakened saves predate the 5-point VP grant: the
 		// panel may show 5 points while the ledger still reads zero, and
@@ -406,6 +413,24 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			}
 		}
 		plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
+		// NOTI108: 上游 19 条官方门禁记录静态表（event_info_generated.go）随登录
+		// 下发,开启所有 raid 页签门禁位。静态表恒定,不再走运行时动态组装。
+		plan.ChannelEventInfo = eventInfoTable
+		// Starter Boost 662 进城恢复：可领礼物集合（2265）与训练进度（2638）都按
+		// 本角色状态现算。读失败只丢这一帧并记事件——进城不该被活动状态卡住。
+		if client.worldState != nil && client.worldState.boostup != nil {
+			boost := client.worldState.boostup
+			if gifts, boostErr := boostGiftAvailability(boost, role); boostErr != nil {
+				client.event(map[string]any{"kind": "boost_gift_restore_error", "character_id": role.ID, "error": boostErr.Error()})
+			} else {
+				plan.BoostGifts = gifts
+			}
+			if status, boostErr := boostTrainingRestore(boost, role); boostErr != nil {
+				client.event(map[string]any{"kind": "boost_training_restore_error", "character_id": role.ID, "error": boostErr.Error()})
+			} else {
+				plan.BoostTraining = status
+			}
+		}
 		if client.characters != nil {
 			oathCtx, oathCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			selection, oathErr := client.gameStore.EquippedOathSelection(oathCtx, client.developmentAccount, role.ID)
@@ -444,6 +469,11 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			}
 		}
 		plan.SecondaryVault = secondaryVaultPayload
+		plan.CloneSources, e = cloneAvatarSourcePackets(role.State)
+		if e != nil {
+			client.event(map[string]any{"kind": "clone_avatar_source_restore_error", "error": e.Error()})
+			return dispatchHandled
+		}
 		collectionCtx, collectionCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		collectionEquipment, collectionErr := client.gameStore.AdventureCollectionEquipment(collectionCtx, role.AccountID, role.ID)
 		collectionCancel()
@@ -814,6 +844,14 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		}
 		if client.lootService != nil {
 			rewardCtx, rewardCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			raidRewards := &workflow.BakalRewardService{Store: client.gameStore, Awarder: &inventory.Awarder{Catalog: client.lootService.Catalog, Rules: client.lootService.BagRules, Equipment: client.lootService.Equipment}}
+			raidRecovered, raidErr := raidRewards.Recover(rewardCtx, role)
+			if raidRecovered.ID != 0 {
+				role = raidRecovered
+			}
+			if raidErr != nil {
+				client.event(map[string]any{"kind": "bakal_reward_recovery_pending", "character_id": role.ID, "reason": raidErr.Error()})
+			}
 			recovered, rewardErr := (&workflow.LootService{Store: client.gameStore, Loot: client.lootService}).RecoverBlackPurgatoryCards(rewardCtx, role)
 			rewardCancel()
 			role = recovered
