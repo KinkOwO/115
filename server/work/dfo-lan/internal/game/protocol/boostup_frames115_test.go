@@ -67,6 +67,23 @@ func TestBoostTrainingStatusGraduatedFrame(t *testing.T) {
 	}
 }
 
+// TestBoostTrainingTrackByte 钉住 mode 字节的取值域是**轨道号** {0 普通, 1 奶系, 2 未参与/
+// 已结束}，不是完成标志。依据（Dump analysis/dumps/boost-buffer-route/）：
+// sub_14074C6B0 的路线内层键 variant = (mode==1)、sub_140C13440 按 mode==1 选
+// [buffer reward]、sub_14074DEF0 按 mode!=2 判定参与。原守卫只放行 {0,2}，
+// 奶系轨被编码错误挡住 ⇒ 客户端回落普通轨副本（2026-10-07 实机第二关进不去）。
+func TestBoostTrainingTrackByte(t *testing.T) {
+	for _, mode := range []byte{0, 1} {
+		got, e := BoostTrainingStatus115(BoostTrainingState115{Mode: mode, Step: 2, Active: true})
+		if e != nil || !bytes.Equal(got, []byte{mode, 0x02, 0x00, 0x00, 0x01}) {
+			t.Fatalf("轨道 %d 帧 = % x err=%v", mode, got, e)
+		}
+	}
+	if _, e := BoostTrainingStatus115(BoostTrainingState115{Mode: 3, Step: 2, Active: true}); e == nil {
+		t.Fatal("未知轨道被放过")
+	}
+}
+
 // TestBoostRosterRowWidth115 钉住 NOTI2639 的行宽契约（IDA：handler sub_140C131D0
 // 每行读 u8+u32+u8+u8 = 7 字节；官服 cap43 单行帧 `01000000 03 00000000 01 00`）。
 // 旧 donor 布局行宽 5 字节：1 行时恰好落在补齐后的 16 字节里，2 行时客户端要 18 字节

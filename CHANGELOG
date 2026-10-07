@@ -13,6 +13,36 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-07：奶系职业直升活动第二关无法进副本（NOTI2638 `Mode` = 轨道号）—— **候选，待业主实机验收**
+
+依据 `analysis/dumps/boost-buffer-route/`（IDA `probe.json`~`probe13.json`）：客户端把 NOTI2638
+（`BOOST_UP_MODE_CHARAC_INFO`）的 `Mode` 字节当**轨道号**用，四处消费者只认 `mode == 1` ——
+`sub_14074C6B0`（训练副本路线，`map<(grow, variant)>` 精确匹配不回绕）、`sub_140C13440`（奖励取回
+`[buffer reward]` / `[reward]` 二选一）、`sub_14074A990`（双职业判定，与 PVF `[dual job and grow] 4 1`
+同一编号系）、`sub_14074DEF0`（`active = mode != 2`）。服务端此前恒发 `0` ⇒ 奶系步骤的 `(grow,1)` 行
+永远查不到，回落到 `[dungeon index]` 那张普通轨副本，再被服务端按真实路线拒绝 —— 即「第二关进不去」。
+
+### 已修复 / 已完成
+- `internal/game/protocol/boostup_frames115.go`：`Mode` 取值域由 `{0,2}` 扩为 `{0,1,2}`，守卫改为
+  `Mode > 2`，类型注释写明「轨道号，非完成标志」。字节宽度与编码顺序未动。
+- `cmd/wireprobe/boostup_flow.go`：未毕业时下发 `v.Mode = byte(st.Variant)`（胶囊 `[capsule]` 行的轨道号，
+  0 普通 / 1 奶系），与 `internal/loot/boostup_training.go` 里 `[buffer reward]` 用的判据是同一个量。
+- `cmd/wireprobe/boostup_flow_test.go`、`internal/game/protocol/boostup_frames115_test.go`：补 `mode=1`
+  编码与奶系轨下发用例。
+
+### 未修复 / 未闭环
+- **业主实机「第二关可进」验收尚未做**，本节是候选记录，不得当已确认（`AGENTS.md` §0 第 7 条）。
+- 取证产物按业主裁决**不入库**：`analysis/dumps/boost-buffer-route/`、`server/work/dfo-lan/.tmp/boost-step4/`
+  只在本机存在，代码注释里引用的 dump 路径在仓库内不可解析。
+- 老存档已落库的 `mode` 值无需迁移（取值域只放宽不收窄，`0` 仍是普通轨）；`mode=2` 与「已结束」的
+  边界本轮未触碰。
+
+### bug 测试取证
+- `go build ./...` exit 0；`go vet ./...` exit 0 且无输出；`go test ./... -count=1` exit 0（45 个包 ok）；
+  `go test -run Boost ./cmd/wireprobe ./internal/game/protocol` 两包 ok。
+- 提交前门禁 `scripts/check-commit-hygiene.ps1` exit 2，唯一命中 `[环境不匹配] configs/pvf-default.json`
+  → `bin/wireprobe-pvf.exe` 在本机不存在（新克隆不含未入库 exe），与本次暂存文件无关，业主授权按现状提交。
+
 ## 2026-10-07：强化/增幅光效等级投影（EntryBasicProbe / AppearanceProbe）—— **业主已实机确认**
 
 依据 `强化特效逻辑说明.md` §4：客户端 reader `145639840` 从外观行 offset 9 读取打包的
