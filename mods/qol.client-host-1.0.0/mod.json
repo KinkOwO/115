@@ -1,0 +1,25 @@
+{
+  "schema": 2,
+  "id": "qol.client-host",
+  "version": "1.0.0",
+  "name": "客户端DLL框架",
+  "author": "DFO 115us",
+  "description": "支持dll扩展",
+  "permissions": [
+    "client.file.write"
+  ],
+  "layers": {
+    "client": {
+      "ops": [
+        {
+          "kind": "file.add",
+          "target": "ChineseLocalization.dll",
+          "source": "client/ChineseLocalization.dll",
+          "size": 166400,
+          "sha256": "d674c078651acf73cfa8d7bf396c41511c9e6e84463749232660296b6e45807c",
+          "note": "客户端自带的 dinput8.dll 代理会自动加载本文件并调用 StartLocalization；插件从 <客户端>\\.115us-mods\\ 读。卸载即逐字节删除。"
+        }
+      ]
+    }
+  }
+}
