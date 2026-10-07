@@ -96,7 +96,7 @@ func (w *worldSession) giveFavor(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
-	refresh, e := accountMaterialRefreshPackets(materials, saved)
+	refresh, e := accountMaterialRefreshPackets(materials, saved, w.activeDungeon != nil)
 	if e != nil {
 		return nil, e
 	}

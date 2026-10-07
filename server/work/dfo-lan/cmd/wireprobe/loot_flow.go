@@ -96,7 +96,7 @@ func (w *worldSession) finishPickup(ctx context.Context, saved database.Characte
 	// NOTI39 applies the displayed delta first; the absolute committed balance
 	// follows it, avoiding double-counting and repairing retried pickups.
 	if isAccountMaterial {
-		refresh, e := accountMaterialRefreshPackets(materials, saved)
+		refresh, e := accountMaterialRefreshPackets(materials, saved, w.activeDungeon != nil)
 		if e != nil {
 			return nil, e
 		}

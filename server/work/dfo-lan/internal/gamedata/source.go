@@ -304,6 +304,12 @@ func (s *Source) Progression(path string) (catalog.Progression, error) {
 	return catalog.ImportProgression(s.archive)
 }
 
+// MaxLevelReward reads etc/titlebook.etc's [maxlevel reward], the source's own
+// definition of what every character receives on reaching the level cap.
+func (s *Source) MaxLevelReward(index catalog.ItemIndex) (*catalog.MaxLevelReward, error) {
+	return catalog.ImportMaxLevelReward(s.archive, index)
+}
+
 func (s *Source) ItemIndex(path string) (catalog.ItemIndex, error) {
 	if s.mode != PVF {
 		return catalog.ItemIndex{}, fmt.Errorf("item index requires native PVF")

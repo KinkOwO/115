@@ -2,6 +2,7 @@ package character
 
 import (
 	"context"
+	"dfolan/internal/boostup"
 	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
@@ -18,11 +19,14 @@ type ProgressionService struct {
 	Odyssey           *catalog.OdysseyGrowth
 	Chapters          *catalog.OdysseyChapters
 	CompletionRewards *catalog.OdysseyCompletionRewards
+	MaxLevelReward    *catalog.MaxLevelReward
 	CompletionAwarder *inventory.Awarder
 	Store             ProgressionStore
 	Catalog           catalog.Progression
 	Professions       catalog.Characters
 	Rules             GrowthRules
+	// Boost 是活动 662 的源目录；为 nil 时通关事件不带活动计数。
+	Boost *boostup.Catalog
 	// Rewards is the optional event-triggered reward notifier. Domains only
 	// notify after a committed success; nil disables the feature.
 	Rewards reward.Notifier

@@ -104,50 +104,6 @@ func containsString(list []string, want string) bool {
 	return false
 }
 
-func TestSQLiteSchemaCoversPostgres(t *testing.T) {
-	pgRaw, err := fs.ReadFile(migrationSQL, initialMigrationFile)
-	if err != nil {
-		t.Fatalf("read PostgreSQL schema: %v", err)
-	}
-	liteRaw, err := fs.ReadFile(sqliteMigrationSQL, sqliteInitialMigrationFile)
-	if err != nil {
-		t.Fatalf("read SQLite schema: %v", err)
-	}
-	pgTables, pgIndexes := parseDDL(pgRaw)
-	liteTables, liteIndexes := parseDDL(liteRaw)
-	if len(pgTables) == 0 {
-		t.Fatal("parsed no PostgreSQL tables; the parser or the schema layout changed")
-	}
-
-	var problems []string
-	for table, columns := range pgTables {
-		liteColumns, ok := liteTables[table]
-		if !ok {
-			problems = append(problems, "table missing from the SQLite fork: "+table)
-			continue
-		}
-		for _, column := range columns {
-			if !containsString(liteColumns, column) {
-				problems = append(problems, fmt.Sprintf("%s: column missing from the SQLite fork: %s", table, column))
-			}
-		}
-	}
-	for table := range liteTables {
-		if _, ok := pgTables[table]; !ok {
-			problems = append(problems, "table exists only in the SQLite fork: "+table)
-		}
-	}
-	for index := range pgIndexes {
-		if !liteIndexes[index] {
-			problems = append(problems, "index missing from the SQLite fork: "+index)
-		}
-	}
-	if len(problems) > 0 {
-		t.Fatalf("schema parity broken (%d problem(s)):\n  %s", len(problems), strings.Join(problems, "\n  "))
-	}
-	t.Logf("schema parity: %d tables and %d indexes mirrored", len(pgTables), len(pgIndexes))
-}
-
 // TestSQLiteMigrationSectionsCoverFile keeps the explicit section list and the
 // migration file from drifting apart: a section added to the file but not to the
 // list would never be applied, and the failure would only show up as a missing
@@ -177,10 +133,11 @@ func TestSQLiteMigrationSectionsCoverFile(t *testing.T) {
 // TestSQLDialectFilesAreASCII enforces design note D23. sqlc v1.31.1's sqlite
 // engine mis-parses a statement whose file contains a non-ASCII byte anywhere -
 // including inside a comment - and reports single-character "extraneous input"
-// errors that point nowhere near the real cause. Both dialect trees are ASCII
-// today; this keeps it that way.
+// errors that point nowhere near the real cause. The SQLite dialect tree is ASCII
+// today; this keeps it that way. (The PostgreSQL tree was the other half of this
+// walk until the engine was removed on 2026-10-05.)
 func TestSQLDialectFilesAreASCII(t *testing.T) {
-	for _, dir := range []string{"sql/postgres", "sql/sqlite"} {
+	for _, dir := range []string{"sql/sqlite"} {
 		err := filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
 			if err != nil {
 				return err

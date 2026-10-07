@@ -30,6 +30,16 @@ import (
 //go:embed scripts/*.lua
 var bundledScripts embed.FS
 
+// BundledScripts exposes the same embedded rule set used by New, with Lua
+// files at the filesystem root so callers can compose it with mod scripts.
+func BundledScripts() fs.FS {
+	src, err := fs.Sub(bundledScripts, "scripts")
+	if err != nil {
+		return nil
+	}
+	return src
+}
+
 // GrantFunc persists a set of item grants for one recipient under a stable key.
 type GrantFunc func(ctx context.Context, r Recipient, key string, items []ItemGrant) error
 
@@ -45,20 +55,24 @@ type Options struct {
 	Grant   GrantFunc
 	Mail    MailFunc
 	Cera    CeraFunc
-	Log     func(format string, args ...any)
+	// Entitlements persists character-detail fields that are not items
+	// (equip-slot padlocks, bag/avatar expansion tiers, revive coins).
+	Entitlements EntitlementFunc
+	Log          func(format string, args ...any)
 }
 
 // Service implements Notifier over one gopher-lua LState. All Lua execution is
 // serialized because a single LState is not concurrency-safe.
 type Service struct {
-	mu        sync.Mutex
-	state     *lua.LState
-	scripts   []script
-	grant     GrantFunc
-	mail      MailFunc
-	cera      CeraFunc
-	log       func(format string, args ...any)
-	collector *collector
+	mu           sync.Mutex
+	state        *lua.LState
+	scripts      []script
+	grant        GrantFunc
+	mail         MailFunc
+	cera         CeraFunc
+	entitlements EntitlementFunc
+	log          func(format string, args ...any)
+	collector    *collector
 	// pending collects the handlers a script registers through on() while that
 	// script is being loaded; it is only touched during New.
 	pending map[string]*lua.LFunction
@@ -86,7 +100,7 @@ func New(opts Options) (*Service, error) {
 	if len(files) == 0 {
 		return nil, fmt.Errorf("reward: no lua scripts")
 	}
-	s := &Service{grant: opts.Grant, mail: opts.Mail, cera: opts.Cera, log: opts.Log}
+	s := &Service{grant: opts.Grant, mail: opts.Mail, cera: opts.Cera, entitlements: opts.Entitlements, log: opts.Log}
 	if s.log == nil {
 		s.log = func(string, ...any) {}
 	}
@@ -179,6 +193,24 @@ func (s *Service) flush(ctx context.Context, ev Event, scriptName string, c *col
 		default:
 			if err := s.cera(ctx, ev.Recipient, key, c.cera); err != nil {
 				s.logf("reward: cera %s failed: %v", key, err)
+			}
+		}
+	}
+	// 角色待遇（存档字段与独立表，不是物品）：挂锁 / 扩容档位 / 复活币 / 宠物 / 金库 /
+	// 账号材料仓 / 皮肤仓库。都是**先收集、事件处理完由服务端分派落库**，共用同一套稳定键语义。
+	//
+	// 键只到这里为止（`:state`）；账号级那几项（金库/材料仓/皮肤）由服务端的 applier 在
+	// 自己的事务里再派生后缀（例如 `:state:account-vault`），因为它们走的是别的幂等表。
+	if !c.ents.Empty() {
+		key := baseKey(ev, scriptName) + ":state"
+		switch {
+		case s.entitlements == nil:
+			s.logf("reward entitlement capability is not configured")
+		case len(key) > maxKeyLength:
+			s.logf("reward: entitlement key too long for %s", scriptName)
+		default:
+			if err := s.entitlements(ctx, ev.Recipient, key, c.ents); err != nil {
+				s.logf("reward: entitlements %s failed: %v", key, err)
 			}
 		}
 	}

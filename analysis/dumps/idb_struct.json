@@ -1218,7 +1218,1311 @@
     },
     "evidence": "1471c6bb2 case6577 source[pvp channel limit npc]14b22fb38;1471cea67..ceaaf inserts integer IDs;146d00a80 applies show/hide by scene channel-property3 predicate; partial layout"
   },
-  "NativeHitExecutionContextPartial115": {
+  "DungeonPathGateFields115": {
+    "pending_condition_count": {"type": "int32", "offset": 3184},
+    "hunt_condition_templates": {"type": "uint32 vector begin/capacity/end at 3216/3224/3232", "offset": 3216},
+    "condition_passed_flag": {"type": "int32", "offset": 8056},
+    "legacy_clear_flag": {"type": "int32", "offset": 6264},
+    "evidence": "static20261004: 145B1C330 copies def Src+1156/1160 vec into dungeon+0xC90 (3216) and count into dungeon+0xC70 (3184, def dword576); NOTI312 handler 1452FF500 reads <u32 conditionID><u8 completed> from body then unconditionally sets dungeon+6264=1 and 145B45200/145B459E0 write dungeon+0x1F78=1 (8056, sole writers); gate tick 14614E440 blocks open animation while 0xC70!=0 unless 0x1F78 set; getter 145B34D20"
+    },
+    "contribution_list": {
+      "type": "native_vector_ptr<record36>",
+      "offset": 472
+    },
+    "attacker_weak_control": {
+      "type": "weak_control_ptr",
+      "offset": 584
+    },
+    "attacker_weak_view": {
+      "type": "actor_view_ptr",
+      "offset": 592
+    },
+    "character_weak_control": {
+      "type": "weak_control_ptr",
+      "offset": 680
+    },
+    "character_weak_view": {
+      "type": "actor_view_ptr",
+      "offset": 688
+    },
+    "victim_weak_control": {
+      "type": "weak_control_ptr",
+      "offset": 704
+    },
+    "victim_weak_view": {
+      "type": "actor_view_ptr",
+      "offset": 712
+    },
+    "attack_context_value": {
+      "type": "uint32",
+      "offset": 720
+    },
+    "prepared_attack_data": {
+      "type": "void_ptr",
+      "offset": 728
+    },
+    "contact_box": {
+      "type": "NativeBoundingBoxFields115_ptr",
+      "offset": 768
+    },
+    "native_hit_flag": {
+      "type": "uint8",
+      "offset": 776
+    },
+    "damage_multiplier": {
+      "type": "float32",
+      "offset": 864
+    },
+    "calculation_mode": {
+      "type": "int32",
+      "offset": 892
+    },
+    "evidence": "14665B5D0/145C26FC0/145D61D10/145D59330;views subtract48 only after live weak control;flag and packed formula/source semantics partial;static20261005,not runtime schema"
+  },
+  "ActorHPStorageFieldsPartial115": {
+    "native_hp": {
+      "type": "protected_int64",
+      "offset": 21576
+    },
+    "evidence": "Base/Archer4888=145C14120;3008=145C19920;3000=145C76E60;5320=145C36C10;raw write in145C3ADD0 through4888 result;subclass/mode guards retained,static20261005"
+  },
+  "ActorDamageStatisticsComponentPartial115": {
+    "attribute_type0_base": {
+      "type": "native_protected_int32",
+      "offset": 152
+    },
+    "attribute_type0_ratio": {
+      "type": "native_protected_float32",
+      "offset": 160
+    },
+    "attribute_type1_base": {
+      "type": "native_protected_int32",
+      "offset": 184
+    },
+    "attribute_type1_ratio": {
+      "type": "native_protected_float32",
+      "offset": 192
+    },
+    "weapon_type0_base": {
+      "type": "native_protected_int32",
+      "offset": 920
+    },
+    "weapon_type0_ratio": {
+      "type": "native_protected_float32",
+      "offset": 928
+    },
+    "weapon_type1_base": {
+      "type": "native_protected_int32",
+      "offset": 952
+    },
+    "weapon_type1_ratio": {
+      "type": "native_protected_float32",
+      "offset": 960
+    },
+    "weapon_type0_second_ratio": {
+      "type": "native_protected_float32",
+      "offset": 984
+    },
+    "weapon_type1_second_ratio": {
+      "type": "native_protected_float32",
+      "offset": 992
+    },
+    "percent_type0": {
+      "type": "native_protected_int32",
+      "offset": 1168
+    },
+    "percent_type1": {
+      "type": "native_protected_int32",
+      "offset": 1184
+    },
+    "attribute_addition": {
+      "type": "native_protected_int32",
+      "offset": 2040
+    },
+    "base_damage_addition": {
+      "type": "native_protected_int32",
+      "offset": 2048
+    },
+    "evidence": "Base/Archer virtual4808(3);getter slots2752/2760/2768/2792/2800/2808/4576/4584;147222170/1472216D0/1472207D0/1472203D0;source writes pending;ida-damage-inputs-final,static20261005."
+  },
+  "PreparedATKDamageFieldsPartial115": {
+    "raw_damage": {
+      "type": "native_protected_float32",
+      "offset": 0
+    },
+    "damage_increase_rate": {
+      "type": "native_protected_float32",
+      "offset": 8
+    },
+    "absolute_damage": {
+      "type": "native_protected_int32",
+      "offset": 24
+    },
+    "damage_bonus": {
+      "type": "native_protected_int32",
+      "offset": 32
+    },
+    "parent_final_defence_rate": {
+      "type": "native_protected_float32",
+      "offset": 124
+    },
+    "weapon_damage_apply": {
+      "type": "int32",
+      "offset": 144
+    },
+    "attack_enemy": {
+      "type": "int32",
+      "offset": 292
+    },
+    "attack_type": {
+      "type": "int32",
+      "offset": 300
+    },
+    "native_mode": {
+      "type": "int32",
+      "offset": 432
+    },
+    "raw_return_flag": {
+      "type": "uint8",
+      "offset": 944
+    },
+    "raw_override_flag": {
+      "type": "uint8",
+      "offset": 969
+    },
+    "raw_override_value": {
+      "type": "native_protected_float32",
+      "offset": 972
+    },
+    "parent_rate_flags": {
+      "type": "uint8",
+      "offset": 992
+    },
+    "evidence": "147823250 OWN tag dispatch:142 absolute+24,146 bonus+32 unchanged,151 bonus-new subtract100 then+32;1474B1F20 reset;4 PE code spans matched authority IDB;ParseAttackDamageSource ordinary0..3 scalar subset;145D6C940 raw movss,145D89960 full owner input preparation pending;ida-atk-damage-fields-verified,static20261005."
+  },
+  "NativeActorStatisticsStagesPartial115": {
+    "base_component": {
+      "type": "ActorDamageStatisticsComponentPartial115",
+      "offset": 9064
+    },
+    "stage1_component": {
+      "type": "ActorDamageStatisticsComponentPartial115",
+      "offset": 12192
+    },
+    "stage2_component": {
+      "type": "ActorDamageStatisticsComponentPartial115",
+      "offset": 15320
+    },
+    "stage3_component": {
+      "type": "ActorDamageStatisticsComponentPartial115",
+      "offset": 18448
+    },
+    "alternate_effective_component": {
+      "type": "ActorDamageStatisticsComponentPartial115",
+      "offset": 75856
+    },
+    "recompute_gate_byte": {
+      "type": "uint8",
+      "offset": 28154
+    },
+    "recompute_gate_bits": {
+      "type": "uint8",
+      "offset": 28408
+    },
+    "evidence": "145C14140/145CD0E50/145C11AD0/145C11D20;normal stages are overwritten and modified by nativeeffects;alternate selection14352B910;ida-stat-writes-complete and pe-stat-unwind-verified;partial,static20261005."
+  },
+  "NativeBaseDamageMathInputsPartial115": {
+    "raw_damage": {
+      "type": "float32",
+      "offset": 0
+    },
+    "weapon_damage_apply": {
+      "type": "uint8",
+      "offset": 4
+    },
+    "attack_type": {
+      "type": "uint8",
+      "offset": 5
+    },
+    "prepared_damage_bonus_percent": {
+      "type": "float32",
+      "offset": 6
+    },
+    "enabled_elements": {
+      "type": "uint8[4]",
+      "offset": 10
+    },
+    "weapon_damage_type0": {
+      "type": "float32",
+      "offset": 67
+    },
+    "weapon_damage_type1": {
+      "type": "float32",
+      "offset": 71
+    },
+    "weapon_bonus_type0": {
+      "type": "float32",
+      "offset": 75
+    },
+    "weapon_bonus_type1": {
+      "type": "float32",
+      "offset": 79
+    },
+    "attribute_type0": {
+      "type": "float32",
+      "offset": 83
+    },
+    "attribute_type1": {
+      "type": "float32",
+      "offset": 87
+    },
+    "element_defence": {
+      "type": "int32[4]",
+      "offset": 172
+    },
+    "element_defence_scale": {
+      "type": "float32",
+      "offset": 188
+    },
+    "native_mode": {
+      "type": "uint8",
+      "offset": 263
+    },
+    "element_flags": {
+      "type": "uint32",
+      "offset": 283
+    },
+    "before_attribute_addition": {
+      "type": "float32",
+      "offset": 321
+    },
+    "attribute_rate_type0": {
+      "type": "float32",
+      "offset": 329
+    },
+    "attribute_rate_type1": {
+      "type": "float32",
+      "offset": 333
+    },
+    "base_multiplier": {
+      "type": "float32",
+      "offset": 337
+    },
+    "owner_category": {
+      "type": "int32",
+      "offset": 406
+    },
+    "owner_flat_addition": {
+      "type": "float32",
+      "offset": 410
+    },
+    "owner_reduction_percent": {
+      "type": "int32",
+      "offset": 414
+    },
+    "evidence": "1466317B0/146631390 SSE and matched PE chains;145D89960 owner/actor/ATK projection and145D62040 ownerCategory updates;partial inputs,not native wire layout;complete source/modifier binding pending;damagecore20261005."
+  },
+  "NativeDefenceCriticalMathInputsPartial115": {
+    "attack_type": {
+      "type": "uint8",
+      "offset": 5
+    },
+    "critical_chance": {
+      "type": "float32",
+      "offset": 35
+    },
+    "physical_defence": {
+      "type": "int32",
+      "offset": 192
+    },
+    "physical_defence_bonus": {
+      "type": "int32",
+      "offset": 196
+    },
+    "physical_flat_percent": {
+      "type": "float32",
+      "offset": 200
+    },
+    "magical_defence": {
+      "type": "int32",
+      "offset": 204
+    },
+    "magical_defence_bonus": {
+      "type": "int32",
+      "offset": 208
+    },
+    "magical_flat_percent": {
+      "type": "float32",
+      "offset": 212
+    },
+    "critical_result": {
+      "type": "uint8",
+      "offset": 291
+    },
+    "random_seed": {
+      "type": "uint32",
+      "offset": 296
+    },
+    "back_attack": {
+      "type": "uint8",
+      "offset": 301
+    },
+    "special_defence_basis": {
+      "type": "uint8",
+      "offset": 303
+    },
+    "defence_penetration": {
+      "type": "float32",
+      "offset": 422
+    },
+    "accumulated_reduction": {
+      "type": "float32",
+      "offset": 430
+    },
+    "defence_scale": {
+      "type": "float32",
+      "offset": 442
+    },
+    "defence_context_cap": {
+      "type": "float32",
+      "offset": 446
+    },
+    "evidence": "146632060/1466324F0/14662FE60/14662FFD0 verified full SSE and PE chained ranges;outer146630410 copiesseed296 into v96,fluctuation copiesv96 to separatev97 whilecriticalusesv96;neitherwritesback296;partial internal math context,not wire or actor layout;source actor input projection pending;static20261005."
+  },
+  "NativeFinalDamageMathInputsPartial115": {
+    "hit_percent": {
+      "type": "int32",
+      "offset": 292
+    },
+    "damage_result": {
+      "type": "int64",
+      "offset": 304
+    },
+    "owner_rate": {
+      "type": "float32",
+      "offset": 147
+    },
+    "owner_addition": {
+      "type": "int32",
+      "offset": 151
+    },
+    "wide_rate": {
+      "type": "float64",
+      "offset": 156
+    },
+    "wide_enabled": {
+      "type": "uint8",
+      "offset": 164
+    },
+    "always_applied_rate": {
+      "type": "float32",
+      "offset": 251
+    },
+    "post_percent_addition": {
+      "type": "float32",
+      "offset": 317
+    },
+    "above_one_rate": {
+      "type": "float32",
+      "offset": 393
+    },
+    "positive_addition": {
+      "type": "int32",
+      "offset": 385
+    },
+    "positive_override": {
+      "type": "int32",
+      "offset": 389
+    },
+    "raw_result": {
+      "type": "uint8",
+      "offset": 436
+    },
+    "evidence": "146630410 completeSSE/13 matchedPEchains;1466304AA and14663133A CVTTSS2SI RAX,64bit signedstore304,HexRays castswrong;wideCVTSS2SD/MULSD/CVTSD2SS;higher145D61D10 conditionalminimumone separate;not wire/actorlayout;native source/modifier projection andlife gates pending,static20261005."
+  },
+  "NativeOwnerContributionMathContextPartial115": {
+    "minimum_one": {
+      "type": "uint8",
+      "offset": 155
+    },
+    "owner_contribution_rate": {
+      "type": "float32",
+      "offset": 426
+    },
+    "suppress_projection_adjustments": {
+      "type": "uint8",
+      "offset": 434
+    },
+    "suppress_owner_contribution": {
+      "type": "uint8",
+      "offset": 435
+    },
+    "primary_result": {
+      "type": "int64",
+      "offset": 480
+    },
+    "owner_result": {
+      "type": "int64",
+      "offset": 488
+    },
+    "owner_weak_reference": {
+      "type": "native_weak_control_pointer",
+      "offset": 632
+    },
+    "owner_weak_view": {
+      "type": "native_actor_view_pointer",
+      "offset": 640
+    },
+    "source_key": {
+      "type": "int32",
+      "offset": 720
+    },
+    "original_hit_percent": {
+      "type": "int32",
+      "offset": 756
+    },
+    "calculation_mode": {
+      "type": "int32",
+      "offset": 892
+    },
+    "evidence": "145D61D10/145D89960 fullSSE andmatchedPE;14662F3E0matchedleafprefixcopieswideandseed;145C19100effectiveinputsseparate;Go CalculateHitDamage arithmeticonly,source/actor/HPpending;notwirelayout,static20261005."
+  },
+  "NativeOwnerContributionEffectiveComponentPartial115": {
+    "base": {
+      "type": "native_protected_float32",
+      "offset": 2984
+    },
+    "percent": {
+      "type": "native_protected_float32",
+      "offset": 3000
+    },
+    "evidence": "147220310/147220370matchedPEgetters;145C19100master4808(3)effectivecomponent,notrawsavedstats;writers/sourcebindingpending,static20261005."
+  },
+  "NativeOwnerContributionMasterPartial115": {
+    "base": {
+      "type": "native_protected_float32",
+      "offset": 26728
+    },
+    "percent": {
+      "type": "native_protected_float32",
+      "offset": 26744
+    },
+    "evidence": "145C19100matchedPEreadsthrough1984masterreference,combinedwitheffectivecomponent;writers/sourcebindingpending,static20261005."
+  },
+  "ActorHPLifeStoragePartial115": {
+    "hp": {
+      "type": "native_protected_int64",
+      "offset": 0
+    },
+    "hp_checksum": {
+      "type": "uint32",
+      "offset": 8
+    },
+    "current_life_count": {
+      "type": "native_protected_uint8",
+      "offset": 24
+    },
+    "life_count_checksum": {
+      "type": "uint32",
+      "offset": 28
+    },
+    "last_network_life_update_clock": {
+      "type": "native_protected_uint32",
+      "offset": 32
+    },
+    "life_update_clock_checksum": {
+      "type": "uint32",
+      "offset": 36
+    },
+    "evidence": "145C14120 returnsactor21576;145C19920/145C1A400/145C06950 getters/writer PE matched;network life updates require uint32elapsed>1000;not inventory or persistence schema,static20261005."
+  },
+  "ActorDeathCommitFieldsPartial115": {
+    "committed_dead_flag": {
+      "type": "native_protected_int32",
+      "offset": 24712
+    },
+    "dead_flag_checksum": {
+      "type": "uint32",
+      "offset": 24716
+    },
+    "death_action_list_begin": {
+      "type": "native_pointer",
+      "offset": 27984
+    },
+    "death_action_list_end": {
+      "type": "native_pointer",
+      "offset": 27992
+    },
+    "pending_death_action": {
+      "type": "native_pointer",
+      "offset": 28008
+    },
+    "deferred_death_script": {
+      "type": "native_string_partial",
+      "offset": 28136
+    },
+    "evidence": "145C21870 read/145C39E10 write matchedPE;deferred script/effects/action manager mayreturn beforecommit;independent ofHPzero;nativepartial object layout,notwire/save schema,static20261005."
+  },
+  "ActorHPWriteGuardsPartial115": {
+    "damage_veto_flag": {
+      "type": "native_protected_uint8",
+      "offset": 4468
+    },
+    "hp_cap_enabled": {
+      "type": "uint8",
+      "offset": 27176
+    },
+    "cached_hp_cap": {
+      "type": "int64",
+      "offset": 27184
+    },
+    "desired_hp_gate_flag": {
+      "type": "uint8",
+      "offset": 28457
+    },
+    "evidence": "145C2F980/145C3ADD0/145C36C10 fullPE matched;gates prevent or modify actualHP writes;source writers pending,no defaultpolicy invented,static20261005."
+  },
+  "ActorMaximumLifeCountEffectiveStatsPartial115": {
+    "maximum_life_count": {
+      "type": "native_protected_uint8",
+      "offset": 144
+    },
+    "maximum_life_checksum": {
+      "type": "uint32",
+      "offset": 148
+    },
+    "evidence": "145C1A470 matchedPE getter fromvirtual4808(3)effectivecomponent;source writers pending,not bot virtual item stock,static20261005."
+  },
+  "CharacterNativeStateResetFieldsPartial115": {
+    "death_callback_byte": {
+      "type": "uint8",
+      "offset": 24721
+    },
+    "native_player_state_code": {
+      "type": "int32",
+      "offset": 29696
+    },
+    "reset_flag": {
+      "type": "uint8",
+      "offset": 70915
+    },
+    "coin_use_presentation_enabled": {
+      "type": "uint8",
+      "offset": 71176
+    },
+    "coin_use_presentation_view": {
+      "type": "native_shared_view_pointer",
+      "offset": 71184
+    },
+    "coin_use_presentation_control": {
+      "type": "native_shared_control_pointer",
+      "offset": 71192
+    },
+    "coin_use_presentation_action": {
+      "type": "native_pointer",
+      "offset": 71200
+    },
+    "evidence": "145C39870/145D359C0/145CE7040/145D349E0/145D3E720 matchedPE;NOTI32 andUDP30 consumers separate;protected committeddeadflag24712 notstatecode;source/live behavior pending,notwire/save schema,static20261005. 7760/145D3A1F0 andnative STAMINA_RECOVER writers confirm69440 isstamina;doesnotdefinecoin charge.",
+    "stamina_percent": {
+      "type": "native_protected_int32",
+      "offset": 69440
+    }
+  },
+  "CharacterCoinRequestIdentityPartial115": {
+    "request_flag": {
+      "type": "uint8",
+      "offset": 70914
+    },
+    "native_participant_identity": {
+      "type": "uint32",
+      "offset": 74020
+    },
+    "evidence": "145CF6C20/145CE2860 fullmatchedleafbytes;C2S41 UI writesuint16 identity,8464 flagnot inventory count;partial actorlayout,notwire/save schema. static20261005."
+  },
+  "DungeonCoinRulesFieldsPartial115": {
+    "coin_limit": {
+      "type": "int32",
+      "offset": 1616
+    },
+    "character_coin_limit": {
+      "type": "int32",
+      "offset": 1620
+    },
+    "revive_hp_rate": {
+      "type": "int32",
+      "offset": 8168
+    },
+    "revive_mp_rate": {
+      "type": "int32",
+      "offset": 8172
+    },
+    "evidence": "147444B30 owncases2671/2675/10602,selectedmatchedPEblocks;defaults/unit/consumerbinding pending;partial nativelayout notcontenttable/wire/save schema. static20261005."
+  },
+  "MapCoinRulesFieldsPartial115": {
+    "cannot_use_coin": {
+      "type": "uint8",
+      "offset": 8280
+    },
+    "no_revival_timer_limit": {
+      "type": "uint8",
+      "offset": 8312
+    },
+    "evidence": "1471C2FD0 owncases6859/6867,selectedmatchedPEblocks;currentworldSession readscannot use coin map fromsameSource;partial nativelayout notruntimecontent. static20261005."
+  },
+  "ActorCharacterAttackInfoFields115": {
+    "default_attack_values_begin": {
+      "type": "native_atk1040*",
+      "offset": 22344
+    },
+    "default_attack_values_end": {
+      "type": "native_atk1040*",
+      "offset": 22352
+    },
+    "default_attack_values_capacity": {
+      "type": "native_atk1040*",
+      "offset": 22360
+    },
+    "growtype_attack_values_tree_header": {
+      "type": "native_int32_atk1040_map*",
+      "offset": 23408
+    },
+    "growtype_attack_values_tree_count": {
+      "type": "uint64",
+      "offset": 23416
+    },
+    "raw_growtype": {
+      "type": "uint32",
+      "offset": 30196
+    },
+    "definition_fallback": {
+      "type": "void*",
+      "offset": 73416
+    },
+    "extension_tree_header": {
+      "type": "void*",
+      "offset": 74144
+    },
+    "evidence": "145CFB240 same CHR6880/6960;grow1..5 filter,index+10*grow int32key,duplicateassign;145CDAB80 extension1808 then map/default145C17470 then grow+481 skill modifier145EE8B40;virtual5808/rawgrow4848 in14A951340 matchedPE;distinct generic shared16 values;class/weapon/nativeX caller pending;partial layout notwire/save schema static20261005"
+  },
+  "ActorCurrentAttackInfoFields115": {
+    "current_attack_info": {
+      "type": "native_atk1040",
+      "offset": 2600
+    },
+    "evidence": "145C5C2E0 case8 -> virtual5808(stage) ->2496/145D30370 ->145C39CE0 ->145D834F0 copy1474B0D00 orreset1474B1F20 atactor2600;5776/5784/5800 hooks;PEfullbytesmatch;notwire/save layout,actor native substitutions andmodifiers incomplete static20261005"
+  },
+  "BasicAttackDamageQueryFieldsPartial115": {
+    "query_name": {
+      "type": "native_wstring32",
+      "offset": 0
+    },
+    "factor": {
+      "type": "float32",
+      "offset": 40
+    },
+    "named_attack_index": {
+      "type": "int32",
+      "offset": 32
+    },
+    "damage_kind": {
+      "type": "int32",
+      "offset": 52
+    },
+    "attack_names_begin": {
+      "type": "native_wstring32*",
+      "offset": 56
+    },
+    "attack_names_end": {
+      "type": "native_wstring32*",
+      "offset": 64
+    },
+    "requested_repeat_count": {
+      "type": "int32",
+      "offset": 96
+    },
+    "evidence": "145EB5330 deepclone;145EC9860 factor/kind and145EE8B40 XMMfloatABI;145EC8670 resolves namedindex32 then named/no-list branch signed-min query96 with normalizedcount,DIVSS thenMULSS;fullPEbytes;partialnativequery,notwire/save/content static20261005."
+  },
+  "SkillDamageGroupFieldsPartial115": {
+    "group_type": {
+      "type": "int32",
+      "offset": 0
+    },
+    "grow_conditions": {
+      "type": "native_int32_vector24",
+      "offset": 8
+    },
+    "skill_conditions": {
+      "type": "native_int32_vector24",
+      "offset": 32
+    },
+    "third_conditions_unbound": {
+      "type": "native_int32_vector24",
+      "offset": 56
+    },
+    "weapon_conditions": {
+      "type": "native_int32_vector24",
+      "offset": 80
+    },
+    "base_attack_map": {
+      "type": "native_int32_float_map16",
+      "offset": 104
+    },
+    "sub_attack_map": {
+      "type": "native_int32_float_map16",
+      "offset": 120
+    },
+    "multi_hit_map": {
+      "type": "native_int32_multihit_map16",
+      "offset": 136
+    },
+    "evidence": "145EDA9E0 stride160 fourconditions;1476CCAC0 and1476CD270 sourcepreparation;145EC8670 distinctbase/sub selection and136multi-hit map;thirdsourceandcompletegroupsemantics pending static20261005."
+  },
+  "SkillDamageInfoDefinitionFieldsPartial115": {
+    "damage_scalar": {
+      "type": "float32",
+      "offset": 0
+    },
+    "attack_id_map": {
+      "type": "native_int32_attack_record_map16",
+      "offset": 8
+    },
+    "attack_name_map": {
+      "type": "native_shared_wstring_int32_map16",
+      "offset": 24
+    },
+    "damage_groups": {
+      "type": "native_damage_group_vector24",
+      "offset": 40
+    },
+    "use_basic_attack_all": {
+      "type": "uint8",
+      "offset": 64
+    },
+    "evidence": "1476CD270 resets maps/groups/scalar/all atentry;own attack-list case3854 allocates numericID frommap count+16,appends even duplicate names,namemap firstID retained;own basic-list case3922 setsnumericnode84=1 onlypredeclaredname;group binding prefix only;fullPEbytes frombasicdamageinfo;notwire/save/profile-ready static20261005.145EB8960 deepcopiesauxmap72 as well;Source tag/consumer pending static20261005.",
+    "auxiliary_map_unbound": {
+      "type": "native_map16",
+      "offset": 72
+    }
+  },
+  "DamageAttackNameNodeFieldsPartial115": {
+    "name": {
+      "type": "native_shared_wstring16",
+      "offset": 32
+    },
+    "attack_index": {
+      "type": "int32",
+      "offset": 48
+    },
+    "evidence": "1476CF91E assignexactname,CF929 storescurrentnumericcount;146E8DAB0 exactUTF16 less;duplicate treeentry destroysnewnode withoutID replacement;partial tree node,notwire/save layout static20261005."
+  },
+  "DamageGroupMultiHitValuePartial115": {
+    "kind": {
+      "type": "int32",
+      "offset": 0
+    },
+    "count": {
+      "type": "int32",
+      "offset": 4
+    },
+    "parameter_unbound": {
+      "type": "int32",
+      "offset": 8
+    },
+    "derived_parameter_index": {
+      "type": "int32",
+      "offset": 12
+    },
+    "evidence": "1476B3B50 nodekey28/value32,constructor3/1/0/-1;1476CD270 owncase4076 reads name/kind/twoints,count!=-1 andnamefound only,knownkind0/1/2 elsepreserves;count/param overwritten,derivedreset-1;145EC8670 derived>=0 evaluates145ED2690 and count slot5;parameter binding pending,notwire/save/content static20261005."
+  },
+  "SkillDamageGroupRank115": {
+    "grow_match": {
+      "type": "uint8",
+      "offset": 0
+    },
+    "reserved_rank": {
+      "type": "int32",
+      "offset": 4
+    },
+    "third_or_weapon_match": {
+      "type": "uint8",
+      "offset": 8
+    },
+    "skill_condition_count": {
+      "type": "int32",
+      "offset": 12
+    },
+    "evidence": "1476B3D80 completeleaf38PE/IDBbytes;145EDA9E0 setsrank flags/count;tiesretainfirst,notwire/save layout static20261005."
+  },
+  "SkillDefinitionDamageFieldsPartial115": {
+    "damage_info": {
+      "type": "SkillDamageInfoDefinitionFieldsPartial115",
+      "offset": 3096
+    },
+    "potential_damage_info_unbound": {
+      "type": "native_potential_info112",
+      "offset": 3184
+    },
+    "damage_kind_by_grow": {
+      "type": "int32[6]",
+      "offset": 3296
+    },
+    "original_attack_type": {
+      "type": "int32",
+      "offset": 3320
+    },
+    "parameter_modifier_vectors_unbound": {
+      "type": "native_vector24[7]",
+      "offset": 3704
+    },
+    "evidence": "1476B3DB0 nativekind2 defaults;1476B60E0 own case1044 reads index/exactnames,rate0/power1;145EE2180 copies to prepared;no mode/profile readiness claim;static20261005."
+  },
+  "SkillPreparedDamageFieldsPartial115": {
+    "damage_kind_by_grow": {
+      "type": "int32[6]",
+      "offset": 5452
+    },
+    "original_attack_type": {
+      "type": "int32",
+      "offset": 5476
+    },
+    "damage_info": {
+      "type": "SkillDamageInfoDefinitionFieldsPartial115",
+      "offset": 5480
+    },
+    "potential_damage_info_unbound": {
+      "type": "native_potential_info112",
+      "offset": 5568
+    },
+    "parameter_modifier_vectors_unbound": {
+      "type": "native_vector24[7]",
+      "offset": 5688
+    },
+    "evidence": "145EE5A85..5AA6 six source3296->5452;145EE6E10/23 copy source3096/3184;source3704->5688 seven vectorcopies145EE6F71;actorcopy adds240 to145EB8E80 offsets;notwire/save layout;static20261005."
+  },
+  "ActorLocalSkillCacheFieldsPartial115": {
+    "skill_cache_banks": {
+      "type": "native_24byte_cache_row[2][512]",
+      "offset": 44320
+    },
+    "evidence": "145CE53A0 tree uint0..1/ID<=511 indexes44320+12288*tree+24*ID;CMD260 14526CAD0->145CA2A00 sets68896/copies512rows to32032;145D30800 only setsindex;source mode700 independent;current-tree save/remote restore binding pending;notwire/save layout;static20261005.",
+    "active_skill_tree": {
+      "type": "int32",
+      "offset": 68896
+    },
+    "active_skill_rows": {
+      "type": "native_24byte_cache_row[512]",
+      "offset": 32032
+    }
+  },
+  "NativeScriptSourceManagerFieldsPartial115": {
+    "cache_policy_flag": {
+      "type": "uint8",
+      "offset": 13
+    },
+    "resource_kind": {
+      "type": "int32",
+      "offset": 696
+    },
+    "requested_mode": {
+      "type": "int32",
+      "offset": 700
+    },
+    "current_resource_id": {
+      "type": "int32",
+      "offset": 704
+    },
+    "native_source_index": {
+      "type": "void*",
+      "offset": 712
+    },
+    "evidence": "146D78F20 initializes;145EE2180 writes700 before140283D60;1401F42E0 virtual56->146D7A3E0 passes700/704 to1476B60E0 for kind22..38 thenresets700=-1;wholePE/IDB bytes matched, embedded switch notclaimed linearlydecoded;scene override/actor bank notbound;notwire/save schema;static20261005."
+  },
+  "NativeNamedCallbackActorFieldsPartial115": {
+    "state_suffix_map_banks": {
+      "type": "native_map16[]",
+      "offset": 103288
+    },
+    "end_callback_once": {
+      "type": "uint8",
+      "offset": 103664
+    },
+    "evidence": "14578E080 wholePE/IDB matched;bank fromvirtual4832,state key protected24724;bank count/state-name writers pending;Archer knownvtable+9160 points14578E080,notallprof mapping;notwire/save layout;static20261005."
+  },
+  "NativeNamedCallbackPassiveFieldsPartial115": {
+    "callback_suffix_key": {
+      "type": "uint32",
+      "offset": 10664
+    },
+    "end_callback_once": {
+      "type": "uint8",
+      "offset": 12232
+    },
+    "constructor_argument3": {
+      "type": "int32",
+      "offset": 8692
+    },
+    "construction_context": {
+      "type": "uint32[3]",
+      "offset": 11848
+    },
+    "owner_reference_control": {
+      "type": "void*",
+      "offset": 8664
+    },
+    "owner_reference_subobject": {
+      "type": "void*",
+      "offset": 8672
+    },
+    "incoming_actor_reference": {
+      "type": "uint64[3]",
+      "offset": 8616
+    },
+    "owner_reference_descriptor": {
+      "type": "uint64",
+      "offset": 8656
+    },
+    "evidence": "145882D80 wholePE/IDB matched;namedkeyflag callback beforeend,actor path doesendbeforeflag.145B9B010 writes10664=input2/templateID then index14F3707E0 and145B9F870;initializer writesinput3 to8692 andcopies3contextdwords to11848;argument3/context semantics notextended beyond current call contract. Actualclassvtable+1984 ->145BA51F0 whole53bytes,requirescontrol8664 nonnullandcontrol+8 nonzero,returns8672-48 ifnonnull;1984 isvirtualslot,notfield. Virtual1328 ->145BAF9B0 full468PEinstructions,storesincomingactor a2+48 descriptorat8616,itsvirtual1984 result+48 at8656;control8664/subobject8672 separatefromrelatedreference1088. Fullremoval,suffix lookup145881D70 and lifecycle pending;notwire/save layout;static20261005."
+  },
+  "NativePassiveCreateContextFieldsPartial115": {
+    "owner": {
+      "type": "void*",
+      "offset": 0
+    },
+    "template_id": {
+      "type": "int32",
+      "offset": 16
+    },
+    "template_variant": {
+      "type": "int32",
+      "offset": 20
+    },
+    "x": {
+      "type": "int32",
+      "offset": 32
+    },
+    "y": {
+      "type": "int32",
+      "offset": 36
+    },
+    "z": {
+      "type": "int32",
+      "offset": 40
+    },
+    "optional_animation": {
+      "type": "void*",
+      "offset": 48
+    },
+    "direction": {
+      "type": "int32",
+      "offset": 60
+    },
+    "extra_data_length": {
+      "type": "uint16",
+      "offset": 88
+    },
+    "extra_data": {
+      "type": "void*",
+      "offset": 96
+    },
+    "coordinates_relative": {
+      "type": "uint8",
+      "offset": 132
+    },
+    "owner_checked_branch": {
+      "type": "uint8",
+      "offset": 133
+    },
+    "native_parameter": {
+      "type": "uint32",
+      "offset": 136
+    },
+    "region_a": {
+      "type": "uint32",
+      "offset": 144
+    },
+    "region_b": {
+      "type": "uint32",
+      "offset": 148
+    },
+    "region_c": {
+      "type": "uint32",
+      "offset": 152
+    },
+    "submit_selector": {
+      "type": "uint8",
+      "offset": 158
+    },
+    "evidence": "145985760/910/C70/145987490/145985E60 wholePE/IDB matched;144BC0D40 sets133=1,coordinates absolute,template16 viaPVFindex;meaning ofseveralflags/context extensions and UDP21 readerpending;notprotocol/save schema;static20261005."
+  },
+  "NativePTLMovementDefinition115": {
+    "origin": {
+      "type": "int32[3]",
+      "offset": 1458
+    },
+    "move_kinds": {
+      "type": "uint16[3]",
+      "offset": 1470
+    },
+    "move_variable1_pairs": {
+      "type": "int32[6]",
+      "offset": 1476
+    },
+    "changing_term_ms": {
+      "type": "int32",
+      "offset": 1572
+    },
+    "changing_type": {
+      "type": "uint16",
+      "offset": 1576
+    },
+    "gravity": {
+      "type": "int32",
+      "offset": 1578
+    },
+    "direction_mirror": {
+      "type": "uint8",
+      "offset": 1619
+    },
+    "life_time_ms": {
+      "type": "int32",
+      "offset": 1620
+    },
+    "landing_type": {
+      "type": "uint16",
+      "offset": 1624
+    },
+    "evidence": "147503270 raw wholePE/IDB +147508660 reset203 +1466371D0 SSE341; native packed layout, not save/wire schema; axis index x0/y1/z2; flat nonrandom subset only executed, direction/lifetime/landing still caller binding; static20261005.",
+    "rotation_degrees": {
+      "type": "int32[3]",
+      "offset": 1583,
+      "evidence": "145883A40 receives float32 angles then truncates at1583/1587; controller+8 update146636C80 rotatesYZ/controller1599, XZ1595, XY1591. Native packed Source runtime copy; static20261005."
+    }
+  },
+  "NativePTLMovementController115": {
+    "definition_runtime": {
+      "type": "NativePTLMovementDefinition115",
+      "offset": 8
+    },
+    "timer": {
+      "type": "NativeElapsedTimerPartial115",
+      "offset": 1768
+    },
+    "elapsed_ms": {
+      "type": "int32",
+      "offset": 1800
+    },
+    "position": {
+      "type": "int32[3]",
+      "offset": 1804
+    },
+    "movement_active": {
+      "type": "uint8",
+      "offset": 1820
+    },
+    "update_skip_flag": {
+      "type": "uint8",
+      "offset": 1821,
+      "evidence": "146637E20 stores1821 and pauses/resumes timer1768; same flag early return;35byte wholeleaf proof20261005."
+    },
+    "evidence": "146635EB0/146637DF0/146637D10/146636C80 wholePE/IDB; vtable14B09A708+152 localaxis,+16 update; timer1768 typed toNativeElapsedTimerPartial115 after whole146E9F840/FA80/FF10/FF70/FC30 proof;1821 pause setter35byte leaf; clock provider/gameplay binding pending; static20261005.",
+    "visual_scale": {
+      "type": "float32",
+      "offset": 1816,
+      "evidence": "146636610 whole9byte leaf and146636C80 scale interpolation; distinct from14DC68838 coordinate projection; static20261005."
+    }
+  },
+  "NativeElapsedTimerPartial115": {
+    "clock_kind": {
+      "type": "int32",
+      "offset": 0
+    },
+    "flags": {
+      "type": "uint32",
+      "offset": 4
+    },
+    "clock_offset": {
+      "type": "uint32",
+      "offset": 8
+    },
+    "frozen_elapsed": {
+      "type": "uint32",
+      "offset": 12
+    },
+    "duration_ms": {
+      "type": "int32",
+      "offset": 16
+    },
+    "external_clock_provider": {
+      "type": "void*",
+      "offset": 24
+    },
+    "evidence": "146E9F840/FA80/FF10/FF70/FC30 wholePE/IDB; low bits initialized1/running2/paused4; elapsed getter unsigned, expiry comparison signed; typed clock/protected speed provider not closed; not save/wire schema; static20261005."
+  },
+  "NativePassiveObjectFactoryFieldsPartial115": {
+    "class_selector": {
+      "type": "int32",
+      "offset": 1780
+    },
+    "scene_gate_value": {
+      "type": "int32",
+      "offset": 2088
+    },
+    "special_fallback_flag": {
+      "type": "uint8",
+      "offset": 2255
+    },
+    "evidence": "Whole OBJ rawPE/IDB: [passive object type] tag1379 ->1780 default41; [isometric cell map info] tag18BB consumes embedded info2088; [skill passive object] tag1A3A ->2255=1. Actual manager14E683B28 constructs STPassiveObjectScript via1459C0600/147799F00, NOT shared1476B19F0. Embedded info147C11500 sets qword2088=2, not0;1477B2840 leaves2088 intact. Source24202/24266 omit3tags/mode blocks; nonzero2088 bypasses isometric scene branch before145880F00 fallback. Source variants and general scene enum still explicit; not save/wire schema; corrected static20261005."
+  },
+  "NativeMovementComponentPartial115": {
+    "position_provider": {
+      "type": "void*",
+      "offset": 8
+    },
+    "controller": {
+      "type": "NativePTLMovementController115*",
+      "offset": 264
+    },
+    "enabled": {
+      "type": "uint8",
+      "offset": 272
+    },
+    "collision_mode": {
+      "type": "int32",
+      "offset": 276
+    },
+    "blocked_gate": {
+      "type": "uint8",
+      "offset": 280
+    },
+    "evidence": "145E0AAD0 whole1184PE/IDB instructions; before controller virtual16 refreshes origin from provider virtual0; afterward collision sweep and virtual80 corrections; leaf145E08B00/8AB0 matched. Fallback/provider size and full mode semantics not closed; no combat/room/wire schema claim; static20261005. Fallback pointer is component+24 embedded storage; no extent asserted.",
+    "collision_flags": {
+      "type": "uint8[2]",
+      "offset": 312,
+      "evidence": "145E0AAD0 reads/writes312/313 in collision branches; precise meanings pending, no X/Y naming assumed; static20261005."
+    }
+  },
+  "NativeSkillCommandRankNode115": {
+    "required_level": {
+      "type": "int32",
+      "offset": 32,
+      "evidence": "145C7E670 decodes protected Source240 -> runtime424/428; copied to node32"
+    },
+    "modified_cooldown": {
+      "type": "int32",
+      "offset": 36,
+      "evidence": "145D47FA0 invokes145ECAC80; signed comparison"
+    },
+    "not_sealed": {
+      "type": "int32",
+      "offset": 40,
+      "evidence": "!145EE0B00(skill); comparator primary, reverse inorder"
+    },
+    "skill": {
+      "type": "void*",
+      "offset": 48,
+      "evidence": "rank copy input16 -> node48, not comparator field"
+    }
+  },
+  "CreatorBasicInputFieldsPartial115": {
+    "selected_skill_mode_gate_value": {
+      "type": "int32_t",
+      "offset": 26576
+    },
+    "micro_entry_gate": {
+      "type": "uint8_t",
+      "offset": 103800
+    },
+    "right_input_flag": {
+      "type": "uint8_t",
+      "offset": 103801
+    },
+    "left_micro_timer": {
+      "type": "NativeElapsedTimerPartial115",
+      "offset": 103808
+    },
+    "right_micro_timer": {
+      "type": "NativeElapsedTimerPartial115",
+      "offset": 103840
+    },
+    "last_micro_x": {
+      "type": "int32_t",
+      "offset": 103904
+    },
+    "last_micro_y": {
+      "type": "int32_t",
+      "offset": 103908
+    },
+    "last_micro_z": {
+      "type": "int32_t",
+      "offset": 103912
+    "micro_created_latch": {
+      "type": "uint8_t",
+      "offset": 103916
+    },
+    "micro_input_block": {
+      "type": "uint8_t",
+      "offset": 103952
+    },
+    "evidence": "143E54A00/55110/57020/575D0/57F20 wholePE/IDB;56B90 and14578C590 leaves;partial actor-local fields,gate field meanings/latch lifecycle pending;not source or save schema,static20261005."
+  },
+  "NativeProtectedStaticParameterNode115": {
+    "left": {
+      "type": "NativeProtectedStaticParameterNode115*",
+      "offset": 0
+    },
+    "parent": {
+      "type": "NativeProtectedStaticParameterNode115*",
+      "offset": 8
+    },
+    "right": {
+      "type": "NativeProtectedStaticParameterNode115*",
+      "offset": 16
+    },
+    "color": {
+      "type": "uint8",
+      "offset": 24
+    },
+    "is_sentinel": {
+      "type": "uint8",
+      "offset": 25
+    },
+    "parameter_index": {
+      "type": "int32",
+      "offset": 28
+    },
+    "protected_value": {
+      "type": "int32",
+      "offset": 32
+    },
+    "protected_check": {
+      "type": "int32",
+      "offset": 36
+    },
+    "evidence": "Source static1251->definition1544; minimum1263->definition1560; native40-byte node allocation/copy; wholePE145C907C0/1403FF4F0/1476B3C60/147162630; Source mutable preparation distinct from immutable Go catalog; not wire/save/profile; static20261005."
+  },
+  "SkillDefinitionStaticFieldsPartial115": {
+    "static_parameters": {
+      "type": "native_protected_int32_map16",
+      "offset": 1544
+    },
+    "minimum_static_parameters": {
+      "type": "native_protected_int32_map16",
+      "offset": 1560
+    },
+    "evidence": "1476B6472 dispatch1251/1476B64DE dispatch1263; tags14B2D2E88/EB0;1476BE83F..BEA8E clears+reads; allPE/IDB bytes matched; fullmode/crossscript static overrides not yet closed; static20261005."
+  },
+  "SkillPreparedStaticFieldsPartial115": {
+    "static_parameters": {
+      "type": "native_protected_int32_map16",
+      "offset": 3904
+    },
+    "minimum_static_parameters": {
+      "type": "native_protected_int32_map16",
+      "offset": 3936
+    },
+    "evidence": "145EE6466/647A copy Source1544/1560 to prepared3904/3936;145ED07A0 searches index and applies modifiers then minimum; actor-local effects remainunbound; notwire/save; static20261005."
+  },
+"NativeHitExecutionContextPartial115": {
     "primary_damage": {
       "type": "int64",
       "offset": 456

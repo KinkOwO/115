@@ -48,11 +48,7 @@ func (s *Session) MoveScene(c catalog.DungeonCatalog, r protocol.DungeonRoomTran
 			return nil, err
 		}
 		if resume != s.Room.Map {
-			next.sceneBaseRooms = make(map[[2]byte]uint32, len(s.sceneBaseRooms)+1)
-			for pos, mapID := range s.sceneBaseRooms {
-				next.sceneBaseRooms[pos] = mapID
-			}
-			next.sceneBaseRooms[r.Position] = resume
+			next.markResumedSceneBase(r.Position, resume)
 		}
 		return next, nil
 	}
@@ -85,14 +81,13 @@ func (s *Session) MoveScene(c catalog.DungeonCatalog, r protocol.DungeonRoomTran
 			return s.enterRoom(c, room)
 		}
 		// [MERGE-20260927-SCENE-EXIT] scene_routes 只声明「进入」场景房的条目，没有
-		// 「出来」的那一条；客户端在场景房里点门也只发 id=38（interactDoor），不走
-		// layer 切换。没有这段时，玩家进了场景房（实机 100016083_scene_0）就再也出
-		// 不去。把「没有下一张可用路由」视为从场景房退出，回到该位置的 base 房间。
+		// 「出来」的那一条。客户端在场景房点门发的是原生 CMD45（实机 2026-10-05
+		// 贵族机要 100004968：离开演出图 100016356 用普通 45 去相邻格 (0,1)），
+		// 到不了上面精确路由匹配的记录形态。把「没有下一张可用路由」视为从场景房
+		// 退出，回到该位置的 base 房间（无可用前进目标时）。
 		//
-		// 只认「不带落点记录」的形态（客户端在场景房点门正是这种）**或**服务端自己
-		// 补上的那份源记录：interactDoor 合成请求时会先把 LayerRouteRecord 填进
-		// Record，因为客户端要靠 StartMap 的 Transition 记录安置角色（record[6:10]
-		// 是落点）—— 缺了它角色会卡在场景左上角（实机 2026-09-28 贵族机要）。
+		// 只认「不带落点记录」的形态 **或** 与该位置源路由记录一致的形态：
+		// StartMap 的 Transition 记录里带落点（record[6:10]），客户端靠它安置角色。
 		// 带**其它** Record 的 layer 切换仍走上面的严格匹配，篡改落点照旧被拒。
 		serviceRecord, hasServiceRecord := s.LayerRouteRecord(c, s.Room.Map)
 		exitShape := r.Record == ([18]byte{}) || (hasServiceRecord && r.Record == serviceRecord)
@@ -234,6 +229,60 @@ func (s *Session) SourceLayerResume(c catalog.DungeonCatalog, r protocol.Dungeon
 		}
 	}
 	return 0, false
+}
+
+// [MERGE-20261005-LAYER-REVISIT-LAYER] OnFinishedLayer 报告当前是否正站在「已经播完的
+// 层序列末张」上。回头路复用缓存包要靠它保住这一格的层序号（NOTI29 layer flag 1）。
+//
+// 实机 2026-10-05 贵族机要 100004968：(0,2) = base 100015973 + 层序列
+// [100015974, 100016356]。清完后面几间房回头进 (0,2) 时，上一版发的是 flag 0 + mode 0
+// —— 原生 flag 0 在 1452b787f..7886 设完层标志直接跳 LABEL93，**绕过层序号清零**，
+// mode 0 又在 1452b78f0 跳过建图，客户端于是留着末张层图 100016356 的近景道具、
+// 却按 base 描述符去装配远景 `[background animation]` 层 → 「走回头路后背景全黑」。
+// 同一局里相邻六个普通格拿到的是逐字节同构的复用包、背景正常，坏的只有 layered 格。
+//
+// attempt 1/3 改成了 flag 2 + mode 0（`145b45c50(...,-1)` 清序号后选 base 缓存）：实机
+// 背景恢复正常、角色可见，但恢复的是**入场 base 房**，而玩家离开时站在演出层图上 ——
+// 内容选错了房间（Evil Justice 要的正是回 base 战斗房，那一格的 base 才是战斗房；
+// 这一格相反，base 是过场之前的宫殿庭院）。所以改成 flag 1 + mode 0：原生把同格层索引
+// 前进并**钳在最后一张**，用的就是缓存里那张层图房间（1452b77ee..1452b788b + mode 0）。
+// 这条形态不是新包：`r.LayerChange && 目标图==当前图` 的层图往返（实机安图恩讨伐战
+// 100004950 的 164↔165）发的就是它。
+func (s *Session) OnFinishedLayer() bool {
+	if s == nil || s.Room.Map == 0 || !s.Definition.Odyssey {
+		return false
+	}
+	last, ok := s.finishedLayerLastMap([2]byte{s.Room.X, s.Room.Y})
+	return ok && s.Room.Map == last
+}
+
+// finishedLayerLastMap 报告某位置的层序列是否已经走到末张（该图被访问过），并给出末张图。
+func (s *Session) finishedLayerLastMap(pos [2]byte) (uint32, bool) {
+	if s == nil {
+		return 0, false
+	}
+	for _, layer := range s.Maze.Layers {
+		if layer.Position != pos || len(layer.Maps) == 0 {
+			continue
+		}
+		last := layer.Maps[len(layer.Maps)-1]
+		if _, visited := s.Visited[last]; !visited {
+			return 0, false
+		}
+		return last, true
+	}
+	return 0, false
+}
+
+// markResumedSceneBase 记下某位置回访时应当恢复的 base 图，latestLayer 之后一直走它。
+// 复制一份再写，避免改动父会话的同一张 map。
+func (s *Session) markResumedSceneBase(pos [2]byte, mapID uint32) {
+	rooms := make(map[[2]byte]uint32, len(s.sceneBaseRooms)+1)
+	for p, m := range s.sceneBaseRooms {
+		rooms[p] = m
+	}
+	rooms[pos] = mapID
+	s.sceneBaseRooms = rooms
 }
 
 func (s *Session) IsResumedSceneBase() bool {
@@ -384,48 +433,10 @@ func (s *Session) layerSequenceAdvance(c catalog.DungeonCatalog, pos [2]byte) (*
 	return next, nil
 }
 
-// ExitSceneRoom 处理「场景房点门」的出口。
-//
-// 与 layerSequenceAdvance 是**两条语义相反**的路，别再合并：
-//   - 场景房点门（客户端只发 CMD38）→ **回 base**。实机 100004944 的 100016083_scene_0、
-//     100004968 的贵族机要场景房都走这条。
-//   - 序列末尾换图（客户端主动发 CMD45）→ 前进。实机 100004777 的 100008950 走这条。
-//
-// [MERGE-20260928-START-LAYER-EXIT] 但**层图格就是迷宫起点**时例外：回 base 等于回到
-// 起点自己，客户端进这一格时本来就会自动播那张层图 → 又放一次剧情 → 再点门 → 再回
-// base，循环到黑屏闪退（实机 2026-09-28「晦月湖」100004777 的 (0,0)：base 100008953
-// 既是 Start 又挂着层图 [100015633]，进图 3 秒必闪退）。这种格必须**前进**。
-//
-// 同样不能走 Session.Move（RoomCleared 会拦住剧情层图的布景怪）。
-func (s *Session) ExitSceneRoom(c catalog.DungeonCatalog, pos [2]byte) (*Session, error) {
-	// CMD38 is native USE_SKILL. The Lotus finale's display actors make it
-	// look like an ordinary cinematic room, but ACT14948/CMT14949 owns its
-	// closing CMD45. A skill must not synthesize a return to boss map 53543:
-	// live 20261002_212301 did so mid-cinematic and crashed during boss cleanup
-	// (145c34e0c). Keep the exact native closing path in MoveScene instead.
-	if s.Definition.ID == 26 && s.Maze.Index == 3 && s.Room.Map == 100008697 {
-		return nil, fmt.Errorf("Lotus finale requires the native closing scene transition")
-	}
-	if s.LayerAtStart(pos) {
-		if next, err := s.layerSequenceAdvance(c, pos); err == nil {
-			return next, nil
-		}
-	}
-	base, ok := s.layerExitBase(pos)
-	if !ok {
-		s.noteSceneDiagnostic("%s | scene exit: no base at %v", s.sceneDiagnostic, pos)
-		return nil, fmt.Errorf("scene room has no base at %v", pos)
-	}
-	room := s.Room
-	room.Map = base
-	s.noteSceneDiagnostic("%s | scene exit: %v layer=%d -> base=%d", s.sceneDiagnostic, pos, s.Room.Map, base)
-	return s.enterRoom(c, room)
-}
-
 // [MERGE-20260928-LAYER-SEQUENCE-EXIT] LayerRouteRecord 取某层图所在位置最后一条
 // 场景路由的换图记录。
 //
-// 客户端在层图里点门只发 id=38（不带换图记录），服务端要自己补。而 StartMap 的
+// 客户端在层图里点门发的 CMD45 可能不带换图记录。而 StartMap 的
 // Transition 记录里**带落点**（record[6:10]，与 lotusClosingRevisit 读法一致）：
 // 100004968 的记录是 [0,0,0,0,4,5,127,1,20,1,0,0,3,0,2,0,0,0]，而 100004944 的
 // 是全零（那张图自带 [dungeon start area]，不需要）。补全零等于让客户端用默认落点，

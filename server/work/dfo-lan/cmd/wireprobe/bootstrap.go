@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/boostup"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
@@ -16,6 +17,7 @@ import (
 	"dfolan/internal/reward"
 	"dfolan/internal/workflow"
 	"dfolan/internal/world"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -36,6 +38,8 @@ type gatewayRuntime struct {
 	apocalypseCatalog     *catalog.ApocalypseCatalog
 	apocalypseClock       *legion.ApocalypseClock
 	boosterCatalog        *BoosterCatalog
+	boostCatalog          *boostup.Catalog
+	boostEventInfo        []byte
 	characters            *character.Service
 	channelDirectory      *catalog.ChannelDirectory
 	channelTowns          map[uint32]catalog.TownArea
@@ -479,6 +483,15 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	// facts, driving CMD507 action 169 (damage font) registration. Nil when no
 	// item index is configured, which disables the skin flow.
 	var skinCatalog map[uint32]catalog.SkinStorageEntry
+	// vaultRules 是运行期装配的金库规则，供奖励侧的"金库扩容"复用**同一份**对象。
+	//
+	// 装配顺序：奖励服务（下面 loot 分支）比金库服务（本函数末尾的 startup.VaultRules 分支）早，
+	// 所以奖励侧拿的是惰性访问器；写在这里是因为两处都需要看到它。
+	//
+	// 为什么必须共用同一份：金库容量落在 `character_vaults.config_version` 上，而金库入口的
+	// 判据是"该列 == 规则里的 SourceSHA256"（internal/workflow/vault.go）。用别的身份建行，
+	// 这个角色之后每次入场都会被判成"需要迁移配置"——实机表现就是**建完号进不去游戏**。
+	var vaultRules *inventory.VaultRules
 	if startup.CharacterStorage != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -800,6 +813,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		progressionService = &character.ProgressionService{Store: gameStore, Catalog: data, Professions: characters.Catalog, Rules: rules}
 		progressionService.CompletionRewards = pvfCatalogs.OdysseyCompletionRewards
+		progressionService.MaxLevelReward = pvfCatalogs.MaxLevelReward
 		if path := os.Getenv("DFO_ODYSSEY_GROWTH"); path != "" || pvfCatalogs.OdysseyGrowth != nil {
 			progressionService.Odyssey, e = pvfCatalogs.LoadOdysseyGrowth(path)
 			if e != nil {
@@ -909,6 +923,31 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		log.Printf("loaded equipment catalog: %d rows, %d droppable, from %s",
 			len(gear.Rows), len(gear.DropPool()), startup.EquipmentCatalog)
+		// [MOD-CAPABILITY-20261006] 给**奖励/邮件路径**的装备目录挂上完整定义目录。
+		//
+		// 为什么：`mods/scripts/*.lua` 里的规则脚本用 send_mail 发装备时，旧口径要求
+		// 模板先在掉落目录里，再在 3,174 行的装备选集里取到耐久 —— 于是"发一件毕业装备"
+		// 这种**内容侧**的诉求被**掉落表**锁死（现场：`模板 500950043 不在奖励目录里`）。
+		//
+		// 口径（业主 2026-10-06）：**能不能发是服务端能力，发什么由 mod 决定**。
+		// 所以这里把"PVF 里存在的装备都能取到定义"这条能力交给奖励路径；具体发哪一件、
+		// 发不发，仍然只写在 mod 的脚本里，服务端不持有任何内容清单。
+		//
+		// 与穿戴目录共用同一个实例（OpenFullEquipment 是幂等的），所以不额外占内存；
+		// 真正的定义是按需解析并带 LRU 缓存的（见 inventory.FullEquipmentCatalog）。
+		if startup.EquipmentFullCatalog != "" || pvfCatalogs.Equipment != nil {
+			full, fullErr := pvfCatalogs.OpenFullEquipment(startup.EquipmentFullCatalog, c.Source.Checksum)
+			if fullErr != nil {
+				return nil, nil, fullErr
+			}
+			if full != pvfCatalogs.Equipment {
+				resources.add(func() { full.Close() })
+			}
+			gear.Full = full
+			log.Printf("reward/mail equipment: %d PVF definitions available on demand (mod scripts may mail any of them)", full.RecordCount())
+		} else {
+			log.Printf("warning: full equipment catalog is not enabled; mod reward scripts can only mail equipment that is already in the drop catalog")
+		}
 		dropCatalog := c
 		if pvfCatalogs.Items != nil {
 			if err := pvfCatalogs.SupplementStackables(&c, ""); err != nil {
@@ -978,7 +1017,20 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		// Event-triggered Lua rewards reuse the same catalog as the completion
 		// awarder. The rule scripts are embedded in the binary.
-		if rewards := buildRewardService(gameStore, &inventory.Awarder{Catalog: c, Rules: bag, Equipment: gear}); rewards != nil {
+		// 皮肤仓库"全解锁"的清单来源：运行期皮肤目录（模板 → skin key）。
+		// 闭包是**惰性**的：奖励脚本在建号时才用，那时目录早已装配完毕；不在这里做快照，
+		// 免得目录装配顺序一变（或没准备 skins 域）就静默拿到空清单。
+		skinUnlocks := func() []database.AccountSkin {
+			out := make([]database.AccountSkin, 0, len(skinCatalog))
+			for template, entry := range skinCatalog {
+				out = append(out, database.AccountSkin{SourceTemplate: template, SkinKey: entry.SkinKey()})
+			}
+			return out
+		}
+		// 金库规则同样在奖励服务之后才装配（见下面 startup.VaultRules 分支）⇒ 惰性访问器。
+		// 规则对象在函数外层声明，两处共用同一份；这里只转发。
+		vaultRulesLookup := func() *inventory.VaultRules { return vaultRules }
+		if rewards := buildRewardService(gameStore, &inventory.Awarder{Catalog: c, Rules: bag, Equipment: gear}, skinUnlocks, vaultRulesLookup); rewards != nil {
 			if progressionService != nil {
 				progressionService.Rewards = rewards
 			}
@@ -1018,6 +1070,13 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, e
 		}
 		lootService.CardPolicy = &cards
+		// 维纳斯终局翻牌第一排随机装备位池子（115 级魔法/神器常规部位）。
+		flipGearPool, e := legion.LoadVenusFlipGearPool(startup.VenusFlipGear)
+		if e != nil {
+			return nil, nil, e
+		}
+		venusFlipGearPool = flipGearPool.Templates
+		log.Printf("loaded venus flip gear pool: %d templates from %s", len(flipGearPool.Templates), startup.VenusFlipGear)
 		if pvfCatalogs.Boxes != nil || startup.Boxes != "" {
 			boxes, boxErr := pvfCatalogs.LoadBoxes(startup.Boxes, lootService.Catalog.Source.Checksum)
 			if boxErr != nil {
@@ -1188,6 +1247,8 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		if e != nil {
 			return nil, nil, e
 		}
+		// 让奖励侧的金库扩容用**同一份**规则（身份 + 初始档 + 合法档位表）。见上面的惰性访问器。
+		vaultRules = &rules
 		vaultService = &workflow.VaultService{Store: gameStore, VaultService: inventory.VaultService{Rules: rules}}
 		if wearService != nil {
 			vaultService.Equipment = wearService.Catalog
@@ -1564,12 +1625,53 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if err := validateTownArrivalScenes(worldService, questService, townArrivalScenes); err != nil {
 		return nil, nil, err
 	}
+	// Starter Boost 662 装配：目录来自 PVF 直读（preparePVFBoostUp），NOTI108 活动清单
+	// 只在活动生效时冻结一次。表体是**频道门 + 活动行合并后的那一张**（见
+	// event_info_variant.go）：客户端对 108 是整表替换，只发活动行的第二条会被
+	// 进城那条频道门表抹掉，城里就没有活动礼物图标。
+	var boostCatalog *boostup.Catalog
+	var boostEventInfo []byte
+	if startup.BoostUpEvent {
+		if pvfCatalogs.BoostUp == nil {
+			// 玩法开关默认生效、不留第二套内容源（§0.14）：活动目录只从 PVF 直读来。
+			// JSON/部分直读域的运行方式拿不到真源，本树其它 PVF-only 特性同样是
+			// "缺源就降级 + 记一条 warning"（见 selection box / apocalypse 的告警），
+			// 这里保持一致：活动整体不装配，玩家照常进镇，不伪造内容。
+			log.Printf("warning: Starter Boost 662 disabled; PVF direct-read boostup domain is not prepared (-pvf-catalogs 加 boostup 才开启)")
+			startup.BoostUpEvent = false
+		} else if characters == nil || lootService == nil || worldService == nil {
+			return nil, nil, errors.New("Starter Boost 需要持久化角色、掉落与世界服务")
+		} else {
+			// 选角（CMD8）与进城 announce 发同一条表；参考实现
+			// `活动Boost与胶囊教学-20260927` 的两个发送点用的也是同一个快照。
+			// challenge 恒为真：毕业后的 665 是玩法内容，不是开关（§6），
+			// 源没绑上时由 boostup_challenge 的 fail-closed 分支拒绝，不伪造进度。
+			rows, ok := buildTownEventInfoTable(true)
+			if !ok {
+				return nil, nil, errors.New("Starter Boost 事件表合并失败（频道门表形状异常）")
+			}
+			boostCatalog, boostEventInfo = pvfCatalogs.BoostUp, rows
+			characters.Boost = boostCatalog
+			if progressionService != nil {
+				progressionService.Boost = boostCatalog
+			}
+			// 教学封存谓词： activated 且训练未毕业 = 仍在训练轨道，禁售/丢/寄/入仓生效。
+			inventory.SetInBoostTraining(func(raw json.RawMessage) bool {
+				st, e := boostup.ReadState(raw)
+				return e == nil && st.Activated && !st.Training.Finished
+			})
+			log.Printf("Starter Boost event info snapshot ready: NOTI108 rows=%d bytes=%d",
+				binary.LittleEndian.Uint16(boostEventInfo), len(boostEventInfo))
+		}
+	}
 	prepared = &gatewayRuntime{
 		config:                startup,
 		accountOptionsPayload: accountOptionsPayload,
 		apocalypseCatalog:     apocalypseCatalog,
 		apocalypseClock:       apocalypseClock,
 		boosterCatalog:        boosterCatalog,
+		boostCatalog:          boostCatalog,
+		boostEventInfo:        boostEventInfo,
 		characters:            characters,
 		channelDirectory:      pvfCatalogs.ChannelDirectory,
 		channelInfo:           pvfCatalogs.ChannelInfo,

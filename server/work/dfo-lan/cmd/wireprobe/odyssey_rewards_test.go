@@ -155,9 +155,6 @@ func TestOdysseyWeaponBoxKeepsOriginalSelection(t *testing.T) {
 }
 
 func TestOdysseyArmorDatabaseReplay(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("isolated PostgreSQL integration")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	dbFixture, e := database.OpenTestFixture(ctx)

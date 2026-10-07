@@ -40,6 +40,10 @@ func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 	if err := json.Unmarshal(raw, &state); err != nil {
 		return nil, err
 	}
+	bag, err := inventory.ReadBag(raw)
+	if err != nil {
+		return nil, err
+	}
 	bySlot := make(map[byte]uint32)
 	// 宠物幻化槽（穿戴槽 32）的按槽绑定值：生物实例 key。它和 NOTI105 里那条生物
 	// 条目必须同源（都用 inventory.CreatureSkinKey），否则客户端对不上。
@@ -63,6 +67,11 @@ func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 			if slot == skinSlot {
 				skinModel = inventory.CreatureSkinKey(item)
 			}
+		}
+	}
+	for _, item := range bag.Worn {
+		if look := bag.CloneAvatarLook(item); look != 0 {
+			bySlot[byte(item.Slot)] = look
 		}
 	}
 	// 武器幻化：这条投影的 Item 由 EquipmentAppearance 写进装备外观块的 Placeholder，

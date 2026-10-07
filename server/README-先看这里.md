@@ -54,16 +54,15 @@ pwsh -NoProfile -File ./server/Build-Server.ps1
 
 归档元数据候选在已确认物品缓存基础上，本机单次准备33.14→26.18秒，保留堆基本持平；首次建立两类缓存51.10秒，元数据文件约162MiB。关闭会话后用--source-build两轮验证，gateway.err热轮同时出现archive metadata cache hit及derived item cache hit；DFO_PVF_CACHE_DIR='-'同时禁用两种缓存。旧源码8d6f979a备份work/dfo-lan/.tmp/pvf-phase4b/bin/wireprobe-handoff-source.confirmed-before.exe，详细证据及剩余范围见../docs/todo/pvf/PVF启动与内存优化实施计划.md。上文第四批首段记录为历史验证轮次。
 
-1. 解压到固定目录，如 `D:/DFO-dev`。准备 Windows x64 上可用的 **PostgreSQL**（`initdb.exe`、`pg_ctl.exe`、`createdb.exe`）。继续编译还需要 Go 1.26（本包用 1.26.5 验证）；**运行不再需要 Python**（2026-10-05 起启动链全部是 Go）。
+1. 解压到固定目录，如 `D:/DFO-dev`。**不需要任何数据库服务**：2026-10-05 起 PostgreSQL 支持已整体移除，存档就是包内 work/dfo-lan/runtime/storage/dfolan.sqlite3 一个 SQLite 文件（服务端首次启动自己创建并建表）。继续编译还需要 Go 1.26（本包用 1.26.5 验证）；**运行不需要 Python**（启动链全部是 Go）。
 2. 向项目提供者取得**完整的、当前能运行的隔离客户端目录**：原工作区 `work/dfo_probe_client`，包括资源和配套文件。可以放到解压目录的同名位置，也可放在其他磁盘。仅复制DFO.exe、PVF、sk.dat三个文件不够。配套校验值见 `client-requirements.json`。
 3. 将 `launcher.example.json` 复制为 `launcher.local.json`。编辑 `client_dir` 为客户端目录，相对路径以解压根目录为基准，或填写绝对路径。Windows JSON路径建议用 `/`。
-4. 仅在朋友自己的电脑上初始化**新库**（Go 启动器的 `init-storage`）：
+4. 存储档无需初始化：把 `work/dfo-lan/runtime/storage/local.example.json` 复制成 `local.json`，
+   确认里面的 `sqlite_path` 是本机的绝对路径即可（相对路径会被服务端明确拒绝）。库文件由服务端首次
+   启动创建，重复启动幂等。
 
-```powershell
-.\bin\dfolauncher.exe init-storage --postgres-bin 'D:/tools/pgsql/bin'
-```
-
-这会在本包 `work/dfo-lan/runtime/storage` 内建立新PG数据目录和随机密码配置，PG端口25438。已有 `local.json` 或 `pgdata` 就拒绝初始化。初始化中途失败请查日志和现有数据，不要直接删除目录反复重试。
+> `dfolauncher init-storage` 已随 PostgreSQL 支持一起删除；历史 `pgdata/` 只是留档，
+> 可救路径见 `work/dfo-lan/docs/sqlite-operations.md` §3。
 
 5. 先检查，再启动（`launch --check` 只读，打印 Storage / Binary / Data mode / Client 四行）：
 
@@ -71,7 +70,7 @@ pwsh -NoProfile -File ./server/Build-Server.ps1
 .\bin\dfolauncher.exe launch --check
 ```
 
-检查通过后，以管理员身份运行 `scripts\启动游戏.cmd`（或按存档类型选 `启动游戏-SQLite.cmd` / `启动游戏-PostgreSQL.cmd`）。入口会切好存储档、按需起 PostgreSQL，然后用 Go 启动器拉起网关与客户端。服务端启动时迁移表结构并建立开发账号 `probe`；角色由客户端创建。不会带入原机6666或LanTest01的存档。
+检查通过后，以管理员身份运行 `scripts\启动游戏.cmd`（或 `scripts\启动游戏-SQLite.cmd`）。入口用仓库内的 Go 启动器拉起网关与客户端；SQLite 是文件，没有服务要起。服务端启动时迁移表结构并建立开发账号 `probe`；角色由客户端创建。不会带入原机6666或LanTest01的存档。
 
 ## 修改源码与测试
 
@@ -82,6 +81,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./Build-Server.ps1
 ```
 
 若Go不在PATH，给脚本加 `-Go 'D:/tools/go/bin/go.exe'`。脚本依次执行 `go test ./...`、`go vet ./...`、编译源码版；首次构建补齐bin/wireprobe-pvf.exe，已有确认PVF程序默认保留。后续已验收构建使用-UpdatePVFDefault更新默认PVF；**不覆盖原39版**。首次编译可能需要下载 `go.mod/go.sum` 中的依赖，包中没有vendor。
+
+> **装了 mod 的树（2026-10-07 补）**：`work/dfo-lan/mods/zz_mods_gen.go` 是 modkit 生成的
+> **mod 加载器**，它同时进版本库，所以仓库里提交的必须是**干净形态**（不 import 任何 mod）——
+> 只有干净形态才保证别人 clone 下来 `go build ./...`、`go test ./...` 编得过。本机装了哪些
+> mod 由启动器写在**本机**这份（装卸会写，编译前还会按 `mods/` 现状重算），所以**别把本机
+> 那份提交/推上去**；要把某个 mod 分享出去，就把它的源码一起入库。`Build-Server.ps1`
+> 编译前会机械核对加载器里 import 的每个 `dfolan/mods/<id>` 是否已被 git 跟踪，未入库直接
+> 报错中止（本机确实要带着已装 mod 编译时加 `-SkipModGenGate`）；没有 git 的解包目录只告警。
+> 完整说明见 `work/dfo-lan/mods/README.md` §加载器 `zz_mods_gen.go`。
 
 测试源码候选版：关闭同一个测试会话后，在管理员PowerShell运行：
 

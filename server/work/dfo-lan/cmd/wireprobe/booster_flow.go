@@ -264,6 +264,8 @@ func (w *worldSession) openBoosterItem(
 	// destination logic below (avatar / creature / equipment / stackable), because
 	// a box may mix them (10335328 carries gear plus 1000/10000-strong stacks).
 	// The Odyssey creation weapon box keeps its own handler above.
+	var selectionCounts map[uint32]uint32
+	var selectionReinforce, selectionRefine byte
 	if w.selectionBoxes != nil && boxItem.Template != choices.Template {
 		if _, ok := w.selectionBoxes.ByTemplate(boxItem.Template); ok {
 			if len(req.Selections) == 0 {
@@ -276,6 +278,16 @@ func (w *worldSession) openBoosterItem(
 			}
 			category := [2]byte{byte(req.Category), byte(req.Category >> 8)}
 			items, missing, checked := w.selectionBoxes.Resolve(boxItem.Template, category, req.Selections)
+			// 件数与打造状态都在源的分类块里：[equipment] 模板 数量、
+			// [booster equipment upgrade]/[separate]。提前解析一次，提交回调里
+			// 按 pick 取源件数（查不到该 pick 时保持礼盒数），装备落包时盖章。
+			selectionCounts = map[uint32]uint32{}
+			for _, it := range items {
+				selectionCounts[it.Template] = it.Count
+			}
+			if r, f, ok := w.selectionBoxes.CategoryStatus(boxItem.Template, category); ok {
+				selectionReinforce, selectionRefine = byte(r), byte(f)
+			}
 			switch {
 			case !checked:
 				log.Printf("selection box %d: category %v has no exported item set (unmodelled content block or unknown category); the pick goes down the generic path", boxItem.Template, category)
@@ -419,9 +431,16 @@ func (w *worldSession) openBoosterItem(
 				if tpl == 42 {
 					tpl = 1
 				}
+				// 件数取源声明值（[equipment] 模板 数量），一份礼盒开一次可以落
+				// 11 颗；源里没有这个 pick 时保持礼盒数，不拒发（客户端 PVF 与
+				// 导出源不是同一构建）。
+				count := req.Amount
+				if declared, ok := selectionCounts[selTpl]; ok {
+					count = declared * req.Amount
+				}
 				toGrant = append(toGrant, protocol.BoosterGrantedItem{
 					Template: tpl,
-					Count:    req.Amount,
+					Count:    count,
 				})
 			}
 		} else if boosterCat != nil {
@@ -631,11 +650,11 @@ func (w *worldSession) openBoosterItem(
 					for s := uint16(9); s <= 64; s++ {
 						if !occupied[s] {
 							occupied[s] = true
-							b.Equipment = append(b.Equipment, inventory.BagEquipment{
-								Slot:       s,
-								Template:   g.Template,
-								Durability: dur,
-							})
+							eq := inventory.BagEquipment{Slot: s, Template: g.Template, Durability: dur}
+							// 成品礼盒（如 590015876）的分类块自己声明 +12/+8；
+							// 没有声明时 selectionReinforce/Refine 为 0，盖章不生效。
+							inventory.SetCraftedStatus(&eq, selectionReinforce, selectionRefine)
+							b.Equipment = append(b.Equipment, eq)
 							foundSlot = true
 							break
 						}

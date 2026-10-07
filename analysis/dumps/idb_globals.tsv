@@ -2,7 +2,9 @@ address	name	description
 0x14e634408	g_QuestCatalog115	Current native quest catalog singleton;1520-byte allocation via145194c50; connect unit lookup14519ae00, metadata lookup14519b210
 0x14e683d40	g_QuestManager115	Current native quest state manager; completed collection+328 and visibility sequence fallback tree+1528;144f3a780,144f4a870,144f542a0
 0x14e6849bd	g_StartMapHeader7_115	NOTI29 byte at body+7 assigned by1452B7100;1456E8B10 checks1 for animation-offset2 Hell wave; mode meaning unresolved, static20261003.
+0x14f1bf870	g_PktStreamReaderCursor	global read cursor used by PktStream_Read1/2/4; set by 146EA2160 from dispatcher 146D74A80; static20261004
 0x14ef53b40	g_UDPGameplayNames115	319 native name pointers initialized by1400873E0; IDB uninitialized bytes are zero; main dispatcher14663EF80 handles0..314, static20261004.
+0x14e66c090	g_GameManagerSingleton	holds dungeon getter 1459A9080 / 1459A9240; NOTI312 head
 0x14e683c68	g_UDPGameplayManager115	Singleton constructed14663DFC0 and assigned145A25595; vtable14B0A2118 begin-write slot+16=14665C170; static20261004.
 0x14dc6cad0	g_UDPLocalIdentityValue115	Four-byte value set14707EAA0 from CMD1; local seat key source and local peer-info+116; Hex-Rays array casts are not evidence of a pointer, static20261004.
 0x14f0e9620	g_MessageCheckParameterA115	Protected input value218628361 from140092870; decoder146E920A0 in146D77DB0; native UDP vector pending, static20261004.

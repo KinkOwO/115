@@ -8,7 +8,6 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -16,9 +15,6 @@ import (
 )
 
 func TestDashboardMailAndConcurrentVaultDelivery(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("requires dedicated DFO_TEST_POSTGRES_DSN")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	f, err := database.OpenTestFixture(ctx)

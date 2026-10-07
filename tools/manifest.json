@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "note": "启动器按需补齐运行时：缺 Go 工具链补 go/gopath-mod，缺服务端源码补 server-src，缺服务端配置补 server-configs，缺 PostgreSQL 运行时文件补 pg-bin；缺服务端程序补 server-bin（预编译，免本机编译）。每个包解压到 target 指定的目录（相对整合包根）。",
+  "note": "启动器按需补齐运行时：缺 Go 工具链补 go/gopath-mod，缺服务端源码补 server-src，缺服务端配置补 server-configs；缺服务端程序补 server-bin（预编译，免本机编译；2026-10-05 起 SQLite 是唯一引擎，已不再需要 PostgreSQL 运行时，pg-bin 包随之移除）。每个包解压到 target 指定的目录（相对整合包根）。",
   "packages": [
     {
       "name": "go",
@@ -15,49 +15,40 @@
     {
       "name": "gopath-mod",
       "url": "tools/tools-gopath-mod.zip",
-      "size": 28881300,
-      "sha256": "9f6e74ce504dfb43f38b14ded6e98fce5543d652d5cfc1193f45f081c87ec917",
-      "files": 2307,
+      "size": 65731473,
+      "sha256": "8d35b234865064a9b49ef93b49e7334d5a1e89d866730fc86eb686dbb1f1d9b9",
+      "files": 387,
       "check": "tools/gopath/pkg/mod",
-      "note": "服务端编译依赖缓存（Go module cache，离线可编译）",
+      "note": "服务端编译依赖缓存（Go 模块缓存 → tools/gopath/pkg/mod/cache/download）。2026-10-05 补全：覆盖模块图全部 51 个模块 + sumdb，玩家端断网也能 go build ./... 与 go vet ./...。本文件约 62.7 MB，单次推送会被远端断开，故仓库只存分片 tools/tools-gopath-mod.zip.partNN，用 scripts/assemble-gopath-mod.ps1 拼回并校验本条的 size/sha256。",
       "target": "tools"
     },
     {
       "name": "server-src",
       "url": "tools/tools-server-src.zip",
-      "size": 11185853,
-      "sha256": "a88c963bb89e2a913dc31f4de4004b5ea4cf9abcf31ea2c70ccd31bc614431da",
-      "files": 1878,
+      "size": 11401694,
+      "sha256": "ba1f0db3a832fca4450f324c9e0dee974755ccdcb78cf92998c9de2559197688",
+      "files": 1973,
       "check": "server/work/dfo-lan/go.mod",
       "target": "server/work/dfo-lan",
-      "note": "本地合并4064325的服务端源码、嵌入资源与启动脚本；仅依赖PostgreSQL，保留本地功能。"
+      "note": "服务端源码与嵌入资源：server/work/dfo-lan 整棵源码树（排除 docs/、configs/、runtime/）。2026-10-05 起 SQLite 是唯一存储引擎。"
     },
     {
       "name": "server-configs",
       "url": "tools/tools-server-configs.zip",
-      "size": 702718,
-      "sha256": "6e5b2483427c4545ead7b74f9fbd602f1828534feb26756cec59ea3d1e20a37b",
-      "files": 69,
+      "size": 795739,
+      "sha256": "213606e68a235c07189384ec5cee134d073a6e60e65bee12ee2a3f52c1075241",
+      "files": 68,
       "check": "server/work/dfo-lan/configs/pvf-default.json",
-      "note": "当前PVF直读运行所需配置与策略；不包含玩家连接配置或数据库存档。",
+      "note": "服务端运行配置（server/work/dfo-lan/configs 的**全部被跟踪文件**）。2026-10-05 按跟踪集重打：修掉旧包里 27 条已退役导出产出物（历史基线）与缺失的 26 条现行配置 —— 旧包被启动器当作发布版本，会把树里的配置降级回旧快照、并重新造出已删文件。",
       "target": "server/work/dfo-lan"
     },
-    {
-      "name": "pg-bin",
-      "url": "tools/tools-pg-bin.zip",
-      "size": 29413405,
-      "sha256": "ba960e17190b0af4a15d8a2f12e0ac532e76a9f01b210869a95931f814fc977b",
-      "files": 71,
-      "check": "tools/pg/pgsql/bin/postgres.exe",
-      "target": "tools/pg/pgsql/bin",
-      "note": "PostgreSQL 便携运行时 (pg/pgsql/bin 整目录)；缺 postgres.exe 时 pg_ctl 拉不起数据库"
-    },
+    
             {
       "name": "server-bin",
       "url": "tools/tools-server-bin.zip",
-      "size": 23063870,
-      "sha256": "a5e1f0c6030cf3cf71fe13da0ab0bafb5e10bbd1f6373ba99b71d356f1bc0271",
-      "files": 3,
+      "size": 24498678,
+      "sha256": "fdfa4af6b3f19dffb31e9e8276a3f413d6039950ed4ee7f2f5a80cc17dc312c8",
+      "files": 85,
       "check": "server/work/dfo-lan/bin/wireprobe-pvf.exe",
       "note": "预编译服务端程序（wireprobe-pvf.exe）+ Go 会话编排 CLI（dfolauncher.exe：launch/stop/check/start-storage/init-storage/prepare-inner-pvf/--host-client）+ 网络隔离探针（dfo_probe_tools/probe.exe）；有了它就不必在本机编译服务端，**且全程不需要 Python**（会话编排、内层 PVF 生成、存储初始化都由这个 CLI 完成）",
       "target": "server"

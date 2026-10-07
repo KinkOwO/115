@@ -28,6 +28,7 @@ const (
 	CmdRoleSelect      uint16 = 2355 // ENUM_CMDPACKET_APOCALYPSE_ROLE_SELECT
 
 	CmdVenusOperationSelect uint16 = 2290 // ENUM_CMDPACKET_VENUS_OPERATION_SELECT
+	CmdVenusRelic           uint16 = 2291 // ENUM_CMDPACKET_GET_VENUS_RELIC
 	CmdVenusEndAtPhase4     uint16 = 2293 // ENUM_CMDPACKET_VENUS_END_AT_PHASE4
 )
 

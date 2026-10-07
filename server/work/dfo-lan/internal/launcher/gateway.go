@@ -300,6 +300,11 @@ func buildGatewayCommand(in gatewayCommandInput) (gatewayCommand, error) {
 			command = append(command, "-random-option-catalog", randomOption)
 		}
 	}
+	// 维纳斯终局翻牌装备池：与 apocalypse 同理必须给绝对路径 —— 网关的 cwd 不是
+	// dfo-lan，出厂相对默认值 configs/venus-flip-gear.generated.json 解析不到，
+	// Scenario Mode 会因找不到配置文件启动失败。旧二进制没有这个 flag 时由
+	// PruneCommand 按 exe -h 的能力探测自动丢弃（连同它的值）。
+	command = append(command, "-venus-flip-gear", at("configs", "venus-flip-gear.generated.json"))
 	// 服务端程序由外层选定（本启动器写 DFO_SERVER_BINARY）。
 	if chosen := env.Get("DFO_SERVER_BINARY"); chosen != "" {
 		command[0] = chosen

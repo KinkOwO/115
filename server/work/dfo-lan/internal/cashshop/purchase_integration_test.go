@@ -6,16 +6,12 @@ import (
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"encoding/hex"
-	"os"
 	"strings"
 	"testing"
 	"time"
 )
 
 func TestPurchasePipelineIntegration(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("DFO_TEST_POSTGRES_DSN uses a disposable PostgreSQL schema")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	fixture, err := database.OpenTestFixture(ctx)

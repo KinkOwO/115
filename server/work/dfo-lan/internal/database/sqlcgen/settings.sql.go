@@ -21,7 +21,7 @@ type AccountGamepadSettingsRow struct {
 }
 
 func (q *Queries) AccountGamepadSettings(ctx context.Context, accountID int64) (AccountGamepadSettingsRow, error) {
-	row := q.db.QueryRow(ctx, accountGamepadSettings, accountID)
+	row := q.db.QueryRowContext(ctx, accountGamepadSettings, accountID)
 	var i AccountGamepadSettingsRow
 	err := row.Scan(&i.MappingTsv, &i.Options)
 	return i, err
@@ -42,7 +42,7 @@ type AccountHotkeysRow struct {
 }
 
 func (q *Queries) AccountHotkeys(ctx context.Context, arg AccountHotkeysParams) ([]AccountHotkeysRow, error) {
-	rows, err := q.db.Query(ctx, accountHotkeys, arg.AccountID, arg.Subtype)
+	rows, err := q.db.QueryContext(ctx, accountHotkeys, arg.AccountID, arg.Subtype)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ type AccountUnifiedOptionsRow struct {
 }
 
 func (q *Queries) AccountUnifiedOptions(ctx context.Context, accountID int64) ([]AccountUnifiedOptionsRow, error) {
-	rows, err := q.db.Query(ctx, accountUnifiedOptions, accountID)
+	rows, err := q.db.QueryContext(ctx, accountUnifiedOptions, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ type AccountWarpFavoritesRow struct {
 }
 
 func (q *Queries) AccountWarpFavorites(ctx context.Context, accountID int64) ([]AccountWarpFavoritesRow, error) {
-	rows, err := q.db.Query(ctx, accountWarpFavorites, accountID)
+	rows, err := q.db.QueryContext(ctx, accountWarpFavorites, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,7 @@ type AddSkillLockParams struct {
 }
 
 func (q *Queries) AddSkillLock(ctx context.Context, arg AddSkillLockParams) error {
-	_, err := q.db.Exec(ctx, addSkillLock, arg.CharacterID, arg.SkillID)
+	_, err := q.db.ExecContext(ctx, addSkillLock, arg.CharacterID, arg.SkillID)
 	return err
 }
 
@@ -144,7 +144,7 @@ type AddSkinFavoriteParams struct {
 }
 
 func (q *Queries) AddSkinFavorite(ctx context.Context, arg AddSkinFavoriteParams) error {
-	_, err := q.db.Exec(ctx, addSkinFavorite, arg.CharacterID, arg.Page, arg.SkinKey)
+	_, err := q.db.ExecContext(ctx, addSkinFavorite, arg.CharacterID, arg.Page, arg.SkinKey)
 	return err
 }
 
@@ -159,7 +159,7 @@ type AddSkinSelectionListParams struct {
 }
 
 func (q *Queries) AddSkinSelectionList(ctx context.Context, arg AddSkinSelectionListParams) error {
-	_, err := q.db.Exec(ctx, addSkinSelectionList, arg.CharacterID, arg.Category, arg.SkinKey)
+	_, err := q.db.ExecContext(ctx, addSkinSelectionList, arg.CharacterID, arg.Category, arg.SkinKey)
 	return err
 }
 
@@ -175,7 +175,7 @@ type AddSkinSelectionSlotParams struct {
 }
 
 func (q *Queries) AddSkinSelectionSlot(ctx context.Context, arg AddSkinSelectionSlotParams) error {
-	_, err := q.db.Exec(ctx, addSkinSelectionSlot,
+	_, err := q.db.ExecContext(ctx, addSkinSelectionSlot,
 		arg.CharacterID,
 		arg.Category,
 		arg.Slot,
@@ -194,7 +194,7 @@ type CharacterGamepadSettingsRow struct {
 }
 
 func (q *Queries) CharacterGamepadSettings(ctx context.Context, characterID int64) (CharacterGamepadSettingsRow, error) {
-	row := q.db.QueryRow(ctx, characterGamepadSettings, characterID)
+	row := q.db.QueryRowContext(ctx, characterGamepadSettings, characterID)
 	var i CharacterGamepadSettingsRow
 	err := row.Scan(&i.MappingTsv, &i.Options)
 	return i, err
@@ -215,7 +215,7 @@ type CharacterHotkeysRow struct {
 }
 
 func (q *Queries) CharacterHotkeys(ctx context.Context, arg CharacterHotkeysParams) ([]CharacterHotkeysRow, error) {
-	rows, err := q.db.Query(ctx, characterHotkeys, arg.CharacterID, arg.Subtype)
+	rows, err := q.db.QueryContext(ctx, characterHotkeys, arg.CharacterID, arg.Subtype)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +246,7 @@ type CharacterNoticeSeenParams struct {
 }
 
 func (q *Queries) CharacterNoticeSeen(ctx context.Context, arg CharacterNoticeSeenParams) ([]int16, error) {
-	rows, err := q.db.Query(ctx, characterNoticeSeen, arg.AccountID, arg.CharacterID, arg.Tree)
+	rows, err := q.db.QueryContext(ctx, characterNoticeSeen, arg.AccountID, arg.CharacterID, arg.Tree)
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +280,7 @@ type CharacterUnifiedOptionGroupRow struct {
 }
 
 func (q *Queries) CharacterUnifiedOptionGroup(ctx context.Context, arg CharacterUnifiedOptionGroupParams) ([]CharacterUnifiedOptionGroupRow, error) {
-	rows, err := q.db.Query(ctx, characterUnifiedOptionGroup, arg.CharacterID, arg.Subtype)
+	rows, err := q.db.QueryContext(ctx, characterUnifiedOptionGroup, arg.CharacterID, arg.Subtype)
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +309,7 @@ type CharacterUnifiedOptionsRow struct {
 }
 
 func (q *Queries) CharacterUnifiedOptions(ctx context.Context, characterID int64) ([]CharacterUnifiedOptionsRow, error) {
-	rows, err := q.db.Query(ctx, characterUnifiedOptions, characterID)
+	rows, err := q.db.QueryContext(ctx, characterUnifiedOptions, characterID)
 	if err != nil {
 		return nil, err
 	}
@@ -333,7 +333,7 @@ DELETE FROM character_gamepad_settings WHERE account_id = $1
 `
 
 func (q *Queries) ClearAccountCharacterGamepadSettings(ctx context.Context, accountID int64) error {
-	_, err := q.db.Exec(ctx, clearAccountCharacterGamepadSettings, accountID)
+	_, err := q.db.ExecContext(ctx, clearAccountCharacterGamepadSettings, accountID)
 	return err
 }
 
@@ -349,7 +349,7 @@ type ClearAccountCharacterHotkeysParams struct {
 }
 
 func (q *Queries) ClearAccountCharacterHotkeys(ctx context.Context, arg ClearAccountCharacterHotkeysParams) error {
-	_, err := q.db.Exec(ctx, clearAccountCharacterHotkeys, arg.AccountID, arg.Subtype)
+	_, err := q.db.ExecContext(ctx, clearAccountCharacterHotkeys, arg.AccountID, arg.Subtype)
 	return err
 }
 
@@ -358,7 +358,7 @@ DELETE FROM character_gamepad_settings WHERE character_id = $1
 `
 
 func (q *Queries) ClearCharacterGamepadSettings(ctx context.Context, characterID int64) error {
-	_, err := q.db.Exec(ctx, clearCharacterGamepadSettings, characterID)
+	_, err := q.db.ExecContext(ctx, clearCharacterGamepadSettings, characterID)
 	return err
 }
 
@@ -367,7 +367,7 @@ DELETE FROM character_equipment_skill WHERE character_id=$1
 `
 
 func (q *Queries) ClearEquipmentSkill(ctx context.Context, characterID int64) error {
-	_, err := q.db.Exec(ctx, clearEquipmentSkill, characterID)
+	_, err := q.db.ExecContext(ctx, clearEquipmentSkill, characterID)
 	return err
 }
 
@@ -376,7 +376,7 @@ DELETE FROM character_skill_locks WHERE character_id=$1
 `
 
 func (q *Queries) ClearSkillLocks(ctx context.Context, characterID int64) error {
-	_, err := q.db.Exec(ctx, clearSkillLocks, characterID)
+	_, err := q.db.ExecContext(ctx, clearSkillLocks, characterID)
 	return err
 }
 
@@ -390,7 +390,7 @@ type ClearSkinSelectionListParams struct {
 }
 
 func (q *Queries) ClearSkinSelectionList(ctx context.Context, arg ClearSkinSelectionListParams) error {
-	_, err := q.db.Exec(ctx, clearSkinSelectionList, arg.CharacterID, arg.Category)
+	_, err := q.db.ExecContext(ctx, clearSkinSelectionList, arg.CharacterID, arg.Category)
 	return err
 }
 
@@ -404,7 +404,7 @@ type ClearSkinSelectionSlotsParams struct {
 }
 
 func (q *Queries) ClearSkinSelectionSlots(ctx context.Context, arg ClearSkinSelectionSlotsParams) error {
-	_, err := q.db.Exec(ctx, clearSkinSelectionSlots, arg.CharacterID, arg.Category)
+	_, err := q.db.ExecContext(ctx, clearSkinSelectionSlots, arg.CharacterID, arg.Category)
 	return err
 }
 
@@ -423,7 +423,7 @@ type CopyAccountHotkeysToCharacterParams struct {
 }
 
 func (q *Queries) CopyAccountHotkeysToCharacter(ctx context.Context, arg CopyAccountHotkeysToCharacterParams) error {
-	_, err := q.db.Exec(ctx, copyAccountHotkeysToCharacter, arg.CharacterID, arg.AccountID, arg.Subtype)
+	_, err := q.db.ExecContext(ctx, copyAccountHotkeysToCharacter, arg.CharacterID, arg.AccountID, arg.Subtype)
 	return err
 }
 
@@ -437,7 +437,7 @@ type CountSkinFavoritesParams struct {
 }
 
 func (q *Queries) CountSkinFavorites(ctx context.Context, arg CountSkinFavoritesParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countSkinFavorites, arg.CharacterID, arg.Page)
+	row := q.db.QueryRowContext(ctx, countSkinFavorites, arg.CharacterID, arg.Page)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -459,7 +459,7 @@ type EquipmentSkillSnapshotsRow struct {
 }
 
 func (q *Queries) EquipmentSkillSnapshots(ctx context.Context, arg EquipmentSkillSnapshotsParams) (EquipmentSkillSnapshotsRow, error) {
-	row := q.db.QueryRow(ctx, equipmentSkillSnapshots, arg.CharacterID, arg.AccountID)
+	row := q.db.QueryRowContext(ctx, equipmentSkillSnapshots, arg.CharacterID, arg.AccountID)
 	var i EquipmentSkillSnapshotsRow
 	err := row.Scan(&i.Skills, &i.Commands)
 	return i, err
@@ -476,7 +476,7 @@ type InitializeProfileSkinsParams struct {
 }
 
 func (q *Queries) InitializeProfileSkins(ctx context.Context, arg InitializeProfileSkinsParams) error {
-	_, err := q.db.Exec(ctx, initializeProfileSkins, arg.CharacterID, arg.State)
+	_, err := q.db.ExecContext(ctx, initializeProfileSkins, arg.CharacterID, arg.State)
 	return err
 }
 
@@ -491,7 +491,7 @@ type ListSkinsRow struct {
 }
 
 func (q *Queries) ListSkins(ctx context.Context, accountID int64) ([]ListSkinsRow, error) {
-	rows, err := q.db.Query(ctx, listSkins, accountID)
+	rows, err := q.db.QueryContext(ctx, listSkins, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -523,7 +523,7 @@ type MarkCharacterNoticeParams struct {
 }
 
 func (q *Queries) MarkCharacterNotice(ctx context.Context, arg MarkCharacterNoticeParams) error {
-	_, err := q.db.Exec(ctx, markCharacterNotice,
+	_, err := q.db.ExecContext(ctx, markCharacterNotice,
 		arg.AccountID,
 		arg.CharacterID,
 		arg.Tree,
@@ -537,7 +537,7 @@ SELECT state FROM character_profile_skins WHERE character_id=$1
 `
 
 func (q *Queries) ProfileSkins(ctx context.Context, characterID int64) (json.RawMessage, error) {
-	row := q.db.QueryRow(ctx, profileSkins, characterID)
+	row := q.db.QueryRowContext(ctx, profileSkins, characterID)
 	var state json.RawMessage
 	err := row.Scan(&state)
 	return state, err
@@ -559,7 +559,7 @@ type PromoteCharacterHotkeysToAccountParams struct {
 }
 
 func (q *Queries) PromoteCharacterHotkeysToAccount(ctx context.Context, arg PromoteCharacterHotkeysToAccountParams) error {
-	_, err := q.db.Exec(ctx, promoteCharacterHotkeysToAccount, arg.AccountID, arg.CharacterID, arg.Subtype)
+	_, err := q.db.ExecContext(ctx, promoteCharacterHotkeysToAccount, arg.AccountID, arg.CharacterID, arg.Subtype)
 	return err
 }
 
@@ -574,7 +574,7 @@ type RemoveSkinFavoriteParams struct {
 }
 
 func (q *Queries) RemoveSkinFavorite(ctx context.Context, arg RemoveSkinFavoriteParams) error {
-	_, err := q.db.Exec(ctx, removeSkinFavorite, arg.CharacterID, arg.Page, arg.SkinKey)
+	_, err := q.db.ExecContext(ctx, removeSkinFavorite, arg.CharacterID, arg.Page, arg.SkinKey)
 	return err
 }
 
@@ -596,7 +596,7 @@ type RosterBackgroundUnlocksRow struct {
 }
 
 func (q *Queries) RosterBackgroundUnlocks(ctx context.Context, arg RosterBackgroundUnlocksParams) ([]RosterBackgroundUnlocksRow, error) {
-	rows, err := q.db.Query(ctx, rosterBackgroundUnlocks, arg.AccountID, arg.NowUnix)
+	rows, err := q.db.QueryContext(ctx, rosterBackgroundUnlocks, arg.AccountID, arg.NowUnix)
 	if err != nil {
 		return nil, err
 	}
@@ -626,7 +626,7 @@ type RosterBackgroundsRow struct {
 }
 
 func (q *Queries) RosterBackgrounds(ctx context.Context, accountID int64) ([]RosterBackgroundsRow, error) {
-	rows, err := q.db.Query(ctx, rosterBackgrounds, accountID)
+	rows, err := q.db.QueryContext(ctx, rosterBackgrounds, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -658,7 +658,7 @@ type SaveAccountGamepadKeysParams struct {
 }
 
 func (q *Queries) SaveAccountGamepadKeys(ctx context.Context, arg SaveAccountGamepadKeysParams) error {
-	_, err := q.db.Exec(ctx, saveAccountGamepadKeys, arg.AccountID, arg.MappingTsv)
+	_, err := q.db.ExecContext(ctx, saveAccountGamepadKeys, arg.AccountID, arg.MappingTsv)
 	return err
 }
 
@@ -675,7 +675,7 @@ type SaveAccountGamepadOptionsParams struct {
 }
 
 func (q *Queries) SaveAccountGamepadOptions(ctx context.Context, arg SaveAccountGamepadOptionsParams) error {
-	_, err := q.db.Exec(ctx, saveAccountGamepadOptions, arg.AccountID, arg.Options)
+	_, err := q.db.ExecContext(ctx, saveAccountGamepadOptions, arg.AccountID, arg.Options)
 	return err
 }
 
@@ -693,7 +693,7 @@ type SaveAccountHotkeyParams struct {
 }
 
 func (q *Queries) SaveAccountHotkey(ctx context.Context, arg SaveAccountHotkeyParams) error {
-	_, err := q.db.Exec(ctx, saveAccountHotkey,
+	_, err := q.db.ExecContext(ctx, saveAccountHotkey,
 		arg.AccountID,
 		arg.Subtype,
 		arg.SlotIndex,
@@ -714,7 +714,7 @@ type SaveAccountUnifiedOptionParams struct {
 }
 
 func (q *Queries) SaveAccountUnifiedOption(ctx context.Context, arg SaveAccountUnifiedOptionParams) error {
-	_, err := q.db.Exec(ctx, saveAccountUnifiedOption, arg.AccountID, arg.OptIndex, arg.Value)
+	_, err := q.db.ExecContext(ctx, saveAccountUnifiedOption, arg.AccountID, arg.OptIndex, arg.Value)
 	return err
 }
 
@@ -732,7 +732,7 @@ type SaveAccountWarpFavoriteParams struct {
 }
 
 func (q *Queries) SaveAccountWarpFavorite(ctx context.Context, arg SaveAccountWarpFavoriteParams) error {
-	_, err := q.db.Exec(ctx, saveAccountWarpFavorite, arg.AccountID, arg.SlotIndex, arg.Value)
+	_, err := q.db.ExecContext(ctx, saveAccountWarpFavorite, arg.AccountID, arg.SlotIndex, arg.Value)
 	return err
 }
 
@@ -750,7 +750,7 @@ type SaveCharacterGamepadKeysParams struct {
 }
 
 func (q *Queries) SaveCharacterGamepadKeys(ctx context.Context, arg SaveCharacterGamepadKeysParams) error {
-	_, err := q.db.Exec(ctx, saveCharacterGamepadKeys, arg.CharacterID, arg.AccountID, arg.MappingTsv)
+	_, err := q.db.ExecContext(ctx, saveCharacterGamepadKeys, arg.CharacterID, arg.AccountID, arg.MappingTsv)
 	return err
 }
 
@@ -768,7 +768,7 @@ type SaveCharacterGamepadOptionsParams struct {
 }
 
 func (q *Queries) SaveCharacterGamepadOptions(ctx context.Context, arg SaveCharacterGamepadOptionsParams) error {
-	_, err := q.db.Exec(ctx, saveCharacterGamepadOptions, arg.CharacterID, arg.AccountID, arg.Options)
+	_, err := q.db.ExecContext(ctx, saveCharacterGamepadOptions, arg.CharacterID, arg.AccountID, arg.Options)
 	return err
 }
 
@@ -786,7 +786,7 @@ type SaveCharacterHotkeyParams struct {
 }
 
 func (q *Queries) SaveCharacterHotkey(ctx context.Context, arg SaveCharacterHotkeyParams) error {
-	_, err := q.db.Exec(ctx, saveCharacterHotkey,
+	_, err := q.db.ExecContext(ctx, saveCharacterHotkey,
 		arg.CharacterID,
 		arg.Subtype,
 		arg.SlotIndex,
@@ -807,7 +807,7 @@ type SaveCharacterUnifiedOptionParams struct {
 }
 
 func (q *Queries) SaveCharacterUnifiedOption(ctx context.Context, arg SaveCharacterUnifiedOptionParams) error {
-	_, err := q.db.Exec(ctx, saveCharacterUnifiedOption, arg.CharacterID, arg.OptIndex, arg.Value)
+	_, err := q.db.ExecContext(ctx, saveCharacterUnifiedOption, arg.CharacterID, arg.OptIndex, arg.Value)
 	return err
 }
 
@@ -824,7 +824,7 @@ type SaveCharacterUnifiedOptionGroupParams struct {
 }
 
 func (q *Queries) SaveCharacterUnifiedOptionGroup(ctx context.Context, arg SaveCharacterUnifiedOptionGroupParams) error {
-	_, err := q.db.Exec(ctx, saveCharacterUnifiedOptionGroup,
+	_, err := q.db.ExecContext(ctx, saveCharacterUnifiedOptionGroup,
 		arg.CharacterID,
 		arg.Subtype,
 		arg.OptIndex,
@@ -845,7 +845,7 @@ type SaveEquipmentCommandsParams struct {
 }
 
 func (q *Queries) SaveEquipmentCommands(ctx context.Context, arg SaveEquipmentCommandsParams) error {
-	_, err := q.db.Exec(ctx, saveEquipmentCommands, arg.CharacterID, arg.Commands)
+	_, err := q.db.ExecContext(ctx, saveEquipmentCommands, arg.CharacterID, arg.Commands)
 	return err
 }
 
@@ -861,7 +861,7 @@ type SaveEquipmentSkillsParams struct {
 }
 
 func (q *Queries) SaveEquipmentSkills(ctx context.Context, arg SaveEquipmentSkillsParams) error {
-	_, err := q.db.Exec(ctx, saveEquipmentSkills, arg.CharacterID, arg.Skills)
+	_, err := q.db.ExecContext(ctx, saveEquipmentSkills, arg.CharacterID, arg.Skills)
 	return err
 }
 
@@ -880,7 +880,7 @@ type SaveTutorialFlagParams struct {
 }
 
 func (q *Queries) SaveTutorialFlag(ctx context.Context, arg SaveTutorialFlagParams) (int64, error) {
-	result, err := q.db.Exec(ctx, saveTutorialFlag,
+	result, err := q.db.ExecContext(ctx, saveTutorialFlag,
 		arg.Flag,
 		arg.Completed,
 		arg.AccountID,
@@ -889,7 +889,11 @@ func (q *Queries) SaveTutorialFlag(ctx context.Context, arg SaveTutorialFlagPara
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const selectRosterBackground = `-- name: SelectRosterBackground :exec
@@ -906,7 +910,7 @@ type SelectRosterBackgroundParams struct {
 }
 
 func (q *Queries) SelectRosterBackground(ctx context.Context, arg SelectRosterBackgroundParams) error {
-	_, err := q.db.Exec(ctx, selectRosterBackground,
+	_, err := q.db.ExecContext(ctx, selectRosterBackground,
 		arg.AccountID,
 		arg.Page,
 		arg.Category,
@@ -928,7 +932,7 @@ type SelectSkinParams struct {
 }
 
 func (q *Queries) SelectSkin(ctx context.Context, arg SelectSkinParams) error {
-	_, err := q.db.Exec(ctx, selectSkin, arg.CharacterID, arg.Page, arg.SkinKey)
+	_, err := q.db.ExecContext(ctx, selectSkin, arg.CharacterID, arg.Page, arg.SkinKey)
 	return err
 }
 
@@ -943,7 +947,7 @@ type SelectedSkinParams struct {
 }
 
 func (q *Queries) SelectedSkin(ctx context.Context, arg SelectedSkinParams) (int64, error) {
-	row := q.db.QueryRow(ctx, selectedSkin, arg.CharacterID, arg.Page)
+	row := q.db.QueryRowContext(ctx, selectedSkin, arg.CharacterID, arg.Page)
 	var skin_key int64
 	err := row.Scan(&skin_key)
 	return skin_key, err
@@ -954,7 +958,7 @@ SELECT skill_id FROM character_skill_locks WHERE character_id=$1 ORDER BY skill_
 `
 
 func (q *Queries) SkillLocks(ctx context.Context, characterID int64) ([]int32, error) {
-	rows, err := q.db.Query(ctx, skillLocks, characterID)
+	rows, err := q.db.QueryContext(ctx, skillLocks, characterID)
 	if err != nil {
 		return nil, err
 	}
@@ -988,7 +992,7 @@ type SkinFavoritesRow struct {
 }
 
 func (q *Queries) SkinFavorites(ctx context.Context, arg SkinFavoritesParams) ([]SkinFavoritesRow, error) {
-	rows, err := q.db.Query(ctx, skinFavorites, arg.CharacterID, arg.Groups)
+	rows, err := q.db.QueryContext(ctx, skinFavorites, arg.CharacterID, arg.Groups)
 	if err != nil {
 		return nil, err
 	}
@@ -1017,7 +1021,7 @@ type SkinSelectionListParams struct {
 }
 
 func (q *Queries) SkinSelectionList(ctx context.Context, arg SkinSelectionListParams) ([]int64, error) {
-	rows, err := q.db.Query(ctx, skinSelectionList, arg.CharacterID, arg.Category)
+	rows, err := q.db.QueryContext(ctx, skinSelectionList, arg.CharacterID, arg.Category)
 	if err != nil {
 		return nil, err
 	}
@@ -1051,7 +1055,7 @@ type SkinSelectionSlotsRow struct {
 }
 
 func (q *Queries) SkinSelectionSlots(ctx context.Context, arg SkinSelectionSlotsParams) ([]SkinSelectionSlotsRow, error) {
-	rows, err := q.db.Query(ctx, skinSelectionSlots, arg.CharacterID, arg.Category)
+	rows, err := q.db.QueryContext(ctx, skinSelectionSlots, arg.CharacterID, arg.Category)
 	if err != nil {
 		return nil, err
 	}
@@ -1075,7 +1079,7 @@ SELECT flag FROM character_tutorial_flags WHERE character_id=$1 AND completed OR
 `
 
 func (q *Queries) TutorialFlags(ctx context.Context, characterID int64) ([]int32, error) {
-	rows, err := q.db.Query(ctx, tutorialFlags, characterID)
+	rows, err := q.db.QueryContext(ctx, tutorialFlags, characterID)
 	if err != nil {
 		return nil, err
 	}
@@ -1110,7 +1114,7 @@ type UnlockRosterBackgroundParams struct {
 }
 
 func (q *Queries) UnlockRosterBackground(ctx context.Context, arg UnlockRosterBackgroundParams) (int64, error) {
-	result, err := q.db.Exec(ctx, unlockRosterBackground,
+	result, err := q.db.ExecContext(ctx, unlockRosterBackground,
 		arg.AccountID,
 		arg.Category,
 		arg.BackgroundID,
@@ -1120,7 +1124,11 @@ func (q *Queries) UnlockRosterBackground(ctx context.Context, arg UnlockRosterBa
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }
 
 const unlockSkin = `-- name: UnlockSkin :exec
@@ -1134,7 +1142,7 @@ type UnlockSkinParams struct {
 }
 
 func (q *Queries) UnlockSkin(ctx context.Context, arg UnlockSkinParams) error {
-	_, err := q.db.Exec(ctx, unlockSkin, arg.AccountID, arg.SourceTemplate, arg.SkinKey)
+	_, err := q.db.ExecContext(ctx, unlockSkin, arg.AccountID, arg.SourceTemplate, arg.SkinKey)
 	return err
 }
 
@@ -1151,7 +1159,7 @@ type UnmarkCharacterNoticeParams struct {
 }
 
 func (q *Queries) UnmarkCharacterNotice(ctx context.Context, arg UnmarkCharacterNoticeParams) error {
-	_, err := q.db.Exec(ctx, unmarkCharacterNotice,
+	_, err := q.db.ExecContext(ctx, unmarkCharacterNotice,
 		arg.AccountID,
 		arg.CharacterID,
 		arg.Tree,

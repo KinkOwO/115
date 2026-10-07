@@ -13,7 +13,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -32,13 +31,16 @@ func TestOathDirectEntryWithoutWorldStore(t *testing.T) {
 	}
 }
 
-// Use a dedicated PostgreSQL DSN and a disposable schema. This checks real
-// persisted selections, packet timing and unchanged saves, without player data.
+// The fixture opens its own disposable SQLite database, so this runs without naming a
+// test database. It checks real persisted selections, packet timing and unchanged saves,
+// without player data.
+//
+// 2026-10-05：本用例此前一直由 DFO_TEST_POSTGRES_DSN 跳过，摘掉门控后第一次运行就抓到
+// 一处真实差异 —— loading 阶段会多发一条 ID14 的 dungeon_worn_random_options_restored，
+// 与已经提前发过的 ID13 整份穿戴快照重复，原生会把随机属性应用两次。修法见
+// finishDungeonLoading 顶部的 directEntry 守卫。下面「loading 不许重发 ID 2/13/14/2839」
+// 的断言就是这条不变量。
 func TestOathDirectEntryIntegration(t *testing.T) {
-	dsn := os.Getenv("DFO_TEST_POSTGRES_DSN")
-	if dsn == "" {
-		t.Skip("DFO_TEST_POSTGRES_DSN requires a dedicated PostgreSQL test database")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	fixture, err := database.OpenTestFixture(ctx)

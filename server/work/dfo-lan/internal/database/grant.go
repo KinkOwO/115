@@ -2,12 +2,11 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"dfolan/internal/database/sqlcgen"
 	"encoding/json"
 	"fmt"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // GrantItem is one item handed out by an operator grant.
@@ -115,7 +114,7 @@ func (s *Store) ApplyGrant(ctx context.Context, g Grant, mutate func(Character) 
 		return out, e
 	}
 	claim, e := q.ClaimAdminGrant(ctx, sqlcgen.ClaimAdminGrantParams{GrantID: g.ID, AccountID: g.AccountID,
-		CharacterID: pgtype.Int8{Int64: g.Character, Valid: g.Character != 0}, Request: request, Operator: g.Operator, Reason: g.Reason})
+		CharacterID: sql.NullInt64{Int64: g.Character, Valid: g.Character != 0}, Request: request, Operator: g.Operator, Reason: g.Reason})
 	if e != nil {
 		return out, fmt.Errorf("grant target is not a known account/character: %w", e)
 	}

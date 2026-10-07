@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -52,7 +50,7 @@ type LaunchOptions struct {
 // LaunchReport is everything launch --check / --dry-run reports, plus the raw material the
 // tests compare against the Python's own output.
 type LaunchReport struct {
-	Storage     string // "SQLite <path>" or "PostgreSQL: True|False", worded as the Python
+	Storage     string // "SQLite <path>", worded as the Python's line was
 	Binary      string
 	DataMode    string
 	ClientDir   string
@@ -164,19 +162,12 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 	client := resolveUnder(serverRoot, *settings.ClientDir)
 	report.ClientDir = client
 
-	pg, err := storageEndpoint(storage)
-	if err != nil {
+	if err := validateStorage(storage); err != nil {
 		return report, err
 	}
-	if pg == nil {
-		// SQLite: no server to start, and every PostgreSQL step is skipped rather than
-		// attempted. The path is echoed verbatim, as the Python's f-string did.
-		report.Storage = "SQLite " + *storage.SQLitePath
-	} else {
-		// pythonBool, not %t: this line is compared against the Python's output, and the
-		// Python printed the bool's repr.
-		report.Storage = "PostgreSQL: " + pythonBool(PortListening(pg.Port, portProbeTimeout))
-	}
+	// SQLite: no service to start, so the storage line is just the file the engine opens.
+	// The path is echoed verbatim, as the Python's f-string did.
+	report.Storage = "SQLite " + *storage.SQLitePath
 
 	binary := ""
 	switch {
@@ -290,7 +281,6 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 			client:      client,
 			binary:      binary,
 			storage:     storage,
-			pg:          pg,
 			opts:        opts,
 			catalogs:    profile.Env["DFO_PVF_CATALOGS"],
 			innerStatus: report.InnerPVF,
@@ -345,11 +335,8 @@ func jsonBoolean(raw json.RawMessage) (bool, error) {
 // storageFile is runtime/storage/local.json. Pointers distinguish "absent" from "empty",
 // which is the difference between the Python's KeyError and its own error messages.
 type storageFile struct {
-	Driver       string  `json:"driver"`
-	SQLitePath   *string `json:"sqlite_path"`
-	PostgresDSN  *string `json:"postgres_dsn"`
-	PostgresBin  string  `json:"postgres_bin"`
-	PostgresData string  `json:"postgres_data"`
+	Driver     string  `json:"driver"`
+	SQLitePath *string `json:"sqlite_path"`
 }
 
 // loadStorageFile reads runtime/storage/local.json. Unlike LoadStorageConfig (used by the
@@ -371,63 +358,29 @@ func loadStorageFile(path string) (storageFile, error) {
 	return storage, nil
 }
 
-// postgresEndpoint is what the Python kept from postgres_dsn: a loopback host and a port.
-type postgresEndpoint struct {
-	Host string
-	Port int
-}
-
-// storageEndpoint classifies the storage configuration exactly as configuration() did: an
-// explicit driver wins, an empty one means PostgreSQL, and SQLite means there is no
-// service at all. A nil endpoint therefore means "skip every PostgreSQL step".
+// validateStorage classifies the storage configuration for the launch path. SQLite is the
+// only engine since 2026-10-05 (owner decision, see root AGENTS.md §0.6), so the only thing
+// left to check is that the profile names a sqlite_path; an empty driver means SQLite, the
+// same fallback the server's engineForConfig uses. Leftover postgres_* keys in an old
+// profile are ignored rather than honoured.
 //
-// It deliberately does not use StorageConfig.DriverName(): that method also infers the
-// engine from the DSN and sqlite_path, while the launch path follows the driver field
-// alone, and the two must not disagree about which database a start would use.
-func storageEndpoint(storage storageFile) (*postgresEndpoint, error) {
-	driver := strings.ToLower(storage.Driver)
-	if driver == "" {
-		driver = "postgres"
-	}
-	switch driver {
-	case "sqlite":
+// The launch path follows the driver field alone (it deliberately does not use
+// StorageConfig.DriverName(), which also infers the engine from sqlite_path), so the two
+// paths must not disagree about which database a start would use.
+func validateStorage(storage storageFile) error {
+	switch driver := strings.ToLower(strings.TrimSpace(storage.Driver)); driver {
+	case "", "sqlite":
 		if storage.SQLitePath == nil || *storage.SQLitePath == "" {
-			return nil, fmt.Errorf(
+			return fmt.Errorf(
 				"Storage driver 'sqlite' requires sqlite_path in runtime/storage/local.json.")
 		}
-		return nil, nil
+		return nil
 	case "postgres":
-		dsn := ""
-		if storage.PostgresDSN != nil {
-			dsn = *storage.PostgresDSN
-		}
-		endpoint, err := parseLoopbackDSN(dsn)
-		if err != nil {
-			return nil, err
-		}
-		return &endpoint, nil
+		return fmt.Errorf("PostgreSQL support was removed (2026-10-05, see root AGENTS.md §0.6); " +
+			"runtime/storage/local.json must name sqlite_path.")
 	default:
-		return nil, fmt.Errorf("Unsupported storage driver '%s'.", driver)
+		return fmt.Errorf("Unsupported storage driver '%s'.", driver)
 	}
-}
-
-// parseLoopbackDSN is urlparse plus the development rule that storage must be local. A
-// missing port leaves 0, which cannot be listening - the Python passed None to
-// create_connection and landed in the same place.
-func parseLoopbackDSN(dsn string) (postgresEndpoint, error) {
-	endpoint := postgresEndpoint{}
-	if parsed, err := url.Parse(dsn); err == nil {
-		endpoint.Host = parsed.Hostname()
-		if port := parsed.Port(); port != "" {
-			if value, convErr := strconv.Atoi(port); convErr == nil {
-				endpoint.Port = value
-			}
-		}
-	}
-	if endpoint.Host != "127.0.0.1" {
-		return endpoint, fmt.Errorf("This development profile requires local loopback storage.")
-	}
-	return endpoint, nil
 }
 
 // resolveUnder resolves a configured path, mirroring the Python's resolved(): an absolute
@@ -456,37 +409,11 @@ func expandUser(value string) string {
 	return filepath.Join(home, value[2:])
 }
 
-// resolveFromWorkingDir resolves a path the way pathlib's Path(...).resolve() did when the
-// value was written relative: against the caller's directory, not against the root. The
-// Python used it for postgres_data, which is why an empty value means the current
-// directory rather than the storage directory.
-func resolveFromWorkingDir(value string) string {
-	if value == "" {
-		value = "."
-	}
-	if filepath.IsAbs(value) {
-		return filepath.Clean(value)
-	}
-	if absolute, err := filepath.Abs(value); err == nil {
-		return absolute
-	}
-	return filepath.Clean(value)
-}
-
 // regularFile reports whether the path is a file, following symlinks - the same test
 // Path.is_file() applied.
 func regularFile(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && !info.IsDir()
-}
-
-// pythonBool renders a bool the way the Python's f-string printed it. The storage line is
-// compared byte for byte against launch_local.py's output, so "True" is not a typo.
-func pythonBool(value bool) string {
-	if value {
-		return "True"
-	}
-	return "False"
 }
 
 // planInput is everything the --dry-run plan needs, so the plan builder stays testable
@@ -500,7 +427,6 @@ type planInput struct {
 	client      string
 	binary      string
 	storage     storageFile
-	pg          *postgresEndpoint
 	opts        LaunchOptions
 	catalogs    string
 	innerStatus InnerPVFStatus
@@ -516,10 +442,7 @@ func launchPlanSteps(in planInput) ([]PlanStep, error) {
 	tag := sessionTagName(in.now)
 	out := filepath.Join(in.module, "runtime", tag)
 
-	storage, err := storageStep(in)
-	if err != nil {
-		return nil, err
-	}
+	storage := storageStep(in)
 	return []PlanStep{
 		storage,
 		innerPVFStep(in),
@@ -528,45 +451,20 @@ func launchPlanSteps(in planInput) ([]PlanStep, error) {
 	}, nil
 }
 
-// storageStep mirrors start_storage read-only: SQLite has no service, and a PostgreSQL
-// profile is started only from the data directory the launcher owns.
-func storageStep(in planInput) (PlanStep, error) {
+// storageStep mirrors start_storage read-only: SQLite is the only engine and it has no
+// service, so the step always reports "nothing to start" and carries the database file the
+// engine will open.
+func storageStep(in planInput) PlanStep {
 	const step = "存储"
-	if in.pg == nil {
-		path := ""
-		if in.storage.SQLitePath != nil {
-			path = *in.storage.SQLitePath
-		}
-		return PlanStep{
-			Step:   step,
-			Target: "(无需启动)",
-			Detail: "SQLite 档没有服务要起；引擎自行打开并创建 " + path,
-		}, nil
-	}
-	if PortListening(in.pg.Port, portProbeTimeout) {
-		return PlanStep{
-			Step:   step,
-			Target: "(已在监听)",
-			Detail: fmt.Sprintf("127.0.0.1:%d 已在监听，无需启动", in.pg.Port),
-		}, nil
-	}
-	data := resolveFromWorkingDir(in.storage.PostgresData)
-	if data != filepath.Join(in.storageDir, "pgdata") {
-		// Same refusal as the Python: a data directory outside the launcher's own storage
-		// area belongs to whoever configured it.
-		return PlanStep{}, fmt.Errorf(
-			"Database offline; external data directories must be started by their owner.")
-	}
-	pgCtl := filepath.Join(in.storage.PostgresBin, "pg_ctl.exe")
-	if !regularFile(filepath.Join(data, "PG_VERSION")) || !regularFile(pgCtl) {
-		return PlanStep{}, fmt.Errorf("Existing PostgreSQL data or pg_ctl missing.")
+	path := ""
+	if in.storage.SQLitePath != nil {
+		path = *in.storage.SQLitePath
 	}
 	return PlanStep{
 		Step:   step,
-		Target: pgCtl,
-		Detail: fmt.Sprintf("-D %s -l %s -w -t 30 start（stdout/stderr 追加到 launcher-postgres.log）",
-			data, filepath.Join(in.storageDir, "postgres.log")),
-	}, nil
+		Target: "(无需启动)",
+		Detail: "SQLite 档没有服务要起；引擎自行打开并创建 " + path,
+	}
 }
 
 // innerPVFStep is the inner-archive step the Python performed inline. It is skipped for a

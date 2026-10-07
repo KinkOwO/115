@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/boostup"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/database"
@@ -21,6 +22,11 @@ import (
 )
 
 type worldSession struct {
+	// slotUnlockDirty 记录「本局副本内写入了新的扩展装备槽解锁位」。
+	// 装备栏挂锁只能由 EntryAddition（USERINFO1）投影，而客户端只在登录/选角/进副本那种时机构造装备栏行对象，副本内补发它会把装备栏显示清空（2026-09-22 实测）。
+	// 因此解锁只落库，改在回城时补发一次，让玩家不必重登。见 analysis/tasks/next50-odyssey-expanded-equip-slot.md。
+	slotUnlockDirty bool
+
 	npcPresenceIndex    *npcpresence.Index
 	npcPresenceIndexErr error
 	lastFame            uint32
@@ -55,7 +61,25 @@ type worldSession struct {
 	bleedingMineStart   *bleedingMineStart
 	// ispins 是一次伊斯大陆（内容号 101）挑战的会话状态；nil = 无进行中的
 	// 挑战。字节契约见 ispins_flow.go 与 next78 取证文档。
-	ispins                 *ispinsRun
+	ispins *ispinsRun
+	// venus 是一次美神维纳斯（内容号 106）挑战的会话状态；nil = 无进行中的
+	// 挑战。字节契约见 venus_flow.go、internal/legion/venus.go 与
+	// 包规格/全流程 N2655/2290/2291/1474 规格文档。
+	venus *venusRun
+	// forest 是一次苏醒之森（Forest of Awakening，内容号 104）挑战的会话
+	// 状态；nil = 无进行中的挑战。字节契约见 forest_flow.go 与
+	// internal/legion/forest.go（官服 21:42-21:45 三关完整抓包向量）。
+	forest *forestRun
+	// forestPartyHard 记录待机区建队选择的模式（CMD12 类型 0x19 =
+	// Extreme/ForestOfAwakeningHard），开战时带入 forestRun.hard。
+	forestPartyHard bool
+	// lastVenusResetCharacter 是最近一次发过遗物 UI 重置（N2655 mask=0）
+	// 的角色 WireID：同一频道连接内切角色时触发一次（BUG4）。
+	lastVenusResetCharacter int64
+	// pendingRelicReset 挂起「遗物 UI 待归零」标记：终局视频播完置位，
+	// 同连接内角色变化的首个 CMD35 补发后清除（第二十三轮两段式，避免
+	// 首次进频道就误发等待态 UI——015424 会话回归实证）。
+	pendingRelicReset      bool
 	blackPurgatory         blackPurgatoryState
 	adventureEliteSnapshot [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
@@ -212,6 +236,17 @@ type worldSession struct {
 	adventureReady      bool
 	seasonLevelSnapshot [32]byte
 	seasonOathSnapshot  [32]byte
+
+	// boostup 是「胶囊加速/新手成长」活动 662 的本连接目录视图（nil = 活动关闭）。
+	// 它由 gatewayRuntime 的同一份只读源解析结果按值共享，不在连接上重复解析。
+	boostup *boostup.Catalog
+	// boostWorldBase 记住被胶囊教学城镇替换掉的普通世界服务，毕业/失效后还原。
+	boostWorldBase *world.Service
+	// notifyBoostMail 把活动邮寄写进角色的未读信箱（唤醒 mailChanges 重发提示）。
+	notifyBoostMail func(int64)
+	// boostOperations 是活动领奖幂等键的来源（口径同装备线：连接随机数 + 传输帧
+	// 摘要）。donor 基线把同一个键发生器挂在会话的 itemOperations 上。
+	boostOperations requestKeySession
 }
 
 func (w *worldSession) enter(role database.Character, spawn database.WorldPosition) error {
@@ -256,6 +291,14 @@ func (w *worldSession) enter(role database.Character, spawn database.WorldPositi
 		if e != nil {
 			return e
 		}
+	}
+	// Starter Boost 662：训练中的角色入场落在活动城镇（胶囊教学房）。
+	// enterBoostWorld 是幂等的场景交接：Origin/Activated 早已落库，掉线重连重试
+	// 同一关而不再扣一次胶囊。handled=false 表示与活动无关，照普通世界进入。
+	if boostSaved, boostHandled, boostErr := w.enterBoostWorld(ctx, role, state.Level, saved.Position); boostErr != nil {
+		return boostErr
+	} else if boostHandled {
+		saved = boostSaved
 	}
 	w.role, w.level, w.state, w.odyssey = role, state.Level, saved, odyssey
 	w.ispinsRepeatPending = false

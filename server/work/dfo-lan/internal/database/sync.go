@@ -25,16 +25,11 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -64,21 +59,7 @@ func SQLiteTarget(path string) EngineTarget {
 	}
 }
 
-// PostgresTarget 用一份配置构造目标端（标签里的 DSN 已打码）。
-func PostgresTarget(cfg Config) EngineTarget {
-	cfg.Driver = DriverPostgres
-	return EngineTarget{
-		Engine: DriverPostgres,
-		Config: cfg,
-		Label:  "PostgreSQL（" + DescribeDSN(cfg.PostgresDSN) + "）",
-	}
-}
 
-// Tools 是 PostgreSQL 客户端工具的绝对路径。由调用方解析（便携 PG 的位置不是本包的事）。
-type Tools struct {
-	PgDump    string
-	PgRestore string
-}
 
 // BackupFile 是备份目录里的一个数据文件及其哈希。
 type BackupFile struct {
@@ -109,30 +90,6 @@ type BackupEntry struct {
 	Note      string `json:"note,omitempty"`
 }
 
-// CopyTable 是一张表的复制结果。Verified 表示行数对上、JSON 列内容也一致。
-type CopyTable struct {
-	Name        string   `json:"name"`
-	Rows        int64    `json:"rows"`
-	Verified    bool     `json:"verified"`
-	JSONChecked int      `json:"json_checked,omitempty"`
-	Skipped     []string `json:"skipped_columns,omitempty"`
-}
-
-// CopyReport 是一次跨引擎覆盖式复制的结论。
-type CopyReport struct {
-	From         string       `json:"from"`
-	To           string       `json:"to"`
-	Source       string       `json:"source"`
-	Target       string       `json:"target"`
-	TargetBackup *BackupEntry `json:"target_backup,omitempty"`
-	Tables       []CopyTable  `json:"tables"`
-	// Missing 是"目标端 schema 里没有"的源端表：正常部署下为空，不为空就说明两端
-	// schema 版本不一致，必须让人看见，而不是悄悄少拷几张表。
-	Missing   []string `json:"missing_tables,omitempty"`
-	Dropped   []string `json:"dropped_tables,omitempty"`
-	TotalRows int64    `json:"total_rows"`
-	Note      string   `json:"note,omitempty"`
-}
 
 // RestoreReport 是一次还原的结论。
 type RestoreReport struct {
@@ -150,117 +107,6 @@ type RestoreReport struct {
 // 打码：报告、日志、manifest 只允许出现打码后的 DSN
 // ---------------------------------------------------------------------------
 
-// MaskDSN 把 DSN 里的口令换成 ***。
-//
-// 与相邻启动器 internal/config 的 maskDSN 同一口径（两个仓库没法共享代码，只能各自实现；
-// 两边的判据都是"有口令就打码"，任何一侧改动都要同步另一侧）。url.String() 会把 * 转义成
-// %2A，打码后应当仍然一眼能读，所以替换回去。
-func MaskDSN(dsn string) string {
-	dsn = strings.TrimSpace(dsn)
-	if dsn == "" {
-		return ""
-	}
-	if u, err := url.Parse(dsn); err == nil && u.User != nil {
-		if _, hasPassword := u.User.Password(); hasPassword {
-			u.User = url.UserPassword(u.User.Username(), "***")
-			return strings.ReplaceAll(u.String(), "%2A", "*")
-		}
-		return u.String()
-	}
-	// url.Parse 失败（例如口令里有未转义字符）时退回字符串替换：
-	// scheme://user:password@ → scheme://user:***@
-	scheme := strings.Index(dsn, "://")
-	if scheme < 0 {
-		return maskKeyValuePassword(dsn)
-	}
-	rest := dsn[scheme+3:]
-	at := strings.LastIndex(rest, "@")
-	if at < 0 {
-		return dsn
-	}
-	creds, host := rest[:at], rest[at:]
-	colon := strings.IndexByte(creds, ':')
-	if colon < 0 {
-		return dsn
-	}
-	return dsn[:scheme+3] + creds[:colon] + ":***" + host
-}
-
-// maskKeyValuePassword 处理 key=value 形式的连接串（password=xxx）。
-func maskKeyValuePassword(dsn string) string {
-	fields := strings.Fields(dsn)
-	for i, field := range fields {
-		if strings.HasPrefix(field, "password=") {
-			fields[i] = "password=***"
-		}
-	}
-	return strings.Join(fields, " ")
-}
-
-// DescribeDSN 把 DSN 收敛成"连到哪"的短说明：host:port/database，口令打码；缺 DSN 时如实说明。
-func DescribeDSN(dsn string) string {
-	dsn = strings.TrimSpace(dsn)
-	if dsn == "" {
-		return "未配置 DSN"
-	}
-	target := MaskDSN(dsn)
-	if i := strings.Index(target, "://"); i >= 0 {
-		target = target[i+3:]
-	}
-	if i := strings.LastIndex(target, "@"); i >= 0 {
-		target = target[i+1:]
-	}
-	if i := strings.IndexByte(target, '?'); i >= 0 {
-		target = target[:i]
-	}
-	return strings.TrimSuffix(target, "/")
-}
-
-// dsnDatabase 取 DSN 里的库名（备份文件名与报告都要用；取不到时给空串由调用方兜底）。
-func dsnDatabase(dsn string) string {
-	dsn = strings.TrimSpace(dsn)
-	if u, err := url.Parse(dsn); err == nil && u.Path != "" {
-		return strings.Trim(strings.TrimPrefix(u.Path, "/"), "/")
-	}
-	for _, field := range strings.Fields(dsn) {
-		if strings.HasPrefix(field, "dbname=") {
-			return strings.TrimPrefix(field, "dbname=")
-		}
-	}
-	return ""
-}
-
-// pgEnv 把 DSN 拆成"给子进程的环境"与"去掉了口令的连接串"。
-//
-// 口令走 PGPASSWORD 而不是 argv：pg_dump/pg_restore 的命令行会出现在进程列表里，
-// 而它属于本机所有用户都看得到的地方。去口令的连接串则照常传给客户端。
-func pgEnv(dsn string) ([]string, string) {
-	env := os.Environ()
-	password := ""
-	clean := dsn
-	if u, err := url.Parse(dsn); err == nil && u.User != nil {
-		if pw, has := u.User.Password(); has {
-			password = pw
-			u.User = url.User(u.User.Username())
-			clean = u.String()
-		}
-	} else {
-		fields := strings.Fields(dsn)
-		kept := make([]string, 0, len(fields))
-		for _, field := range fields {
-			if strings.HasPrefix(field, "password=") {
-				password = strings.TrimPrefix(field, "password=")
-				continue
-			}
-			kept = append(kept, field)
-		}
-		clean = strings.Join(kept, " ")
-	}
-	if password != "" {
-		env = append(env, "PGPASSWORD="+password)
-	}
-	return env, clean
-}
 
 // ---------------------------------------------------------------------------
 // 备份
@@ -272,8 +118,7 @@ func pgEnv(dsn string) ([]string, string) {
 //   - SQLite 用 VACUUM INTO（SQLite 自己的在线备份语义）：一个读事务里把整库
 //     （含 WAL 中已提交的部分）写成一份**一致**的新文件，不需要先 checkpoint，
 //     也不会留下半个文件。副本写完还要只读打开、逐表计数，能读出来才算备份可用。
-//   - PostgreSQL 用 pg_dump -Fc 导出到该目录（自定义格式：可 pg_restore、自带校验）。
-func Backup(ctx context.Context, target EngineTarget, backupsDir string, tools Tools, log func(string, ...any)) (BackupEntry, error) {
+func Backup(ctx context.Context, target EngineTarget, backupsDir string, log func(string, ...any)) (BackupEntry, error) {
 	if log == nil {
 		log = func(string, ...any) {}
 	}
@@ -299,8 +144,6 @@ func Backup(ctx context.Context, target EngineTarget, backupsDir string, tools T
 	switch target.Engine {
 	case DriverSQLite:
 		err = backupSQLite(ctx, target, dir, &entry, log)
-	case DriverPostgres:
-		err = backupPostgres(ctx, target, dir, &entry, tools, log)
 	default:
 		err = fmt.Errorf("未知的存储引擎 %q", target.Engine)
 	}
@@ -362,52 +205,6 @@ func backupSQLite(ctx context.Context, target EngineTarget, dir string, entry *B
 	return nil
 }
 
-// backupPostgres 用 pg_dump -Fc 导出，并读源库统计行数。
-func backupPostgres(ctx context.Context, target EngineTarget, dir string, entry *BackupEntry, tools Tools, log func(string, ...any)) error {
-	dsn := strings.TrimSpace(target.Config.PostgresDSN)
-	if dsn == "" {
-		return errors.New("PostgreSQL 档缺少 postgres_dsn，无法备份")
-	}
-	if strings.TrimSpace(tools.PgDump) == "" {
-		return errors.New("找不到 pg_dump.exe（便携 PostgreSQL 的 bin 目录）")
-	}
-	name := dsnDatabase(dsn)
-	if name == "" {
-		name = "postgres"
-	}
-	dest := filepath.Join(dir, name+".dump")
-	env, clean := pgEnv(dsn)
-	cmd := exec.CommandContext(ctx, tools.PgDump, "-Fc", "-f", dest, clean)
-	cmd.Env = env
-	// 进度走 stderr：它可能很长，只在失败时回显末尾几行。
-	var sink bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &sink, &sink
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("pg_dump 失败：%v\n%s", err, tailLines(sink.String(), 8))
-	}
-	file, err := describeFile(dest)
-	if err != nil {
-		return err
-	}
-	entry.Files = append(entry.Files, file)
-
-	store, err := Open(ctx, target.Config)
-	if err != nil {
-		return fmt.Errorf("打开 PostgreSQL 源库失败：%w", err)
-	}
-	defer store.Close()
-	pool, err := store.rawPool()
-	if err != nil {
-		return err
-	}
-	tables, total, err := postgresRowCounts(ctx, pool)
-	if err != nil {
-		return err
-	}
-	entry.Tables, entry.TotalRows = tables, total
-	log("PostgreSQL 自定义格式导出完成：%s（%d 字节，%d 张表）", filepath.Base(dest), file.Size, len(tables))
-	return nil
-}
 
 // ListBackups 列出备份目录下的所有备份，最新的排在最前面。
 //
@@ -472,8 +269,12 @@ func FindBackup(backupsDir, name string) (BackupEntry, error) {
 	entry.Name = name
 	entry.Directory = dir
 	entry.SizeBytes = dirSize(dir)
-	if entry.Engine != DriverSQLite && entry.Engine != DriverPostgres {
-		return BackupEntry{}, fmt.Errorf("备份 %s 的 manifest.json 没写引擎（engine=%q），不知道该往哪一端还原", name, entry.Engine)
+	// PostgreSQL 支持已于 2026-10-05 移除（业主口径，见根 AGENTS.md §0.6）。一份历史
+	// PostgreSQL 备份仍然会被识别出来并**明确拒绝**，而不是被当成 SQLite 备份去覆盖现有库：
+	// 要读它请回退到移除前的构建并用 dfo-tool sqliteconvert 搬运（见 docs/sqlite-operations.md）。
+	if entry.Engine != DriverSQLite {
+		return BackupEntry{}, fmt.Errorf(
+			"备份 %s 是 %s 的：PostgreSQL 支持已移除，只能还原 sqlite 备份", name, entry.Engine)
 	}
 	return entry, nil
 }
@@ -504,48 +305,12 @@ func VerifyBackup(entry BackupEntry) error {
 // 复制：覆盖式写入另一端
 // ---------------------------------------------------------------------------
 
-// CopyBetweenEngines 把 source 的数据覆盖式复制到 target（两端必须是不同引擎）。
-//
-// 顺序永远是：先自动备份 target（失败即中止）→ 再覆盖写入 → 再校验。
-// **不修改**任何档位文件：复制不等于切档。
-func CopyBetweenEngines(ctx context.Context, source, target EngineTarget, backupsDir string, tools Tools, log func(string, ...any)) (CopyReport, error) {
-	if log == nil {
-		log = func(string, ...any) {}
-	}
-	report := CopyReport{
-		From:   source.Engine,
-		To:     target.Engine,
-		Source: source.Label,
-		Target: target.Label,
-	}
-	if source.Engine == target.Engine {
-		return report, fmt.Errorf("两端都是 %s：同引擎之间没有可搬运的差异（要换这次跑哪一档请用启动器的「启动环境」）", source.Engine)
-	}
-	backup, err := autoBackupTarget(ctx, target, backupsDir, tools, log)
-	if err != nil {
-		return report, err
-	}
-	report.TargetBackup = backup
-
-	switch {
-	case source.Engine == DriverPostgres && target.Engine == DriverSQLite:
-		err = copyPostgresToSQLite(ctx, source, target, &report, log)
-	case source.Engine == DriverSQLite && target.Engine == DriverPostgres:
-		err = copySQLiteToPostgres(ctx, source, target, &report, log)
-	default:
-		err = fmt.Errorf("不支持的方向：%s → %s", source.Engine, target.Engine)
-	}
-	if err != nil {
-		return report, err
-	}
-	return report, nil
-}
 
 // autoBackupTarget 在覆盖目标端之前自动备份它。目标端还没有数据时如实说明并跳过
 // （没有可覆盖的东西，就不存在"备份失败还照覆盖"）。
-func autoBackupTarget(ctx context.Context, target EngineTarget, backupsDir string, tools Tools, log func(string, ...any)) (*BackupEntry, error) {
+func autoBackupTarget(ctx context.Context, target EngineTarget, backupsDir string, log func(string, ...any)) (*BackupEntry, error) {
 	if log == nil {
-		// 本函数既被 CopyBetweenEngines/RestoreBackup（已兜底）调用，也会被测试直接调用。
+		// 本函数既被 RestoreBackup（已兜底）调用，也会被测试直接调用。
 		log = func(string, ...any) {}
 	}
 	if target.Engine == DriverSQLite {
@@ -558,7 +323,7 @@ func autoBackupTarget(ctx context.Context, target EngineTarget, backupsDir strin
 			return nil, nil
 		}
 	}
-	entry, err := Backup(ctx, target, backupsDir, tools, log)
+	entry, err := Backup(ctx, target, backupsDir, log)
 	if err != nil {
 		return nil, fmt.Errorf("覆盖前自动备份目标端失败，已中止：%w", err)
 	}
@@ -566,306 +331,6 @@ func autoBackupTarget(ctx context.Context, target EngineTarget, backupsDir strin
 	return &entry, nil
 }
 
-// copyPostgresToSQLite 复用既有的单向量化器：它写到一个**临时新文件**并在写的过程中
-// 校验行数、JSON 字节与外部键；只有全部通过才用它替换目标端，所以失败时目标端一个字节都没动。
-func copyPostgresToSQLite(ctx context.Context, source, target EngineTarget, report *CopyReport, log func(string, ...any)) error {
-	destPath := strings.TrimSpace(target.Config.SQLitePath)
-	if destPath == "" {
-		return errors.New("SQLite 目标端缺少 sqlite_path")
-	}
-	if !filepath.IsAbs(destPath) {
-		return fmt.Errorf("sqlite_path 必须是绝对路径：%q 会相对服务端的工作目录解析", destPath)
-	}
-	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
-		return fmt.Errorf("创建目标端目录失败：%w", err)
-	}
-	store, err := Open(ctx, source.Config)
-	if err != nil {
-		return fmt.Errorf("打开 PostgreSQL 源库失败：%w", err)
-	}
-	defer store.Close()
-
-	tmp := destPath + ".sync-tmp"
-	if err := os.Remove(tmp); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("清理临时文件 %s 失败：%w", tmp, err)
-	}
-	convert, err := ConvertPostgresToSQLite(ctx, store, tmp)
-	if err != nil {
-		_ = os.Remove(tmp)
-		return fmt.Errorf("PostgreSQL → SQLite 复制失败（目标端未改动）：%w", err)
-	}
-	report.TotalRows = convert.TotalRows()
-	report.Missing = convert.Missing
-	for _, table := range convert.Tables {
-		report.Tables = append(report.Tables, CopyTable{
-			Name: table.Name, Rows: table.Rows, Verified: table.Verified, JSONChecked: table.JSONChecked,
-		})
-	}
-	if err := replaceSQLiteFile(tmp, destPath); err != nil {
-		_ = os.Remove(tmp)
-		return err
-	}
-	log("SQLite 目标端已覆盖：%s（%d 张表 / %d 行）", destPath, len(report.Tables), report.TotalRows)
-	return nil
-}
-
-// copySQLiteToPostgres 把 SQLite 的数据覆盖式写进 PostgreSQL。
-//
-// 覆盖 = 在**一个事务**里 DROP 掉目标 schema 的全部表 → 按 0001_initial.sql 的分节重建
-// （并写回同形的迁移账本）→ 按外部键依赖顺序插入全部行 → 逐表校验行数与 JSON 内容。
-// DDL 在 PostgreSQL 里是可回滚的，所以任何一步失败都 rollback：目标端保持原样。
-func copySQLiteToPostgres(ctx context.Context, source, target EngineTarget, report *CopyReport, log func(string, ...any)) error {
-	srcPath := strings.TrimSpace(source.Config.SQLitePath)
-	if srcPath == "" {
-		return errors.New("SQLite 源端缺少 sqlite_path")
-	}
-	if _, err := os.Stat(srcPath); err != nil {
-		return fmt.Errorf("SQLite 源库 %s 不可读：%w", srcPath, err)
-	}
-	src, err := openSQLite(ctx, srcPath, 2, 10000)
-	if err != nil {
-		return fmt.Errorf("打开 SQLite 源库失败：%w", err)
-	}
-	defer src.Close()
-
-	store, err := Open(ctx, target.Config)
-	if err != nil {
-		return fmt.Errorf("打开 PostgreSQL 目标库失败：%w", err)
-	}
-	defer store.Close()
-	// rawPool 的第三个使用者（前两个是测试夹具与诊断）：本路径要在一个事务里同时
-	// 执行 DDL 与带参数的行插入，querySet/txHandle 这层抽象没有带参数的出入通道。
-	pool, err := store.rawPool()
-	if err != nil {
-		return err
-	}
-
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
-	dropped, err := dropAllTables(ctx, tx)
-	if err != nil {
-		return err
-	}
-	report.Dropped = dropped
-	if len(dropped) > 0 {
-		log("目标端已有 %d 张表，将按源端重建：%s", len(dropped), strings.Join(dropped, "、"))
-	}
-	sequences, err := dropAllSequences(ctx, tx)
-	if err != nil {
-		return err
-	}
-	if len(sequences) > 0 {
-		log("目标端另清掉 %d 个独立序列：%s", len(sequences), strings.Join(sequences, "、"))
-	}
-	if err := rebuildSchemaInTx(ctx, tx); err != nil {
-		return err
-	}
-
-	srcTables, err := sqliteTableNames(ctx, src)
-	if err != nil {
-		return err
-	}
-	meta, err := postgresColumnMeta(ctx, tx)
-	if err != nil {
-		return err
-	}
-	order, cyclic := insertOrder(ctx, tx)
-	// 依赖图来自 pg_class；information_schema 是列来源。两者理论上一致，但不一致时
-	// 也**不能**悄悄少拷几张表：把漏掉的接在最后，并说明顺序是退化的。
-	for name := range meta {
-		if !listHas(order, name) {
-			order = append(order, name)
-			cyclic = append(cyclic, name)
-		}
-	}
-
-	copied := 0
-	for _, table := range order {
-		if engineLocalTables[table] {
-			continue
-		}
-		columns, ok := meta[table]
-		if !ok || len(columns) == 0 {
-			continue
-		}
-		if !listHas(srcTables, table) {
-			// 目标端 schema 有、源端没有：重建时已经建成空表，这正是"覆盖"的结果。
-			continue
-		}
-		tableReport, err := copySQLiteTable(ctx, src, tx, table, columns, log)
-		if err != nil {
-			return err
-		}
-		report.Tables = append(report.Tables, tableReport)
-		report.TotalRows += tableReport.Rows
-		copied++
-	}
-	for _, table := range srcTables {
-		if engineLocalTables[table] {
-			continue
-		}
-		if _, ok := meta[table]; !ok {
-			report.Missing = append(report.Missing, table)
-		}
-	}
-	if len(cyclic) > 0 {
-		report.Note = "以下表未能从外部键依赖确定插入顺序，已按名字顺序插入：" + strings.Join(cyclic, "、")
-		log("注意：%s", report.Note)
-	}
-	if err := syncSequences(ctx, tx, meta); err != nil {
-		return err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("提交目标端写入失败：%w", err)
-	}
-	log("PostgreSQL 目标端已覆盖：%s（%d 张表 / %d 行）", target.Label, copied, report.TotalRows)
-	return nil
-}
-
-// copySQLiteTable 复制一张表：列取两端的交集（目标端顺序为准），逐行转换后插入，
-// 最后校验行数与 JSON 列内容。
-func copySQLiteTable(ctx context.Context, src *sql.DB, tx pgx.Tx, table string, columns []pgColumn, log func(string, ...any)) (CopyTable, error) {
-	report := CopyTable{Name: table}
-	srcColumns, err := sqliteColumnNames(ctx, src, table)
-	if err != nil {
-		return report, err
-	}
-	var shared []pgColumn
-	for _, column := range columns {
-		if listHas(srcColumns, column.Name) {
-			shared = append(shared, column)
-		}
-	}
-	for _, name := range srcColumns {
-		if !hasColumn(columns, name) {
-			report.Skipped = append(report.Skipped, name+"（目标端没有这一列）")
-		}
-	}
-	for _, column := range columns {
-		if !listHas(srcColumns, column.Name) && column.Nullable == "NO" && column.Default == nil {
-			// 目标端 NOT NULL 且没有默认值的列必须由源端提供，否则这一行插不进去。
-			return report, fmt.Errorf("表 %s 的 %s 列在目标端是 NOT NULL 且无默认值，但源端没有这一列", table, column.Name)
-		}
-	}
-	if len(shared) == 0 {
-		return report, fmt.Errorf("表 %s 在源端与目标端没有共同的列", table)
-	}
-	if len(report.Skipped) > 0 {
-		log("表 %s：%s", table, strings.Join(report.Skipped, "；"))
-	}
-
-	quoted := make([]string, len(shared))
-	selects := make([]string, len(shared))
-	placeholders := make([]string, len(shared))
-	anyIdentity := false
-	for i, column := range shared {
-		quoted[i] = quoteIdent(column.Name)
-		selects[i] = quoteIdent(column.Name)
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		if column.Identity == "YES" {
-			anyIdentity = true
-		}
-	}
-	rows, err := src.QueryContext(ctx,
-		"SELECT "+strings.Join(selects, ",")+" FROM "+quoteIdent(table))
-	if err != nil {
-		return report, fmt.Errorf("读源表 %s 失败：%w", table, err)
-	}
-	defer rows.Close()
-
-	insert := "INSERT INTO " + quoteIdent(table) + "(" + strings.Join(quoted, ",") + ") "
-	if anyIdentity {
-		// 显式写入 identity 列必须声明 OVERRIDING SYSTEM VALUE，否则 PostgreSQL 直接拒绝。
-		insert += "OVERRIDING SYSTEM VALUE "
-	}
-	insert += "VALUES(" + strings.Join(placeholders, ",") + ")"
-
-	jsonIndexes := make([]int, 0, 2)
-	for i, column := range shared {
-		if column.DataType == "json" || column.DataType == "jsonb" {
-			jsonIndexes = append(jsonIndexes, i)
-		}
-	}
-	sourceJSON := make([][][]byte, len(shared))
-	targets := make([]any, len(shared))
-	for i := range targets {
-		targets[i] = new(any)
-	}
-
-	for rows.Next() {
-		if err := rows.Scan(targets...); err != nil {
-			return report, fmt.Errorf("读源表 %s 的行失败：%w", table, err)
-		}
-		args := make([]any, len(shared))
-		for i, column := range shared {
-			converted, err := sqliteValueToPostgres(table, column, *targets[i].(*any))
-			if err != nil {
-				return report, err
-			}
-			args[i] = converted
-			if containsInt(jsonIndexes, i) {
-				canonical, err := canonicalJSON(converted)
-				if err != nil {
-					return report, fmt.Errorf("表 %s 的 %s 列不是合法 JSON：%w", table, column.Name, err)
-				}
-				sourceJSON[i] = append(sourceJSON[i], canonical)
-			}
-		}
-		if _, err := tx.Exec(ctx, insert, args...); err != nil {
-			return report, fmt.Errorf("写入表 %s 失败：%w", table, err)
-		}
-		report.Rows++
-	}
-	if err := rows.Err(); err != nil {
-		return report, fmt.Errorf("读源表 %s 失败：%w", table, err)
-	}
-
-	var destRows int64
-	if err := tx.QueryRow(ctx, "SELECT count(*) FROM "+quoteIdent(table)).Scan(&destRows); err != nil {
-		return report, err
-	}
-	if destRows != report.Rows {
-		return report, fmt.Errorf("表 %s 行数不一致：源端 %d，目标端 %d", table, report.Rows, destRows)
-	}
-	for _, index := range jsonIndexes {
-		destJSON, err := postgresJSONColumn(ctx, tx, table, shared[index].Name)
-		if err != nil {
-			return report, err
-		}
-		if jsonDigest(sourceJSON[index]) != jsonDigest(destJSON) {
-			return report, fmt.Errorf("表 %s 的 %s 列 JSON 内容与源端不一致（%d 行）", table, shared[index].Name, len(destJSON))
-		}
-		report.JSONChecked++
-	}
-	report.Verified = true
-	return report, nil
-}
-
-// postgresJSONColumn 读出目标端某一列的全部 JSON 值（规范化成可比形式）。
-func postgresJSONColumn(ctx context.Context, tx pgx.Tx, table, column string) ([][]byte, error) {
-	rows, err := tx.Query(ctx, "SELECT "+quoteIdent(column)+" FROM "+quoteIdent(table))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out [][]byte
-	for rows.Next() {
-		var raw []byte
-		if err := rows.Scan(&raw); err != nil {
-			return nil, err
-		}
-		canonical, err := canonicalJSON(raw)
-		if err != nil {
-			return nil, fmt.Errorf("表 %s 的 %s 列在目标端不是合法 JSON：%w", table, column, err)
-		}
-		out = append(out, canonical)
-	}
-	return out, rows.Err()
-}
 
 // ---------------------------------------------------------------------------
 // 还原：把一份备份写回它自己的引擎（覆盖）
@@ -874,7 +339,7 @@ func postgresJSONColumn(ctx context.Context, tx pgx.Tx, table, column string) ([
 // RestoreBackup 把 entry 还原到 target（target 必须是 entry 记录的引擎）。
 //
 // 与复制同一条底线：先校验备份自身的 sha256，再自动备份被覆盖端，最后才写。
-func RestoreBackup(ctx context.Context, entry BackupEntry, target EngineTarget, backupsDir string, tools Tools, log func(string, ...any)) (RestoreReport, error) {
+func RestoreBackup(ctx context.Context, entry BackupEntry, target EngineTarget, backupsDir string, log func(string, ...any)) (RestoreReport, error) {
 	report := RestoreReport{Backup: entry, Engine: entry.Engine, Target: target.Label}
 	if log == nil {
 		log = func(string, ...any) {}
@@ -885,7 +350,7 @@ func RestoreBackup(ctx context.Context, entry BackupEntry, target EngineTarget, 
 	if err := VerifyBackup(entry); err != nil {
 		return report, err
 	}
-	backup, err := autoBackupTarget(ctx, target, backupsDir, tools, log)
+	backup, err := autoBackupTarget(ctx, target, backupsDir, log)
 	if err != nil {
 		return report, err
 	}
@@ -894,8 +359,6 @@ func RestoreBackup(ctx context.Context, entry BackupEntry, target EngineTarget, 
 	switch entry.Engine {
 	case DriverSQLite:
 		err = restoreSQLite(ctx, entry, target, log)
-	case DriverPostgres:
-		err = restorePostgres(ctx, entry, target, tools, log)
 	default:
 		err = fmt.Errorf("未知的存储引擎 %q", entry.Engine)
 	}
@@ -947,420 +410,6 @@ func restoreSQLite(ctx context.Context, entry BackupEntry, target EngineTarget, 
 	return nil
 }
 
-// restorePostgres 先确认归档可读，再清空目标 schema，最后 pg_restore 写入。
-//
-// 为什么先清空：pg_restore --clean 只删"归档里有"的对象，目标端多出来的表会留下，
-// 结果是一份"既不是备份、也不是原来"的混合库。清空 + 还原才能得到"与备份一致"这一
-// 唯一诚实的语义。清空之后 pg_restore 失败会留下一个空库 —— 能扛住这一点，靠的正是
-// 覆盖前那份自动备份（它的路径会出现在报告与日志里），这也是本路径先备份再动手的原因。
-func restorePostgres(ctx context.Context, entry BackupEntry, target EngineTarget, tools Tools, log func(string, ...any)) error {
-	dsn := strings.TrimSpace(target.Config.PostgresDSN)
-	if dsn == "" {
-		return errors.New("PostgreSQL 目标端缺少 postgres_dsn")
-	}
-	if strings.TrimSpace(tools.PgRestore) == "" {
-		return errors.New("找不到 pg_restore.exe（便携 PostgreSQL 的 bin 目录）")
-	}
-	archive := filepath.Join(entry.Directory, entry.Files[0].Name)
-	env, clean := pgEnv(dsn)
-	var sink bytes.Buffer
-	list := exec.CommandContext(ctx, tools.PgRestore, "-l", archive)
-	list.Env = env
-	list.Stdout, list.Stderr = &sink, &sink
-	if err := list.Run(); err != nil {
-		return fmt.Errorf("归档 %s 读不出来（拒绝清空目标端）：%v\n%s", entry.Files[0].Name, err, tailLines(sink.String(), 6))
-	}
-
-	store, err := Open(ctx, target.Config)
-	if err != nil {
-		return fmt.Errorf("打开 PostgreSQL 目标库失败：%w", err)
-	}
-	defer store.Close()
-	pool, err := store.rawPool()
-	if err != nil {
-		return err
-	}
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	dropped, err := dropAllTables(ctx, tx)
-	if err != nil {
-		_ = tx.Rollback(ctx)
-		return err
-	}
-	sequences, err := dropAllSequences(ctx, tx)
-	if err != nil {
-		_ = tx.Rollback(ctx)
-		return err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return err
-	}
-	if len(dropped) > 0 {
-		log("目标端原有 %d 张表已清空：%s", len(dropped), strings.Join(dropped, "、"))
-	}
-	if len(sequences) > 0 {
-		log("目标端另清掉 %d 个独立序列：%s", len(sequences), strings.Join(sequences, "、"))
-	}
-
-	sink.Reset()
-	restore := exec.CommandContext(ctx, tools.PgRestore,
-		"--no-owner", "--no-privileges", "-d", clean, archive)
-	restore.Env = env
-	restore.Stdout, restore.Stderr = &sink, &sink
-	if err := restore.Run(); err != nil {
-		return fmt.Errorf("pg_restore 失败：%v\n%s", err, tailLines(sink.String(), 10))
-	}
-	log("PostgreSQL 已还原：%s（来自 %s）", target.Label, entry.Name)
-	return nil
-}
-
-// ---------------------------------------------------------------------------
-// 目标端 schema：重建、元数据、插入顺序、序列
-// ---------------------------------------------------------------------------
-
-// rebuildSchemaInTx 在调用方的事务里重建 PostgreSQL 的整个 schema。
-//
-// 分节顺序与账本口径和 execMigration 一致（同一个 migrationQuery、同一个 checksum 规范化），
-// 但这里必须跑在**调用方的事务**里：清空 + 建表 + 灌数据要一起回滚。差异只有一处 ——
-// 账本刚刚被 DROP 掉，所以不存在"已应用过"的分支，每一节都直接执行并记账。
-func rebuildSchemaInTx(ctx context.Context, tx pgx.Tx) error {
-	ledger, err := migrationQuery("0000_migration_ledger.sql")
-	if err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, string(ledger)); err != nil {
-		return fmt.Errorf("创建迁移账本失败：%w", err)
-	}
-	for _, name := range sqliteMigrationSections {
-		query, err := migrationQuery(name)
-		if err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, string(query)); err != nil {
-			return fmt.Errorf("migration %s: %w", name, err)
-		}
-		// 与 execMigration 同一口径：Windows 检出策略不得改变迁移的身份。
-		checksum := fmt.Sprintf("%x", sha256Sum(strings.ReplaceAll(string(query), "\r\n", "\n")))
-		if _, err := tx.Exec(ctx,
-			"INSERT INTO storage_migrations(name,checksum) VALUES($1,$2)", name, checksum); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// pgColumn 是目标端一列的元数据（information_schema.columns 的子集）。
-type pgColumn struct {
-	Name     string
-	DataType string
-	UDTName  string
-	Identity string
-	Nullable string
-	Default  *string
-}
-
-// postgresColumnMeta 读出目标 schema 里每张基表的列（按 ordinal_position）。
-func postgresColumnMeta(ctx context.Context, tx pgx.Tx) (map[string][]pgColumn, error) {
-	rows, err := tx.Query(ctx, `
-		SELECT c.table_name, c.column_name, c.data_type, c.udt_name,
-		       COALESCE(c.is_identity,'NO'), c.is_nullable, c.column_default
-		FROM information_schema.columns c
-		JOIN information_schema.tables t
-		  ON t.table_schema = c.table_schema AND t.table_name = c.table_name
-		WHERE c.table_schema = current_schema() AND t.table_type = 'BASE TABLE'
-		ORDER BY c.table_name, c.ordinal_position`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := map[string][]pgColumn{}
-	for rows.Next() {
-		var table string
-		var column pgColumn
-		if err := rows.Scan(&table, &column.Name, &column.DataType, &column.UDTName,
-			&column.Identity, &column.Nullable, &column.Default); err != nil {
-			return nil, err
-		}
-		out[table] = append(out[table], column)
-	}
-	return out, rows.Err()
-}
-
-// insertOrder 按外部键依赖给出插入顺序，返回顺序与"因成环而退回名字顺序"的表。
-//
-// PostgreSQL 的外部键是逐语句检查的，先插子表、后插父表必然失败。所以顺序不能靠猜：
-// 依赖图从 pg_constraint 读，再做一次拓扑排序。本 schema 无环，成环分支只是兜底。
-func insertOrder(ctx context.Context, tx pgx.Tx) ([]string, []string) {
-	names := []string{}
-	rows, err := tx.Query(ctx, `
-		SELECT t.relname
-		FROM pg_class t
-		JOIN pg_namespace n ON n.oid = t.relnamespace
-		WHERE n.nspname = current_schema() AND t.relkind = 'r'
-		ORDER BY t.relname`)
-	if err != nil {
-		return names, nil
-	}
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			rows.Close()
-			return names, nil
-		}
-		names = append(names, name)
-	}
-	rows.Close()
-
-	edges := map[string]map[string]bool{}
-	for _, name := range names {
-		edges[name] = map[string]bool{}
-	}
-	fk, err := tx.Query(ctx, `
-		SELECT t.relname, p.relname
-		FROM pg_constraint c
-		JOIN pg_class t ON t.oid = c.conrelid
-		JOIN pg_class p ON p.oid = c.confrelid
-		JOIN pg_namespace n ON n.oid = t.relnamespace
-		WHERE c.contype = 'f' AND n.nspname = current_schema()`)
-	if err == nil {
-		for fk.Next() {
-			var child, parent string
-			if err := fk.Scan(&child, &parent); err != nil {
-				break
-			}
-			// 自引用不构成顺序约束。
-			if child == parent {
-				continue
-			}
-			if _, ok := edges[child]; ok {
-				edges[child][parent] = true
-			}
-		}
-		fk.Close()
-	}
-
-	done := map[string]bool{}
-	var order []string
-	for len(order) < len(names) {
-		progressed := false
-		for _, name := range names {
-			if done[name] {
-				continue
-			}
-			ready := true
-			for parent := range edges[name] {
-				if !done[parent] {
-					ready = false
-					break
-				}
-			}
-			if ready {
-				done[name] = true
-				order = append(order, name)
-				progressed = true
-			}
-		}
-		if !progressed {
-			// 成环：把剩下的按名字顺序接上，并如实说明（调用方会记进报告）。
-			var rest []string
-			for _, name := range names {
-				if !done[name] {
-					rest = append(rest, name)
-					done[name] = true
-				}
-			}
-			sort.Strings(rest)
-			order = append(order, rest...)
-			return order, rest
-		}
-	}
-	return order, nil
-}
-
-// dropAllTables 在事务里 DROP 掉当前 schema 的全部基表（含迁移账本），返回被删的表名。
-func dropAllTables(ctx context.Context, tx pgx.Tx) ([]string, error) {
-	rows, err := tx.Query(ctx, `
-		SELECT table_name FROM information_schema.tables
-		WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'
-		ORDER BY table_name`)
-	if err != nil {
-		return nil, err
-	}
-	var names []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		names = append(names, name)
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	for start := 0; start < len(names); start += 40 {
-		end := start + 40
-		if end > len(names) {
-			end = len(names)
-		}
-		statement := "DROP TABLE IF EXISTS " + quoteIdentList(names[start:end]) + " CASCADE"
-		if _, err := tx.Exec(ctx, statement); err != nil {
-			return names, fmt.Errorf("清空目标端数据表失败：%w", err)
-		}
-	}
-	return names, nil
-}
-
-// dropAllSequences 把当前 schema 里**没被表带走**的序列删掉。
-//
-// 为什么必须单独做：DROP TABLE ... CASCADE 只带走从属于表的对象（identity 序列、被表引用的
-// 索引），而本 schema 里有一个独立的 `CREATE SEQUENCE mailbox_id_seq`（被 character_mail.id
-// 的 DEFAULT 引用，但没有 OWNED BY，所以它不依赖那张表）。留着它，pg_restore 的
-// `CREATE SEQUENCE public.mailbox_id_seq` 就会撞名失败：
-//
-//	pg_restore: error: could not execute query: ERROR: relation "mailbox_id_seq" already exists
-//	     （2026-10-05 实机验收实测，restore 以 exit status 1 结束）
-//
-// 所以在"清空目标端 schema"这一步里，表和序列都要清。
-func dropAllSequences(ctx context.Context, tx pgx.Tx) ([]string, error) {
-	rows, err := tx.Query(ctx, `
-		SELECT sequence_name FROM information_schema.sequences
-		WHERE sequence_schema = current_schema()
-		ORDER BY sequence_name`)
-	if err != nil {
-		return nil, err
-	}
-	var names []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		names = append(names, name)
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	for _, name := range names {
-		if _, err := tx.Exec(ctx, "DROP SEQUENCE IF EXISTS "+quoteIdent(name)+" CASCADE"); err != nil {
-			return names, fmt.Errorf("清空目标端序列失败：%w", err)
-		}
-	}
-	return names, nil
-}
-
-// syncSequences 把 identity / nextval 序列推到位。
-//
-// 为什么必须做：覆盖式写入是**显式**写入主键的，序列本身不会被推进；不同步的话，
-// 下一次服务端自己 INSERT 会拿到一个已经被占用的编号（重复键错误）。
-func syncSequences(ctx context.Context, tx pgx.Tx, meta map[string][]pgColumn) error {
-	for table, columns := range meta {
-		for _, column := range columns {
-			serial := column.Identity == "YES" ||
-				(column.Default != nil && strings.HasPrefix(*column.Default, "nextval("))
-			if !serial {
-				continue
-			}
-			var sequence *string
-			if err := tx.QueryRow(ctx, "SELECT pg_get_serial_sequence($1,$2)",
-				quoteIdent(table), column.Name).Scan(&sequence); err != nil {
-				return err
-			}
-			if sequence == nil || *sequence == "" {
-				continue
-			}
-			if _, err := tx.Exec(ctx,
-				"SELECT setval($1::regclass, COALESCE((SELECT max("+quoteIdent(column.Name)+") FROM "+quoteIdent(table)+"), 1))",
-				*sequence); err != nil {
-				return fmt.Errorf("同步 %s.%s 的序列失败：%w", table, column.Name, err)
-			}
-		}
-	}
-	return nil
-}
-
-// ---------------------------------------------------------------------------
-// 值转换：SQLite → PostgreSQL
-// ---------------------------------------------------------------------------
-
-// sqliteValueToPostgres 把一个 SQLite 值转换成 PostgreSQL 驱动的入参。
-//
-// 反向规则与 sqliteconvert.go 的 convertValue 一一对应：时间在 SQLite 里是整数微秒
-// （少数 DATE 列是 ISO 文本）、数组与 JSON 是文本、布尔是 0/1。没有对应关系的类型
-// 原样传递，让驱动去决定（这正是两边表示相同的那些标量）。
-func sqliteValueToPostgres(table string, column pgColumn, value any) (any, error) {
-	if value == nil {
-		return nil, nil
-	}
-	switch column.DataType {
-	case "boolean":
-		switch typed := value.(type) {
-		case bool:
-			return typed, nil
-		case int64:
-			return typed != 0, nil
-		case float64:
-			return typed != 0, nil
-		case []byte:
-			return parseBoolString(string(typed))
-		case string:
-			return parseBoolString(typed)
-		}
-	case "smallint", "integer", "bigint":
-		number, err := toInt64(value)
-		if err != nil {
-			return nil, fmt.Errorf("表 %s 的 %s 列：%w", table, column.Name, err)
-		}
-		return number, nil
-	case "text", "character varying", "character":
-		return toString(value), nil
-	case "timestamp with time zone", "timestamp without time zone":
-		moment, err := toTime(value)
-		if err != nil {
-			return nil, fmt.Errorf("表 %s 的 %s 列：%w", table, column.Name, err)
-		}
-		return moment, nil
-	case "date":
-		if text, ok := value.(string); ok {
-			if moment, err := time.Parse("2006-01-02", strings.TrimSpace(text)); err == nil {
-				return moment, nil
-			}
-		}
-		if raw, ok := value.([]byte); ok {
-			if moment, err := time.Parse("2006-01-02", strings.TrimSpace(string(raw))); err == nil {
-				return moment, nil
-			}
-		}
-		moment, err := toTime(value)
-		if err != nil {
-			return nil, fmt.Errorf("表 %s 的 %s 列：%w", table, column.Name, err)
-		}
-		return moment, nil
-	case "json", "jsonb":
-		// JSON 文本原样交给驱动（pgx 对 string 走"直接写入"的快路径），由 PostgreSQL
-		// 自己归一化；写完之后 canonicalJSON 会逐行比对内容（见 copySQLiteTable）。
-		return toString(value), nil
-	case "ARRAY":
-		list, err := toIntSlice(value)
-		if err != nil {
-			return nil, fmt.Errorf("表 %s 的 %s 列（%s）：%w", table, column.Name, column.UDTName, err)
-		}
-		return list, nil
-	case "bytea":
-		switch typed := value.(type) {
-		case []byte:
-			return typed, nil
-		case string:
-			return []byte(typed), nil
-		}
-	}
-	return value, nil
-}
 
 // toInt64 把 SQLite 可能给出的几种表示收敛成 int64。
 func toInt64(value any) (int64, error) {
@@ -1556,17 +605,6 @@ func currentRowCounts(ctx context.Context, target EngineTarget) ([]TableRows, in
 	switch target.Engine {
 	case DriverSQLite:
 		return sqliteRowCounts(ctx, target.Config.SQLitePath)
-	case DriverPostgres:
-		store, err := Open(ctx, target.Config)
-		if err != nil {
-			return nil, 0, err
-		}
-		defer store.Close()
-		pool, err := store.rawPool()
-		if err != nil {
-			return nil, 0, err
-		}
-		return postgresRowCounts(ctx, pool)
 	}
 	return nil, 0, fmt.Errorf("未知的存储引擎 %q", target.Engine)
 }
@@ -1620,47 +658,6 @@ func sqliteRowCounts(ctx context.Context, path string) ([]TableRows, int64, erro
 	return out, total, nil
 }
 
-// postgresRowCounts 数目标库每张基表的行数（跳过引擎自己的账本表）。
-func postgresRowCounts(ctx context.Context, pool *pgxpool.Pool) ([]TableRows, int64, error) {
-	names, err := postgresTableNames(ctx, pool)
-	if err != nil {
-		return nil, 0, err
-	}
-	var out []TableRows
-	var total int64
-	for _, name := range names {
-		if engineLocalTables[name] {
-			continue
-		}
-		var rows int64
-		if err := pool.QueryRow(ctx, "SELECT count(*) FROM "+quoteIdent(name)).Scan(&rows); err != nil {
-			return nil, 0, fmt.Errorf("统计表 %s 行数失败：%w", name, err)
-		}
-		out = append(out, TableRows{Name: name, Rows: rows})
-		total += rows
-	}
-	return out, total, nil
-}
-
-func postgresTableNames(ctx context.Context, pool *pgxpool.Pool) ([]string, error) {
-	rows, err := pool.Query(ctx, `
-		SELECT table_name FROM information_schema.tables
-		WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'
-		ORDER BY table_name`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var names []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			return nil, err
-		}
-		names = append(names, name)
-	}
-	return names, rows.Err()
-}
 
 // sqliteColumnNames 读一张 SQLite 表的列名（按声明顺序）。
 func sqliteColumnNames(ctx context.Context, db *sql.DB, table string) ([]string, error) {
@@ -1854,11 +851,3 @@ func containsInt(list []int, want int) bool {
 	return false
 }
 
-func hasColumn(columns []pgColumn, name string) bool {
-	for _, column := range columns {
-		if column.Name == name {
-			return true
-		}
-	}
-	return false
-}

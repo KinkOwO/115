@@ -23,9 +23,6 @@ import (
 // not just ConfirmDeath with progression disabled. All writes use a disposable
 // schema; no existing character is read or changed.
 func TestMonsterDeathAfterAdvancementIntegration(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("DFO_TEST_POSTGRES_DSN requires a dedicated PostgreSQL test database")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	fixture, err := database.OpenTestFixture(ctx)

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/hex"
 	"testing"
 
 	"dfolan/internal/catalog"
@@ -9,8 +8,12 @@ import (
 	"dfolan/internal/game/protocol"
 )
 
-// Role 10, 20261002_212301: native USE_SKILL 5 in the final Lotus map
-// must not synthesize a return to 53543 while its cinematic still owns actors.
+// Role 10, 20261002_212301: the Lotus finale is closed only by its native
+// closing CMD45 (ACT14948/CMT14949). A USE_SKILL frame (C2S38, official
+// capture 2026-10-05: server never replies) must not synthesize a return to
+// 53543 while the cinematic still owns its display actors — that dispatch
+// path has been removed with interactDoor; this test keeps the native
+// closing transition and its completion semantics.
 func TestLotusSkillKeepsTerminalCinematicRoom(t *testing.T) {
 	const base, final uint32 = 53543, 100008697
 	maze := catalog.DungeonMaze{Index: 3, Quest: 3215, Boss: [2]byte{3, 0},
@@ -30,22 +33,11 @@ func TestLotusSkillKeepsTerminalCinematicRoom(t *testing.T) {
 	}
 	c := catalog.DungeonCatalog{Maps: map[uint32]catalog.ScriptRecord{base: {}, final: {}}}
 	w := &worldSession{dungeons: &c, activeDungeon: run}
-	request, err := hex.DecodeString("000500a00f9045000c000089ee307800")
-	if err != nil {
-		t.Fatal(err)
-	}
-	next, plan, err := w.interactDoor(request)
-	if err != nil || next != nil || w.activeDungeon != run || run.Room.Map != final || !run.Loaded {
-		t.Fatalf("skill changed the cinematic room: next=%+v err=%v", next, err)
-	}
-	if len(plan) != 1 || plan[0].Kind != 1 || plan[0].ID != 38 || string(plan[0].Payload) != "\x01" {
-		t.Fatalf("skill must only receive its existing successful ACK, got %+v", plan)
-	}
 	// The source CMT's exact closing request still owns the transition.
 	r := protocol.DungeonRoomTransition{Dungeon: 26, Position: [2]byte{3, 0}, LayerChange: true,
 		Record: [18]byte{0, 0, 0, 0, 4, 5, 0xbd, 2, 0xe5, 0, 0, 0, 3, 0, 2, 0, 0, 0},
 	}
-	next, plan, err = w.moveDungeonRoomDecoded(r)
+	next, plan, err := w.moveDungeonRoomDecoded(r)
 	if err != nil || next == nil || next.Room.Map != final || next.Loaded {
 		t.Fatalf("native closing transition lost: next=%+v err=%v", next, err)
 	}

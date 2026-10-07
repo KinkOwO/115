@@ -181,6 +181,9 @@ func MoveAccountVault(role Role, saved AccountVaultState, rules BagRules, items 
 		return fail("账号金库源物品或数量无效")
 	}
 	if request.SourceList == 0 {
+		if from.IsEquip && from.Equipment != nil && bag.TutorialSealed(*from.Equipment) {
+			return fail("训练奖励装备不能存入账号金库")
+		}
 		if err = accountVaultItemAllowed(*from, items, equipment); err != nil {
 			return fail(err.Error())
 		}

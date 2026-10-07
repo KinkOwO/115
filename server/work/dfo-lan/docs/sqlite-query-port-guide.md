@@ -36,6 +36,7 @@
 | `now()` | `(CAST((julianday('now') - 2440587.5) * 86400000000 AS INTEGER))` | 整数微秒，见 `core.sql` 的 `ArchiveCharacter` |
 | `date` / `interval` 运算 | 整数微秒算术 | 语义差见 D29；能用 Go 侧算就不要写进 SQL |
 | `x = ANY(sqlc.arg(ids))` | `x IN (SELECT value FROM json_each(CAST(sqlc.arg(ids) AS TEXT)))` | 参数按 JSON 数组文本传入 |
+| `sqlc.narg(x)::bigint[] IS NULL OR …` | `CAST(sqlc.narg(x) AS TEXT) IS NULL OR …` | **nil 必须仍然是 SQL NULL**：适配器不得把 nil 序列 marshal 成 `"null"` 文本，否则 `IS NULL` 不成立、`json_each('null')` 匹配 0 行，「不过滤」被静默改成「读 0 行」。空集合（非 nil）仍 marshal 成 `[]`＝匹配 0 行，与 PG 的 `id=ANY('{}')` 一致。实测事故：SQLite 档领取邮件附件全部被拒 `errMailMissing`（`LockMailbox`） |
 | `unnest(...)` | `json_each(...)` | |
 | `array_agg(x)` | `json_group_array(x)` | 返回类型变 JSON |
 | `array_length(a,1)` | `json_array_length(a)` | |
@@ -89,6 +90,12 @@ C:\Users\Ricar\go\bin\sqlc.exe generate -f .tmp\parity-<id>\sqlc.yaml
 - 只有**表达式位置**才需要 CAST（否则类型退化成 `interface{}`）。这类位置的宽度差异由中心门禁的
   `acceptedDivergences` 统一登记，并各对应一个手写适配器方法，**不需要你在 SQL 里绕开**。
 - **不要为了迁就类型而改变查询语义**。语义第一，类型对齐由门禁收口。
+- **可空 JSON 数组参数（`[]int64` → `*string`）的 nil 必须原样保留**：适配器对这类字段只应在
+  非 nil 时 marshal 并对空指针赋值（`if v.X != nil { … }`），产物是
+  `internal/database/sqlite_adapter_gen.go`（生成器 `.tmp/gen-sqlite-adapter.go` 是**未入库**的
+  本地脚手架，已同步该规则；重新生成前请先确认它不会把 nil 写回 `"null"`）。
+  `LockMailbox.MessageIds` 是当前唯一的这种位置，回归测试见
+  `internal/database/sqlite_mailbox_claim_test.go`。
 
 ## 5. sqlc v1.31.1 sqlite 引擎的已知陷阱（实测，务必遵守）
 

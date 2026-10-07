@@ -275,7 +275,7 @@ func (w *worldSession) primerTransformRefresh(ctx context.Context, oathChanged b
 		log.Printf("primer transform: decode account materials after transform: %v", e)
 		return plan
 	}
-	refresh, e := accountMaterialRefreshPackets(account, w.role)
+	refresh, e := accountMaterialRefreshPackets(account, w.role, w.activeDungeon != nil)
 	if e != nil {
 		log.Printf("primer transform: build account material refresh: %v", e)
 		return plan

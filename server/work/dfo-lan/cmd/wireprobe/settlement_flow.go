@@ -6,9 +6,11 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/legion"
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -44,6 +46,21 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	// 客户端 1.2s 内 op=682 崩溃退出。
 	if w != nil && w.ispins != nil && w.activeDungeon != nil {
 		return nil, nil
+	}
+	// 维纳斯终局翻牌：CMD46 整包吞掉（仿伊斯）。军团翻牌链 N31→N2252→N2253
+	// 已在 completeVenusStage 发出，通用结算（N34/N35/N261+8张牌翻牌，图5/图6）
+	// 不适用——团本里不存在那种通用结算面板。
+	if w != nil && w.venus != nil && w.activeDungeon != nil && legion.IsVenusStageDungeon(w.activeDungeon.Definition.ID) {
+		return nil, nil
+	}
+	// 苏醒之森：CMD46 = 下一关作战窗触发器（官服 21:43:02.326→.340：CMD46
+	// 的应答就是 N2563 state6，通用结算面板不适用）。forestResult 内部静默
+	// 收尾副本会话（官服无回城包链，客户端自行完成场景切换）。连战模式下
+	// 客户端在 2062 被拒后还会补发 CMD46——此时 activeDungeon 已被上一轮
+	// forestResult 清掉，所以这里只按 run 存在性分流（0231 会话实证：绕过
+	// 本分支会落进通用结算，弹占位符兜底面板卡死流程）。
+	if w != nil && w.forest != nil {
+		return w.forestResult(p)
 	}
 	if w == nil || w.progression == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || !w.completionSent {
 		return nil, fmt.Errorf("result before committed boss completion")
@@ -95,7 +112,7 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 		return nil, e
 	}
 	rewards := protocol.ClearRewardState{BaseExperience: receipt.Base, ScoreExperience: receipt.Score, MonsterExperience: receipt.MonsterExperience}
-	if w.loot != nil && w.loot.CardPolicy != nil {
+	if w.loot != nil && w.loot.CardPolicy != nil && !w.isBoostGuideRun() {
 		if w.cardPlan == nil {
 			var seed uint32
 			if e = binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
@@ -140,8 +157,24 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 			return nil, err
 		}
 	}
+	preClear := w.role
 	w.role, w.level = role, experience[0]
+	// Starter Boost 662：引导通关在结算里推进训练关卡（源里的 [guide] dungeon）。
+	// 结算已经提交，补帧失败只记日志——不能让进度校验把玩家卡在已通关的副本里。
+	var boostPlan []outboundPacket
+	if w.boostup != nil && w.isBoostGuideRun() {
+		p, boostErr := w.completeBoostGuide()
+		if boostErr != nil {
+			log.Printf("boost guide settlement progress role=%d: %v", w.role.ID, boostErr)
+		} else {
+			boostPlan = p
+		}
+	}
 	plan := []outboundPacket{{"dungeon_play_result", 0, 34, notice}, {"dungeon_clear_experience", 0, 37, experience}, {"dungeon_clear_reward", 0, 35, reward}}
+	plan = append(plan, boostPlan...)
+	// 665 的通关计数就藏在这笔结算事务里，面板只认 2722：不补这一帧，玩家打完
+	// 「秩序终结者」回到城里看到的还是旧计数（实机 2026-10-06 16:43）。
+	plan = append(plan, boostChallengeClearProgress(w.boostup, preClear, w.role)...)
 	if len(itemUpdate) != 0 {
 		plan = append(plan, outboundPacket{"tower_inventory_reward", 0, 14, itemUpdate})
 	}

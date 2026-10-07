@@ -61,10 +61,11 @@ func TestOpenSQLiteStoreEndToEnd(t *testing.T) {
 		t.Errorf("Characters = %d rows on a fresh account, want 0", len(rows))
 	}
 
-	// And the engine really is SQLite: the PostgreSQL-only pool accessor must refuse,
-	// which is what keeps the fixture and diagnostics from silently doing nothing.
-	if _, err := store.rawPool(); err == nil {
-		t.Error("rawPool succeeded on the SQLite engine; the PostgreSQL-only guard is not working")
+	// And the engine really is SQLite. SQLite is the only engine since 2026-10-05 (owner
+	// decision, see root AGENTS.md §0.6), so this positive check replaces the old assertion
+	// that the PostgreSQL-only pool accessor had to refuse.
+	if _, ok := store.engine.(*sqliteEngine); !ok {
+		t.Error("the store is not backed by the SQLite engine")
 	}
 }
 

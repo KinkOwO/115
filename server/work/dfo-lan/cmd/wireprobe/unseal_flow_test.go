@@ -18,9 +18,11 @@ import (
 
 // Uses current native PVF rules and an explicitly selected disposable database.
 func TestUnsealNativeSaveIdentity(t *testing.T) {
-	dsn, archive := os.Getenv("DFO_TEST_POSTGRES_DSN"), os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
-	if dsn == "" || archive == "" {
-		t.Skip("set DFO_TEST_POSTGRES_DSN and DFO_PVF_CORE_TEST_ARCHIVE for isolated native unseal regression")
+	// Only the native archive is required now: SQLite is the only storage engine and the
+	// fixture opens its own database file, so there is no test database to name.
+	archive := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
+	if archive == "" {
+		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for isolated native unseal regression")
 	}
 	source, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: archive, ExpectedChecksum: os.Getenv("DFO_PVF_CORE_TEST_SHA256")})
 	if err != nil {

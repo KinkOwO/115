@@ -1,0 +1,5 @@
+LIBRARY AutoConfirmDelete
+EXPORTS
+    ModStart
+    ModName
+    StartLocalization

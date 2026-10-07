@@ -27,11 +27,10 @@ const (
 // u16 at offset 0, the `list` byte at offset 2 and the action a u32 at offset 7.
 // The list byte is a real field each action judges for itself (the aura and
 // creature skin tickets are captured with it zero, but it must not be pinned
-// here), so it is skipped along with the slot and the action. The actions that
-// do require list 0 - the fatigue potion and [add skin storage] - re-assert it
-// in their own readers below. Every other byte
-// must be zero, which also constrains the action to a single byte (54, 101, 169
-// and 197 all fit).
+// here), so it is skipped along with the slot and the action. Every other byte
+// must be zero. The action is a u32, so all four of its bytes belong to the
+// field: Starter Boost 胶囊用动作 337（实机 2026-10-04 17:56:59，帧
+// `41 00 00 … 51 01 00 00`），把它当成「只有 p[7] 是字段」会把直升胶囊直接拒死。
 func DecodeStackableAction(p []byte) (slot uint16, action uint32, err error) {
 	if len(p) != 59 && len(p) != 64 {
 		return 0, 0, fmt.Errorf("stackable action length")
@@ -43,7 +42,7 @@ func DecodeStackableAction(p []byte) (slot uint16, action uint32, err error) {
 	action = binary.LittleEndian.Uint32(p[7:])
 	for i, b := range p {
 		// 0..2 = slot(u16) + list(u8)，7..10 = action(u32)：都是字段本身。
-		if i < 3 || i == 7 {
+		if i < 3 || (i >= 7 && i < 11) {
 			continue
 		}
 		if b != 0 {

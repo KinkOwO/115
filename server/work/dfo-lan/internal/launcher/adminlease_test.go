@@ -93,12 +93,13 @@ func TestClearStaleAdminLeaseOnlyWhenHolderIsGone(t *testing.T) {
 		t.Fatalf("missing lease: cleared=%v note=%q err=%v, want a silent no-op", cleared, note, err)
 	}
 
-	// 6. 非 SQLite 档 ⇒ 不适用（PostgreSQL 用 advisory lock，连接断开即释放）。
-	if _, applicable := AdminLeasePath(StorageConfig{Driver: "postgres", PostgresDSN: "postgres://u@127.0.0.1:25438/dfo_lan"}); applicable {
-		t.Fatal("a PostgreSQL profile reported a SQLite admin lease")
+	// 6. 档里没写 sqlite_path ⇒ 没有租约文件。PostgreSQL 支持已移除（2026-10-05，
+	//    见根 AGENTS.md §0.6），所以这里不再有"非 SQLite 档"这一说，只剩"没配库路径"。
+	if _, applicable := AdminLeasePath(StorageConfig{Driver: "sqlite"}); applicable {
+		t.Fatal("a profile without sqlite_path reported an admin lease")
 	}
-	if cleared, note, err := ClearStaleAdminLease(StorageConfig{Driver: "postgres"}, nil); cleared || note != "" || err != nil {
-		t.Fatalf("postgres profile: cleared=%v note=%q err=%v, want no-op", cleared, note, err)
+	if cleared, note, err := ClearStaleAdminLease(StorageConfig{Driver: "sqlite"}, nil); cleared || note != "" || err != nil {
+		t.Fatalf("profile without sqlite_path: cleared=%v note=%q err=%v, want no-op", cleared, note, err)
 	}
 }
 

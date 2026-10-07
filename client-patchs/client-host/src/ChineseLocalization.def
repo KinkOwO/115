@@ -1,0 +1,3 @@
+LIBRARY ChineseLocalization
+EXPORTS
+    StartLocalization

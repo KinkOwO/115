@@ -2,22 +2,19 @@ package database
 
 import (
 	"context"
-	"crypto/rand"
-	"embed"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
-	"time"
+	"path/filepath"
 
 	"dfolan/internal/database/sqlcgen"
-	"github.com/jackc/pgx/v5"
 )
 
-// TestFixture is a capability owned by a newly created disposable schema.
-// Its constructor requires an explicit dedicated test DSN and never reads
-// runtime/storage/local.json. Game and GM code must use Store, not this type.
+// TestFixture is a capability owned by a newly created disposable database file.
+// It never reads runtime/storage/local.json and never opens a player's store:
+// each fixture gets its own file under a private temporary directory which Close
+// removes, so isolation comes from the file rather than from a server-side schema.
+// Game and GM code must use Store, not this type.
 // The fixture offers concrete seeds/assertion reads, not arbitrary SQL.
 // An unexported embedded alias promotes Store's ordinary operations without
 // allowing other packages to construct a fixture around a player's Store.
@@ -26,45 +23,27 @@ type fixtureStore = Store
 type TestFixture struct {
 	*fixtureStore
 	config Config
-	admin  *Store
-	schema string
+	dir    string
 }
 
+// OpenTestFixture creates a disposable SQLite database in a private temporary
+// directory and opens a Store against it.
+//
+// PostgreSQL support was removed on 2026-10-05 (owner decision, see AGENTS §0.6),
+// so the fixture no longer needs DFO_TEST_POSTGRES_DSN: it always runs on the one
+// engine the server ships, and the integration tests that use it run everywhere.
 func OpenTestFixture(ctx context.Context) (*TestFixture, error) {
-	dsn := os.Getenv("DFO_TEST_POSTGRES_DSN")
-	if dsn == "" {
-		return nil, errors.New("DFO_TEST_POSTGRES_DSN must explicitly select a dedicated test database")
-	}
-	var token [8]byte
-	if _, err := rand.Read(token[:]); err != nil {
-		return nil, err
-	}
-	schema := "charactercheck_" + hex.EncodeToString(token[:])
-	admin, err := Open(ctx, Config{PostgresDSN: dsn, MaxConnections: 1})
+	dir, err := os.MkdirTemp("", "dfolan-fixture-")
 	if err != nil {
 		return nil, err
 	}
-	quoted := pgx.Identifier{schema}.Sanitize()
-	pool, poolErr := admin.rawPool()
-	if poolErr != nil {
-		admin.Close()
-		return nil, poolErr
-	}
-	if _, err := pool.Exec(ctx, "CREATE SCHEMA "+quoted); err != nil {
-		admin.Close()
-		return nil, err
-	}
-	f := &TestFixture{admin: admin, schema: schema, config: Config{PostgresDSN: dsn, PostgresSchema: schema, MaxConnections: 4}}
+	f := &TestFixture{dir: dir, config: Config{
+		SQLitePath:     filepath.Join(dir, "fixture.sqlite3"),
+		MaxConnections: 4,
+	}}
 	f.fixtureStore, err = Open(ctx, f.config)
 	if err != nil {
 		return nil, errors.Join(err, f.Close())
-	}
-	actual, err := f.queries.FixtureSchema(ctx)
-	if err != nil {
-		return nil, errors.Join(err, f.Close())
-	}
-	if actual != schema {
-		return nil, errors.Join(fmt.Errorf("test isolation failed: %s", actual), f.Close())
 	}
 	return f, nil
 }
@@ -73,22 +52,19 @@ func (f *TestFixture) Reopen(ctx context.Context) (*Store, error) { return Open(
 
 func (f *TestFixture) Storage() *Store { return f.fixtureStore }
 
+// Path is the fixture's database file, for helpers that need raw DDL.
+func (f *TestFixture) Path() string { return f.config.SQLitePath }
+
 func (f *TestFixture) Close() error {
 	if f.fixtureStore != nil {
 		f.fixtureStore.Close()
+		f.fixtureStore = nil
 	}
-	if f.admin == nil {
-		return nil
+	var err error
+	if f.dir != "" {
+		err = os.RemoveAll(f.dir)
+		f.dir = ""
 	}
-	defer f.admin.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	pool, err := f.admin.rawPool()
-	if err != nil {
-		return err
-	}
-	_, err = pool.Exec(ctx, "DROP SCHEMA "+pgx.Identifier{f.schema}.Sanitize()+" CASCADE")
-	f.admin = nil
 	return err
 }
 
@@ -146,25 +122,32 @@ func (f *TestFixture) FatigueRoomStats(ctx context.Context, id int64) (count, co
 	return row.Count, row.Cost, err
 }
 
-//go:embed sql/postgres/fixtures/*.sql
-var fixtureDDL embed.FS
-
-// RejectGraduation injects a database CHECK failure in this fixture's schema
-// to verify that quest changes and the character event roll back together.
+// RejectGraduation makes the fixture refuse any character write that carries
+// odyssey_graduation_version, so a test can verify that quest changes and the
+// character event roll back together.
+//
+// The PostgreSQL fixture installed a CHECK constraint on characters
+// (`NOT(state?'odyssey_graduation_version')`). SQLite cannot add a CHECK to an
+// existing table, so the equivalent here is a BEFORE UPDATE trigger raising
+// ABORT on exactly the same condition — the rebuild that
+// docs/sqlite-dual-engine-design.md §650 (R10) asked for.
 func (f *TestFixture) RejectGraduation(ctx context.Context, reject bool) error {
-	name := "allow_graduation.sql"
+	db, err := openSQLite(ctx, f.Path(), 1, 0)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	statement := `DROP TRIGGER IF EXISTS fixture_reject_graduation`
 	if reject {
-		name = "reject_graduation.sql"
+		statement = `CREATE TRIGGER IF NOT EXISTS fixture_reject_graduation
+			BEFORE UPDATE ON characters
+			FOR EACH ROW
+			WHEN json_extract(NEW.state, '$.odyssey_graduation_version') IS NOT NULL
+			BEGIN
+				SELECT RAISE(ABORT, 'reject_graduation');
+			END`
 	}
-	body, err := fixtureDDL.ReadFile("sql/postgres/fixtures/" + name)
-	if err != nil {
-		return err
-	}
-	pool, err := f.rawPool()
-	if err != nil {
-		return err
-	}
-	_, err = pool.Exec(ctx, string(body))
+	_, err = db.ExecContext(ctx, statement)
 	return err
 }
 
@@ -206,4 +189,48 @@ func (f *TestFixture) QuestRecord(ctx context.Context, id int64, quest int32) (s
 
 func (f *TestFixture) SeedFatigueUsage(ctx context.Context, id int64, used, usedMax int32) error {
 	return f.queries.FixtureFatigueUsage(ctx, sqlcgen.FixtureFatigueUsageParams{CharacterID: id, Used: used, UsedMax: usedMax})
+}
+
+// EventCountByKey 是「按事件键计数」的断言读：断言某次操作是否真的落了事件
+// （幂等重放不得新增、失败回滚不得留行）。
+//
+// SQLite 迁移（2026-10-05）后 fixture 不再持有 pgx pool：原始 SQL 走
+// openSQLite + 独立 *sql.DB（与 RejectGraduation 同一口径），占位符从 $N 改 ?。
+func (f *TestFixture) EventCountByKey(ctx context.Context, id int64, key string) (int64, error) {
+	db, err := openSQLite(ctx, f.Path(), 1, 0)
+	if err != nil {
+		return 0, err
+	}
+	defer db.Close()
+	var n int64
+	if err := db.QueryRowContext(ctx,
+		`SELECT count(*) FROM character_events WHERE character_id=? AND event_key=?`, id, key).Scan(&n); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+// SeedAccountPremium 直接写一行 account_premiums，让依赖「已购合约」的玩法判定
+// 拿到真实现实输入（例如成长胶囊的合约点数门禁）。
+func (f *TestFixture) SeedAccountPremium(ctx context.Context, account int64, premiumType int, end int64) error {
+	db, err := openSQLite(ctx, f.Path(), 1, 0)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	_, err = db.ExecContext(ctx,
+		`INSERT INTO account_premiums(account_id,premium_type,end_time) VALUES(?,?,?)`, account, premiumType, end)
+	return err
+}
+
+// SetAccountPremiumEnd 改一行的到期时间，用于把过期合约变回有效。
+func (f *TestFixture) SetAccountPremiumEnd(ctx context.Context, account int64, premiumType int, end int64) error {
+	db, err := openSQLite(ctx, f.Path(), 1, 0)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	_, err = db.ExecContext(ctx,
+		`UPDATE account_premiums SET end_time=? WHERE account_id=? AND premium_type=?`, end, account, premiumType)
+	return err
 }

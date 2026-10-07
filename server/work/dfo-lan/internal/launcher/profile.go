@@ -17,47 +17,57 @@ import (
 // resolved against the module directory and therefore also become required
 // dependencies: a profile whose archive or policy is missing cannot start.
 var pathKeys = map[string]bool{
-	"DFO_CHARACTER_CATALOG":         true,
-	"DFO_CHARACTER_RULES":           true,
-	"DFO_LOGIN_RESPONSE":            true,
-	"DFO_SKILL_CATALOG":             true,
-	"DFO_EQUIPMENT_WEAR_RULES":      true,
-	"DFO_ODYSSEY_DUNGEON_CATALOG":   true,
-	"DFO_ODYSSEY_WEAPON_BOX":        true,
-	"DFO_ODYSSEY_GROWTH":            true,
-	"DFO_LOOT_CATALOG":              true,
-	"DFO_ODYSSEY_COIN_RULES":        true,
-	"DFO_FATIGUE_RULES":             true,
-	"DFO_CLEAR_CUBE_SOURCE":         true,
-	"DFO_ODYSSEY_CHAPTER_DROP":      true,
-	"DFO_PVF_ITEM_SHOP_POLICY":      true,
-	"DFO_PVF_BOX_POLICY":            true,
-	"DFO_PVF_CHARACTER_POLICY":      true,
-	"DFO_PVF_LAYER_REVISIT_POLICY":  true,
-	"DFO_PVF_SCRIPT_WARP_POLICY":    true,
-	"DFO_PVF_ARCHIVE":               true,
-	"DFO_PVF_ENHANCEMENT_POLICY":    true,
-	"DFO_PVF_VAULT_POLICY":          true,
-	"DFO_PVF_DROP_POLICY":           true,
-	"DFO_PVF_SCENE_POLICY":          true,
-	"DFO_PVF_CONTENT_POLICY":        true,
-	"DFO_PVF_SELECTION_POLICY":      true,
-	"DFO_PVF_LOTTERY_POLICY":        true,
+	"DFO_CHARACTER_CATALOG":        true,
+	"DFO_CHARACTER_RULES":          true,
+	"DFO_LOGIN_RESPONSE":           true,
+	"DFO_SKILL_CATALOG":            true,
+	"DFO_EQUIPMENT_WEAR_RULES":     true,
+	"DFO_ODYSSEY_DUNGEON_CATALOG":  true,
+	"DFO_ODYSSEY_WEAPON_BOX":       true,
+	"DFO_ODYSSEY_GROWTH":           true,
+	"DFO_LOOT_CATALOG":             true,
+	"DFO_ODYSSEY_COIN_RULES":       true,
+	"DFO_FATIGUE_RULES":            true,
+	"DFO_CLEAR_CUBE_SOURCE":        true,
+	"DFO_ODYSSEY_CHAPTER_DROP":     true,
+	"DFO_PVF_ITEM_SHOP_POLICY":     true,
+	"DFO_PVF_BOX_POLICY":           true,
+	"DFO_PVF_CHARACTER_POLICY":     true,
+	"DFO_PVF_LAYER_REVISIT_POLICY": true,
+	"DFO_PVF_SCRIPT_WARP_POLICY":   true,
+	"DFO_PVF_ARCHIVE":              true,
+	"DFO_PVF_ENHANCEMENT_POLICY":   true,
+	"DFO_PVF_VAULT_POLICY":         true,
+	"DFO_PVF_DROP_POLICY":          true,
+	"DFO_PVF_SCENE_POLICY":         true,
+	"DFO_PVF_CONTENT_POLICY":       true,
+	"DFO_PVF_SELECTION_POLICY":     true,
+	"DFO_PVF_LOTTERY_POLICY":       true,
 }
 
 // flagKeys are the boolean entries. Only "0" and "1" are accepted, exactly as the
 // Python validated them.
 var flagKeys = map[string]bool{
-	"DFO_CHANNEL_IDENTITY":             true,
-	"DFO_DETAIL_WORN":                  true,
-	"DFO_SHOP_RELEASE":                 true,
-	"DFO_VAULT_PURCHASE_RELEASE":       true,
-	"DFO_ODYSSEY_REWARDS_RELEASE":      true,
-	"DFO_ODYSSEY_TEMPORARY_CREDITS":    true,
-	"DFO_SHOP_OPEN_ALL":                true,
-	"DFO_PVF_VERIFY_BASELINES":         true,
-	"DFO_ATTUNEMENT_REBALANCE":         true,
-	"DFO_FATIGUE_FREE":                 true,
+	"DFO_CHANNEL_IDENTITY":          true,
+	"DFO_DETAIL_WORN":               true,
+	"DFO_SHOP_RELEASE":              true,
+	"DFO_VAULT_PURCHASE_RELEASE":    true,
+	"DFO_ODYSSEY_REWARDS_RELEASE":   true,
+	"DFO_ODYSSEY_TEMPORARY_CREDITS": true,
+	"DFO_SHOP_OPEN_ALL":             true,
+	"DFO_PVF_VERIFY_BASELINES":      true,
+	"DFO_ATTUNEMENT_REBALANCE":      true,
+	"DFO_FATIGUE_FREE":              true,
+	// 团本入场事件的诊断候选开关；服务端源码里与 "1" 比较。
+	"DFO_RAID_OPEN_EVENTS_PROBE": true,
+}
+
+// bakalModes 是服务端源码真正认的 DFO_BAKAL_MODE 取值。
+//
+// 有意只收 "unlimited"：那处比较就是 == "unlimited"。放行其它字面量只会让人
+// 以为改了口径而实际走默认分支；要加新口径必须先在服务端源码里落地。
+var bakalModes = map[string]bool{
+	"unlimited": true,
 }
 
 // pvfDomains is the whitelist a profile's DFO_PVF_CATALOGS may select from. It is not a
@@ -85,6 +95,9 @@ var (
 	sha256Value      = regexp.MustCompile(`^[0-9a-fA-F]{64}$`)
 	omenInfoValue    = regexp.MustCompile(`^[0-9a-fA-Fx,; \-]+$`)
 	oathGradesValue  = regexp.MustCompile(`^\d{1,3}(,\d{1,3})?$`)
+	// 调律（attunement）的两个倍率：正整数，上限见 validMultiplier。
+	// 键名与取值口径来自服务端源码里真正读它们的地方（见 applyEnvironment 的注释）。
+	multiplierValue = regexp.MustCompile(`^[0-9]{1,5}$`)
 )
 
 // Profile is a loaded launcher profile: which binary to run, which files it needs, and
@@ -249,6 +262,19 @@ func (p *Profile) applyEnvironment(module, key string, raw json.RawMessage) erro
 		p.Env[key] = text
 	case key == "DFO_ISPINS_MODE" && isString && (text == "unlimited" || text == "weekly"):
 		p.Env[key] = text
+	case key == "DFO_ATTUNEMENT_QUANTITY_MULTIPLIER" && isString && validMultiplier(text):
+		// 调律数量倍率。消费点：服务端调律（attunement）奖励换算。1 = 官方数值。
+		// 上限与 DFO_HELL_PARTY_DROP_PERCENT 同口径（10000）。
+		p.Env[key] = normalizeMultiplier(text)
+	case key == "DFO_ATTUNEMENT_RARITY_WEIGHT_MULTIPLIER" && isString && validMultiplier(text):
+		// 调律品质权重倍率，与上面同一消费族，取值口径一致。
+		p.Env[key] = normalizeMultiplier(text)
+	case key == "DFO_BAKAL_MODE" && isString && bakalModes[text]:
+		// 巴卡尔团本次数口径。服务端源码里的比较是
+		//   os.Getenv("DFO_BAKAL_MODE") == "unlimited"
+		// 所以这里**只放行源码真正认的字面量**：放行别的值，等于让玩家以为改了口径、
+		// 实际服务端仍走默认分支。要加新口径必须先在服务端源码里落地。
+		p.Env[key] = text
 	case flagKeys[key] && (text == "0" || text == "1"):
 		// Only the two literal strings: a JSON number or boolean is not a flag value, and
 		// the Python rejected those too.
@@ -311,4 +337,25 @@ func readFileAllowingBOM(path string) ([]byte, error) {
 		return nil, err
 	}
 	return stripBOM(data), nil
+}
+
+// validMultiplier 与 validDropPercent 同口径：1..5 位数字，且不超过 10000。
+//
+// 有意不设下限 1：0 是"关掉加成"的合理写法，服务端按默认处理；
+// 拒绝 0 会把一个本可启动的配置挡下来。
+func validMultiplier(text string) bool {
+	if !multiplierValue.MatchString(text) {
+		return false
+	}
+	n, err := strconv.Atoi(text)
+	return err == nil && n <= 10000
+}
+
+// normalizeMultiplier 去掉前导零（"0005" -> "5"），与 dropPercent 的处理一致。
+func normalizeMultiplier(text string) string {
+	n, err := strconv.Atoi(text)
+	if err != nil {
+		return text
+	}
+	return strconv.Itoa(n)
 }

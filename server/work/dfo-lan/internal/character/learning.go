@@ -333,6 +333,12 @@ func (s *Service) Learn(ctx context.Context, role Character, key string, req pro
 		if e != nil {
 			return nil, nil, e
 		}
+		// 活动 662 第三关（技能进化点）与技能保存同事务判定：变体已通过源校验后，
+		// 按活动源的 [condition] 点数把关卡推进。未装载活动时原样返回。
+		p, _, e = s.completeBoostVPSave(p, state, req)
+		if e != nil {
+			return nil, nil, e
+		}
 		receipt, e := json.Marshal(map[string]any{"skills": changes, "sp": points, "source": s.Learning.Source.SaveIdentity()})
 		return p, receipt, e
 	})
