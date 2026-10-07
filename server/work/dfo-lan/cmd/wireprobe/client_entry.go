@@ -328,6 +328,7 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "world_entry_error", "error": e.Error()})
 				return dispatchHandled
 			}
+			role = client.worldState.role
 			// Publish this actor before the area list is serialized, so the list already
 			// carries the other players standing in the same place.
 			if client.hub != nil && len(basic) > 0 {
@@ -844,8 +845,11 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		}
 		if client.lootService != nil {
 			rewardCtx, rewardCancel := context.WithTimeout(context.Background(), 5*time.Second)
-			raidRewards := &workflow.BakalRewardService{Store: client.gameStore, Awarder: &inventory.Awarder{Catalog: client.lootService.Catalog, Rules: client.lootService.BagRules, Equipment: client.lootService.Equipment}}
-			raidRecovered, raidErr := raidRewards.Recover(rewardCtx, role)
+			var raidRecovered database.Character
+			var raidErr error
+			if client.bakalRewardService != nil {
+				raidRecovered, raidErr = client.bakalRewardService.Recover(rewardCtx, role, time.Now())
+			}
 			if raidRecovered.ID != 0 {
 				role = raidRecovered
 			}
@@ -1004,6 +1008,10 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		// next79 挂接（ispins_wiring.go）：N1719 保活 goroutine 与登录期
 		// N2254 分支（伊斯频道挂 pending、普通频道 1.1s 后推 N2254+781+782）。
 		client.ispinsPostSelection(role.ID)
+		if client.worldState != nil {
+			// The newly selected character owns a fresh client quota cache.
+			client.worldState.bakalQuotaBody = nil
+		}
 		// 进城镇好感度全量同步：NOTI733(NPC_FAVOR_POINT_INFO) 是客户端
 		// 唯一的无弹窗全量装载入口（handler 0x1452db190：先清空 favor
 		// map 再逐条装入并刷新，不派发任何 UI 事件）；806 ack 虽也写

@@ -100,7 +100,9 @@
     "VaultPurchaseRelease": false,
     "VaultRules": "",
     "WorldCatalog": "",
-    "WorldRules": "configs/world-probe.json"
+    "WorldRules": "configs/world-probe.json",
+    "VenusFlipGear": "configs/venus-flip-gear.generated.json",
+    "BoostUpEvent": true
   },
   "cases": [
     {

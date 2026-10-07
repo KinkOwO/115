@@ -29,7 +29,7 @@ func observedGameRequest(id uint16) bool {
 	if id == 12 || id == 650 || id == 656 || id == 657 || id == 658 || id == 661 || id == 1353 || id == 2121 || id == 2070 || id == 2071 || id == 2072 || id == 2073 || id == 2074 || id == 2089 {
 		return true
 	}
-	if mailboxRequest(id) || id >= 2316 && id <= 2328 {
+	if mailboxRequest(id) || legion.BakalRequests(id) || id >= 2316 && id <= 2328 {
 		return true
 	}
 	switch id {

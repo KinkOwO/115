@@ -275,7 +275,7 @@ func GrowthDungeonClear(c catalog.Progression, d catalog.DungeonDefinition, diff
 		return out, fmt.Errorf("missing clear experience source row")
 	}
 	weight := float64(1)
-	a := growthSection(d.Script.Cells, "[experience increasing point]")
+	a := growthDungeonSection(d.Script.Cells, "[experience increasing point]")
 	if len(a) > 0 {
 		if len(a) != 1 {
 			return out, fmt.Errorf("ambiguous clear weight")

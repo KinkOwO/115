@@ -32,6 +32,9 @@ var beforeClientTypeDispatch = [...]clientDispatchStage{
 	// dispatchVenus 紧随其后：维纳斯待机区 CMD12/13 与家族拦截（内容 106）
 	// 必须先于 dispatchLegion，防止落进末世录处理器。
 	(*gameConnection).dispatchVenus,
+	// dispatchBakal 再其后：巴卡尔频道（type 82）的 raid 信封（656/2089/
+	// 2069-2074/2261/1134）必须先于 dispatchLegion 与通用副本处理器。
+	(*gameConnection).dispatchBakal,
 	// dispatchForest 再随后：苏醒之森（Type 96）待机区 CMD12/13，同理由
 	// （各内容自带的队伍类型字节互不相认）。
 	(*gameConnection).dispatchForest,

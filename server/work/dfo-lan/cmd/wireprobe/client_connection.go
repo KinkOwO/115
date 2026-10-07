@@ -45,13 +45,9 @@ type gameConnection struct {
 	selectedAddition    []byte
 	selectedBasic       []byte
 	selectedCharacterID int64
-	// raidOwnerRole / ownedRaidID 是本次连接认领的 raid 队伍身份（每连接私有）；
-	// 队伍本身登记在 gatewayRuntime.raidTeams 上，由同一网关的各连接共享。
-	raidOwnerRole int64
-	ownedRaidID   uint32
-	skillState    skillSession
-	sortState     sortSession
-	worldState    *worldSession
+	skillState          skillSession
+	sortState           sortSession
+	worldState          *worldSession
 }
 
 type gameGateway struct {
@@ -111,6 +107,8 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 		}
 		client.worldState.serverID = client.channelCfg.ServerID
 		client.worldState.channelType = client.channelTypes[client.channel]
+		client.worldState.bakalRules = client.bakalRaidRules
+		client.worldState.bakalRewards = client.bakalRewardService
 		// 特殊征讨频道（SemiRaid/Legion，towns 表里有专属城镇的）的位置隔离：
 		// 会话内位置不覆盖普通频道的共享行（黑鸦 73 / 矿区 106 既有模式的全频道推广）。
 		if _, isolated := client.gatewayRuntime.channelTowns[client.channelTypes[client.channel]]; isolated {
@@ -203,6 +201,11 @@ func (client *gameConnection) serve() {
 				// 维纳斯难度选择窗倒计时归 0：推原生 close ACK 自动关窗。
 				packets = client.worldState.venusOperationClose(now, client.event)
 				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
+					return
+				}
+				// 巴卡尔开战时钟：开战 burst、血量发布与结算串（2285→N13→588→574）
+				// 都从这一秒 tick 驱动（settle 前一瞬注入奖励冻结与全量背包）。
+				if client.tickBakalOpening(now) != nil {
 					return
 				}
 			}

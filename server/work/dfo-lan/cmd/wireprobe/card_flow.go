@@ -115,9 +115,6 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 	if e != nil {
 		return nil, nil, e
 	}
-	if w.bakalOpening != nil {
-		return w.bakalRetreat(r)
-	}
 	// [ISPINS-ARENA-BOSS] 伊斯大陆的 CMD72 全部不走通用翻牌/结算：官服 s4
 	// 整场没有一帧 69/70/71（阶段奖励由 N2256/N2252 承载），撤退休退
 	// （source=0）更发生在副本未完成时。回城复用 leaveDungeon（回到进本前

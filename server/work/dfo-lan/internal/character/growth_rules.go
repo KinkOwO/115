@@ -65,6 +65,18 @@ func growthSection(c []pvf.Token, name string) []pvf.Token {
 	return r
 }
 
+// DGN header scalars precede maze-local definitions. Repeated maze labels
+// are not additional values of the dungeon-wide experience multiplier.
+func growthDungeonSection(c []pvf.Token, name string) []pvf.Token {
+	for i, t := range c {
+		if t.Type == 3 && t.Text == "[maze info]" {
+			c = c[:i]
+			break
+		}
+	}
+	return growthSection(c, name)
+}
+
 // growthDifficultyIndex maps the session's native 1..5 difficulty to the five
 // PVF experience columns. Native runs reporting 0 retain the first column,
 // matching the admitted selection and existing ordinary reward boundary.
@@ -91,7 +103,7 @@ func GrowthMonsterGain(c catalog.Progression, r GrowthRules, d catalog.DungeonDe
 		return 0, fmt.Errorf("missing monster level table")
 	}
 	weight := float32(1)
-	if cells := growthSection(d.Script.Cells, "[experience increasing point]"); len(cells) > 0 {
+	if cells := growthDungeonSection(d.Script.Cells, "[experience increasing point]"); len(cells) > 0 {
 		if len(cells) != 1 {
 			return 0, fmt.Errorf("ambiguous dungeon experience weight")
 		}

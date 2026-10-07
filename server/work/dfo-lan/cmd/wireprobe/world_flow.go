@@ -9,16 +9,17 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/legion"
 	"dfolan/internal/loot"
 	"dfolan/internal/npcpresence"
 	"dfolan/internal/quest"
-	"dfolan/internal/raid"
 	"dfolan/internal/reward"
 	"dfolan/internal/workflow"
 	"dfolan/internal/world"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -67,22 +68,44 @@ type worldSession struct {
 	// 挑战。字节契约见 venus_flow.go、internal/legion/venus.go 与
 	// 包规格/全流程 N2655/2290/2291/1474 规格文档。
 	venus *venusRun
-	// forest 是一次苏醒之森（Forest of Awakening，内容号 104）挑战的会话
-	// 状态；nil = 无进行中的挑战。字节契约见 forest_flow.go 与
-	// internal/legion/forest.go（官服 21:42-21:45 三关完整抓包向量）。
-	forest *forestRun
-	// forestPartyHard 记录待机区建队选择的模式（CMD12 类型 0x19 =
-	// Extreme/ForestOfAwakeningHard），开战时带入 forestRun.hard。
-	forestPartyHard bool
-	// lastVenusResetCharacter 是最近一次发过遗物 UI 重置（N2655 mask=0）
-	// 的角色 WireID：同一频道连接内切角色时触发一次（BUG4）。
+	// bakal 是一次巴卡尔攻坚战（频道 type 82）的会话状态；nil = 无进行中的
+	// raid。字节契约见 bakal_flow.go、internal/legion/bakal*.go 与
+	// next151 取证文档。
+	bakal                    *legion.BakalOpening
+	bakalRun                 string
+	bakalRecruitment         *protocol.RaidRecruitment
+	bakalFailureNotified     bool
+	bakalDeathReturnAt       time.Time
+	bakalDeathReturnRun      string
+	bakalDeathReturnSequence uint32
+	// bakalName 是 CMD656 建团请求内嵌的团名（开战 burst 用它登记成员）；
+	// bakalCurrent / bakalLocation 记录当前进住的作战图与其 raid-map 位置
+	// （CMD2073 加载闭环、CMD2069 战报、CMD2070 跳转都要引用）。
+	bakalName     string
+	bakalCurrent  uint32
+	bakalLocation uint32
+	// bakalRules / bakalRewards 由网关构造时注入；nil = 该内容未装载（建团
+	// 被待机区未绑定拒绝，与交接包拒绝实录一致）。
+	bakalRules     *catalog.BakalRaidRules
+	bakalRewards   *workflow.BakalRewardService
+	bakalQuotaRole int64
+	bakalQuotaBody []byte
+	// boostup 是一次新手成长胶囊教学（活动 662）的会话状态。
+	boostup *boostup.Catalog
+	// boostWorldBase / boostOperations / notifyBoostMail 是 Starter Boost 活动
+	// 662 的注入接线：基地世界服务、一次性事件键会话与毕业邮件回调。
+	boostWorldBase  *world.Service
+	boostOperations requestKeySession
+	notifyBoostMail func(int64)
+	// 下列字段由 origin 侧的非巴卡尔内容注入：苏醒之森（forest）、维纳斯
+	// （venus）、永夜之城频道刷新与槽位解锁状态。
+	forest                  *forestRun
+	forestPartyHard         bool
 	lastVenusResetCharacter int64
-	// pendingRelicReset 挂起「遗物 UI 待归零」标记：终局视频播完置位，
-	// 同连接内角色变化的首个 CMD35 补发后清除（第二十三轮两段式，避免
-	// 首次进频道就误发等待态 UI——015424 会话回归实证）。
-	pendingRelicReset      bool
-	blackPurgatory         blackPurgatoryState
-	adventureEliteSnapshot [32]byte
+	pendingRelicReset       bool
+	channelSpawns           map[uint32]database.WorldPosition
+	blackPurgatory          blackPurgatoryState
+	adventureEliteSnapshot  [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
 	// source level gate the world service applies: an Arad Odyssey character
 	// follows the client's [odyssey enter level] instead of [need level].
@@ -218,18 +241,6 @@ type worldSession struct {
 	hub  *lanHub
 	peer *lanPeer
 	// —— 巴尔卡/使徒 raid 会话状态（raid_bakal_*.go、dungeon_flow.go）——
-	// raidWaiting 表示本次连接已落在 raid 待机频道；bakalOpening 非 nil 表示
-	// 巴卡尔开场已在 CMD2062 建好（internal/raid.PrepareBakalOpening）。
-	raidWaiting        bool
-	bakalOpening       *raid.BakalOpening
-	bakalRules         *catalog.BakalRaidRules
-	bakalParty         uint32
-	bakalTown          uint32
-	bakalSettledRun    string
-	bakalRewardRetryAt time.Time
-	// channelSpawns 镜像 gatewayRuntime.channelSpawns，供内容频道落点覆盖使用
-	// （odyssey_teleport.go 判断目标频道是否属于内容频道）。
-	channelSpawns map[uint32]database.WorldPosition
 	// lastMotion and lastSpeed are the most recent values this client reported with
 	// CMD 35. NOTI 22 carries them so the other clients animate the movement.
 	lastMotion byte
@@ -253,17 +264,28 @@ type worldSession struct {
 
 	// boostup 是「胶囊加速/新手成长」活动 662 的本连接目录视图（nil = 活动关闭）。
 	// 它由 gatewayRuntime 的同一份只读源解析结果按值共享，不在连接上重复解析。
-	boostup *boostup.Catalog
 	// boostWorldBase 记住被胶囊教学城镇替换掉的普通世界服务，毕业/失效后还原。
-	boostWorldBase *world.Service
 	// notifyBoostMail 把活动邮寄写进角色的未读信箱（唤醒 mailChanges 重发提示）。
-	notifyBoostMail func(int64)
 	// boostOperations 是活动领奖幂等键的来源（口径同装备线：连接随机数 + 传输帧
 	// 摘要）。donor 基线把同一个键发生器挂在会话的 itemOperations 上。
-	boostOperations requestKeySession
+
 }
 
 func (w *worldSession) enter(role database.Character, spawn database.WorldPosition) error {
+	// Recover after character selection and before preparing its inventory.
+	// Preserve the selected scene identity, including on partial recovery.
+	if w.bakalRewards != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		saved, err := w.bakalRewards.Recover(ctx, role, time.Now())
+		cancel()
+		saved.WireID = role.WireID
+		role = saved
+		if err != nil {
+			log.Printf("Bakal rewards pending: character=%d: %v", role.ID, err)
+		}
+	}
+	w.bakal, w.bakalRun, w.bakalCurrent, w.bakalLocation = nil, "", 0, 0
+	w.bakalRecruitment = nil
 	var state character.State
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return e
@@ -725,6 +747,9 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 			return e
 		}
 		if e = w.announceSelf(event); e != nil {
+			return e
+		}
+		if e = w.syncBakalMemberArea(send, event); e != nil {
 			return e
 		}
 		a := w.service.Catalog.Areas[catalog.AreaKey(next.Town, next.Area)]

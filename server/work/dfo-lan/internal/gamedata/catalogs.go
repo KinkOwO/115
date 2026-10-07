@@ -39,7 +39,6 @@ type Catalogs struct {
 	ChannelDirectory             *catalog.ChannelDirectory
 	ChannelInfo                  *catalog.ChannelInfo
 	ChannelTowns                 map[uint32]catalog.TownArea
-	RaidEntrances                map[uint32]catalog.RaidEntrance
 	RosterBackgrounds            *character.RosterBackgroundTicketCatalog
 	OdysseyRoutes                *catalog.OdysseyJournalRoutes
 	SeasonRules                  *adventure.SeasonRules
@@ -60,6 +59,10 @@ type Catalogs struct {
 	OdysseyCurrency              *loot.OdysseyCurrency
 	Attunement                   *loot.AttunementRewards
 	Apocalypse                   *catalog.ApocalypseCatalog
+	MaxLevelReward               *catalog.MaxLevelReward
+	Bakal                        *catalog.BakalRaidRules
+	BoostUp                      *boostup.Catalog
+	RaidEntrances                map[uint32]catalog.RaidEntrance
 	MazeRates                    *catalog.MazeChanceOverlay
 	HellMaps                     *catalog.SourceMapOverlay
 	HellRules                    *catalog.HellPartyRules
@@ -70,7 +73,6 @@ type Catalogs struct {
 	World                        *catalog.WorldCatalog
 	Items                        *catalog.ItemIndex
 	ItemBasics                   *catalog.ItemBasics
-	MaxLevelReward               *catalog.MaxLevelReward
 	Equipment                    *inventory.FullEquipmentCatalog
 	AvatarDisjoint               *inventory.AvatarDisjointRules
 	AvatarSockets                *inventory.AvatarSocketRules
@@ -100,7 +102,6 @@ type Catalogs struct {
 	Dungeons, TrainingDungeons, TutorialDungeons *catalog.DungeonCatalog
 	Vault                                        *inventory.VaultRules
 	// BoostUp 是活动 662（新手成长胶囊）的原生目录；nil = 该直读域未选中。
-	BoostUp *boostup.Catalog
 }
 
 type CatalogInputs struct {
@@ -140,7 +141,7 @@ type CatalogAdapters struct {
 
 func (i CatalogInputs) checksBaselines() bool { return i.VerifyBaselines }
 
-const SupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,transform,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps,layer-revisits,characters,cashshop,boxes,item-shops,boostup"
+const SupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,transform,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps,layer-revisits,characters,cashshop,boxes,item-shops,bakal-raid,boostup"
 
 func (c *Catalogs) Selected(domain string) bool { return c != nil && c.selected[domain] }
 func (c *Catalogs) Prepared(domain string) bool { return c != nil && c.prepared[domain] }
@@ -274,6 +275,8 @@ func (c *Catalogs) validateSelectedProjections() error {
 			ready = c.MazeRates != nil
 		case "apocalypse":
 			ready = c.Apocalypse != nil
+		case "bakal-raid":
+			ready = c.Bakal != nil
 		case "attunement":
 			ready = c.Attunement != nil && c.Items != nil
 		case "odyssey-growth":

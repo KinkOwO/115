@@ -4,6 +4,7 @@ import (
 	"context"
 	"dfolan/internal/adventure"
 	"dfolan/internal/cashshop"
+	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -36,6 +37,12 @@ func itemPremiumActivations(values []inventory.PremiumActivation) []database.Cas
 // The recovery effect is the client's own: the native success acknowledgement
 // carries no restored amount, so nothing is invented here.
 func (s *ItemService) Consume(ctx context.Context, role database.Character, r protocol.UseStackableRequest) (database.Character, inventory.ConsumeReceipt, bool, error) {
+	return s.ConsumeChecked(ctx, role, r, nil, nil)
+}
+
+// Check runs only for a new committed use. A receipt replay must remain
+// readable even when a run allowance has since reached zero.
+func (s *ItemService) ConsumeChecked(ctx context.Context, role database.Character, r protocol.UseStackableRequest, check func() error, committed func()) (database.Character, inventory.ConsumeReceipt, bool, error) {
 	var out inventory.ConsumeReceipt
 	fail := func(e error) (database.Character, inventory.ConsumeReceipt, bool, error) {
 		return role, out, false, e
@@ -52,11 +59,21 @@ func (s *ItemService) Consume(ctx context.Context, role database.Character, r pr
 	saved, applied, e := s.Store.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID,
 		s.Items.Catalog.Source.SaveIdentity(), key, s.Items.Model,
 		func(current database.Character) (json.RawMessage, json.RawMessage, []database.CashPremiumActivation, error) {
+			if check != nil {
+				if err := check(); err != nil {
+					return nil, nil, nil, err
+				}
+			}
 			state, receipt, premiums, err := s.Items.PrepareConsume(InventoryRole(current), r, seasonCapsule, adventure.ApplySeasonCapsule, resolveItemContract)
 			return state, receipt, itemPremiumActivations(premiums), err
 		})
 	if e != nil {
 		return fail(e)
+	}
+	// The item has committed here. Receipt retrieval or packet preparation may
+	// fail later; those failures must not restore an allowance already spent.
+	if applied && committed != nil {
+		committed()
 	}
 	receipt, e := s.Store.CharacterEventReceipt(ctx, role.AccountID, role.ID, key)
 	if e != nil {
@@ -65,12 +82,19 @@ func (s *ItemService) Consume(ctx context.Context, role database.Character, r pr
 	if e = json.Unmarshal(receipt, &out); e != nil {
 		return fail(e)
 	}
-	if out.Source != s.Items.Catalog.Source.SaveIdentity() || out.Template != r.Template || out.Slot != r.Slot {
+	if !consumeReceiptSourceMatches(out.Source, s.Items.Catalog.Source) || out.Template != r.Template || out.Slot != r.Slot {
 		return fail(fmt.Errorf("consume receipt conflict"))
 	}
 	out.EventKey = key
 	saved.WireID = role.WireID
 	return saved, out, applied, nil
+}
+
+// Older consume receipts recorded the selected archive checksum. Accept that
+// representation only for this exact current archive; never rewrite a saved
+// receipt or treat another PVF's identity as compatible.
+func consumeReceiptSourceMatches(source string, current pvf.ArchiveSnapshot) bool {
+	return source == current.SaveIdentity() || source != "" && current.Checksum != "" && source == current.Checksum
 }
 
 // OpenBoxes settles one radiant box request: it spends the material and hands out

@@ -1,0 +1,1651 @@
+{
+  "source_checksum": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
+  "moves": [
+    {
+      "npc_id": 1,
+      "target_npc": 100002438,
+      "in_progress_quests": [
+        22613,
+        22614,
+        22615
+      ],
+      "script_path": "npc/linus.npc",
+      "sha256": "32c58c5b5fa1d130b65343a57a2d84ddc78e1a67ff5151e1aadff2faefd89061"
+    },
+    {
+      "npc_id": 7,
+      "target_npc": 100002252,
+      "in_progress_quests": [
+        21965,
+        21966,
+        21967
+      ],
+      "script_path": "npc/gsd.npc",
+      "sha256": "6427009a76067a7630f5dd8596bb329fef31af1eadc4ab99e59270ba6385c9fd"
+    },
+    {
+      "npc_id": 12,
+      "target_npc": 100002232,
+      "in_progress_quests": [
+        22097
+      ],
+      "script_path": "npc/sharan.npc",
+      "sha256": "36c3d7afc6882e1f02c93fcb6e210a5c58e1a2a23681ccfd417a9f226115b0cd"
+    },
+    {
+      "npc_id": 26,
+      "target_npc": 100002402,
+      "in_progress_quests": [
+        22077,
+        22078
+      ],
+      "script_path": "npc/klonter.npc",
+      "sha256": "35ef2b1d6233e2168c0b5019e03003f670defa4338e373fdc674a1edce38cc5c"
+    },
+    {
+      "npc_id": 42,
+      "target_npc": 100002436,
+      "in_progress_quests": [
+        22398,
+        22399,
+        22400
+      ],
+      "script_path": "npc/rino.npc",
+      "sha256": "ee830b1711e5965c2ae2550279600812f68917e22a8ac39015e30a9d15fb292e"
+    },
+    {
+      "npc_id": 45,
+      "target_npc": 100002236,
+      "in_progress_quests": [
+        22033,
+        22034,
+        22035
+      ],
+      "script_path": "npc/grandis.npc",
+      "sha256": "5565cfd7129537fc483e62badfa87477f48651e0fffebba182a4d2091bd83bff"
+    },
+    {
+      "npc_id": 56,
+      "target_npc": 100002265,
+      "script_path": "npc/marlene.npc",
+      "sha256": "320c116b113ddad9d3d4e644a52ca013b08e7d48214f24ab9855e085a6e0cafa"
+    },
+    {
+      "npc_id": 57,
+      "target_npc": 100002225,
+      "in_progress_quests": [
+        22050
+      ],
+      "script_path": "npc/verrickt.npc",
+      "sha256": "d1aabadddf737cf2fe2bb262715d03c9fba4f383f3a8df8de320c300749931af"
+    },
+    {
+      "npc_id": 58,
+      "target_npc": 100002263,
+      "in_progress_quests": [
+        22053,
+        22054
+      ],
+      "script_path": "npc/zeldin.npc",
+      "sha256": "8343e8912c328e449770258854343c7dc9728b321d60fb1e0a77472877360cba"
+    },
+    {
+      "npc_id": 59,
+      "target_npc": 100002264,
+      "in_progress_quests": [
+        22058
+      ],
+      "script_path": "npc/melvin.npc",
+      "sha256": "56a843d98fed531df8116029b31ca21e0449187bc27aee27096f2185b06f4749"
+    },
+    {
+      "npc_id": 60,
+      "target_npc": 100002265,
+      "in_progress_quests": [
+        22061,
+        22062
+      ],
+      "script_path": "npc/marlene_arad.npc",
+      "sha256": "a27e31c2cecb8f3df954ef60ee1f45ae9dd666ea1beddc1df613da8d4522b55b"
+    },
+    {
+      "npc_id": 64,
+      "target_npc": 100002317,
+      "in_progress_quests": [
+        22125,
+        22126,
+        22127
+      ],
+      "script_path": "npc/minet.npc",
+      "sha256": "94fd0467d9f4377d274f271d8547ce9977bb422f9ebe6ae2f62ec2d4c45813b7"
+    },
+    {
+      "npc_id": 65,
+      "target_npc": 100002257,
+      "in_progress_quests": [
+        22189,
+        22190,
+        22191
+      ],
+      "script_path": "npc/wernvonnegut.npc",
+      "sha256": "d01f653a7d15529a0f3e1e7dd88ff12cd82f5f142d5de7b277b34f03f37677d3"
+    },
+    {
+      "npc_id": 77,
+      "target_npc": 100002194,
+      "in_progress_quests": [
+        22258,
+        22259,
+        22260
+      ],
+      "script_path": "npc/wayne.npc",
+      "sha256": "f54bf0bf737b1da455124348da8688bb703d537ec908d11906e6823967bd13bd"
+    },
+    {
+      "npc_id": 122,
+      "target_npc": 100002216,
+      "in_progress_quests": [
+        21981
+      ],
+      "script_path": "npc/woo.npc",
+      "sha256": "459db3cd89ac44e8a3e369fc80cbe132d27065af3a9c15f5b91951160a2defbd"
+    },
+    {
+      "npc_id": 125,
+      "target_npc": 100002405,
+      "in_progress_quests": [
+        22330,
+        22331,
+        22332
+      ],
+      "script_path": "npc/aska.npc",
+      "sha256": "89345415ee26866c43a7837ab7d2c875fc6119d140e31728107cc752553af70f"
+    },
+    {
+      "npc_id": 128,
+      "target_npc": 130,
+      "script_path": "npc/timegate_move.npc",
+      "sha256": "cb0875293b55f00a6eec502a56b067d98dc668f86dc25368098ee81ddd92b150"
+    },
+    {
+      "npc_id": 129,
+      "target_npc": 131,
+      "script_path": "npc/requiem_move.npc",
+      "sha256": "cb4cb21b095e5f35f74fd8c68b0a7c164b7741a4e115436568f37634d95210e0"
+    },
+    {
+      "npc_id": 130,
+      "target_npc": 128,
+      "script_path": "npc/timegate_back.npc",
+      "sha256": "f40f1ad34425781f14f6313573f1e6bb0922f122815700114c40db5b2605968e"
+    },
+    {
+      "npc_id": 131,
+      "target_npc": 129,
+      "script_path": "npc/requiem_back.npc",
+      "sha256": "8693b79922e88a4df45d74718c795a9a623287231b2b4d4f48705442cd6b31bc"
+    },
+    {
+      "npc_id": 148,
+      "target_npc": 100002344,
+      "in_progress_quests": [
+        22466,
+        22467,
+        22468
+      ],
+      "script_path": "npc/skady.npc",
+      "sha256": "42d813f6aa3a1188685b5cc1f71e34f2d43c7e93b6ef279d2d3bc696fe5f7402"
+    },
+    {
+      "npc_id": 149,
+      "target_npc": 100002266,
+      "in_progress_quests": [
+        22121,
+        22122,
+        22123
+      ],
+      "script_path": "npc/lobato.npc",
+      "sha256": "373c167dcf98e2f046ce84f03a5c3a37651636b273bd3d5723c8155efdc98d8f"
+    },
+    {
+      "npc_id": 154,
+      "target_npc": 100002267,
+      "in_progress_quests": [
+        22205,
+        22206,
+        22207
+      ],
+      "script_path": "npc/ludmila.npc",
+      "sha256": "6a4611657418d862de7d294119f11a1b157b8daf8fd7e163bd842f369d9de3fc"
+    },
+    {
+      "npc_id": 159,
+      "target_npc": 100002218,
+      "in_progress_quests": [
+        21989
+      ],
+      "script_path": "npc/chobung1.npc",
+      "sha256": "a30c18a41b87ad815f95f079364eabe48ffdf837846812f41ddf485a343abf39"
+    },
+    {
+      "npc_id": 3024,
+      "target_npc": 208,
+      "script_path": "npc/event_npc_heromin1.npc",
+      "sha256": "595d1f74438a38692852392af6fdeee8de366b9ecb344e3bae13378dab2630e6"
+    },
+    {
+      "npc_id": 304,
+      "target_npc": 100002404,
+      "in_progress_quests": [
+        22326,
+        22327,
+        22328
+      ],
+      "script_path": "npc/shaphron.npc",
+      "sha256": "55c0298fb599c743db58d6e696b3de24891a3945ac89d0371c1e0cc0cb5f0a7f"
+    },
+    {
+      "npc_id": 305,
+      "target_npc": 100002217,
+      "in_progress_quests": [
+        21985
+      ],
+      "script_path": "npc/peris.npc",
+      "sha256": "125e992860d1d1f71b775572e081d03cd4bafee972dc7c7fd21391f17197fc66"
+    },
+    {
+      "npc_id": 308,
+      "target_npc": 100002316,
+      "in_progress_quests": [
+        22129,
+        22130
+      ],
+      "script_path": "npc/npc_aganzo.npc",
+      "sha256": "f6ad10f78e8bb32def9864a3c6428dca71d26c1f5366b35f27fffdd92a90fae4"
+    },
+    {
+      "npc_id": 311,
+      "target_npc": 100002190,
+      "in_progress_quests": [
+        22382,
+        22383,
+        22384
+      ],
+      "script_path": "npc/natalia.npc",
+      "sha256": "ca0cc394a8fe9d1003758ee4d0a223b400c4a57f6bdf26db41d930be888c7f4a"
+    },
+    {
+      "npc_id": 312,
+      "target_npc": 11,
+      "script_path": "npc/kagon_arad.npc",
+      "sha256": "b731e1220b5e674d642faa1313a811343ad58d99f99d2e205d5aed9ca6af7b96"
+    },
+    {
+      "npc_id": 313,
+      "target_npc": 150,
+      "script_path": "npc/ludmila_arad.npc",
+      "sha256": "fcae738bab3c5ddb18d27105ea8332ce40e63296453a45760bca13b13544449a"
+    },
+    {
+      "npc_id": 318,
+      "target_npc": 100002147,
+      "in_progress_quests": [
+        22141,
+        22142,
+        22143
+      ],
+      "script_path": "npc/anise.npc",
+      "sha256": "e9be677328bd1a31cf235f881cdd38a31ff6726e8663417fc5aa8f6f24e75357"
+    },
+    {
+      "npc_id": 334,
+      "target_npc": 100002215,
+      "in_progress_quests": [
+        21977
+      ],
+      "script_path": "npc/guloon.npc",
+      "sha256": "25065d7e061782f5ba40f32819eeb280f9dc8b28c0c7538dddf651bb4761bbac"
+    },
+    {
+      "npc_id": 352,
+      "target_npc": 100000338,
+      "in_progress_quests": [
+        6420
+      ],
+      "script_path": "npc/352_roi_hartwig.npc",
+      "sha256": "d372c02dd195c7398d49ebab36c8e7b6d95a95273985a78dda904e0e2f3ef3c1"
+    },
+    {
+      "npc_id": 353,
+      "target_npc": 100000257,
+      "in_progress_quests": [
+        6061
+      ],
+      "script_path": "npc/353_erika.npc",
+      "sha256": "d646887c8a729dd1702ff82e2d3e72dd5261c06f174d9de88519833c15ab3763"
+    },
+    {
+      "npc_id": 380,
+      "target_npc": 321,
+      "script_path": "npc/portal_dimension.npc",
+      "sha256": "da0fca040663b358ab80bff0be1b0c92b7835b583192c5b16e0ee9222ccf633f"
+    },
+    {
+      "npc_id": 444,
+      "target_npc": 100002241,
+      "in_progress_quests": [
+        22157,
+        22158
+      ],
+      "script_path": "npc/leno.npc",
+      "sha256": "f21ca74cfd5a37a2f5da65fe57cbe4c4f2a38e4623a38fbeab603cf115d4bc79"
+    },
+    {
+      "npc_id": 469,
+      "target_npc": 100002185,
+      "in_progress_quests": [
+        22274,
+        22275,
+        22276
+      ],
+      "script_path": "npc/469_kate_central.npc",
+      "sha256": "849a672435eb4f7f9a8dd48462a9fb537348c2d93fbb2d0973de9d21a27bff8f"
+    },
+    {
+      "npc_id": 470,
+      "target_npc": 100002304,
+      "in_progress_quests": [
+        22362,
+        22363,
+        22364
+      ],
+      "script_path": "npc/470_pipi_central.npc",
+      "sha256": "10293e1a805a97dcf7130f991be7dc999c7340809f3762c635de9e49185bbcec"
+    },
+    {
+      "npc_id": 475,
+      "target_npc": 473,
+      "script_path": "npc/475_lorian_arad.npc",
+      "sha256": "402adc45b456db237afcb95c1d7a231ea9feea2e17bc43682ac40cfbaa6248e2"
+    },
+    {
+      "npc_id": 486,
+      "target_npc": 100002288,
+      "in_progress_quests": [
+        22358,
+        22359,
+        22360
+      ],
+      "script_path": "npc/486_yoshua.npc",
+      "sha256": "bd168ea4494d9a3d3861e6d2d023f1a7021f428016ca984202799d127a049323"
+    },
+    {
+      "npc_id": 564,
+      "target_npc": 100002256,
+      "in_progress_quests": [
+        22197,
+        22198
+      ],
+      "script_path": "npc/caracas.npc",
+      "sha256": "dac4dc988c937173060df54c41e352cdc61bae55881dc504e315ca1a367df59a"
+    },
+    {
+      "npc_id": 618,
+      "target_npc": 619,
+      "in_progress_quests": [
+        8646,
+        8647,
+        8648,
+        8649,
+        8650
+      ],
+      "script_path": "npc/618_fiendwar_upgrade.npc",
+      "sha256": "3ef81790e57b420ca047dda746a5da9d3b9eaf69d2de8e6eab1608029b6cf9c0"
+    },
+    {
+      "npc_id": 599,
+      "target_npc": 100002151,
+      "in_progress_quests": [
+        22193,
+        22194,
+        22195
+      ],
+      "script_path": "npc/599_schmidt.npc",
+      "sha256": "e14165fb504bb2ea360afeb92b07d7d00b5c7705dcbc9bd924623da8cba75579"
+    },
+    {
+      "npc_id": 622,
+      "target_npc": 623,
+      "script_path": "npc/chn_cosmo_cube_seria_kr.npc",
+      "sha256": "8a6a2faf075ee47974c86477784739fecd6d99d2e2a3e2139322ce0897e78ceb"
+    },
+    {
+      "npc_id": 623,
+      "target_npc": 622,
+      "script_path": "npc/chn_cosmo_cube_boat_kr.npc",
+      "sha256": "4ca103905951c8081b85eec87edec3bc511e7081c6397ce755cce08c2c038294"
+    },
+    {
+      "npc_id": 619,
+      "target_npc": 618,
+      "script_path": "npc/619_fiendwar_upgrade.npc",
+      "sha256": "3eeb3e826869a99e38b12ca43dcbbeeefcfff1c67bbc7b877be03689a6c90bed"
+    },
+    {
+      "npc_id": 621,
+      "target_npc": 619,
+      "script_path": "npc/621_fiendwar_upgrade.npc",
+      "sha256": "83ca1c2436bd19cf8f10d987df6d27106d14b9276559d1d53ce036ceba0b031b"
+    },
+    {
+      "npc_id": 8001,
+      "target_npc": 100002305,
+      "in_progress_quests": [
+        22366,
+        22367,
+        22368
+      ],
+      "script_path": "npc/8001_arthur.npc",
+      "sha256": "987fe28e81560dc5a1f866556d4f79048f12c51600035cfbe8b149bfd0c6d967"
+    },
+    {
+      "npc_id": 100000175,
+      "target_npc": 100002287,
+      "in_progress_quests": [
+        22354,
+        22355,
+        22356
+      ],
+      "script_path": "npc/100000175_zasura.npc",
+      "sha256": "d411a43137988775329440abda642367c4e9421d397c9365327dd3ec0e1485ae"
+    },
+    {
+      "npc_id": 100000179,
+      "target_npc": 100002186,
+      "in_progress_quests": [
+        22282,
+        22283,
+        22284
+      ],
+      "script_path": "npc/100000179_ikki_the_vikki.npc",
+      "sha256": "be4c053ae8a41b1e1cc4935651d1436e5b4d953bfb1aaf8d53059b0f4691d746"
+    },
+    {
+      "npc_id": 100000180,
+      "target_npc": 100002184,
+      "in_progress_quests": [
+        22270,
+        22271,
+        22272
+      ],
+      "script_path": "npc/100000180_returned_laygin.npc",
+      "sha256": "8635bcc587607cb547cbc80a7a24fa0f1b07dacf2eaa02a3fce0a3cc72faf37e"
+    },
+    {
+      "npc_id": 100000181,
+      "target_npc": 100002188,
+      "in_progress_quests": [
+        22278,
+        22279,
+        22280
+      ],
+      "script_path": "npc/100000181_monica.npc",
+      "sha256": "803fedde24f067f6c89d753cb6e25ae88b6e874b0d95b18c23aee7be8e3dd085"
+    },
+    {
+      "npc_id": 100000249,
+      "target_npc": 100000226,
+      "script_path": "npc/niber_movetown.npc",
+      "sha256": "0f1a78c0152aa948deba10f4b1f061e2686212c1d5c6b499471458a19979cd4f"
+    },
+    {
+      "npc_id": 100000257,
+      "target_npc": 353,
+      "script_path": "npc/100000257_erika.npc",
+      "sha256": "4fd08ae291ca142c5733751232f18d8ce907c005b7970d8c60f19194d88109a0"
+    },
+    {
+      "npc_id": 100000326,
+      "target_npc": 100002397,
+      "in_progress_quests": [
+        22434,
+        22435,
+        22436
+      ],
+      "script_path": "npc/100000326_majar.npc",
+      "sha256": "fd5873bfb5166a276c2d9b1324f8d522c677c0683aeb77dfca7fb5ba85802a6a"
+    },
+    {
+      "npc_id": 100000327,
+      "target_npc": 100002191,
+      "in_progress_quests": [
+        22386,
+        22387,
+        22388
+      ],
+      "script_path": "npc/100000327_overis.npc",
+      "sha256": "e893acd1d3445910464d172a383a19e8582a1c5531b0dd81c0448d6db454b673"
+    },
+    {
+      "npc_id": 100000329,
+      "target_npc": 100002269,
+      "in_progress_quests": [
+        22041,
+        22042
+      ],
+      "script_path": "npc/100000329_sinjang.npc",
+      "sha256": "d7b239845ba825190c563c3b8c497ab8443dfba94464237acdba2d463decf078"
+    },
+    {
+      "npc_id": 100000198,
+      "target_npc": 100002300,
+      "in_progress_quests": [
+        22314,
+        22315,
+        22316
+      ],
+      "script_path": "npc/100000198_ria.npc",
+      "sha256": "4c88286f8eebed8b2b5f81fccd14622a56cc021b2b57894a21924eac5d7f9e41"
+    },
+    {
+      "npc_id": 100000302,
+      "target_npc": 100002408,
+      "in_progress_quests": [
+        22462,
+        22463,
+        22464
+      ],
+      "script_path": "npc/100000302_lindsay_rossum.npc",
+      "sha256": "c5d385eca418cc27d5bbc6bab8e472e5f6a09286cadf25fe3865e00fe4ba5455"
+    },
+    {
+      "npc_id": 100000358,
+      "target_npc": 100002777,
+      "in_progress_quests": [
+        22879,
+        22880,
+        22881
+      ],
+      "script_path": "npc/100000358_wuun.npc",
+      "sha256": "f7ddae9f272feffd1b99c88c92c921c90f70c4aa534e321bfe6c213e3407f68c"
+    },
+    {
+      "npc_id": 100000359,
+      "target_npc": 100002277,
+      "in_progress_quests": [
+        22254,
+        22255,
+        22256
+      ],
+      "script_path": "npc/100000359_hugh_fitzrary.npc",
+      "sha256": "61b1c645324977ab8dc2f1708d15f06a82832220098dfbfe64ca1417adaced20"
+    },
+    {
+      "npc_id": 100000338,
+      "target_npc": 352,
+      "script_path": "npc/100000338_roi_hartwig.npc",
+      "sha256": "fcfa17ca39781c5d6f35c4754fd082a22aacdd1c887f23d6906c78bf84480cdc"
+    },
+    {
+      "npc_id": 100000459,
+      "target_npc": 100002193,
+      "in_progress_quests": [
+        22390,
+        22391,
+        22392
+      ],
+      "script_path": "npc/100000459_cyrus_erlox.npc",
+      "sha256": "e96865b1c0bdcbfffb9e031250504e077e97d3f9ec3e9c9a824d0092b4ce7013"
+    },
+    {
+      "npc_id": 100000665,
+      "target_npc": 100002395,
+      "in_progress_quests": [
+        22438,
+        22439,
+        22440
+      ],
+      "script_path": "npc/100000665_lucille_black_purgatory.npc",
+      "sha256": "5d8d98bfd4cc6a1b065b1416a6b93139cc2f9d62e71417e8572a2148b8206058"
+    },
+    {
+      "npc_id": 100001506,
+      "target_npc": 100000308,
+      "script_path": "npc/100001506_hairpin_episode.npc",
+      "sha256": "1e4e524dd96659a5480a3e910f6678e1f3ce69755cd678c9c42d92a785cfb97a"
+    },
+    {
+      "npc_id": 100001514,
+      "target_npc": 100000308,
+      "script_path": "npc/100001514_erje.npc",
+      "sha256": "9e3d5ee71f63b28a1472a1c2493c5fb47904525fad0965e3e573303a4f9f67e7"
+    },
+    {
+      "npc_id": 100001579,
+      "target_npc": 100002340,
+      "in_progress_quests": [
+        22430,
+        22431
+      ],
+      "script_path": "contents/2022/elvenmere/npc/100001579_shrine.npc",
+      "sha256": "54d908e24b335f2978fb767e92271bba26da19a86c3f272585d7eebd2b923257"
+    },
+    {
+      "npc_id": 100002462,
+      "target_npc": 100002351,
+      "in_progress_quests": [
+        22113,
+        22114,
+        22115
+      ],
+      "script_path": "npc/100002462_mehmet.npc",
+      "sha256": "134282794c3370015b7c0269a551765cab22e96d209e526f83040a03719a7d80"
+    },
+    {
+      "npc_id": 100002147,
+      "target_npc": 318,
+      "script_path": "npc/100002147_anise.npc",
+      "sha256": "d4cdeb8cf73e462a11c0031de259c70e979d0d0a4f4746ee953cad9640b91b7d"
+    },
+    {
+      "npc_id": 100002151,
+      "target_npc": 599,
+      "script_path": "npc/100002151_schmidt.npc",
+      "sha256": "2b9000a93496d4a7bd3a88f44362020b0047b0427195d7cee37b6bed57d0396b"
+    },
+    {
+      "npc_id": 100002162,
+      "target_npc": 318,
+      "script_path": "npc/100002162_anise.npc",
+      "sha256": "9da4dc08439322ee9bff8e4d5854d73ba0f88d4e6d618a20da8f9bccb4d65d3e"
+    },
+    {
+      "npc_id": 100002167,
+      "target_npc": 12,
+      "script_path": "npc/100002167_sharan.npc",
+      "sha256": "8a37c550bada1d1de83444720cf212c4110cbe85487cc515732bea537e0c02ae"
+    },
+    {
+      "npc_id": 100002169,
+      "target_npc": 318,
+      "script_path": "npc/100002169_anise.npc",
+      "sha256": "d4cdeb8cf73e462a11c0031de259c70e979d0d0a4f4746ee953cad9640b91b7d"
+    },
+    {
+      "npc_id": 100002170,
+      "target_npc": 318,
+      "script_path": "npc/100002170_anise.npc",
+      "sha256": "d4cdeb8cf73e462a11c0031de259c70e979d0d0a4f4746ee953cad9640b91b7d"
+    },
+    {
+      "npc_id": 100002171,
+      "target_npc": 318,
+      "script_path": "npc/100002171_anise.npc",
+      "sha256": "d4cdeb8cf73e462a11c0031de259c70e979d0d0a4f4746ee953cad9640b91b7d"
+    },
+    {
+      "npc_id": 100002172,
+      "target_npc": 318,
+      "script_path": "npc/100002172_anise.npc",
+      "sha256": "d4cdeb8cf73e462a11c0031de259c70e979d0d0a4f4746ee953cad9640b91b7d"
+    },
+    {
+      "npc_id": 100002173,
+      "target_npc": 318,
+      "script_path": "npc/100002173_anise.npc",
+      "sha256": "d4cdeb8cf73e462a11c0031de259c70e979d0d0a4f4746ee953cad9640b91b7d"
+    },
+    {
+      "npc_id": 100002174,
+      "target_npc": 318,
+      "script_path": "npc/100002174_anise.npc",
+      "sha256": "d4cdeb8cf73e462a11c0031de259c70e979d0d0a4f4746ee953cad9640b91b7d"
+    },
+    {
+      "npc_id": 100002175,
+      "target_npc": 318,
+      "script_path": "npc/100002175_anise.npc",
+      "sha256": "d4cdeb8cf73e462a11c0031de259c70e979d0d0a4f4746ee953cad9640b91b7d"
+    },
+    {
+      "npc_id": 100002176,
+      "target_npc": 12,
+      "script_path": "npc/100002176_sharan.npc",
+      "sha256": "8a37c550bada1d1de83444720cf212c4110cbe85487cc515732bea537e0c02ae"
+    },
+    {
+      "npc_id": 100002178,
+      "target_npc": 12,
+      "script_path": "npc/100002178_sharan.npc",
+      "sha256": "8a37c550bada1d1de83444720cf212c4110cbe85487cc515732bea537e0c02ae"
+    },
+    {
+      "npc_id": 100002180,
+      "target_npc": 12,
+      "script_path": "npc/100002180_sharan.npc",
+      "sha256": "8a37c550bada1d1de83444720cf212c4110cbe85487cc515732bea537e0c02ae"
+    },
+    {
+      "npc_id": 100002182,
+      "target_npc": 12,
+      "script_path": "npc/100002182_sharan.npc",
+      "sha256": "8a37c550bada1d1de83444720cf212c4110cbe85487cc515732bea537e0c02ae"
+    },
+    {
+      "npc_id": 100002184,
+      "target_npc": 100000180,
+      "script_path": "npc/100002184_returned_laygin.npc",
+      "sha256": "adead4f25323c9f363c1bf04f36627c64ab82ae20dbf8ec6092e7ddd0360a80e"
+    },
+    {
+      "npc_id": 100002185,
+      "target_npc": 469,
+      "script_path": "npc/100002185_kate.npc",
+      "sha256": "1ee362b2b3cb235c52f4a3541bb26c11113b0d596d040b1729e0ac88e6932b97"
+    },
+    {
+      "npc_id": 100002186,
+      "target_npc": 100000179,
+      "script_path": "npc/100002186_ikki_the_vikki.npc",
+      "sha256": "d21b4c7c30f5576a4c28e8d744f445b94dbb9d9ef09fecf87a961b304dbdbcfc"
+    },
+    {
+      "npc_id": 100002187,
+      "target_npc": 469,
+      "script_path": "npc/100002187_kate.npc",
+      "sha256": "1ee362b2b3cb235c52f4a3541bb26c11113b0d596d040b1729e0ac88e6932b97"
+    },
+    {
+      "npc_id": 100002188,
+      "target_npc": 100000181,
+      "script_path": "npc/100002188_monica.npc",
+      "sha256": "d2feae21adb99b1d61fad10c4c88090e7229d36923c657940fe74ce944045728"
+    },
+    {
+      "npc_id": 100002190,
+      "target_npc": 311,
+      "script_path": "npc/100002190_natalia.npc",
+      "sha256": "99d74fe5cb600d9c48c0ae005dd5c6700f16c3f98c1899c7c4baf5b62b2e761a"
+    },
+    {
+      "npc_id": 100002191,
+      "target_npc": 100000327,
+      "script_path": "npc/100002191_overis.npc",
+      "sha256": "0c1ee4c4079b1bab1147fb0b7bc31031f04ca63409b33838ba7b857333e78425"
+    },
+    {
+      "npc_id": 100002192,
+      "target_npc": 59,
+      "script_path": "npc/100002192_melvin.npc",
+      "sha256": "3f0c08f50cc2371e4a56733fe24604c38040b9f11c0543917d0315f45e40b255"
+    },
+    {
+      "npc_id": 100002193,
+      "target_npc": 100000459,
+      "script_path": "npc/100002193_cyrus.npc",
+      "sha256": "f93e02a9d833ed14de293cda4d34b81fd857642e39917f8b9408633b658771e5"
+    },
+    {
+      "npc_id": 100002194,
+      "target_npc": 77,
+      "script_path": "npc/100002194_wayne.npc",
+      "sha256": "a1730f059a5d2f34a8a72556f0a53c5165ac78c3a4d87cf4f168d1c86f97b2da"
+    },
+    {
+      "npc_id": 100002195,
+      "target_npc": 57,
+      "script_path": "npc/100002195_verrickt.npc",
+      "sha256": "49459f44458cd8e8af9b2fc4b0f58f9dd651e436d6c26c2765e7323ae5be96b6"
+    },
+    {
+      "npc_id": 100002215,
+      "target_npc": 334,
+      "script_path": "npc/awakening_breeze.npc",
+      "sha256": "274dae84ab02297f0061b3e8ddfbb0cbe2844949d2c92135d5c8701f1071e9d7"
+    },
+    {
+      "npc_id": 100002216,
+      "target_npc": 122,
+      "script_path": "npc/awakening_aska.npc",
+      "sha256": "e23bbe4bcad708b3602fc9bf71b7a874c30d33654b62ae533053330c193f0521"
+    },
+    {
+      "npc_id": 100002217,
+      "target_npc": 305,
+      "script_path": "npc/awakening_gale.npc",
+      "sha256": "d074d4697508f57ea3118ab7c13a8d1178a2de7faef1763731b933100e3f4ba4"
+    },
+    {
+      "npc_id": 100002218,
+      "target_npc": 159,
+      "script_path": "npc/awakening_sizki.npc",
+      "sha256": "05942f9d737443edc5432525bc46c2dd97699909db4ca4417e72f7137b7026fe"
+    },
+    {
+      "npc_id": 100002219,
+      "target_npc": 6,
+      "script_path": "npc/awakening_aska2.npc",
+      "sha256": "29d650289b35e442d2f306e4bc92e4dbcab2716e7cb803a05fa1b71a481b921c"
+    },
+    {
+      "npc_id": 100002220,
+      "target_npc": 6,
+      "script_path": "npc/awakening_100002220.npc",
+      "sha256": "b29ab717163a621616ee5a3d7124b9ef0a3e1a2de8b1497b2a0dc6f35b0ff7a0"
+    },
+    {
+      "npc_id": 100002221,
+      "target_npc": 305,
+      "script_path": "npc/awakening_100002221.npc",
+      "sha256": "5c017165940ef1b6caab55b6bbcc16b307e7b1a4a539337e8704465c23a51baf"
+    },
+    {
+      "npc_id": 100002222,
+      "target_npc": 5,
+      "script_path": "npc/awakening_100002222.npc",
+      "sha256": "b1c8ffa709a3ff1bcb0317354c05927328bf25132967e7f0ddcc5056731bbc2f"
+    },
+    {
+      "npc_id": 100002318,
+      "target_npc": 6,
+      "script_path": "npc/awakening_100002318.npc",
+      "sha256": "b29ab717163a621616ee5a3d7124b9ef0a3e1a2de8b1497b2a0dc6f35b0ff7a0"
+    },
+    {
+      "npc_id": 100002319,
+      "target_npc": 124,
+      "script_path": "npc/awakening_100002319.npc",
+      "sha256": "316dd11e458d6ba5721178d8ab016b0f2e609a96b25106b646bb0cb6510599e3"
+    },
+    {
+      "npc_id": 100002320,
+      "target_npc": 27,
+      "script_path": "npc/awakening_100002320.npc",
+      "sha256": "dc631d700da0bf933b23a24575a637621475389f18d613c5e033c9b0cd0cd730"
+    },
+    {
+      "npc_id": 100002321,
+      "target_npc": 334,
+      "script_path": "npc/awakening_100002321.npc",
+      "sha256": "df19905c53d556e0d392f19cc7e9a992e31b7ab90c3a4104b69e06ee490c1592"
+    },
+    {
+      "npc_id": 100002322,
+      "target_npc": 6,
+      "script_path": "npc/awakening_100002322.npc",
+      "sha256": "b29ab717163a621616ee5a3d7124b9ef0a3e1a2de8b1497b2a0dc6f35b0ff7a0"
+    },
+    {
+      "npc_id": 100002323,
+      "target_npc": 6,
+      "script_path": "npc/awakening_100002323.npc",
+      "sha256": "b29ab717163a621616ee5a3d7124b9ef0a3e1a2de8b1497b2a0dc6f35b0ff7a0"
+    },
+    {
+      "npc_id": 100002324,
+      "target_npc": 27,
+      "script_path": "npc/awakening_100002324.npc",
+      "sha256": "dc631d700da0bf933b23a24575a637621475389f18d613c5e033c9b0cd0cd730"
+    },
+    {
+      "npc_id": 100002325,
+      "target_npc": 6,
+      "script_path": "npc/awakening_100002325.npc",
+      "sha256": "b29ab717163a621616ee5a3d7124b9ef0a3e1a2de8b1497b2a0dc6f35b0ff7a0"
+    },
+    {
+      "npc_id": 100002327,
+      "target_npc": 58,
+      "script_path": "npc/awakening_100002327.npc",
+      "sha256": "dcc19a3ee776fdfa0b225e8877907016aa8685fdf7ba190f8da20c92a2c096f8"
+    },
+    {
+      "npc_id": 100002328,
+      "target_npc": 100000181,
+      "script_path": "npc/awakening_100002328.npc",
+      "sha256": "601637b0299dfb697378605999e534b861540dbd5469a142e45add2f644d3df6"
+    },
+    {
+      "npc_id": 100002329,
+      "target_npc": 100000181,
+      "script_path": "npc/awakening_100002329.npc",
+      "sha256": "8236ddef597a827b2223d8aee30ad0e7d206d292547576f0b9c64b0cc1ae98f6"
+    },
+    {
+      "npc_id": 100002330,
+      "target_npc": 100000329,
+      "script_path": "npc/awakening_100002330.npc",
+      "sha256": "e5dfa6c8a72f1007b276708ca496b8e03ad3146d70421762899187cae3267a6f"
+    },
+    {
+      "npc_id": 100002331,
+      "target_npc": 60,
+      "script_path": "npc/awakening_100002331.npc",
+      "sha256": "9ac306658d53f4e41519fa45f6d6a9bf9bda66f5e6a392fb88fe3f048101499d"
+    },
+    {
+      "npc_id": 100002225,
+      "target_npc": 57,
+      "script_path": "npc/verrickt_atg_2nd_awk_episode.npc",
+      "sha256": "1500b2fc3c22c5030a51bc13496dc86bc192a7096ab121a1b5373391684f879d"
+    },
+    {
+      "npc_id": 100002232,
+      "target_npc": 12,
+      "script_path": "npc/awakening_100002232_ophelia.npc",
+      "sha256": "ab87f65ffa60e444c99e982b59485d3efeebdf776afda92f2d4d0e957ed044ca"
+    },
+    {
+      "npc_id": 100002285,
+      "target_npc": 12,
+      "script_path": "npc/awakening_100002285_bwanga.npc",
+      "sha256": "188fb9269fe460a6040748176363d4b31d0d9dd665e2458d24eb8a650a0e51b8"
+    },
+    {
+      "npc_id": 100002284,
+      "target_npc": 12,
+      "script_path": "npc/awakening_100002284_ophelia_3.npc",
+      "sha256": "ab87f65ffa60e444c99e982b59485d3efeebdf776afda92f2d4d0e957ed044ca"
+    },
+    {
+      "npc_id": 100002268,
+      "target_npc": 12,
+      "script_path": "npc/awakening_100002268_ophelia_2.npc",
+      "sha256": "ab87f65ffa60e444c99e982b59485d3efeebdf776afda92f2d4d0e957ed044ca"
+    },
+    {
+      "npc_id": 100002286,
+      "target_npc": 12,
+      "script_path": "npc/awakening_100002286_klonter.npc",
+      "sha256": "74e82464be0fa50e4a2597bc95be6853b739866b783e4b62e2a3d2287d518b9a"
+    },
+    {
+      "npc_id": 100002287,
+      "target_npc": 100000175,
+      "script_path": "npc/awakening_100002287_zasura.npc",
+      "sha256": "20603aa8166416cb90d48602c1451cb65450797d7da6b9cbdb832fa54e882f19"
+    },
+    {
+      "npc_id": 100002288,
+      "target_npc": 486,
+      "script_path": "npc/awakening_100002288_yoshua.npc",
+      "sha256": "9f6d0a61d388f457cf035f7578338bc40d3d65d30325a33acfae9b5c767b5c6d"
+    },
+    {
+      "npc_id": 100002241,
+      "target_npc": 444,
+      "script_path": "npc/100002241_leno_2nd_awk_warlord.npc",
+      "sha256": "af99e116097fdfc51dcfe829c7a34510625486a36b59d289a45a4d3a7cb042a9"
+    },
+    {
+      "npc_id": 100002334,
+      "target_npc": 444,
+      "script_path": "npc/100002334_leno_2nd_awk_durandal.npc",
+      "sha256": "af99e116097fdfc51dcfe829c7a34510625486a36b59d289a45a4d3a7cb042a9"
+    },
+    {
+      "npc_id": 100002335,
+      "target_npc": 444,
+      "script_path": "npc/100002335_leno_2nd_awk_genocider.npc",
+      "sha256": "af99e116097fdfc51dcfe829c7a34510625486a36b59d289a45a4d3a7cb042a9"
+    },
+    {
+      "npc_id": 100002336,
+      "target_npc": 444,
+      "script_path": "npc/100002336_leno_2nd_awk_erebus.npc",
+      "sha256": "af99e116097fdfc51dcfe829c7a34510625486a36b59d289a45a4d3a7cb042a9"
+    },
+    {
+      "npc_id": 100002337,
+      "target_npc": 444,
+      "script_path": "npc/100002337_leno_3rd_awk_neovanguard.npc",
+      "sha256": "af99e116097fdfc51dcfe829c7a34510625486a36b59d289a45a4d3a7cb042a9"
+    },
+    {
+      "npc_id": 100002338,
+      "target_npc": 444,
+      "script_path": "npc/100002338_leno_3rd_awk_neoduelist.npc",
+      "sha256": "af99e116097fdfc51dcfe829c7a34510625486a36b59d289a45a4d3a7cb042a9"
+    },
+    {
+      "npc_id": 100002339,
+      "target_npc": 444,
+      "script_path": "npc/100002339_leno_neodragonianlancer.npc",
+      "sha256": "af99e116097fdfc51dcfe829c7a34510625486a36b59d289a45a4d3a7cb042a9"
+    },
+    {
+      "npc_id": 100002340,
+      "target_npc": 100001579,
+      "script_path": "npc/100002340_shrine_neodarklancer.npc",
+      "sha256": "d2719c54fed57c3b1612c1fceb3195f149530c97d576dc155d5e3e547faec03b"
+    },
+    {
+      "npc_id": 100002341,
+      "target_npc": 59,
+      "script_path": "npc/100002341_young_hunter.npc",
+      "sha256": "32e659b36b0f615f6f28a44231464df6aaa3efee3c76614b7d9e6b807512a1db"
+    },
+    {
+      "npc_id": 100002248,
+      "target_npc": 126,
+      "script_path": "npc/100002248_awakening_siran.npc",
+      "sha256": "de17cb88f1bd2500b36f1342ad49711693d83b55a0bb3008290a5378f9da922f"
+    },
+    {
+      "npc_id": 100002249,
+      "target_npc": 100002255,
+      "in_progress_quests": [
+        21961,
+        21962
+      ],
+      "script_path": "npc/100002249_awakening_gsd.npc",
+      "sha256": "aa873bb52dfa686eb238e7788c8b17a24ccc1df4ff6b5b4852c04a211b135129"
+    },
+    {
+      "npc_id": 100002252,
+      "target_npc": 7,
+      "script_path": "npc/100002252_awakening_gsd_2.npc",
+      "sha256": "66f4e698cdd8bcc4de1adb4f8ec415d00cbcede638d588e2fb7fe5349316d9dc"
+    },
+    {
+      "npc_id": 100002253,
+      "target_npc": 7,
+      "script_path": "npc/100002253_awakening_gsd_3.npc",
+      "sha256": "66f4e698cdd8bcc4de1adb4f8ec415d00cbcede638d588e2fb7fe5349316d9dc"
+    },
+    {
+      "npc_id": 100002254,
+      "target_npc": 7,
+      "script_path": "npc/100002254_awakening_gsd_4.npc",
+      "sha256": "66f4e698cdd8bcc4de1adb4f8ec415d00cbcede638d588e2fb7fe5349316d9dc"
+    },
+    {
+      "npc_id": 100002255,
+      "target_npc": 7,
+      "script_path": "npc/100002255_awakening_gsd_5.npc",
+      "sha256": "2970fb3e95d450df5fa6fa4798918e5d9f6ba61b42725e890845083dd7430ef7"
+    },
+    {
+      "npc_id": 100002256,
+      "target_npc": 564,
+      "script_path": "npc/100002256_awakening_wernvonnegut.npc",
+      "sha256": "8015365229511a9f122d86c1f4c69bf51d284245bb5f614623b31a26850e9c60"
+    },
+    {
+      "npc_id": 100002257,
+      "target_npc": 65,
+      "script_path": "npc/100002257_awakening_wernvonnegut.npc",
+      "sha256": "7cbe3e23a5bf3ea8a9880ad15a3ad4a8a4ba1d645b0cde0bc06823512924e4a1"
+    },
+    {
+      "npc_id": 100002258,
+      "target_npc": 599,
+      "script_path": "npc/100002258_awakening_schmidt.npc",
+      "sha256": "2b9000a93496d4a7bd3a88f44362020b0047b0427195d7cee37b6bed57d0396b"
+    },
+    {
+      "npc_id": 100002259,
+      "target_npc": 599,
+      "script_path": "npc/100002259_awakening_schmidt.npc",
+      "sha256": "2b9000a93496d4a7bd3a88f44362020b0047b0427195d7cee37b6bed57d0396b"
+    },
+    {
+      "npc_id": 100002260,
+      "target_npc": 599,
+      "script_path": "npc/100002260_awakening_wernvonnegut.npc",
+      "sha256": "7f9dcd9ded1f262185cad8ad09995cd042f5fdedaa0798da99ace70187cc0f90"
+    },
+    {
+      "npc_id": 100002263,
+      "target_npc": 58,
+      "script_path": "npc/maywin_atg_2nd_awk_episode.npc",
+      "sha256": "4359073ef274a9d1db998d5c6e16145955d84f9920ef395d8bf4a5b8292251de"
+    },
+    {
+      "npc_id": 100002264,
+      "target_npc": 59,
+      "script_path": "npc/melvin_atg_2nd_awk_episode.npc",
+      "sha256": "8df0c71a371e58182b0b5fc1a05779cb535b65723bdb92714fdae7e10504bf50"
+    },
+    {
+      "npc_id": 100002265,
+      "target_npc": 60,
+      "script_path": "npc/marlene_atg_2nd_awk_episode.npc",
+      "sha256": "9ac306658d53f4e41519fa45f6d6a9bf9bda66f5e6a392fb88fe3f048101499d"
+    },
+    {
+      "npc_id": 100002298,
+      "target_npc": 60,
+      "script_path": "npc/marlene_atg_3rd_awk_episode.npc",
+      "sha256": "9ac306658d53f4e41519fa45f6d6a9bf9bda66f5e6a392fb88fe3f048101499d"
+    },
+    {
+      "npc_id": 100002299,
+      "target_npc": 59,
+      "script_path": "npc/melvin_atg_3rd_awk_episode.npc",
+      "sha256": "8df0c71a371e58182b0b5fc1a05779cb535b65723bdb92714fdae7e10504bf50"
+    },
+    {
+      "npc_id": 100002300,
+      "target_npc": 60,
+      "script_path": "npc/gina_theodore_episode.npc",
+      "sha256": "60a84677c1002d869a4c1163ec44b8237dce65a04223df147295bf64b05ae5a1"
+    },
+    {
+      "npc_id": 100002303,
+      "target_npc": 60,
+      "script_path": "npc/marlene_atg_3rd_awk_episode_craftroom.npc",
+      "sha256": "9ac306658d53f4e41519fa45f6d6a9bf9bda66f5e6a392fb88fe3f048101499d"
+    },
+    {
+      "npc_id": 100002304,
+      "target_npc": 470,
+      "script_path": "npc/100002304_pipi_episode.npc",
+      "sha256": "32c8c234db6e9c03beca44637f93c884302e1fbb88d64f9b3b9532d8fb633cd6"
+    },
+    {
+      "npc_id": 100002305,
+      "target_npc": 8001,
+      "script_path": "npc/100002305_arthur_episode.npc",
+      "sha256": "101632612c18ce3d790e9122ecf22f3247da6adb698d11770bebefc0edbaa8cf"
+    },
+    {
+      "npc_id": 100002306,
+      "target_npc": 59,
+      "script_path": "npc/melvin_hunter_2nd_awk_episode.npc",
+      "sha256": "8df0c71a371e58182b0b5fc1a05779cb535b65723bdb92714fdae7e10504bf50"
+    },
+    {
+      "npc_id": 100002438,
+      "target_npc": 1,
+      "script_path": "npc/linus_vigilante_2nd_awk_episode.npc",
+      "sha256": "1e49f9f093b7635a282dbd82424d8da1a1b29e19362c05e9993bd36a34627c01"
+    },
+    {
+      "npc_id": 100002453,
+      "target_npc": 154,
+      "script_path": "npc/grace_hunter_3rd_awk_episode.npc",
+      "sha256": "4ff6e877a61e378fa0b0bf8af92b918e825a4fbd7064bf87981929aaccd81c7d"
+    },
+    {
+      "npc_id": 100002454,
+      "target_npc": 154,
+      "script_path": "npc/ludmila_hunter_3rd_awk_episode.npc",
+      "sha256": "fabc34f7bedfe880f4c11e8b6a5c90094877c2537892e5ec4ff30b830026447f"
+    },
+    {
+      "npc_id": 100002455,
+      "target_npc": 1,
+      "script_path": "npc/camerin_vigilante_3rd_awk_episode.npc",
+      "sha256": "5cb6987b1d81aa2d0469b2ff1c837e536cf8f9b147d28ccb58280a5147964b03"
+    },
+    {
+      "npc_id": 100002395,
+      "target_npc": 100000665,
+      "script_path": "npc/100002395_lucille_ep_atp02.npc",
+      "sha256": "27ced216e340aab3aaaa2749ac3e7988cc2c05a4748c5dbaecaae0a41ad8579a"
+    },
+    {
+      "npc_id": 100002396,
+      "target_npc": 100000329,
+      "script_path": "npc/100002396_sinjang.npc",
+      "sha256": "cc8c94d11fe1fb6838a2c5bfcdeb9ca544f7c8994780810fedf18f58d3ddd08d"
+    },
+    {
+      "npc_id": 100002397,
+      "target_npc": 100000326,
+      "script_path": "npc/100002397_majar.npc",
+      "sha256": "f1f6e6ff9e3713c89c696428800341dbdb88bfb11d283945514134be70db0745"
+    },
+    {
+      "npc_id": 100002398,
+      "target_npc": 100000326,
+      "script_path": "npc/100002398_majar.npc",
+      "sha256": "f1f6e6ff9e3713c89c696428800341dbdb88bfb11d283945514134be70db0745"
+    },
+    {
+      "npc_id": 100002399,
+      "target_npc": 64,
+      "script_path": "npc/100002399_minet.npc",
+      "sha256": "2b437631d791d95730cabca4364fd79180419a7c27d80e8a8d6dbdc04743a66d"
+    },
+    {
+      "npc_id": 100002400,
+      "target_npc": 64,
+      "script_path": "npc/100002400_minet.npc",
+      "sha256": "2b437631d791d95730cabca4364fd79180419a7c27d80e8a8d6dbdc04743a66d"
+    },
+    {
+      "npc_id": 100002401,
+      "target_npc": 122,
+      "script_path": "npc/100002401_woo.npc",
+      "sha256": "119e7187e753be5fd330a2269aa902f29f4c56bd2f1458aabba7486f4cdfbe3c"
+    },
+    {
+      "npc_id": 100002402,
+      "target_npc": 26,
+      "script_path": "npc/100002402_klonter.npc",
+      "sha256": "95ba734b38db19d8c469693bf82debaf32d93cae0b0746b8de066ac9e2f26bd7"
+    },
+    {
+      "npc_id": 100002403,
+      "target_npc": 64,
+      "script_path": "npc/100002403_highmore_ep.npc",
+      "sha256": "6929625ef4055e2ce065c12addf8e4480017a0e0ad8d209e3aa24700749a9837"
+    },
+    {
+      "npc_id": 100002404,
+      "target_npc": 304,
+      "script_path": "npc/100002404_shaphron_ep.npc",
+      "sha256": "a8971a2c8dfb639f60ec77e38cd2c54bd1dea8620e8943d8c5ee8bb0de185af1"
+    },
+    {
+      "npc_id": 100002405,
+      "target_npc": 125,
+      "script_path": "npc/100002405_aska_ep.npc",
+      "sha256": "2c03142c6e55fe77c6ef4d06a36341d7aa3d9dcb6d291ed75a6916cf2fcdfd17"
+    },
+    {
+      "npc_id": 100002406,
+      "target_npc": 64,
+      "script_path": "npc/100002406_minet_ep.npc",
+      "sha256": "2b437631d791d95730cabca4364fd79180419a7c27d80e8a8d6dbdc04743a66d"
+    },
+    {
+      "npc_id": 100002266,
+      "target_npc": 149,
+      "script_path": "npc/100002266_lobato.npc",
+      "sha256": "a094377e66a502a56dffaf77f694ea24f246966f221c6ae58dd28f998a857106"
+    },
+    {
+      "npc_id": 100002317,
+      "target_npc": 64,
+      "script_path": "npc/100002317_minet.npc",
+      "sha256": "2b437631d791d95730cabca4364fd79180419a7c27d80e8a8d6dbdc04743a66d"
+    },
+    {
+      "npc_id": 100002316,
+      "target_npc": 308,
+      "script_path": "npc/100002316_aganzo.npc",
+      "sha256": "ac5613acdef7522c5b29015e2003988e01a29aff42d7a3dee8ccd679ae07bd3e"
+    },
+    {
+      "npc_id": 100002236,
+      "target_npc": 45,
+      "script_path": "npc/100002236_grandis.npc",
+      "sha256": "5ab44255a7d1d0a02aafbaf989c44fa1c8621da7dfba97a61f45599a6661cf70"
+    },
+    {
+      "npc_id": 100002237,
+      "target_npc": 100000326,
+      "script_path": "npc/100002237_majar.npc",
+      "sha256": "f1f6e6ff9e3713c89c696428800341dbdb88bfb11d283945514134be70db0745"
+    },
+    {
+      "npc_id": 100002269,
+      "target_npc": 100000329,
+      "script_path": "npc/100002269_sinjang.npc",
+      "sha256": "e5dfa6c8a72f1007b276708ca496b8e03ad3146d70421762899187cae3267a6f"
+    },
+    {
+      "npc_id": 100002270,
+      "target_npc": 45,
+      "script_path": "npc/100002270_grandis.npc",
+      "sha256": "5ab44255a7d1d0a02aafbaf989c44fa1c8621da7dfba97a61f45599a6661cf70"
+    },
+    {
+      "npc_id": 100002271,
+      "target_npc": 45,
+      "script_path": "npc/100002271_grandis.npc",
+      "sha256": "5ab44255a7d1d0a02aafbaf989c44fa1c8621da7dfba97a61f45599a6661cf70"
+    },
+    {
+      "npc_id": 100002272,
+      "target_npc": 100000326,
+      "script_path": "npc/100002272_majar.npc",
+      "sha256": "f1f6e6ff9e3713c89c696428800341dbdb88bfb11d283945514134be70db0745"
+    },
+    {
+      "npc_id": 100002273,
+      "target_npc": 100000329,
+      "script_path": "npc/100002273_sinjang.npc",
+      "sha256": "e5dfa6c8a72f1007b276708ca496b8e03ad3146d70421762899187cae3267a6f"
+    },
+    {
+      "npc_id": 100002274,
+      "target_npc": 100000326,
+      "script_path": "npc/100002274_majar.npc",
+      "sha256": "f1f6e6ff9e3713c89c696428800341dbdb88bfb11d283945514134be70db0745"
+    },
+    {
+      "npc_id": 100002275,
+      "target_npc": 45,
+      "script_path": "npc/100002275_grandis.npc",
+      "sha256": "5ab44255a7d1d0a02aafbaf989c44fa1c8621da7dfba97a61f45599a6661cf70"
+    },
+    {
+      "npc_id": 100002276,
+      "target_npc": 59,
+      "script_path": "npc/100002276_wernvonnegut.npc",
+      "sha256": "e47f8275839eac0671179014a7a6ade32030a9f65b56c2beb549dac2915fee64"
+    },
+    {
+      "npc_id": 100002277,
+      "target_npc": 100000359,
+      "script_path": "npc/100002277_hugh_fitzrary.npc",
+      "sha256": "97e8197ec47c98594c7a06e7f0ea3dfb078c21e9b9611c6ba3c9a326812f24dd"
+    },
+    {
+      "npc_id": 100002267,
+      "target_npc": 154,
+      "script_path": "npc/awakening_ludmila.npc",
+      "sha256": "0eb34ac11ecc23fc87a94f0aed88525f4f31a53ede53190215f2ec4d4d5abaf7"
+    },
+    {
+      "npc_id": 100002307,
+      "target_npc": 154,
+      "script_path": "npc/awakening_ludmila_2.npc",
+      "sha256": "0eb34ac11ecc23fc87a94f0aed88525f4f31a53ede53190215f2ec4d4d5abaf7"
+    },
+    {
+      "npc_id": 100002344,
+      "target_npc": 148,
+      "script_path": "npc/awakening_skady.npc",
+      "sha256": "79f5546f67d1087acbad64b0f27dbf0344954f6d6306818f10a253203f01c809"
+    },
+    {
+      "npc_id": 100002349,
+      "target_npc": 154,
+      "script_path": "npc/awakening_ludmila_3.npc",
+      "sha256": "0eb34ac11ecc23fc87a94f0aed88525f4f31a53ede53190215f2ec4d4d5abaf7"
+    },
+    {
+      "npc_id": 100002350,
+      "target_npc": 149,
+      "script_path": "npc/awakening_lobato.npc",
+      "sha256": "d87567befbdb464b8dbacdcb432793dbf2251a4f48b62d1bdaded04420dec878"
+    },
+    {
+      "npc_id": 100002351,
+      "target_npc": 100002462,
+      "script_path": "npc/awakening_mehmet.npc",
+      "sha256": "c0365891ddac0130ef30b868833598b0f9eca8a0511a1f73234f1d31af96e190"
+    },
+    {
+      "npc_id": 100002352,
+      "target_npc": 100002462,
+      "script_path": "npc/awakening_mehmet_2.npc",
+      "sha256": "c0365891ddac0130ef30b868833598b0f9eca8a0511a1f73234f1d31af96e190"
+    },
+    {
+      "npc_id": 100002353,
+      "target_npc": 100002462,
+      "script_path": "npc/awakening_mehmet_3.npc",
+      "sha256": "c0365891ddac0130ef30b868833598b0f9eca8a0511a1f73234f1d31af96e190"
+    },
+    {
+      "npc_id": 100002435,
+      "target_npc": 100002462,
+      "script_path": "npc/awakening_mehmet_4.npc",
+      "sha256": "c0365891ddac0130ef30b868833598b0f9eca8a0511a1f73234f1d31af96e190"
+    },
+    {
+      "npc_id": 100002436,
+      "target_npc": 42,
+      "script_path": "npc/awakening__rino.npc",
+      "sha256": "35a47add548ef5a2ae5148c6f60dacb14016af9397ee234572d9961ca3319e30"
+    },
+    {
+      "npc_id": 100002459,
+      "target_npc": 57,
+      "script_path": "npc/awakening_verrickt.npc",
+      "sha256": "43a450f615013dd3575edb8dade1ae75e7083c69e3fc974641e0cde293523cbd"
+    },
+    {
+      "npc_id": 100002460,
+      "target_npc": 122,
+      "script_path": "npc/awakening_woo.npc",
+      "sha256": "3071a114be6ebfe4fb93a64ba5855846f4696b6918563c00857ee75eb86a8afa"
+    },
+    {
+      "npc_id": 100002461,
+      "target_npc": 126,
+      "script_path": "npc/awakening_siran.npc",
+      "sha256": "fcc3fee08d9b2594bbe418d023cf51cbf4b60027e9a6d06be7650b13452fdbaf"
+    },
+    {
+      "npc_id": 100002408,
+      "target_npc": 100000302,
+      "script_path": "npc/100002408_awakening_lindsay.npc",
+      "sha256": "240c82fb3b66adf117af80ae7df7995923a925f5391a368929c029890a798784"
+    },
+    {
+      "npc_id": 100002409,
+      "target_npc": 352,
+      "script_path": "npc/100002409_roi_hartwig.npc",
+      "sha256": "fcfa17ca39781c5d6f35c4754fd082a22aacdd1c887f23d6906c78bf84480cdc"
+    },
+    {
+      "npc_id": 100002411,
+      "target_npc": 7,
+      "script_path": "npc/100002411_awakening3_gsd.npc",
+      "sha256": "baf2aa82a40c861d54ddc4eed8119cefffefaf131c4f43f9de19626f35ddcd6a"
+    },
+    {
+      "npc_id": 100002412,
+      "target_npc": 7,
+      "script_path": "npc/100002412_awakening3_gsd.npc",
+      "sha256": "66f4e698cdd8bcc4de1adb4f8ec415d00cbcede638d588e2fb7fe5349316d9dc"
+    },
+    {
+      "npc_id": 100002414,
+      "target_npc": 469,
+      "script_path": "npc/100002414_awakening3_kate.npc",
+      "sha256": "69ca3fed4b216cfbb364e5f14e84799fb183d796178578e62546e6a6ed990d22"
+    },
+    {
+      "npc_id": 100002415,
+      "target_npc": 7,
+      "script_path": "npc/100002415_awakening_zeig.npc",
+      "sha256": "baf2aa82a40c861d54ddc4eed8119cefffefaf131c4f43f9de19626f35ddcd6a"
+    },
+    {
+      "npc_id": 100002416,
+      "target_npc": 45,
+      "script_path": "npc/100002416_grandis.npc",
+      "sha256": "5ab44255a7d1d0a02aafbaf989c44fa1c8621da7dfba97a61f45599a6661cf70"
+    },
+    {
+      "npc_id": 100002417,
+      "target_npc": 45,
+      "script_path": "npc/100002417_grandis.npc",
+      "sha256": "5ab44255a7d1d0a02aafbaf989c44fa1c8621da7dfba97a61f45599a6661cf70"
+    },
+    {
+      "npc_id": 100002418,
+      "target_npc": 59,
+      "script_path": "npc/100002418_melvin.npc",
+      "sha256": "3f0c08f50cc2371e4a56733fe24604c38040b9f11c0543917d0315f45e40b255"
+    },
+    {
+      "npc_id": 100002419,
+      "target_npc": 59,
+      "script_path": "npc/100002419_melvin.npc",
+      "sha256": "867e967e7ca25749867f73dbc904f5db6f62aaff4c23829fc60c0e45b37006c9"
+    },
+    {
+      "npc_id": 100002473,
+      "target_npc": 564,
+      "script_path": "npc/100002473_awaking_kagon.npc",
+      "sha256": "7ef3e457b46163d1a3493ef14ca160657d6278b71114ed985c885e22a088b371"
+    },
+    {
+      "npc_id": 100002774,
+      "target_npc": 1,
+      "script_path": "npc/linus_hydra_2nd_awk_episode.npc",
+      "sha256": "1e49f9f093b7635a282dbd82424d8da1a1b29e19362c05e9993bd36a34627c01"
+    },
+    {
+      "npc_id": 100002776,
+      "target_npc": 1,
+      "script_path": "npc/linus_chimera_3rd_awk_episode.npc",
+      "sha256": "1e49f9f093b7635a282dbd82424d8da1a1b29e19362c05e9993bd36a34627c01"
+    },
+    {
+      "npc_id": 100002777,
+      "target_npc": 100000358,
+      "script_path": "npc/wuun_paramedic_3rd_episode.npc",
+      "sha256": "42db37260633bdc3ae66ddeae76633ef24298b11e7ca2d1443bfeb085ec8ceb8"
+    },
+    {
+      "npc_id": 100002779,
+      "target_npc": 100000358,
+      "script_path": "npc/wuun_paramedic_3rd_episode_1.npc",
+      "sha256": "42db37260633bdc3ae66ddeae76633ef24298b11e7ca2d1443bfeb085ec8ceb8"
+    },
+    {
+      "npc_id": 100002841,
+      "target_npc": 59,
+      "script_path": "npc/100002841_melvin.npc",
+      "sha256": "8df0c71a371e58182b0b5fc1a05779cb535b65723bdb92714fdae7e10504bf50"
+    },
+    {
+      "npc_id": 100002876,
+      "target_npc": 100000358,
+      "script_path": "npc/100002876_wernvonnegut.npc",
+      "sha256": "1a537975dc32df258478d739205ea6a0982b69ae7db77d102f4ff082af4e18a5"
+    },
+    {
+      "npc_id": 20033,
+      "target_npc": 15,
+      "script_path": "npc/2015_p_nyangko.npc",
+      "sha256": "23992598e9051c1717e202758b8bc5b95f562b1b45264c84566607d85836d3ea"
+    },
+    {
+      "npc_id": 20034,
+      "target_npc": 15,
+      "script_path": "npc/2015_b_nyangko.npc",
+      "sha256": "8ae28f67174d02dac379b0c4816376e2a23f7fa14f415ee7385bcca6de53d20b"
+    },
+    {
+      "npc_id": 20063,
+      "target_npc": 20064,
+      "script_path": "npc/univ_event_carrier_mystic.npc",
+      "sha256": "50a4575b49f7a3cc7da88ff901078946294b65317b2ac158cd3cddc87383bc70"
+    },
+    {
+      "npc_id": 20064,
+      "target_npc": 20063,
+      "script_path": "npc/univ_event_carrier_decoy.npc",
+      "sha256": "044efe3d525baaa7e5619ea0d576b32910d8a764a10a7a6b9e239daee78f99a9"
+    },
+    {
+      "npc_id": 20502,
+      "target_npc": 20504,
+      "script_path": "npc/chn_circus_tent.npc",
+      "sha256": "6aaf9b032df3ee7980e44661ae6d4ce64f997f86cef6a79cccf35a5e61c3bff3"
+    },
+    {
+      "npc_id": 20504,
+      "target_npc": 20502,
+      "script_path": "npc/chn_circus_tent1.npc",
+      "sha256": "d8e42dd68b36042c9b918457993389fb6b3799aced0e7509ab9082a6334cd1a5"
+    },
+    {
+      "npc_id": 20091,
+      "target_npc": 20092,
+      "script_path": "npc/chn_kronos_move.npc",
+      "sha256": "8adbf99f7eb47b9f54b90f428858426f79664a50259d21bacd3ae95c7375f904"
+    },
+    {
+      "npc_id": 20092,
+      "target_npc": 20091,
+      "script_path": "npc/chn_kronos_hermes.npc",
+      "sha256": "6ef97d28f515527a536ea98dd45dbac11f74d2dc9abf9ad7d0aa9fbfccb5ee66"
+    },
+    {
+      "npc_id": 20121,
+      "target_npc": 20070,
+      "script_path": "npc/chn_three_joun.npc",
+      "sha256": "6b3830f8c246d4794e1aafa1e0b58398e731859ddb99f48b81882e33e35bf2e1"
+    },
+    {
+      "npc_id": 20122,
+      "target_npc": 20070,
+      "script_path": "npc/chn_3king_jangbi.npc",
+      "sha256": "2c558b780539fe5c47919f0bba5e2622d10dffd766012f7e3c180ac2bd9525ec"
+    },
+    {
+      "npc_id": 9014,
+      "target_npc": 8,
+      "script_path": "npc/danjin_town_move.npc",
+      "sha256": "1f992450ed19c6380d5eca0c16f69a81bfa697e9694007f4ac9e88334870ed27"
+    },
+    {
+      "npc_id": 20534,
+      "target_npc": 20517,
+      "script_path": "npc/univ_event_20170321_sinkhole.npc",
+      "sha256": "ff2f6aa1039214eebca5c944064a09814c84f4ba0b983d95932c370721262c31"
+    },
+    {
+      "npc_id": 20180,
+      "target_npc": 20181,
+      "script_path": "npc/chn_zombie_dungeon_monie.npc",
+      "sha256": "85ed674eb3429b3e2593ba071f261dd30fab35c1eb207f2fa7eee74f12a8f40e"
+    },
+    {
+      "npc_id": 20181,
+      "target_npc": 20180,
+      "script_path": "npc/chn_zombie_dungeon_move.npc",
+      "sha256": "05d137f01aa36133abc6891666f229cf51406265e398940622aba691ee7de6e4"
+    },
+    {
+      "npc_id": 20158,
+      "target_npc": 20159,
+      "script_path": "npc/chn_mage_seria.npc",
+      "sha256": "f27723ea284b5af9b553eea310e47bd8ab01f3362ee4289afb4ff7d83275d136"
+    },
+    {
+      "npc_id": 20159,
+      "target_npc": 20158,
+      "script_path": "npc/chn_mage_camelot.npc",
+      "sha256": "baaf8a46962a3e8581b72aa85210403194011ba378543d14fb1a9b0e94220c4b"
+    },
+    {
+      "npc_id": 20600,
+      "target_npc": 20601,
+      "script_path": "npc/univ_event_20171024_portal.npc",
+      "sha256": "f13d7c8d31c5e1bfc63264cda98611d33f9422725187cc70a374228b1a521772"
+    },
+    {
+      "npc_id": 20601,
+      "target_npc": 20600,
+      "script_path": "npc/univ_event_20171024_portal_return.npc",
+      "sha256": "d73c12cd0f0d67779a74e875062030b9079531e24ffe340a42aeaeedd321fa5e"
+    },
+    {
+      "npc_id": 20196,
+      "target_npc": 20197,
+      "script_path": "npc/event_npc_inane_move_0.npc",
+      "sha256": "1871881b73b96dc81265c44668dca7fd1c9b24a66c33c93c75343e8c0db85a12"
+    },
+    {
+      "npc_id": 20197,
+      "target_npc": 20196,
+      "script_path": "npc/event_npc_inane_town_0.npc",
+      "sha256": "4394b1bb3fbc461fc2fd98b9ccf45c602a250add89a35c0da929a180efd49fa2"
+    },
+    {
+      "npc_id": 20386,
+      "target_npc": 20358,
+      "script_path": "npc/chn_card_tele.npc",
+      "sha256": "7ee5d31d9e1da71f84d3b546558c4e2764f12d36e19e868133da1c633e01bc6e"
+    },
+    {
+      "npc_id": 400000062,
+      "target_npc": 8001,
+      "script_path": "npc/400000062_arthur.npc",
+      "sha256": "eb89cbf353a25f5bd924093d515ca2ca3d01919838fa9258f39ba8746d6322f7"
+    }
+  ]
+}

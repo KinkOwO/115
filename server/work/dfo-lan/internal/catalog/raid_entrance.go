@@ -73,11 +73,8 @@ func ImportRaidEntrances(a *pvf.Archive, directory *ChannelDirectory) (map[uint3
 		}
 		r.Waiting = waiting
 		if path == "contents/2022/bakalraid/etc/bakal.etc" {
-			r.Bakal, err = importBakalRaidRules(ts)
+			r.Bakal, err = ImportBakalRaid(a)
 			if err != nil {
-				return nil, fmt.Errorf("%s: %w", path, err)
-			}
-			if err = loadBakalRaidTables(a, r.Bakal); err != nil {
 				return nil, fmt.Errorf("%s: %w", path, err)
 			}
 		}

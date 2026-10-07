@@ -13,8 +13,8 @@ type UnassignedMonster115 struct {
 	Grid     [2]byte
 	Entity   uint16
 	Template uint32
+	Rank     byte // native row+11; Bakal dynamic bosses use rank 3 / grow type
 	X, Y     int32
-	Rank     byte // Bakal consumer14254b707 reads row+11 as monster grow type.
 	Carried  bool // Moon source move: row+29 bit0, NOT a new normal spawn.
 }
 

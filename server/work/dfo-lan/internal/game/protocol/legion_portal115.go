@@ -19,16 +19,16 @@ func LegionDirectMoveNotice115() []byte { return make([]byte, 38) }
 // Native14069BCC0 ->146D465C0 sends46 logical bytes, with an opaque13B
 // prefix. Position words are presentation data, NOT a trusted spawn location.
 func DecodeLegionPortal115(p []byte) (LegionPortal115, error) {
-	return decodeNativePortal115(p, false)
+	return decodeLegionPortal115(p, true)
 }
 
-// Bakal uses the same writer with arbitrary source entry x/y (captured3/0),
-// unlike the legion portal's fixed first coordinate0.
+// Bakal portals carry a real two-dimensional source maze grid. The generic
+// legion ingress has only witnessed column0; keep its stricter contract.
 func DecodeBakalPortal115(p []byte) (LegionPortal115, error) {
-	return decodeNativePortal115(p, true)
+	return decodeLegionPortal115(p, false)
 }
 
-func decodeNativePortal115(p []byte, bakal bool) (LegionPortal115, error) {
+func decodeLegionPortal115(p []byte, columnZero bool) (LegionPortal115, error) {
 	var r LegionPortal115
 	if len(p) < 46 || len(p) > 61 {
 		return r, fmt.Errorf("invalid legion direct-move size")
@@ -42,8 +42,15 @@ func decodeNativePortal115(p []byte, bakal bool) (LegionPortal115, error) {
 		r.SpawnWindow[i] = int32(binary.LittleEndian.Uint32(p[29+4*i:]))
 	}
 	r.Mode = p[45]
-	if r.Dungeon == 0 || r.Difficulty > 4 || (!bakal && r.TargetGrid[0] != 0) || (bakal && (r.TargetGrid[0] < 0 || r.TargetGrid[0] > 255 || r.TargetGrid[1] < 0 || r.TargetGrid[1] > 255)) {
+	if r.Dungeon == 0 || r.Difficulty > 4 || columnZero && r.TargetGrid[0] != 0 {
 		return r, fmt.Errorf("unsupported legion direct-move fields")
+	}
+	if !columnZero {
+		for _, coordinate := range r.TargetGrid {
+			if coordinate < 0 || coordinate > 255 {
+				return r, fmt.Errorf("invalid native Bakal target grid")
+			}
+		}
 	}
 	for _, v := range p[46:] {
 		if v != 0 {
