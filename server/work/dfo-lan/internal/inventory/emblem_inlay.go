@@ -145,25 +145,29 @@ func (b Bag) UseEmblems(c catalog.LootCatalog, eq *EquipmentCatalog, rules *Embl
 	if err != nil {
 		return fail(err)
 	}
-	kind := d.Fields["[equipment type]"]
-	if !d.IsAvatar() || len(kind) != 2 || kind[0].Text != "[skin avatar]" {
-		return fail(fmt.Errorf("emblem insertion requires a skin avatar"))
+	if !d.IsAvatar() {
+		return fail(fmt.Errorf("emblem insertion requires an avatar"))
 	}
-	selectCells := d.Fields["[avatar type select]"]
-	n := len(selectCells)
-	if n < 3 || selectCells[n-3].Type != 0 || selectCells[n-3].Value != 2 || selectCells[n-2].Text != "[M socket]" || selectCells[n-1].Text != "[M socket]" {
-		return fail(fmt.Errorf("unsupported source skin avatar socket layout"))
-	}
-	if len(item.AvatarOptions) == 0 || len(item.AvatarOptions) > 30 || len(item.AvatarOptions)%6 != 0 || (len(item.AvatarSockets) != 0 && len(item.AvatarSockets) != 4) {
+	if len(item.AvatarOptions) > 30 || len(item.AvatarOptions)%6 != 0 || (len(item.AvatarSockets) != 0 && len(item.AvatarSockets) != 4) {
 		return fail(fmt.Errorf("unsupported or unopened avatar emblem extension"))
 	}
 	options := make([]byte, 30)
-	copy(options, item.AvatarOptions)
+	if len(item.AvatarOptions) == 0 {
+		// 老存档时装在默认孔规则上线前发放，扩展为空。按 PVF 时装定义的
+		// 默认孔就地补上，否则嵌徽章会被 "socket is not open" 拒绝，
+		// 客户端也看不到孔。
+		copy(options, eq.DefaultAvatarSockets(item.Template))
+	} else {
+		copy(options, item.AvatarOptions)
+	}
 	used := map[uint16]uint32{}
 	for _, in := range req.Inputs {
+		if in.Socket >= 5 {
+			return fail(fmt.Errorf("avatar emblem socket index out of range"))
+		}
 		offset := int(in.Socket) * 6
 		socket := binary.LittleEndian.Uint16(options[offset:])
-		if in.Socket >= 2 || socket != avatarMultiSocket {
+		if socket == 0 {
 			return fail(fmt.Errorf("avatar emblem socket is not open"))
 		}
 		mask := rules.Masks[in.Template]
