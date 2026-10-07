@@ -40,6 +40,13 @@
 /server/work/dfo-lan/configs/server.local.json
 /server/work/dfo-lan/configs/launcher.local.json
 /server/launcher.local.json
+# 启动器运行期资源缓存（不是配置，不入库；2026-10-07 门禁点名，业主确认不入库）
+/.launcher-resource-cache.json
+# 「本机实验档」一律按本机私有用处理：沉月湖单刷档 moon-solo.local.json、raid 入口次数表
+# raid-entries.local.json 都属此类（2026-10-07 业主确认不入库）。前者源码已改为按 PVF 自动
+# 推导（bootstrap.go 注释「也不再需要 -moon-solo-config 这种手工配置档」），后者依赖的
+# loadRaidEntriesConfig 从未接线，两者当前都零代码引用。
+/server/work/dfo-lan/configs/*.local.json
 
 # ------------------------------------------------------------------------------
 # 4. 补丁构建过程中的中间临时产物与备份 (Build intermediate artifacts & Backups)
@@ -48,6 +55,8 @@
 # ------------------------------------------------------------------------------
 *.orig-bak
 *.bak
+# version.json 的手工备份（version.json.bak-<时间戳>）：上面的 *.bak 通配盖不住这种命名
+/version.json.bak-*
 # 增量更新包安装时在游戏根目录生成的备份目录（scripts/incremental-package），用于一键还原，不入库
 /_update-backup/
 
