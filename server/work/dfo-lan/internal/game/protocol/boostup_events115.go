@@ -12,7 +12,9 @@ import (
 // entry_flow.go），这份快照只在选角名单（CMD8）与回选角（CMD7）下发，
 // 两者不重叠，也就不存在"第二条 108 抹掉已有门参数"的问题。
 //
-// 这些日期是**本地运营可用性**（用户口径），不是从 PVF 玩法条件里抄出来的日历。
+// 日期由调用方给出：662/665 用官服抓包同 id 记录里的窗口（boostup.EventStart/EventEnd，
+// 对应两份 .evt 的 `[event period]`），见 cmd/wireprobe/event_info_variant_test.go 的
+// 逐字节比对 —— 本编码器不再自行决定日期。
 func BoostOpeningEvents115(start, end uint32, challenge ...bool) ([]byte, error) {
 	if len(challenge) > 1 {
 		return nil, fmt.Errorf("ambiguous challenge activity setting")
@@ -20,13 +22,13 @@ func BoostOpeningEvents115(start, end uint32, challenge ...bool) ([]byte, error)
 	if end <= start {
 		return nil, fmt.Errorf("invalid boost event dates")
 	}
-	count := uint16(0)
-	body := []byte{0, 0}
-	text := func(s string) { body = add32(body, uint32(len(s))); body = append(body, []byte(s)...) }
 	ids := []uint16{10017, 10018, 662}
 	if len(challenge) == 1 && challenge[0] {
 		ids = append(ids, 665)
 	}
+	count := uint16(0)
+	body := []byte{0, 0}
+	text := func(s string) { body = add32(body, uint32(len(s))); body = append(body, []byte(s)...) }
 	for _, id := range ids {
 		body = add16(body, id)
 		body = append(body, 1, 2, 4)

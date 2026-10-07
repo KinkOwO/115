@@ -78,6 +78,7 @@ type persistentStore interface {
 	CommitCharacterEventTx(ctx context.Context, account, id int64, version, key, model string, apply func(*database.Tx, database.Character) (json.RawMessage, json.RawMessage, error)) (database.Character, bool, error)
 	CommitCharacterPremiumEvent(ctx context.Context, account, id int64, version, key, model string, apply func(database.Character) (json.RawMessage, json.RawMessage, []database.CashPremiumActivation, error)) (database.Character, bool, error)
 	CommitOdysseyGraduation(ctx context.Context, account, id int64, version string, apply func(database.Character, bool) (json.RawMessage, json.RawMessage, []uint16, error)) (database.Character, bool, error)
+	CommitBoostStorySkip(ctx context.Context, account, characterID int64, version string, apply func(database.Character) ([]uint16, error)) (int, bool, error)
 	CommitQuestReward(ctx context.Context, account, id int64, qid uint16, version, progressModel, rewardModel string, apply func(database.Character) (json.RawMessage, json.RawMessage, error)) (database.QuestRewardCommit, error)
 	CommitSkillLocks(ctx context.Context, account, id int64, key, model string, apply func(current []uint16) ([]uint16, error)) ([]uint16, bool, error)
 	CommitSystemMail(ctx context.Context, account, id int64, version, key, model, senderName, body string, assets []database.MailAsset) (int64, bool, error)

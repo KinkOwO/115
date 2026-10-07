@@ -23,6 +23,11 @@ import (
 )
 
 type worldSession struct {
+	// slotUnlockDirty 记录「本局副本内写入了新的扩展装备槽解锁位」。
+	// 装备栏挂锁只能由 EntryAddition（USERINFO1）投影，而客户端只在登录/选角/进副本那种时机构造装备栏行对象，副本内补发它会把装备栏显示清空（2026-09-22 实测）。
+	// 因此解锁只落库，改在回城时补发一次，让玩家不必重登。见 analysis/tasks/next50-odyssey-expanded-equip-slot.md。
+	slotUnlockDirty bool
+
 	npcPresenceIndex    *npcpresence.Index
 	npcPresenceIndexErr error
 	lastFame            uint32

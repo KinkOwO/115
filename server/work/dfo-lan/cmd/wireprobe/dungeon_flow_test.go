@@ -78,26 +78,37 @@ func TestPriestTutorialDoorAdvancesAfterRoomClear(t *testing.T) {
 	}
 	w := &worldSession{dungeons: &c, activeDungeon: s}
 
-	next, plan, err := w.interactDoor(nil)
-	if err != nil {
-		t.Fatal(err)
+	// 原生 CMD45 换房请求：目标格就是 76027 所在房间。
+	var target catalog.DungeonRoom
+	for _, candidate := range definition.Mazes[0].Rooms {
+		if candidate.Map == 76027 {
+			target = candidate
+			break
+		}
 	}
-	if next != nil || len(plan) != 1 || plan[0].ID != 38 {
-		t.Fatalf("door advanced with a live room monster: next=%+v plan=%+v", next, plan)
+	if target.Map == 0 {
+		t.Fatal("tutorial room 76027 is missing from source maze")
+	}
+	req := make([]byte, 160)
+	req[0], req[1] = target.X, target.Y
+	binary.LittleEndian.PutUint32(req[151:155], definition.ID)
+
+	if _, _, err := w.moveDungeonRoom(req); err == nil {
+		t.Fatal("door advanced with a live room monster")
 	}
 
 	s.Dead[0x1006] = true
-	next, plan, err = w.interactDoor(nil)
+	next, plan, err := w.moveDungeonRoom(req)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if next == nil || next.Room.Map != 76027 || next.Room.X != 3 || next.Room.Y != 0 {
 		t.Fatalf("cleared tutorial room did not advance to 76027: next=%+v", next)
 	}
-	if len(plan) != 3 || plan[0].ID != 38 || plan[1].ID != 45 || plan[2].ID != 29 {
+	if len(plan) != 2 || plan[0].ID != 45 || plan[1].ID != 29 {
 		t.Fatalf("unexpected tutorial transition packets: %+v", plan)
 	}
-	if got := binary.LittleEndian.Uint32(plan[2].Payload[32:36]); got != 76027 {
+	if got := binary.LittleEndian.Uint32(plan[1].Payload[32:36]); got != 76027 {
 		t.Fatalf("next-map packet names map %d, want 76027", got)
 	}
 }

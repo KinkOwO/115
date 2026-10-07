@@ -8,6 +8,10 @@
 
 | 文件 | 作用 | 谁调用 |
 | --- | --- | --- |
+| `build-bot-client.ps1 -Survey` | 集中观察候选，仅构建与离线测试；帧/通知/阶段/清理/角色事件共用一轮，输出到忽略目录 `build/survey` | [集中清单](../docs/todo/bot-client-v1-research.md)，不启动游戏 |
+| `check-bot-survey-log.ps1` | 只读共享读取日志，报告各项 `survey_coverage`；退出 0 只代表数据/恢复完整，2 缺证据，1 格式/检查错误 | 用户停止集中观察并恢复后检查 |
+| `build-bot-client.ps1 -PhaseFrame` | 仅编译独立 x64 阶段观察候选并执行离线检查；不启动游戏，输出到忽略目录 `build/phase-frame` | 已授权客户端 DLL 调研时手动构建，操作说明见 [bot 候选](../client-patchs/botclient/README.md) |
+| `check-bot-phase-log.ps1` | 只读共享读取阶段探针日志；退出 0 只代表观察完整，2 表示缺证据，1 表示格式/检查错误；不授予执行或退役权限 | 用户完成阶段观察及恢复后检查 |
 | `check-commit-hygiene.ps1` | **提交前门禁**：检出「本地缓存/构建产物入库」与目录规范违规；退出码 2 = 需业主二次确认（根 `AGENTS.md` §0.3.1） | 任何提交前手动跑：`pwsh -NoProfile -File scripts/check-commit-hygiene.ps1` |
 | `storage-route.ps1` / `storage-route.cmd` | **双库双路线切换器 + Go 启动链调用**：`show` 看当前路线、`use sqlite`/`use postgres` 切换、`stop-postgres` 停 PG、`preflight-postgres` 只做起库预检、`clear-guard` 清过期 SQLite 管理租约、`chain-info` 报告 Go 启动器与强制开关、`selftest` 自检，以及四个入口实际调用的 `game-*`/`server-*`（逻辑见 `server/work/dfo-lan/docs/sqlite-operations.md` §1.2） | 四个路线启动入口内部调用；也可手动 `scripts\storage-route.cmd show` |
 | `检查环境.cmd` | **只读环境体检（2026-10-07 重写）**：优先 `bin\dfolauncher.exe check`，没有启动器但有 `tools\go` 时用 `go run ./cmd/dfolauncher check` 跑源码版，两个都没有就打印取法；**没有 Python 回退**（`launch_local.py` 已于 2026-10-05 删除）。退出码 = 体检结论（旧版恒为 0） | 人手动 `scripts\检查环境.cmd`；也可用 `scripts\storage-route.cmd chain-info` |

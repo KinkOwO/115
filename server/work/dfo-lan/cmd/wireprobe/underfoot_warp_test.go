@@ -99,40 +99,7 @@ func TestMoveScriptFallbackToAdjacentMove(t *testing.T) {
 	}
 }
 
-func TestInteractDoorOrdinaryAndSirocco(t *testing.T) {
-	c, e := catalog.LoadDungeons(testfixture.DungeonPath(t, "dungeons.odyssey-scenes-release.json"))
-	if e != nil {
-		t.Fatal(e)
-	}
-	s, e := dungeon.Select(c, protocol.DungeonSelection{ID: 100004961, Difficulty: 2, Party: 65535}, 80, nil)
-	if e != nil {
-		t.Fatal(e)
-	}
-	s.Loaded = true
-	w := &worldSession{dungeons: &c, activeDungeon: s}
-
-	// 1. Ordinary room: interactDoor returns door_ack
-	next, plan, err := w.interactDoor(nil)
-	if err != nil {
-		t.Fatalf("interactDoor failed on ordinary room: %v", err)
-	}
-	if next != nil {
-		t.Fatal("expected next to be nil for ordinary room")
-	}
-	if len(plan) != 1 || plan[0].Name != "door_ack" || plan[0].ID != 38 {
-		t.Fatalf("unexpected plan for ordinary door: %+v", plan)
-	}
-
-	// 2. Sirocco cutscene room 100016294 at (3,1): interactDoor synthesizes transition to boss room (4,1)
-	s.Room = catalog.DungeonRoom{X: 3, Y: 1, Map: 100016294}
-	next, plan, err = w.interactDoor(nil)
-	if err != nil {
-		t.Fatalf("interactDoor failed on Sirocco room 100016294: %v", err)
-	}
-	if next == nil || next.Room.X != 4 || next.Room.Y != 1 || next.Room.Map != 100016295 {
-		t.Fatalf("expected next room to be boss room (4,1,100016295), got: %+v", next)
-	}
-	if len(plan) < 2 || plan[0].Name != "door_ack" {
-		t.Fatalf("unexpected plan for Sirocco door: %+v", plan)
-	}
-}
+// C2S38 是 USE_SKILL（官服抓包 2026-10-05），服务端不响应也不换房；
+// 原来的 TestInteractDoorOrdinaryAndSirocco 锁定的「点门只回 ack」是被误认
+// 出来的旁路，随 interactDoor 一并移除。Boss 门开后换房走客户端原生 CMD45
+// （见 sirocco_boss_door_test.go）。

@@ -3,7 +3,6 @@ package protocol
 import (
 	"encoding/binary"
 	"fmt"
-	"sort"
 )
 
 // 活动 662（成长胶囊教学）与 665（毕业后挑战）的帧。
@@ -171,8 +170,22 @@ type BoostRosterRow115 struct {
 	Mode byte
 }
 
-// BoostRoster115 编码 2639 包体：u32 行数 + 每行 {u32 名单槽位, u8 轨道模式}。
-// donor-live：空账号 = {0,0,0,0}（交付测试钉住），非空按旧端同形状；未过 IDA 门禁。
+// 客户端读取链（IDA 闭环：handler sub_140C131D0，游标 sub_146EA09F0=1 字节 /
+// sub_146EA0BA0=4 字节，顺序 u8→u32→u8→u8）：包体 = u32 行数 + 每行**定长 7 字节**
+// {u8 轨道, u32 名单位次, u8 状态, u8 保留}，按 u32 次序插入 ctx+776 的树；
+// 访问器 sub_140C13650 用 node+40 != 2 判定「仍在训练中」，与 Mode 的 2=已毕业同口径。
+// 轨道/保留取自官服 2639 帧（cap43 全 11 帧：`01 00 00 00 | 03 00 00 00 00 01 00 | …`，
+// 12 角色账号仍是这一条），详见 analysis/dumps/noti2639/。
+const (
+	BoostRosterRowBytes115 = 7
+	boostRosterTrack115    = 3
+)
+
+// BoostRoster115 编码 2639 包体：u32 行数 + 每行 {u8 轨道, u32 名单槽位, u8 轨道状态, u8 保留}。
+// 旧端 donor 布局把行宽写成 5 字节（{u32 槽位, u8 模式}）：1 行时 4+5=9 ≤ 补齐后的 16
+// 字节侥幸被收下，2 行时客户端要 18 字节而包体只有 16 ⇒ 游标越界，客户端回
+// CMD217(OVERFLOW) 且体内 0x0A4F=2639（2026-10-06 实机：同账号第二个角色直升后卡在赛利亚、
+// 选角名单空白，都是这一条越界）。
 func BoostRoster115(rows []BoostRosterRow115) ([]byte, error) {
 	seen := map[uint32]bool{}
 	p := add32(nil, uint32(len(rows)))
@@ -184,11 +197,20 @@ func BoostRoster115(rows []BoostRosterRow115) ([]byte, error) {
 		if r.Mode != 0 && r.Mode != 2 {
 			return nil, fmt.Errorf("unsupported boost roster mode %d", r.Mode)
 		}
+		p = append(p, boostRosterTrack115)
 		p = add32(p, r.Slot)
-		p = append(p, r.Mode)
+		p = append(p, r.Mode, 0)
 	}
 	return p, nil
 }
+
+// 2722 记录块的客户端几何（IDA 闭环，见 BoostChallengeStatus115 注释）。
+const (
+	BoostChallengeBodyLen     = 323
+	BoostChallengeRecordCount = 32
+	boostChallengeRecordOff   = 3
+	boostChallengeRecordSize  = 10
+)
 
 // BoostChallengeRow115 是 665 挑战面板的一行（索引 → 进度事实）。
 type BoostChallengeRow115 struct {
@@ -205,37 +227,49 @@ type BoostChallengeState115 struct {
 	Rows        map[byte]BoostChallengeRow115
 }
 
-// BoostChallengeStatus115 编码 2722 包体：登记标记 + 毕业等级标记 + u32 行数 +
-// 每行 {u32 索引, u8 解锁, u8 解锁已领, u32 进度, u32 已领次数}。
-// donor-live：665 是毕业后**可选**活动（默认由 -boostup-challenge 门控），旧端把此帧
-// 列为未闭环；行序按索引升序，保证同一状态每次重算出同一帧。
+// BoostChallengeStatus115 编码 2722 包体 = 客户端读取的定长 323 B 记录块：
+//
+//	u16 @0            挑战达标等级（源 boostupspecupchallenge.evt 的 GoalLevel；官服字节恒 115）
+//	u8  @2            登记/开启
+//	32 × @3+10*i      {u8 解锁, u8 解锁奖励已领, u32 进度, u32 已领通关奖励}
+//
+// 取证链（权威 IDB，逐函数落盘 analysis/dumps/noti2722-{handler,records}/）：
+//   - 处理器 sub_140BAE420 用 sub_146EA0BE0(&buf,323) 取 323 B 再整块拷进 manager+328；
+//     该 reader 在剩余长度不足时执行 `MEMORY[0]=0`（写空地址）⇒ 短包就是客户端崩溃，
+//     实机 2026-10-06 15:50:39 我方 24 B 自造布局后 1.7 s 客户端发 CMD682 退出并落 CrashDNF2.cra。
+//   - 记录槽访问器 sub_140BAF000 返回 `manager+331+10*i`（i≤0x1F），与源里
+//     `[challenge info]` 最多 32 行的上限一致 ⇒ 一行一槽，索引就是源里的 [no]。
+//   - 字段用途取自消费方：sub_140BAF640 读 +0（解锁）、sub_140BAF6B0 读 +1（解锁奖励已领）、
+//     sub_140BAF6D0 用「+0 且 !+1」点亮可领红点、sub_140BAEFC0 读 +2 的 u32（进度）、
+//     sub_140BAF0F0 算 `(+2)/(源 goal) - (+6 的 u32)`＝还能领几次、sub_140BAF660 判 `(+6) >= 源 repeat`。
+//     goal/repeat 由客户端自己按槽位从事件配置容器取（manager+72），所以这里发**原始计数**，
+//     不做任何缩放——再算一遍就是 §0.2 的第 5 条重复规则。
+//   - 面板/弹窗门禁 sub_140BAF450 = 「事件表里有 665 且 manager+330（=@2）== 1」。
+//
+// 官服抓包（cap43 16 帧，定长 328 B）与此几何吻合：前 6 字节之外全零，@0=115、@2=1、
+// 第 0 槽 +0/+1 依次置 1、+2 的 u32 递增。末尾多出的 5 B 客户端处理器不读，含义未闭环，
+// 因此不跟着编（宁短不猜；短只少显示，缺 323 才崩）。
 func BoostChallengeStatus115(s BoostChallengeState115) ([]byte, error) {
-	indexes := make([]byte, 0, len(s.Rows))
-	for id := range s.Rows {
-		indexes = append(indexes, id)
-	}
-	sort.Slice(indexes, func(i, j int) bool { return indexes[i] < indexes[j] })
-	p := []byte{0, 0}
+	p := make([]byte, BoostChallengeBodyLen)
+	binary.LittleEndian.PutUint16(p, s.LevelMarker)
 	if s.Enrolled {
-		p[0] = 1
+		p[2] = 1
 	}
-	p = add16(p, s.LevelMarker)
-	p = add32(p, uint32(len(indexes)))
-	for _, id := range indexes {
-		r := s.Rows[id]
-		p = add32(p, uint32(id))
-		p = append(p, boolByte(r.Unlocked), boolByte(r.UnlockClaimed), 0, 0)
-		p = add32(p, r.Progress)
-		p = add32(p, r.Claims)
+	for id, r := range s.Rows {
+		if int(id) >= BoostChallengeRecordCount {
+			return nil, fmt.Errorf("challenge index %d out of client record range", id)
+		}
+		off := boostChallengeRecordOff + boostChallengeRecordSize*int(id)
+		if r.Unlocked {
+			p[off] = 1
+		}
+		if r.UnlockClaimed {
+			p[off+1] = 1
+		}
+		binary.LittleEndian.PutUint32(p[off+2:], r.Progress)
+		binary.LittleEndian.PutUint32(p[off+6:], r.Claims)
 	}
 	return p, nil
-}
-
-func boolByte(v bool) byte {
-	if v {
-		return 1
-	}
-	return 0
 }
 
 // BoostChallengeRequest115 是 665 挑战面板的领奖请求（u32 索引 + u32 动作）。
@@ -269,15 +303,39 @@ type BoostCapsuleRequest115 struct {
 // CapsuleAction 是胶囊的 [action type] 编号（S-0904 实机捕获）。
 const CapsuleAction = 337
 
-// DecodeBoostCapsule115 复用本树的 CMD507 通用读取（stackable_action.go），
-// 只额外要求动作号是胶囊：不新建第二套 507 解析器。
+// DecodeBoostCapsule115 解析胶囊自己那一份 CMD507 正文，不复用通用零校验。
+//
+// 客户端构造器（IDA sub_14143F7B0 的动作 337 分支）按固定宽度写：
+// u16 槽 | u8 容器 | u32 0 | u32 动作 | u32 参数 | u32 0 | 40 B 零 = 59 B
+// （写手 sub_146D76180/sub_146D75CC0/sub_146D75CE0 分别是 u16/u8/u32；实机帧 64 B
+// 是传输层补零）。第 5 个字段 p[11:15] 由发送方从物品对象 +856 取得
+// （sub_1421B2820，客户端自己还要求 <=1 才发帧）。实机 2026-10-06 18:38/18:41：
+// 普通胶囊 590015870 填 0、缓冲（奶系）胶囊 590015871 填 1，与两者源里
+// `[boost up mode capsule]` 的第一个参数一致。
+//
+// 本树不吃这一格（变体按模板在源里的变体号推导），所以它非零不构成拒绝理由。
+// 通用 DecodeStackableAction 的「其余字节必须为 0」是为药水/皮肤仓等动作保留的，
+// 套到胶囊上会把缓冲胶囊整条直升拒死。
 func DecodeBoostCapsule115(p []byte) (BoostCapsuleRequest115, error) {
-	slot, action, e := DecodeStackableAction(p)
-	if e != nil {
-		return BoostCapsuleRequest115{}, e
+	if len(p) != 59 && len(p) != 64 {
+		return BoostCapsuleRequest115{}, fmt.Errorf("boost capsule request length")
 	}
+	slot := binary.LittleEndian.Uint16(p)
+	if slot == 0 {
+		return BoostCapsuleRequest115{}, fmt.Errorf("unsupported boost capsule slot")
+	}
+	action := binary.LittleEndian.Uint32(p[7:])
 	if action != CapsuleAction {
 		return BoostCapsuleRequest115{}, fmt.Errorf("stackable action %d is not the boost capsule", action)
+	}
+	for i, b := range p {
+		// 0..2 = 槽(u16)+容器(u8)，7..14 = 动作(u32)+参数(u32)：都是字段本身。
+		if i < 3 || (i >= 7 && i < 15) {
+			continue
+		}
+		if b != 0 {
+			return BoostCapsuleRequest115{}, fmt.Errorf("unsupported boost capsule fields")
+		}
 	}
 	return BoostCapsuleRequest115{Slot: slot, Space: p[2]}, nil
 }

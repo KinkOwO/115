@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"dfolan/internal/boostup"
+	"dfolan/internal/character"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/database"
+	"dfolan/internal/savecontract"
 	"dfolan/internal/workflow"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -60,6 +63,125 @@ func (client *gameConnection) sendBoostChannelEvents(reason string) error {
 	return nil
 }
 
+// boostGiftOfferSuppressed 判断本角色是否**不参与** 662 直升活动的礼物报价：
+// 奥德赛创建的角色，以及已经达到 [goal level] 的满级角色。
+//
+// 奥德赛这条在本树 PVF 源里没有任何对应字段（boostup.evt / eventgift.evt 都不提
+// 奥德赛），按 §0.2 第 4 条记为业主明确要求的服侧差异：奥德赛有自己的一条直升线，
+// 不该再看到普通模式的直升活动弹窗（业主 2026-10-06「奥德赛模式直升活动会弹窗」）。
+// 满级这条是源驱动的：[goal level] 就是本活动的终点，已到终点的角色领胶囊无意义
+// （业主同一句里的「115级满级角色也会弹窗」）。
+//
+// 只看角色自身的创建标记（CreatedAsOdyssey），不吃 DFO_ODYSSEY_MODE 的启动器覆盖：
+// 弹窗与否由客户端按同一个 per-character 标志（XORSTR "[is arad odyssey user]"）
+// 呈现，调试开关不该改变报价。
+func boostGiftOfferSuppressed(c *boostup.Catalog, role database.Character) bool {
+	if character.CreatedAsOdyssey(role) {
+		return true
+	}
+	if c == nil || c.GoalLevel == 0 {
+		return false
+	}
+	var base struct {
+		Level byte `json:"level"`
+	}
+	return json.Unmarshal(role.State, &base) == nil && base.Level >= c.GoalLevel
+}
+
+// boostStorySkipEligible 判断本角色是否要走 662 直升后的主线清除：只有真正吃过胶囊
+// 的角色（activated 仅由 loot.UseBoostCapsule 置位）且已达 [goal level]。
+// 奥德赛创建的角色不在范围内 —— 它们的主线由奥德赛毕业那条链按自己的源处理，
+// 而 662 的报价对它们已经关闭（见 boostGiftOfferSuppressed）。
+func boostStorySkipEligible(c *boostup.Catalog, role database.Character) bool {
+	if c == nil || c.GoalLevel == 0 || character.CreatedAsOdyssey(role) {
+		return false
+	}
+	st, e := boostup.ReadState(role.State)
+	if e != nil || !st.Activated {
+		return false
+	}
+	var base struct {
+		Level byte `json:"level"`
+	}
+	return json.Unmarshal(role.State, &base) == nil && base.Level >= c.GoalLevel
+}
+
+// boostStorySkipApply 按 character_events 的 boost-story-skip-v2 收据把该角色的主线
+// 批量标为完成（幂等：已有 v2 收据就只读一次，不重复写行；只带 v1 收据的老存档由
+// CommitBoostStorySkip 补跑一次）。进城登录钩子和胶囊路径共用
+// 这一条，失败只记事件不阻断各自的流程。判据与业主裁决见
+// docs/protocol/boostup662-story-skip-20261006.md。
+func (w *worldSession) boostStorySkipApply(ctx context.Context, role database.Character, event func(map[string]any)) (int, bool, error) {
+	if w == nil || w.quests == nil || !boostStorySkipEligible(w.boostup, role) {
+		return 0, false, nil
+	}
+	count, applied, e := w.quests.BoostStorySkip(ctx, role, w.boostup.GoalLevel)
+	if event != nil {
+		evt := map[string]any{"kind": "boost_story_skip", "character_id": role.ID, "count": count, "applied": applied}
+		if e != nil {
+			evt["reason"] = e.Error()
+		}
+		event(evt)
+	}
+	if e != nil {
+		return count, applied, e
+	}
+	return count, applied, w.boostStorySkipTickets(ctx, role, event)
+}
+
+// boostStorySkipTicketEvent 是「按源 [quest clear item] 补发清券」的幂等键；
+// 与主线清除的 boost-story-skip-v2 是两张独立收据，谁失败谁下次进城重试。
+// 券只需三张一次，v1→v2 放宽主线范围时不跟着改名，避免二次发放。
+const boostStorySkipTicketEvent = "boost-story-skip-tickets-v1"
+
+// boostStorySkipTickets 把源里 [capsule info] 的 [quest clear item] 三张券以系统邮件
+// 附件补发一次。券清的是源里 [grade] [side] 的三条墙任务（60/65/90 级，模板
+// 10327301/10327302/10327303 各自的 [any quest clear]），和上面批量完成的 epic
+// 主线不是同一批任务，所以两边都要发。邮箱满 ⇒ CommitSystemMail 报错、收据不落。
+func (w *worldSession) boostStorySkipTickets(ctx context.Context, role database.Character, event func(map[string]any)) error {
+	if w.store == nil || w.boostup == nil || len(w.boostup.QuestClearItems) == 0 {
+		return nil
+	}
+	grants := make([]database.GrantItem, 0, len(w.boostup.QuestClearItems))
+	for _, template := range w.boostup.QuestClearItems {
+		grants = append(grants, database.GrantItem{Template: template, Amount: 1})
+	}
+	assets, e := database.SystemMailAssets(0, grants)
+	if e != nil {
+		return e
+	}
+	_, applied, e := w.store.CommitSystemMail(ctx, role.AccountID, role.ID, savecontract.Identity(),
+		boostStorySkipTicketEvent, "system-mail-v1", "Starter Boost",
+		"Quest clear tickets from your Starter Boost capsule. Use them on the story walls they match.", assets)
+	if event != nil {
+		evt := map[string]any{"kind": "boost_story_skip_tickets", "character_id": role.ID,
+			"applied": applied, "items": len(grants)}
+		if e != nil {
+			evt["reason"] = e.Error()
+		}
+		event(evt)
+	}
+	return e
+}
+
+// boostStorySkipNow 是胶囊落地后的那一步：调用点必须已经把 w.role 换成升完级的角色，
+// 新写入收据时紧接着重发任务手册三连（291/342/21），让手册立刻反映清除结果。
+func (w *worldSession) boostStorySkipNow(ctx context.Context, event func(map[string]any)) ([]outboundPacket, error) {
+	_, applied, e := w.boostStorySkipApply(ctx, w.role, event)
+	if e != nil || !applied {
+		return nil, e
+	}
+	return w.actQuestRefresh(ctx)
+}
+
+// boostGiftAvailability 下发 NOTI2265（EVENT_GIFT_USER_AVAILABILITY）：每个礼盒一行
+// {u16 礼盒号, u8 已处理}。不参与本活动的角色（见 boostGiftOfferSuppressed）把**所有**
+// 行标成已处理，而不是省略这一帧或省略活动行——客户端 662 首登弹窗谓词
+// （IDA：sub_144D4ACC0 按 [first login open popup] 把礼盒登记进首登弹窗表
+// sub_144D4B8E0，谓词 sub_144D4AA80 读的就是这条 2265 写进 manager+448 的可用性树）
+// 只在「本礼盒值 == 1 且它 [link gift index] 指向的礼盒也全部 == 1」时返回不弹；
+// 行缺失按 0 处理 ⇒ 照弹。官服那条 2265 只带 {118:1}，用的就是同一个「值 1 = 不再提示」
+// 口径，所以这里对齐官服而不是自造新帧。
 func boostGiftAvailability(c *boostup.Catalog, role database.Character) ([]byte, error) {
 	if c == nil {
 		return nil, nil
@@ -68,9 +190,10 @@ func boostGiftAvailability(c *boostup.Catalog, role database.Character) ([]byte,
 	if e != nil {
 		return nil, e
 	}
+	suppress := boostGiftOfferSuppressed(c, role)
 	var rows []protocol.EventGiftState115
 	for _, g := range c.Gifts {
-		rows = append(rows, protocol.EventGiftState115{Gift: g.ID, Claimed: st.Gifts[g.ID]})
+		rows = append(rows, protocol.EventGiftState115{Gift: g.ID, Claimed: suppress || st.Gifts[g.ID]})
 	}
 	return protocol.EventGiftStates115(rows)
 }

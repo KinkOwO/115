@@ -1,4 +1,4 @@
-﻿package main
+package main
 
 import (
 	"dfolan/internal/game/protocol"
@@ -12,5 +12,5 @@ func TestTempGuardProbe(t *testing.T) {
 	}
 	t.Logf("2 行标记 = %d 字节: % x", len(m), m)
 	pkt, ok := boostRosterFrame("probe", m, true)
-	t.Logf("护栏结果 ok=%v payload=%d 字节: % x（上限 %d）", ok, len(pkt.Payload), pkt.Payload, maxVerifiedBoostRosterBytes)
+	t.Logf("护栏结果 ok=%v payload=%d 字节: % x（上限 %d）", ok, len(pkt.Payload), pkt.Payload, maxBoostRosterMarkerBytes)
 }

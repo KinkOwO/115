@@ -60,7 +60,8 @@ const eventInfoTableLegacyHex = "" +
 var eventInfoTableLegacy = mustHexDecode(eventInfoTableLegacyHex)
 
 // townEventInfoTable 是**进城 announce 实际发出的** 108 表体。默认即合并表：
-// 频道门 19 行 + 活动 3 行，一条发完，客户端不会再把活动行抹掉。
+// 频道门 19 行 + 活动行（662/10017/10018 + 毕业后的 665），一条发完，
+// 客户端不会再把活动行抹掉。
 var townEventInfoTable = func() []byte {
 	switch os.Getenv("DFO_EVENT_INFO_VARIANT") {
 	case "plain":
@@ -69,7 +70,7 @@ var townEventInfoTable = func() []byte {
 		return eventInfoTableLegacy
 	}
 	// 缺省与 "boost" 都走合并；合并失败退回原表，别把进镇流程搞挂。
-	if merged, ok := buildTownEventInfoTable(false); ok {
+	if merged, ok := buildTownEventInfoTable(true); ok {
 		return merged
 	}
 	return eventInfoTable
@@ -79,13 +80,14 @@ var townEventInfoTable = func() []byte {
 // 单张表。两个生产者（本函数与选角/进城两条 108）用的行长完全一致
 // （`u16 id, u8×3, str×3, u32 start, u32 end, str×2, u8 flag`），所以这里直接
 // 复用选角那条 108 已经在用的同一个编码器，**不在这里重新敲一遍行字节**
-// （§0.2 单一规则）。challenge = 是否附带毕业后的 665 行（默认关）。
+// （§0.2 单一规则）。challenge = 是否附带毕业后的 665 行（按 boostup 目录里
+// 是否真的绑上了挑战行决定，不靠额外的开关）。
 func buildTownEventInfoTable(challenge bool) ([]byte, bool) {
 	var args []bool
 	if challenge {
 		args = []bool{true}
 	}
-	rows, err := protocol.BoostOpeningEvents115(0, boostup.EventEnd, args...)
+	rows, err := protocol.BoostOpeningEvents115(boostup.EventStart, boostup.EventEnd, args...)
 	if err != nil || len(rows) < 3 {
 		return nil, false
 	}
@@ -98,7 +100,9 @@ func buildTownEventInfoTable(challenge bool) ([]byte, bool) {
 	boostRows := rows[2 : len(rows)-1]
 	official := base[2 : len(base)-1]
 
-	total := binary.LittleEndian.Uint16(base[:2]) + 3
+	// 追加条数取编码器自己报的 count，而不是写死 3：打开 665 时这里是 4 条，
+	// 写死会让表头声明的行数比正文少 1，客户端按 count 读取就丢掉最后一行。
+	total := binary.LittleEndian.Uint16(base[:2]) + binary.LittleEndian.Uint16(rows[:2])
 	out := make([]byte, 0, len(base)+added)
 	out = append(out, byte(total), byte(total>>8))
 	out = append(out, official...)

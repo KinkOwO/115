@@ -39,6 +39,14 @@ func TestBoostChallengeSourceAndLifecycle(t *testing.T) {
 	if err != nil || !changed || !s.Rows[0].Unlocked || !s.Rows[1].Unlocked || s.Rows[2].Unlocked || s.Rows[3].Unlocked {
 		t.Fatal(s, err)
 	}
+	// Go 按钮的目标区域/落点必须是源自己写的 `[go contents town area]`：
+	// 行 0 = 241/1（千年苍穹 最终调律者入口）@143,173，与实机 CMD36 逐字节相符。
+	for i, want := range [4][4]uint32{{241, 1, 143, 173}, {214, 1, 500, 255}, {228, 1, 143, 173}, {220, 1, 1663, 238}} {
+		d, e := c.Challenge(byte(i))
+		if e != nil || !d.HasGoTarget || d.GoTarget != want {
+			t.Fatalf("row %d go target %+v (want %+v): %v", i, d.GoTarget, want, e)
+		}
+	}
 	if s.Rows[0].UnlockClaimed || s.Rows[0].Progress != 0 {
 		t.Fatal("unlock awarded without claim")
 	}

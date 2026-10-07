@@ -48,6 +48,12 @@ type DungeonDefinition struct {
 	Odyssey              bool
 	DesignatedDifficulty byte
 	HuntBoss             uint32 // Source Odyssey [hunt boss] single-target completion.
+	// BossEntranceConditionIDs 是源 [boss room entrance condition] 内 [hunt monster]
+	// 声明的条件目标模板。客户端把它们存进 dungeon+0xC90 条件向量；这些副本的红柱
+	// 路径门只认服务端 NOTI312（handler1452FF500 无条件置 dungeon+8056，门 tick
+	// 14614E440 在 dungeon+0xC70!=0 时必须该标志才播放开门动画）。
+	// 见 cmd/wireprobe dungeon_flow 死亡确认处的发送点。
+	BossEntranceConditionIDs []uint32
 	// AttunementBoss 是「调律之边界」玩法（[dungeon type] boundary of attunement）的源领主模板。
 	// 该玩法单人、不发 CMD117，所以只有这只领主的死亡确认能结束本次挑战 ——
 	// 见 internal/dungeon/completion.go 的 tryComplete。
@@ -289,6 +295,41 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	}
 	mode := sectionCells(s.Cells, "[dungeon mode script]")
 	d.Odyssey = len(mode) == 1 && mode[0].Type == 6 && mode[0].Text == "arad odyssey"
+	if d.Odyssey {
+		// [boss room entrance condition] 的 `[hunt monster]` 子标签是 type-6 字符串
+		// 字面量而不是 type-3 块标签（实测 sirocco.dgn 单元 254），所以 sectionCells
+		// 会把段停在标签前、consistentHellPartySection 也采不到嵌套内容 —— 这里直接
+		// 按「标签后跟元组」扫描。元组形状 `[hunt monster] <n> (<模板> <x> <y>)×n`，
+		// 与源里另一处双目标声明（2005 gentinfiltrate `2 69201 0 2 69210 0 2`）一致。
+		// 客户端把这些模板存进 dungeon+0xC90 条件向量；红柱路径门只认服务端
+		// NOTI312，见 cmd/wireprobe dungeon_flow 死亡确认处的发送点。
+		// 只采纳 Odyssey：37/2005 等旧副本的入场门由客户端本地判定，现役行为不变。
+		// 段内其它子标签（如 [time condition]）的目标未取证，保持不采集。
+		block := consistentHellPartySection(s.Cells, "[boss room entrance condition]")
+		seen := map[uint32]bool{}
+		for i := 0; i < len(block); {
+			if block[i].Type != 6 || block[i].Text != "[hunt monster]" {
+				i++
+				continue
+			}
+			if i+1 >= len(block) || block[i+1].Type != 0 || block[i+1].Value <= 0 {
+				break
+			}
+			n := int(block[i+1].Value)
+			if n > (len(block)-i-2)/3 {
+				break
+			}
+			for k := 0; k < n; k++ {
+				if c := block[i+2+3*k]; c.Type == 0 && c.Value > 0 {
+					if id := uint32(c.Value); !seen[id] {
+						seen[id] = true
+						d.BossEntranceConditionIDs = append(d.BossEntranceConditionIDs, id)
+					}
+				}
+			}
+			i += 2 + 3*n
+		}
+	}
 	if d.Odyssey {
 		hunt := sectionCells(s.Cells, "[hunt boss]")
 		if len(hunt) > 0 {

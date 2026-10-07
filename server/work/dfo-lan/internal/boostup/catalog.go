@@ -11,10 +11,26 @@ const ScriptPath = "live/event/kor/2026/0326_boostup/boostup.evt"
 const GiftPath = "event/eventgift.evt"
 const EventID uint32 = 662
 
-// EventEnd 是 NOTI108 活动清单里 662/10017/10018 的窗口终点（起点 0 = 无限制）。
-// 源脚本不含活动上下线日期，这个值是 2026-10-03 实机确认过的日历终点，属服期
-// 运维参数而非玩法源；换期只改这一处，不在协议层另铺一张表。
-const EventEnd uint32 = 2019686397
+// EventStart/EventEnd 是 NOTI108 活动清单里 662/665/10017/10018 的窗口。
+//
+// 这两个数**逐字取自官服抓包**（`internal/legion/event_info_official.plain`，同一套
+// 115 客户端）里同 id 的那几条记录：662 @0x117c、665 @0x16ad、2595、10017、10018
+// 全部是 `start=1785801600 / end=179490599x`（10017/10018 的终点差几秒）。
+//
+// 订正（2026-10-06）：原来的注释写「源脚本不含活动上下线日期」，这是错的 ——
+// `boostup.evt` 与 `boostupspecupchallenge.evt` 都带
+// `[event period] 2026-08-04 09:00:00 / 2026-11-17 09:00:01`，也就是官服这几个
+// epoch 对应的那一段日历（起点按 KST 折算是精确相等的；终点官服自己就提前了几秒到
+// 几小时，没有可证的时间区规则）。所以这里不把日期搬进 PVF 直读：源里有定义但没有
+// 可信的「脚本字符串 → wire epoch」折算证据，硬编一套时区规则反而成了第二条真源
+// （§0.2 第 4 条：证据未闭环时不得用新常量补成规则）。上下线窗口按运维参数处理，
+// 但**取值必须与官服一致**：原先起点写 0（"无限制"）是本树与官服那几条记录之间
+// 剩下的唯一字段差异，2026-10-06「665 城里没有入口」的取证就是顺着这条差异查的。
+// 换期只改这两行，不在协议层另铺一张表。
+const (
+	EventStart uint32 = 1785801600
+	EventEnd   uint32 = 1794905999
+)
 
 type Reward struct{ Item, Count uint32 }
 type Step struct {
@@ -48,6 +64,9 @@ type Catalog struct {
 	Groups                 GroupLookup // selected-source membership; reused by equipment missions
 	Capsules               map[uint32]Capsule
 	GoalLevel, UsableLevel byte
+	// QuestClearItems 来自 [capsule info] 里的 [quest clear item]：源为直升角色
+	// 准备的清主线墙用券（当前 115 版是三张，各清一条 [grade] [side] 墙任务）。
+	QuestClearItems []uint32
 	FameLimit              uint32
 	Town, Area             uint32
 	Steps                  []Step
@@ -218,6 +237,16 @@ func Parse(cells, giftCells []pvf.Token) (*Catalog, error) {
 		return nil, fmt.Errorf("invalid capsule level: %v", e)
 	}
 	c.UsableLevel = byte(limit)
+	// [quest clear item] 在 [capsule info] 段里；本解析器按标签扁平取值（与
+	// [goal level]、[level up table] 同一口径）。源缺失 ⇒ 不补券（不把缺失
+	// 当成错误，免得整张 662 目录被一张券拖下线）；出现即必须全是正模板。
+	c.QuestClearItems = nil
+	for _, t := range values(cells, "[quest clear item]") {
+		if t.Type != 0 || t.Value <= 0 {
+			return nil, fmt.Errorf("invalid boost quest clear item")
+		}
+		c.QuestClearItems = append(c.QuestClearItems, uint32(t.Value))
+	}
 	c.FameLimit, e = number(cells, "[fame value limit]", ^uint32(0))
 	if e != nil {
 		return nil, e

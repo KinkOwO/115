@@ -384,3 +384,19 @@ func DecodeDungeonRoomTransition(p []byte) (r DungeonRoomTransition, err error) 
 	}
 	return r, nil
 }
+
+// BossRoomPassGateCompleted 是 NOTI312（0x0138）
+// ENUM_NOTIPACKET_COMPLETE_CONDITION_PASS_GATE 的包体。
+//
+// handler sub_1452FF500 头部经全局包流读取器（146EA0BA0 read4 / 146EA09F0
+// read1，游标 14F1BF870 由分发器 146D74A80 置于帧体+16）消费
+// `<u32 conditionID> <u8 completed>` 共 5 字节，随后无条件
+// dungeon+6264=1、dungeon+8056=1（145B459E0/145B45200）。红柱路径门的每帧
+// tick sub_14614E440 在 dungeon+0xC70（.dgn 入场条件计数，客户端本地）非零时
+// 必须 dungeon+8056 置位才会播放开门动画 —— 这就是奥德赛西风猎神红色柱子
+// 亮起的唯一服务端触发。dword 取源 [boss room entrance condition]
+// [hunt monster] 的目标模板（同 dungeon+0xC90 条件向量，145B1C330）。
+// 静态取证 2026-10-04，attempt 1/3 命中；同日实机确认（塞洛可红柱亮起）。
+func BossRoomPassGateCompleted(conditionID uint32) []byte {
+	return append(add32(nil, conditionID), 1)
+}

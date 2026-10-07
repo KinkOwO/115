@@ -530,12 +530,14 @@ func (client *gameConnection) dispatchCosmeticsAndGold(requestData *clientReques
 		if len(requestData.plaintext) >= 11 && binary.LittleEndian.Uint32(requestData.plaintext[7:11]) == boostCapsuleAction {
 			// Starter Boost 662 直升胶囊（[action type] 337，S-0904 实测）。
 			// 被拒时沿用本帧既有动作分支的口径：记事件、不凭猜测补造回执。
-			plan, e := client.worldState.useBoostCapsule(requestData.plaintext)
+			plan, e := client.worldState.useBoostCapsule(requestData.plaintext, client.event)
 			if e != nil {
 				client.event(map[string]any{"kind": "boost_capsule_refused", "character_id": client.worldState.role.ID, "reason": e.Error()})
 				return dispatchHandled
 			}
-			if client.sendPlan(plan, client.logWorldAction) != nil {
+			// 取证口径：这一串帧要证明的就是「等级到底写没写进客户端」，
+			// 只记 kind 不够，按 body 档记 id + plain_hex（纯日志，不改任何帧内容）。
+			if client.sendPlan(plan, client.logWorldResponseBody) != nil {
 				return dispatchClose
 			}
 			return dispatchHandled

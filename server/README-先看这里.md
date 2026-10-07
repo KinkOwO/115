@@ -1,5 +1,9 @@
 # DFO 服务端源码与启动脚本交接包
 
+## Bot 独立通道候选（2026-10-06）
+
+新增 `go run ./cmd/dfo-tool botclient -h`，用于服主明确选中源码候选连接、签发短期凭据和只读检查角色列表。只有手动启动前设置 `DFO_BOT_CONTROL=1` 才启用服务端操作/数据端，默认配置保持。DLL 通信候选已离线互通（`scripts/build-bot-client.ps1 -Channel`）；服务端邀请/未发布准备和有界 DLL 请求已接线，原生列表 hook、创建角色及战斗尚未接入，不需要重做已通过的场景探针。实际接线、手动命令和验收边界见 [说明](work/dfo-lan/docs/bot-client-channel.md)。
+
 ## 工具命令入口（2026-10-03）
 
 `work/dfo-lan/cmd` 现保留 `wireprobe`、`admin`、`gmtool`、`dfo-tool` 四个入口。原独立导出/审计/维护工具统一改为 `go run ./cmd/dfo-tool <原工具名> <参数>`，在 `work/dfo-lan` 下用 `go run ./cmd/dfo-tool -h` 查看清单。现有游戏启动和GM入口保持；构建工具程序用 `go build -trimpath -o bin/dfo-tool.exe ./cmd/dfo-tool`。详见 [cmd/README.md](work/dfo-lan/cmd/README.md)。
