@@ -141,8 +141,14 @@ func (b Bag) UseEmblems(c catalog.LootCatalog, eq *EquipmentCatalog, rules *Embl
 	if err := item.ValidateRecord(); err != nil {
 		return fail(err)
 	}
-	if _, err := eq.definitionResolved(item.Template, 0); err != nil {
+	// [MERGE-20261007] 上游把这里的定义取出来做「必须是时装」门禁，我方原先只校验解析成功
+	// （丢弃返回值）；两边都要 —— 捕获定义 + 保留上游门禁。
+	def, err := eq.definitionResolved(item.Template, 0)
+	if err != nil {
 		return fail(err)
+	}
+	if !def.IsAvatar() {
+		return fail(fmt.Errorf("emblem insertion requires an avatar"))
 	}
 	// 2026-10-07（合并源码候选）：时装徽章入口不再限定 [skin avatar] 的
 	// "2 × [M socket]" 布局。客户端显示的孔**完全来自存档 avatar_options**，
