@@ -229,3 +229,75 @@
 想真正解决有两条路：
 1. 解开 §5 未解项 —— 反向出"装备行记录（181B）里哪个字段映射到槽对象 `+0x358`、解锁值是多少"，然后确认客户端是否有"重建槽行数组"的入口；
 2. 换锚点：看客户端是否有别的命令会让它重新构造装备栏（例如某种窗口刷新），用 frida 在"重登""重开背包"两条路径上对比 `0x140584ed0`（槽行数组遍历）的调用差异。
+
+
+---
+
+## 2026-10-06 复现（业主实机，盖波加 100004969 → 耳环位 1<<4）
+
+业主报「Gaebolg 应该解锁耳环特殊槽，但打完耳环礼盒发了、装备栏还是锁的」。**复现 §「就地重同步」的结论，
+不是新缺陷、也不是 2026-10-06 那批外部方包引入的**：
+
+| 观察点 | 2026-09-22（卢克 100004953） | **2026-10-06（盖波加 100004969）** |
+| --- | --- | --- |
+| 存档 `expand_equip_flags` | ✅ 19 | ✅ **19**（支援 1 + 魔法石 2 + 耳环 16 全写入） |
+| 通关账本 `odyssey_completed_dungeons` | 含 100004953 | 含 **100004969**（第 35 项） |
+| 解锁刷新帧（id-13 + id-14） | 已发 | ✅ 已发（`equipment_bag_resynced`(13) / `equipment_worn_resynced`(13) / `equipment_slots_updated`(14) / `equipment_worn_window_refreshed`(14)，与 `odyssey_clear_target_level`(37) 同毫秒） |
+| 装备栏显示 | ✅ 正常（未清空） | ✅ 正常 |
+| **槽当场点亮** | ❌ 否，需重登/重选角色 | ❌ **否**（业主截图：耳环槽仍是挂锁） |
+
+- 事件时间（会话 `…_175630_174831_next37`）：`19:07:41` 进 100004969 → `19:08:42.773` 清关，
+  同毫秒发出上述五帧 ⇒ 刷新分支**确实执行**（说明 `afterBag.ExpandEquipFlags != beforeBag.ExpandEquipFlags`
+  成立，即这一关真的把耳环位写进去了）。
+- ⇒ **"解锁后的当场可见" 仍是未闭环项**（本节末的两条路线未推进）；服务端只负责落库，客户端在它自己的
+  重建时机（**登录 / 选角 / 进入新副本**）读取。**进入下一本即可看到耳环槽点亮**，与「重登/重选角色」等效。
+- 判据链（供下次复核）：`catalog.OdysseyGrowth.ClearLevels[100004969]` → `LevelActions[level]` 含
+  `unlock earring` → `odysseySlotActionMask` → `inventory.ExpandEarring(1<<4)` → `UnlockEquipSlots`
+  写 `Bag.ExpandEquipFlags`。测试 `internal/character/odyssey_expand_slot_test.go` 已钉住这条映射。
+
+### 2026-10-06 实现（方案 B，**已实机通过**）：回城补发 EntryAddition
+
+上节复现确认「装备栏挂锁只能由 `EntryAddition`(USERINFO1) 投影」之后，选了**影响面最小**的做法：
+副本内仍只落库 + 置脏标记，**改在回城那一刻补发一次**（回城本就是场景重建时机 —— 服务端此刻已在发
+`town_actor_appearance_restored`(2)，addition 接在它后面，与**登录**（`entry_basic_probe_sent`→`entry_addition_sent`）
+和**进副本**（`dungeon_actor_appearance_sent`→`dungeon_actor_addition_sent`）的配对顺序完全一致）。
+
+| 文件 | 改动 |
+| --- | --- |
+| `cmd/wireprobe/world_flow.go` | `worldSession` 新增 `slotUnlockDirty bool` |
+| `cmd/wireprobe/dungeon_flow.go` | 解锁分支（`afterBag.ExpandEquipFlags != beforeBag.ExpandEquipFlags`）里置 `w.slotUnlockDirty = true`，**不在副本内补发** |
+| `cmd/wireprobe/dungeon_flow.go` | `leaveDungeon` 在 `town_actor_appearance_restored` **紧跟其后**补 `town_actor_addition_restored`(2, `characters.EntryAddition`)，成功后清脏标记；失败只记日志、不阻断回城 |
+| `cmd/wireprobe/slot_unlock_return_test.go` | 新守卫：dirty ⇒ 必须补发且**紧跟 appearance**、载荷 offset 360 == 19、成功后清标记；非 dirty ⇒ 不得多发、appearance 照常 |
+
+- **不做**（保持最小面）：不在副本内补发、不改登录/选角路径、不动 `.qst [slot expansion]` 那条已有的
+  `unlockRefresh` 路径（它在城镇，本来就会发 id=2）。
+- **风险边界**：万一客户端对回城时刻的这一帧走了"清空显示"分支，表现是**装备栏短暂空白 —— 纯显示层，
+  存档不动，重开装备栏/重进即恢复**（9-22 已实测该性质）。回退 = 换回
+  `bin/wireprobe-pvf.exe.before-slotrefresh-20261006`。
+- 编译 `517d8b7e307c3bd5fcb0ea38864883e8a39ce7aea641a1444e0d6ce71cfaf5da`（29,400,576 B，19:27）；
+  `go build` / `go vet` / `go test -p 1 -count=1 ./cmd/wireprobe/` 全绿；
+  二进制自检：`town_actor_addition_restored` 在新 exe 命中 1、在改前基线上为 **0**。
+- **实机验收判据**：清掉一个会解锁扩展装备槽的副本（如 `100004969` 盖波加 → 耳环）
+  → **回城后不重登，装备栏耳环槽应当场点亮**；同时确认回城后装备栏**没有变空**。
+
+**实机结果（2026-10-06，业主操作，会话 `…_193331_396576_next37`）**
+
+受控回档把 `test-hy` 的 `expand_equip_flags` 由 **19 降到 3**（备份 `D:/115us-backup/pre-slot-rollback-20261006/`），
+重打 `100004969 Gaebolg` → 回城。**业主确认：不用重登，耳环槽当场点亮。**
+
+`events.jsonl` 帧序（三项契约全中）：
+
+```
+19:36:58.706  town_actor_appearance_restored(2)                      ← 普通回城：不带 addition ✓（非 dirty）
+19:36:59.630  town_actor_appearance_restored(2)                      ← 同上 ✓
+19:38:03.121  odyssey_clear_target_level(37) + equipment_bag_resynced(13)   ← 清关，flags 3→19（置脏标记）
+19:38:09.325  town_actor_appearance_restored(2) → town_actor_addition_restored(2)  ← ★ 回城补发，紧跟其后
+19:38:46.711  town_actor_appearance_restored(2)                      ← 脏标记已消费，不再重发 ✓
+19:38:48.748  town_actor_appearance_restored(2)                      ← 同上 ✓
+```
+
+存档复核：`expand_equip_flags` 已由 3 写回 **19**（重新通关自然复原，无需手工处理）；
+`odyssey_completed_dungeons` 仍 35 条（未改动通关账本）。装备栏**没有出现变空**。
+
+⇒ **「解锁后的当场可见」这一条从「待修复（未闭环）」转为已闭环**：玩家路径不再需要重登/重选角色。
+（另一半仍是未闭环的：`NOTI2855` 从不发送 —— 与本条无关。）

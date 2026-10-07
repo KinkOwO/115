@@ -22,11 +22,11 @@ func (s *Store) UpdateBleedingMineRewards(ctx context.Context, account, actor in
 	if account <= 0 || actor <= 0 || apply == nil {
 		return role, nil, fmt.Errorf("矿区奖励事务参数无效")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return role, nil, err
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 	role, err = lockCharacter(ctx, tx, account, actor)
 	if err != nil {
 		return role, nil, err
@@ -34,7 +34,7 @@ func (s *Store) UpdateBleedingMineRewards(ctx context.Context, account, actor in
 	if role.ConfigVersion != version {
 		return role, nil, fmt.Errorf("矿区奖励角色配置版本不匹配")
 	}
-	queries := s.queries.WithTx(tx)
+	queries := tx.queries()
 	if err = queries.EnsureBleedingMineRewards(ctx, account); err != nil {
 		return role, nil, err
 	}
@@ -59,17 +59,17 @@ func (s *Store) UpdateBleedingMineRewards(ctx context.Context, account, actor in
 				return role, nil, fmt.Errorf("矿区邮件附件无效")
 			}
 		}
-		if _, err = insertSystemMailTx(ctx, tx, actor, "赤红铁矿", "本次探索获得的奖励，请领取附件。", assets); err != nil {
+		if _, err = insertSystemMailTx(ctx, tx.queries(), actor, "赤红铁矿", "本次探索获得的奖励，请领取附件。", assets); err != nil {
 			return role, nil, err
 		}
 	}
-	if err = sqlcgen.New(tx).UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: actor, State: state}); err != nil {
+	if err = tx.queries().UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: actor, State: state}); err != nil {
 		return role, nil, err
 	}
 	if err = queries.SaveBleedingMineRewards(ctx, sqlcgen.SaveBleedingMineRewardsParams{AccountID: account, State: rewards}); err != nil {
 		return role, nil, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return role, nil, err
 	}
 	role.State = state
@@ -97,12 +97,12 @@ func (s *Store) SaveBleedingMineTeam(ctx context.Context, account, actor int64, 
 	if account <= 0 || actor <= 0 || group >= 3 {
 		return fmt.Errorf("赤红铁矿编队保存参数无效")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	if _, err = queries.LockAccount(ctx, account); err != nil {
 		return err
 	}
@@ -130,5 +130,5 @@ func (s *Store) SaveBleedingMineTeam(ctx context.Context, account, actor int64, 
 	if err = queries.SaveBleedingMineTeam(ctx, sqlcgen.SaveBleedingMineTeamParams{AccountID: account, Team: int32(group), Members: ids[:]}); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return tx.commit(ctx)
 }

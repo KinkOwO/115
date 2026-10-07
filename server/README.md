@@ -16,26 +16,23 @@
 
 ## 首次启动
 
-1. 解压到固定目录，如 `D:/DFO-dev`。准备 Windows x64 上可用的 Python 3.10+、PostgreSQL。继续编译还需要 Go 1.26（本包用1.26.5验证）。数据库工具需包含 `initdb.exe`、`pg_ctl.exe`、`createdb.exe`。
+1. 解压到固定目录，如 `D:/DFO-dev`。**不需要任何数据库服务**：2026-10-05 起 PostgreSQL 支持已整体移除，存档就是包内 work/dfo-lan/runtime/storage/dfolan.sqlite3 一个 SQLite 文件（服务端首次启动自己创建并建表）。继续编译还需要 Go 1.26（本包用 1.26.5 验证）；**运行不需要 Python**（启动链全部是 Go）。
 2. 向项目提供者取得**完整的、当前能运行的隔离客户端目录**：原工作区 `work/dfo_probe_client`，包括资源和配套文件。可以放到解压目录的同名位置，也可放在其他磁盘。仅复制DFO.exe、PVF、sk.dat三个文件不够。配套校验值见 `client-requirements.json`。
 3. 将 `launcher.example.json` 复制为 `launcher.local.json`。编辑 `client_dir` 为客户端目录，相对路径以解压根目录为基准，或填写绝对路径。Windows JSON路径建议用 `/`。
-4. 仅在朋友自己的电脑上初始化**新库**。从解压根目录打开 PowerShell，修改下方工具路径再运行：
+4. 存储档无需初始化：把 `work/dfo-lan/runtime/storage/local.example.json` 复制成 `local.json`，
+   确认里面的 `sqlite_path` 是本机的绝对路径即可（相对路径会被服务端明确拒绝）。库文件由服务端首次
+   启动创建，重复启动幂等。
+
+> `dfolauncher init-storage` 已随 PostgreSQL 支持一起删除；历史 `pgdata/` 只是留档，
+> 可救路径见 `work/dfo-lan/docs/sqlite-operations.md` §3。
+
+5. 先检查，再启动（`launch --check` 只读，打印 Storage / Binary / Data mode / Client 四行）：
 
 ```powershell
-py -3 work/dfo-lan/scripts/bootstrap_local.py --postgres-bin 'D:/tools/pgsql/bin'
+.\bin\dfolauncher.exe launch --check
 ```
 
-这会在本包 `work/dfo-lan/runtime/storage` 内建立新PG数据目录和随机密码配置，PG端口25438。已有 `local.json` 或 `pgdata` 就拒绝初始化。初始化中途失败请查日志和现有数据，不要直接删除目录反复重试。
-
-5. 先检查，再启动：
-
-```powershell
-py -3 work/dfo-lan/scripts/launch_local.py --check
-```
-
-检查通过后，右键根目录 `Start-DFO.cmd`，以管理员身份运行。脚本启动已有本地存储和39版服务端，然后打开客户端。服务端启动时迁移表结构并建立开发账号 `probe`；角色由客户端创建。不会带入原机6666或LanTest01的存档。
-
-若 `py` 不在PATH，可用 `python` 替代上述命令。双击入口支持 `DFO_PYTHON` 环境变量指向Python.exe；否则依次尝试 `py -3`、`python`。
+检查通过后，以管理员身份运行 `scripts\启动游戏.cmd`（或 `scripts\启动游戏-SQLite.cmd`）。入口用仓库内的 Go 启动器拉起网关与客户端；SQLite 是文件，没有服务要起。服务端启动时迁移表结构并建立开发账号 `probe`；角色由客户端创建。不会带入原机6666或LanTest01的存档。
 
 ## 修改源码与测试
 

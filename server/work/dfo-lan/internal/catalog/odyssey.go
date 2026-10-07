@@ -72,21 +72,9 @@ func LoadOdysseyGrowth(path string) (*OdysseyGrowth, error) {
 	return NewOdysseyGrowth(r)
 }
 
-// odysseyGrowthSHA256s 是奥德赛成长表（aradodyssey.etc）的已审计原始字节哈希
-// 集合。脚本字节里嵌的是字符串池偏移，Neople 每次重建字符串池都会整体漂移——
-// 即使 token 级完全一致，原始 SHA 也会变（2.38.2.34 与 2.38.3.25 的
-// aradodyssey.etc 已逐 token 核对一致，仅池偏移不同）。因此每个经过审计的
-// 客户端基线在此登记一条：
-//   - 638e71ab…：2.38.2.34（汉化 Script.pvf）
-//   - 0b310543…：2.38.3.25（原版 Script.pvf，2026-10-04 审计）
-var odysseyGrowthSHA256s = map[string]bool{
-	"638e71ab8fdc84b4be28db8ca3302fd1dfe689a9b771907514297edee4b8c8e8": true,
-	"0b310543182501100c1f999ef3b63c00239cf092fdcd3ccbfaed50e8c6f8f82e": true,
-}
-
 // NewOdysseyGrowth shares validation and runtime index construction across native and JSON sources.
 func NewOdysseyGrowth(r OdysseyGrowth) (*OdysseyGrowth, error) {
-	if r.Source != OdysseySource || !odysseyGrowthSHA256s[r.Definition.SHA256] {
+	if r.Source != OdysseySource || r.Definition.SHA256 != "638e71ab8fdc84b4be28db8ca3302fd1dfe689a9b771907514297edee4b8c8e8" {
 		return nil, fmt.Errorf("Odyssey source mismatch")
 	}
 	r.ClearLevels = map[uint32]byte{}

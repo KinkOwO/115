@@ -1,7 +1,7 @@
 """只读解析当前客户端 PVF，供规则导出使用；不提供资源修改操作。"""
 from functools import lru_cache
 from pathlib import Path
-import struct, hashlib, json, re, zlib
+import struct, hashlib, json, zlib
 import pefile
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
@@ -23,64 +23,22 @@ def aes(key, raw, encrypt=False):
     operation = cipher.encryptor() if encrypt else cipher.decryptor()
     return operation.update(raw)+operation.finalize()
 
-_PEM_BLOCK = re.compile(b'-----BEGIN PRIVATE KEY-----.*?-----END PRIVATE KEY-----', re.S)
-_AES_HEX = re.compile(rb'[0-9A-F]{64}(?![0-9A-F])')
-
-def _fixed_va_literals(root):
-    """2.38.2.34 布局：DFO.exe 固定 VA 槽位里的 (PEM, AES hex)。任何失败都返回 (None, None)。"""
-    try:
-        pe = pefile.PE(str(root/'DFO.exe'), fast_load=True)
-        try:
-            base = pe.OPTIONAL_HEADER.ImageBase
-            def literal(va):
-                pointer = struct.unpack('<Q', pe.get_data(va-base, 8))[0]
-                return pe.get_data(pointer-base, 4096).split(b'\0')[0]
-            return literal(0x14dc98110), literal(0x14dc98118)
-        finally:
-            pe.close()
-    except Exception:
-        return None, None
-
-def _scan_literals(root):
-    """2.38.3.25 起固定 VA 槽位只剩运行期残值（指针 0x127），改为扫描 DFO.exe 文件体：
-    每个 PEM 块配对其结束后 0x200 窗口内首个 64 位大写十六进制串。真伪由
-    _derive_keys 用 sk.dat 首块试解筛选（exe 里还有一把无关的 MIICeQ 钥）。"""
-    exe = (root/'DFO.exe').read_bytes()
-    for match in _PEM_BLOCK.finditer(exe):
-        found = _AES_HEX.search(exe[match.end():match.end()+0x200])
-        if found is not None:
-            yield match.group(0), found.group(0)
-
-def _derive_keys(pem, aes_hex, raw):
-    """用候选 (PEM, AES hex) 解 sk.dat；任一步失败返回 None 而非抛错（候选筛选）。"""
-    try:
-        private = load_pem_private_key(pem, password=None)
-        size = private.key_size//8
-        if not raw or len(raw)%size:
-            return None
-        private.decrypt(raw[:size], PKCS1v15())
-        data = b''.join(private.decrypt(raw[i:i+size], PKCS1v15()) for i in range(0, len(raw), size))
-        prefix = len(data)//256*256
-        data = aes(bytes.fromhex(aes_hex.decode()), data[:prefix])+data[prefix:]
-        if len(data)%32:
-            return None
-        return [data[i:i+32] for i in range(0, len(data), 32)]
-    except Exception:
-        return None
-
 def wrapper_keys(root):
-    root = Path(root)
+    pe = pefile.PE(str(root/'DFO.exe'), fast_load=True)
+    base = pe.OPTIONAL_HEADER.ImageBase
+    def literal(va):
+        pointer = struct.unpack('<Q', pe.get_data(va-base, 8))[0]
+        return pe.get_data(pointer-base, 4096).split(b'\0')[0]
+    private = load_pem_private_key(literal(0x14dc98110), password=None)
     raw = (root/'sk.dat').read_bytes()
-    fixed = _fixed_va_literals(root)
-    if fixed[0] is not None and fixed[1] is not None:
-        keys = _derive_keys(fixed[0], fixed[1], raw)
-        if keys is not None:
-            return keys
-    for pem, aes_hex in _scan_literals(root):
-        keys = _derive_keys(pem, aes_hex, raw)
-        if keys is not None:
-            return keys
-    raise RuntimeError('DFO.exe 中找不到能解密 sk.dat 的 wrapper 密钥（固定 VA 与全文件扫描候选均试解失败）')
+    size = private.key_size//8
+    assert len(raw)%size == 0
+    raw = b''.join(private.decrypt(raw[i:i+size], PKCS1v15()) for i in range(0, len(raw), size))
+    prefix = len(raw)//256*256
+    raw = aes(bytes.fromhex(literal(0x14dc98118).decode()), raw[:prefix])+raw[prefix:]
+    assert len(raw)%32 == 0
+    pe.close()
+    return [raw[i:i+32] for i in range(0, len(raw), 32)]
 
 class Archive:
     def __init__(self, source, client_root=None):

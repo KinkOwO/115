@@ -47,12 +47,12 @@ func (s *Store) RecordQuestMapClear(ctx context.Context, account, characterID in
 	if err != nil || len(seed) != 16 || mapID == 0 || len(version) != 64 || model == "" {
 		return false, fmt.Errorf("invalid map clear evidence")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return false, err
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	id, err := queries.LockCharacterOwnerIncludingDeleted(ctx, sqlcgen.LockCharacterOwnerIncludingDeletedParams{AccountID: account, CharacterID: characterID})
 	if err != nil {
 		return false, err
@@ -62,7 +62,7 @@ func (s *Store) RecordQuestMapClear(ctx context.Context, account, characterID in
 		return false, err
 	}
 	if changed == 0 {
-		return false, tx.Commit(ctx)
+		return false, tx.commit(ctx)
 	}
 	for _, qid := range matching {
 		if qid == 0 || qid == 65535 {
@@ -73,5 +73,5 @@ func (s *Store) RecordQuestMapClear(ctx context.Context, account, characterID in
 			return false, err
 		}
 	}
-	return true, tx.Commit(ctx)
+	return true, tx.commit(ctx)
 }

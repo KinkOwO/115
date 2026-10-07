@@ -29,3 +29,7 @@ address	name	description
 0x145df0410	RoomEntities_GetMonsterSlotCount	Monster weak-reference vector at manager+392/+400, stride24
 0x145df0390	RoomEntities_GetMonsterBySlot	Weak-reference control+8/ref+16; returns ref-48 only if control live
 0x1452ae370	Handler_NotiDungeonTimeoutTime	NOTI1474 registered1452bb718; u32 duration seconds then start epoch seconds, scene milliseconds and mode start/end pair; next79 current client static20261003
+0x144cdc190	Raid_ReadMemberRecord115	Native member reader; u8 to member+60, u16 to member+62; current DFO.exe read-only PE20261006
+0x144cf4c80	Raid_CheckMembersInWaitingTown115	Each member+62 u16 must equal raid script waiting-town scalar; false triggers dstr101037245 via144CEC920; PE20261006
+0x144cec920	Raid_ValidateAndSendStartVote115	Validates owned leader and member waiting-town predicate then sendsCMD2089; rejected same-area popup dstr101037245; PE20261006
+0x147714120	NativeBakalMonsterTypeFromString	当前DFO.exe只读PE：名称缓存内部键+switch返回1..16；swan9/steich10/eclair11，brute12/steel dragon13/zamir14/routund15/normal monsters16；官服N2286/N570互证前三项，20261006

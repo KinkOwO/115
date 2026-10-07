@@ -286,3 +286,5 @@ $env:DFO_TEST_POSTGRES_DSN='postgres://dfo_owner:<pw>@127.0.0.1:25438/dfo_lan_se
   （把变换目标映射到 `[create cost]` 档位的那段回退逻辑）在本轮之后**已无生产消费者**
   （只剩测试引用）。它写的是"变换要走 `[create cost]`"的旧结论，与现在的源口径冲突；
   建议下次清理时连同 `TestCostGroupFor*` 两条用例一起删（本轮为控制改动面保留）。
+
+

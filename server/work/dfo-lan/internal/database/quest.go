@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 )
 
 // QuestState retains the storage API while the quest domain owns its schema.
@@ -33,12 +32,12 @@ func (s *Store) AcceptQuestGroups(ctx context.Context, account, characterID int6
 	if qid == 0 || qid == 65535 || len(version) != 64 || model == "" || model == "legacy-zero" {
 		return out, errors.New("invalid quest")
 	}
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return out, e
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	raw, e := queries.LockOwnedCharacterState(ctx, sqlcgen.LockOwnedCharacterStateParams{AccountID: account, CharacterID: characterID})
 	if e != nil {
 		return out, e
@@ -58,9 +57,9 @@ func (s *Store) AcceptQuestGroups(ctx context.Context, account, characterID int6
 		if out.Status != "accepted" || out.ConfigVersion != version || out.ProgressModel != model {
 			return out, errors.New("quest is completed or requires configuration migration")
 		}
-		return out, tx.Commit(ctx)
+		return out, tx.commit(ctx)
 	}
-	if !errors.Is(e, pgx.ErrNoRows) {
+	if !isNoRows(e) {
 		return out, e
 	}
 	if len(groups) > 0 {
@@ -93,7 +92,7 @@ func (s *Store) AcceptQuestGroups(ctx context.Context, account, characterID int6
 	if e != nil {
 		return out, e
 	}
-	return out, tx.Commit(ctx)
+	return out, tx.commit(ctx)
 }
 func (s *Store) AbandonQuest(ctx context.Context, account, characterID int64, qid uint16) error {
 	changed, e := s.queries.AbandonQuest(ctx, sqlcgen.AbandonQuestParams{AccountID: account, CharacterID: characterID, QuestID: int32(qid)})
@@ -157,12 +156,12 @@ func (s *Store) ClearActQuests(ctx context.Context, account, characterID int64, 
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	if _, err = queries.LockCharacterOwner(ctx, sqlcgen.LockCharacterOwnerParams{AccountID: account, CharacterID: characterID}); err != nil {
 		return 0, err
 	}
@@ -173,7 +172,7 @@ func (s *Store) ClearActQuests(ctx context.Context, account, characterID int64, 
 	if changed != int64(len(ids)) {
 		return 0, errors.New("accepted quest set changed or requires source migration")
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return 0, err
 	}
 	return int(changed), nil

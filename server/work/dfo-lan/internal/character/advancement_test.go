@@ -14,7 +14,7 @@ func advancementFixture(t *testing.T, advancement, awakening byte) (*Service, Ch
 		t.Fatal(err)
 	}
 	p := c.Professions[12] // knight: advancement branches 1..4, branch 4 is dragon knight
-	state := State{Level: 50, Advancement: advancement, Awakening: awakening, Attributes: p.InitialAttributes, InitialSkills: p.InitialSkills, SourcePath: p.Path, SourceSHA256: p.RawSHA256}
+	state := State{Level: 50, Advancement: advancement, Awakening: awakening, Attributes: p.InitialAttributes, InitialSkills: p.InitialSkills, SourceSHA256: p.RawSHA256}
 	raw, err := json.Marshal(state)
 	if err != nil {
 		t.Fatal(err)

@@ -1,0 +1,4 @@
+# 构建产物不入库：包由 build-mod.py 现场生成（与 mods/examples/* 一致，仓库里没有 mods/**/dist）。
+# 分享用的 zip 留在本机 mods/<mod>-分享/ 或直接发给对方。
+dist/
+__pycache__/

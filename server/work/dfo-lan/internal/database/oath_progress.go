@@ -5,7 +5,6 @@ import (
 	"dfolan/internal/database/sqlcgen"
 	"errors"
 
-	"github.com/jackc/pgx/v5"
 )
 
 // MigrateOathProgress 建「隐藏 BOSS 通关保底」的计数表。
@@ -25,7 +24,7 @@ func (s *Store) OathProgressClears(ctx context.Context, characterID, dungeonID i
 		return 0, errors.New("invalid oath progress key")
 	}
 	clears, err := s.queries.OathProgressClears(ctx, sqlcgen.OathProgressClearsParams{CharacterID: characterID, DungeonID: dungeonID})
-	if errors.Is(err, pgx.ErrNoRows) {
+	if isNoRows(err) {
 		return 0, nil
 	}
 	if err != nil {
@@ -42,14 +41,14 @@ func (s *Store) BumpOathProgress(ctx context.Context, characterID, dungeonID int
 	if characterID <= 0 || dungeonID <= 0 || needed <= 0 {
 		return 0, 0, errors.New("invalid oath progress bump")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return 0, 0, err
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	stored, err := queries.LockOathProgress(ctx, sqlcgen.LockOathProgressParams{CharacterID: characterID, DungeonID: dungeonID})
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && !isNoRows(err) {
 		return 0, 0, err
 	}
 	before := int(stored)
@@ -60,7 +59,7 @@ func (s *Store) BumpOathProgress(ctx context.Context, characterID, dungeonID int
 	if err = queries.SaveOathProgress(ctx, sqlcgen.SaveOathProgressParams{CharacterID: characterID, DungeonID: dungeonID, Clears: int64(next)}); err != nil {
 		return 0, 0, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return 0, 0, err
 	}
 	return before, next, nil

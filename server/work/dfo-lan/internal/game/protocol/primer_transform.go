@@ -10,7 +10,7 @@ import (
 // ---------------------------------------------------------------------------
 //
 // 客户端文案（DSTR 101038946 / 101038833）叫 **Convert Oath/Crystal**，入口是装备库
-// `[new peculiar group]` mark 4 / index 16227 `[button type] \`primer transform\`` 那一页。
+// `[new peculiar group]` mark 4 / index 16227 `[button type] \`primer transform\“ 那一页。
 //
 // 取证（2026-10-03，权威 IDB 工作副本 + 实机帧，产物 analysis/tmp-primer-transform/ida/）：
 //
@@ -54,7 +54,7 @@ const (
 	// PrimerTransformOathSlot 是"行 0"对应的穿戴槽（誓约核心）。
 	PrimerTransformOathSlot = 47
 	// PrimerTransformCrystalSlotBase / Count 是行 1..11 对应的晶体槽（36..46）。
-	PrimerTransformCrystalSlotBase = 36
+	PrimerTransformCrystalSlotBase  = 36
 	PrimerTransformCrystalSlotCount = 11
 )
 

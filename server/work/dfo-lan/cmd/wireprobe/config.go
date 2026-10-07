@@ -83,6 +83,7 @@ type Config struct {
 	BagRules                      string `koanf:"bag-rules" default:"configs/inventory.compat90.json" help:"separate bag slot and missing stack limit policy"`
 	Boxes                         string `koanf:"boxes" help:"deprecated path; requires the prepared native PVF boxes domain"`
 	CardRules                     string `koanf:"card-rules" default:"configs/cards.compat90.json" help:"separate compatible free-card policy"`
+	VenusFlipGear                 string `koanf:"venus-flip-gear" default:"configs/venus-flip-gear.generated.json" env:"DFO_VENUS_FLIP_GEAR" help:"venus terminal flip random-gear pool (row 1 slots 1-5, legion 106)"`
 	SkillCatalog                  string `koanf:"skill-catalog" help:"deprecated skill JSON path; requires the native PVF skills domain"`
 	ChannelRefreshConfig          string `koanf:"channel-refresh-config" help:"separate local channel directory service for native refresh"`
 	ChannelIdentity               bool   `koanf:"channel-identity" default:"false" help:"candidate: synchronize NOTI2435 and all actor contexts with the connected channel"`
@@ -120,6 +121,7 @@ type Config struct {
 	OmenHold                      int    `koanf:"omen-hold" default:"-1" env:"DFO_OMEN_HOLD" help:"诊断：把玩家直接放到指定征兆阶段(0-4)，-1 = 不动；会写回角色存档"`
 	OmenInfo                      string `koanf:"omen-info" env:"DFO_OMEN_INFO" help:"诊断：直接指定 noti 2836「征兆队伍状态」的 69 字节载荷，用来点亮征兆 UI 并实测字段语义。写法见 cmd/wireprobe/omen_info.go；留空 = 按角色存档里的真实档数生成"`
 	ScaleDeathFromHP              bool   `koanf:"scale-death-from-hp" default:"false" env:"DFO_SCALE_DEATH_FROM_HP" help:"诊断：定盘机关血量触底时由服务端兜底宣布死亡（默认关；noti 2838 修好后天平会自己死）"`
+	BoostUpEvent                  bool   `koanf:"boostup-event" default:"true" env:"DFO_BOOSTUP_EVENT" envmode:"not-zero" help:"新手成长活动 662 总开关：训练关卡、礼盒、胶囊与领奖；内容只从 PVF 直读的 boostup 域来，缺该域时本开关自动降级为关并记 warning，DFO_BOOSTUP_EVENT=0 关闭"`
 }
 
 // loadConfig has no file, catalog, storage, listener or process side effects.

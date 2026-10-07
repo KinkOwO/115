@@ -357,10 +357,13 @@ func DecodeMoveDungeonRoom(p []byte) ([2]byte, error) {
 }
 
 type DungeonRoomTransition struct {
-	Position    [2]byte
-	LayerChange bool
-	Record      [18]byte
-	Dungeon     uint32
+	RaidReturn    bool // server-authorized native2070 return; never decoded from45
+	RaidCinematic bool // authorized source phase-shift, not ordinary enemy clear
+	RaidInRoom    bool // source same-grid portal record, preserve the existing scene
+	Position      [2]byte
+	LayerChange   bool
+	Record        [18]byte
+	Dungeon       uint32
 	// SceneExit 只由服务端设置：标记这次 layer 切换是「场景房点门」的出口，
 	// 方向是回该位置的 base。客户端的 CMD45 永远是 SceneExit=false（前进）。
 	SceneExit bool

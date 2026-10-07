@@ -279,7 +279,7 @@ PostgreSQL 17.10 使用项目独立数据目录，回环端口 25438。连接配
 - `runtime/character_validation.json` 明确标记 `real_client_character_created=false`。该测试不会创建 LanTest01。
 - `go run ./cmd/storagecheck` 在 23:18 UTC 确认四个存档；23:20 UTC live_04 再创建 nvgui，当前已有五个用户角色。只读核查应以最新数据库为准。
 
-后续账号密码登录器、多客户端同城及移动仍未验收。本节存储环境和测试结果为当时的历史记录，当前部署要求以根目录 `使用教程.md` 为准。
+后续账号密码登录器、多客户端同城及移动仍未验收。本节存储环境和测试结果为当时的历史记录，当前部署要求以 `server/README-先看这里.md` 与 `docs/sqlite-operations.md` 为准（根目录 `使用教程.md` 已于 2026-10-05 删除）。
 
 ## 画面验证限制
 

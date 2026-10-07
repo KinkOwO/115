@@ -35,6 +35,16 @@ func equipmentRows(bag inventory.Bag, space byte, equipmentSlot uint16, slots ..
 	return rows
 }
 
+// stackSlotRows 是活动/发放线要的「这几格的增量行」。每一格都走
+// bagRowOrEmpty，所以被用光的格子会发空行（模板 0xFFFFFFFF）而不是漏发。
+func stackSlotRows(bag inventory.Bag, slots ...uint16) [][protocol.CurrentItemRecordSize]byte {
+	rows := make([][protocol.CurrentItemRecordSize]byte, 0, len(slots))
+	for _, slot := range slots {
+		rows = append(rows, bagRowOrEmpty(bag, slot))
+	}
+	return rows
+}
+
 // Callers place the result acknowledgement before or after these updates.
 func appendEquipmentUpdates(plan []outboundPacket, state json.RawMessage, rows [][protocol.CurrentItemRecordSize]byte, space byte, inventoryName, wornName string) ([]outboundPacket, error) {
 	body, err := protocol.InventoryUpdate(rows)

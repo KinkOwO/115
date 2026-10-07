@@ -1,0 +1,571 @@
+// dfolauncher is the Go replacement for the Python orchestration scripts. It starts
+// with "stop"; launch, server-only, configure and prepare-pvf follow the same shape, so
+// the .cmd entry points can switch over one subcommand at a time and fall back to
+// Python until each has been verified.
+package main
+
+import (
+	"context"
+	"encoding/csv"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"dfolan/internal/launcher"
+	"dfolan/internal/toolcmd/bakalreset"
+)
+
+func main() {
+	if len(os.Args) < 2 {
+		usage()
+		os.Exit(2)
+	}
+	switch os.Args[1] {
+	case "stop":
+		os.Exit(runStop(os.Args[2:]))
+	case "check":
+		os.Exit(runCheck(os.Args[2:]))
+	case "launch":
+		os.Exit(runLaunch(os.Args[2:]))
+	case "start-storage":
+		os.Exit(runStartStorage(os.Args[2:]))
+	case "init-storage":
+		os.Exit(runInitStorage(os.Args[2:]))
+	case "prepare-inner-pvf":
+		os.Exit(runPrepareInnerPVF(os.Args[2:]))
+	case "storage-sync":
+		os.Exit(runStorageSync(os.Args[2:]))
+	case "bakal-reset":
+		os.Exit(runBakalReset(os.Args[2:]))
+	case hostClientSubcommand:
+		os.Exit(runHostClient(os.Args[1:]))
+	case "-h", "--help", "help":
+		usage()
+		os.Exit(0)
+	default:
+		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n\n", os.Args[1])
+		usage()
+		os.Exit(2)
+	}
+}
+
+// hostClientSubcommand 是 Go 宿主的入口名，取值与 probe.exe 的用法**同形**：
+//
+//	dfolauncher --host-client <client_dir> <client.log> <seconds> <ui-mode> [payload...]
+//
+// 位置参数刻意与 probe.exe 的 argv 一一对应（第 5 个参数 breakpoints.txt 也留着占位），
+// 这样 clientrun.go 能把同一份实参交给两条路，也让"换成 Go 之后到底变了什么"只剩下
+// 包名这一处差异。probe.exe 收到 --host-client 同样能跑（它把 argv[1] 当客户端目录），
+// 所以真正的等价性不依赖这个开关。
+const hostClientSubcommand = "--host-client"
+
+// runHostClient 是 Go 版客户端宿主（probe.exe 的替代路径）。它自己装 WFP 隔离、
+// 拉起客户端、看护到退出、写 client.log，退出码语义与 probe.exe 对齐（0 正常，
+// 3 看不到 DFO.exe，7/11/12 是 Job/CreateProcess/Assign 失败）。
+//
+// 注意：这个入口**不**做 DFO_FORCE_PROBE_EXE / DFO_REQUIRE_GO_ISOLATION 的判断 ——
+// 安装隔离这件事由它自己按"装不上就优雅降级、日志写明没隔离"的 probe 口径处理。
+func runHostClient(args []string) int {
+	if len(args) < 5 {
+		fmt.Fprintln(os.Stderr, "usage: dfolauncher "+hostClientSubcommand+
+			" <client_dir> <client.log> <seconds> <ui-mode> [breakpoints.txt] [payload...]")
+		return 2
+	}
+	options, err := launcher.ParseHostClientArgv(args[1:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "host-client: %v\n", err)
+		return 2
+	}
+	options.Console = os.Stdout
+	code, err := launcher.RunClientHost(options)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "host-client: %v\n", err)
+	}
+	return code
+}
+
+func usage() {
+	fmt.Fprint(os.Stderr, `dfolauncher — DFO 115us orchestration
+
+Usage:
+  dfolauncher stop  [--root <path>] [--dry-run]
+  dfolauncher start-storage [--root <path>] [--dry-run]
+  dfolauncher init-storage [--root <path>] [--postgres-bin <dir>] [--postgres-port <int>] [--dry-run]
+  dfolauncher prepare-inner-pvf [--root <path>] [--client <dir>] [--force] [--dry-run]
+  dfolauncher storage-sync [--root <path>] [--list] [--backup]
+                           [--copy-to sqlite|postgres] [--restore <备份目录名>]
+                           [--restore-to sqlite|postgres] [--dry-run]
+  dfolauncher bakal-reset [--root <path>] [--account <name>] [--apply] [--dry-run]
+  dfolauncher check [--root <path>] [--server-only|--client-only] [--source-build] [--json-mode]
+  dfolauncher launch --check|--dry-run [--root <path>]
+                    [--server-only|--client-only|--storage-only]
+                    [--json-mode|--repair-profile <path>] [--source-build]
+  dfolauncher launch [--root <path>] [--tag <name>]
+                    [--json-mode|--repair-profile <path>] [--source-build]
+
+Flags:
+  --root      repository root (default: the current directory, which is where the
+              .cmd entry points cd to)
+  --client    client directory holding DFO.exe / sk.dat / Script.pvf
+              (default: launcher.local.json's client_dir)
+  --force     rebuild even when the four-state gate would reuse the archive
+  --dry-run   print every action without performing it
+  --tag       pin the session tag (default: built from the clock)
+
+init-storage is the first-run storage bootstrap: it is scripts/bootstrap_local.py in Go
+(initdb with a fresh random password + pg_ctl start + createdb + runtime/storage/local.json),
+which is why the launch chain no longer needs Python at all. --postgres-bin defaults to the
+bundled portable PostgreSQL (tools/pg/pgsql/bin, or $DFO_TOOLS); --dry-run prints the steps
+without writing anything or starting a process.
+
+prepare-inner-pvf is Stage 4 of docs/go-launch-migration-plan.md: it replaces
+scripts/ensure_inner_pvf.py + scripts/prepare_inner_pvf.py with the Go generator in
+internal/catalog/pvf. The four-state gate is the same (missing -> build, no or untrusted
+manifest -> rebuild, client triple unchanged -> reuse, changed -> rebuild) and the
+manifest it writes is byte-identical to the Python one. Files it replaces are renamed to
+<name>.stale-<stamp>, never deleted.
+
+launch decides the session before anything starts: it reads the same configuration,
+validates the same profile and checks the same dependencies as
+scripts/launch_local.py, and --check prints the same four lines. --dry-run adds the
+storage -> inner PVF -> gateway -> client command plan. Like the Python's own --check
+(whose _ensure_inner_pvf runs first), --check generates the inner archive when the gate
+says it is missing or stale; --dry-run never writes it.
+
+--server-only really starts the game gateway in Go (Stage 2 of
+docs/go-launch-migration-plan.md): the protocol fixture, the gateway argv, ready.json
+and run.json are reproduced from channel_probe.py, so no Python is involved.
+
+interactive (the default) and --client-only additionally launch the client with the same
+argv, run.json, probe.json, exit-code warnings and client-trace handling as
+channel_probe.py (Stage 3). The client runs under the Go WFP isolation
+(internal/wfpisolate) whenever it can be installed; otherwise the original probe.exe is
+used unchanged. DFO_FORCE_PROBE_EXE=1 forces the probe.exe path and
+DFO_REQUIRE_GO_ISOLATION=1 refuses to run without the Go isolation.
+DFO_ENABLE_OBSERVER is not implemented; it is a Python-only observer and the launcher
+always injects 0.
+
+--host-client is the Go client host itself (dfolauncher --host-client <client_dir>
+<client.log> <seconds> <ui-mode> [breakpoints.txt] [payload...]): the same positional
+arguments probe.exe takes, so the launcher can hand both paths the same argv.
+
+storage-sync is 双端同步：备份（SQLite 用 VACUUM INTO、PostgreSQL 用 pg_dump -Fc）/
+跨引擎覆盖式复制（--copy-to）/ 还原（--restore）。进度写 stderr，stdout 只留一行结果 JSON；
+退出码 2=参数错、1=失败、0=成功。它**不改** runtime/storage/local.json 与档位模板
+（复制 ≠ 切档），且服务端在跑时（7001 在监听 / SQLite 管理租约仍在）一律拒绝执行。
+
+bakal-reset is scripts/bakal-reset.cmd 的 Go 入口：检测到 DFO.exe / wireprobe 正在
+运行时拒绝执行（避免在线存档覆盖），随后拉起 storage（sqlite/postgres 双引擎）并通过
+internal/toolcmd/bakalreset 重置指定账号的巴卡尔周次数。不带 --apply 仅预览；默认账号 probe。
+`)
+}
+
+func runStop(args []string) int {
+	flags := flag.NewFlagSet("stop", flag.ContinueOnError)
+	root := flags.String("root", ".", "repository root")
+	dryRun := flags.Bool("dry-run", false, "print the actions without performing them")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+
+	absolute, err := filepathAbs(*root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
+		return 1
+	}
+	settings, err := launcher.LoadStorageConfig(absolute)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "storage config: %v\n", err)
+		return 1
+	}
+
+	logf := func(format string, args ...any) { fmt.Printf(format+"\n", args...) }
+	fmt.Println("=== Stopping DFO 115us Environment ===")
+	if settings.DriverName() == "sqlite" {
+		fmt.Printf("Storage: sqlite profile (%s), no PostgreSQL service to stop.\n", settings.SQLitePath)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	report, err := launcher.Stop(ctx, settings, *dryRun, logf)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "stop: %v\n", err)
+		return 1
+	}
+
+	fmt.Println("Status summary:")
+	fmt.Printf("  PostgreSQL (%d): %s\n", launcher.PostgresPort, state(report.PostgresUp, *dryRun))
+	fmt.Printf("  Gateway    (%d):  %s\n", launcher.GatewayPort, state(report.GatewayUp, *dryRun))
+	if *dryRun {
+		fmt.Println("Dry run: nothing was stopped.")
+		return 0
+	}
+	if !report.PostgresUp && !report.GatewayUp {
+		fmt.Println("Environment fully stopped.")
+		return 0
+	}
+	fmt.Println("Notice: some ports are still active.")
+	return 1
+}
+
+// runCheck verifies the dependencies the selected mode needs and starts nothing, which
+// is what makes it safe to run before a session.
+func runCheck(args []string) int {
+	flags := flag.NewFlagSet("check", flag.ContinueOnError)
+	root := flags.String("root", ".", "repository root")
+	serverOnly := flags.Bool("server-only", false, "verify only what a server-only run needs")
+	clientOnly := flags.Bool("client-only", false, "verify only what a client-only run needs")
+	sourceBuild := flags.Bool("source-build", false, "verify the source build binary")
+	jsonMode := flags.Bool("json-mode", false, "verify the explicit JSON-mode binary")
+	repairProfile := flags.String("repair-profile", "", "verify an explicit launcher profile")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+	absolute, err := filepathAbs(*root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
+		return 1
+	}
+	report, err := launcher.Check(absolute, launcher.CheckOptions{
+		ServerOnly:    *serverOnly,
+		ClientOnly:    *clientOnly,
+		SourceBuild:   *sourceBuild,
+		JSONMode:      *jsonMode,
+		RepairProfile: *repairProfile,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "check: %v\n", err)
+		return 1
+	}
+	fmt.Printf("Client dir: %s\n", report.ClientDir)
+	fmt.Printf("Binary:     %s\n", report.Binary)
+	fmt.Printf("Data mode:  %s\n", report.DataMode)
+	fmt.Printf("Storage:    %s\n", report.Storage)
+	if report.ProfilePath != "" {
+		fmt.Printf("Profile:    %s (%d environment entries)\n", report.ProfilePath, len(report.ProfileEnv))
+	}
+	for _, dependency := range report.Dependencies {
+		state := "ok"
+		if !dependency.Found {
+			state = "MISSING"
+		}
+		fmt.Printf("  %-24s %-8s %s\n", dependency.Label, state, dependency.Path)
+	}
+	if missing := report.Missing(); len(missing) > 0 {
+		fmt.Fprintf(os.Stderr, "%d required path(s) missing\n", len(missing))
+		return 1
+	}
+	fmt.Println("Paths OK.")
+	return 0
+}
+
+// runLaunch is the launch subcommand. --check and --dry-run are Stage 1 (read-only);
+// --server-only is Stage 2 and really starts the gateway in Go; interactive and
+// --client-only are Stage 3: the same gateway session followed by the probe.exe handoff.
+func runLaunch(args []string) int {
+	flags := flag.NewFlagSet("launch", flag.ContinueOnError)
+	root := flags.String("root", ".", "repository root")
+	check := flags.Bool("check", false, "check every dependency and start nothing")
+	dryRun := flags.Bool("dry-run", false, "print the command plan without running it")
+	serverOnly := flags.Bool("server-only", false, "run storage and the game gateway without the client")
+	clientOnly := flags.Bool("client-only", false, "run the client against a server elsewhere")
+	storageOnly := flags.Bool("storage-only", false, "bring storage up and return")
+	jsonMode := flags.Bool("json-mode", false, "explicit legacy JSON mode")
+	sourceBuild := flags.Bool("source-build", false, "use bin/wireprobe-handoff-source.exe")
+	repairProfile := flags.String("repair-profile", "", "override the default PVF profile")
+	tag := flags.String("tag", "", "pin the session tag (default: from the clock)")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+	if *jsonMode && *repairProfile != "" {
+		// The Python declared these mutually exclusive, and the choice decides both the
+		// binary and the data mode of the whole session.
+		fmt.Fprintln(os.Stderr, "launch: --json-mode and --repair-profile are mutually exclusive")
+		return 2
+	}
+	options := launcher.LaunchOptions{
+		Check:         *check,
+		DryRun:        *dryRun,
+		ServerOnly:    *serverOnly,
+		ClientOnly:    *clientOnly,
+		StorageOnly:   *storageOnly,
+		JSONMode:      *jsonMode,
+		SourceBuild:   *sourceBuild,
+		RepairProfile: *repairProfile,
+		Tag:           *tag,
+	}
+	absolute, err := filepathAbs(*root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
+		return 1
+	}
+
+	// A real run. server-only and storage-only start the gateway; everything else is the
+	// interactive / client-only session, which also starts the gateway and then hands the
+	// client to probe.exe (Stage 3).
+	if !*check && !*dryRun {
+		switch {
+		case *serverOnly, *storageOnly:
+			if err := launcher.LaunchServer(context.Background(), absolute, options, os.Stdout); err != nil {
+				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+				return 1
+			}
+			return 0
+		default:
+			if err := launcher.LaunchClient(context.Background(), absolute, options, os.Stdout); err != nil {
+				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+				return 1
+			}
+			return 0
+		}
+	}
+
+	report, err := launcher.LaunchPlan(absolute, options)
+	// The inner-PVF status is printed before the Python's fatal checks, so it is printed
+	// here even when the plan then fails.
+	if report.InnerPVF.Message != "" {
+		fmt.Println(report.InnerPVF.Message)
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+		return 1
+	}
+	for _, line := range report.Lines(*dryRun) {
+		fmt.Println(line)
+	}
+	return 0
+}
+
+// runStartStorage brings storage up for the configured driver. It exists because the
+// shipped launcher is a GUI with no CLI mode, so the development entries still need a
+// Go path; see docs/runtime-without-tools-plan.md.
+func runStartStorage(args []string) int {
+	flags := flag.NewFlagSet("start-storage", flag.ContinueOnError)
+	root := flags.String("root", ".", "repository root")
+	dryRun := flags.Bool("dry-run", false, "print the actions without performing them")
+	timeout := flags.Duration("timeout", 40*time.Second, "how long to wait for the service")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+	absolute, err := filepathAbs(*root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
+		return 1
+	}
+	settings, err := launcher.LoadStorageConfig(absolute)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "storage config: %v\n", err)
+		return 1
+	}
+	logf := func(format string, args ...any) { fmt.Printf(format+"\n", args...) }
+	if *dryRun {
+		plan, err := launcher.StartStoragePlan(settings)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "start-storage: %v\n", err)
+			return 1
+		}
+		if len(plan) == 0 {
+			logf("storage: sqlite profile, nothing to start")
+			return 0
+		}
+		for _, action := range plan {
+			logf("would run %s", action.Detail)
+		}
+		return 0
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout+15*time.Second)
+	defer cancel()
+	if _, err := launcher.StartStorage(ctx, settings, *timeout, logf); err != nil {
+		fmt.Fprintf(os.Stderr, "start-storage: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+// runBakalReset is the Go home for 恢复当前账号巴卡尔次数.cmd: it refuses to touch
+// the quota while a client/gateway is online, makes sure storage is up, then resets
+// the account through the shared bakalreset entry point. --dry-run prints each step
+// without performing the reset.
+func runBakalReset(args []string) int {
+	flags := flag.NewFlagSet("bakal-reset", flag.ContinueOnError)
+	root := flags.String("root", ".", "repository root")
+	account := flags.String("account", "probe", "account whose Bakal quota is restored (wireprobe defaults to probe)")
+	apply := flags.Bool("apply", false, "restore the counters; without it only preview which characters change")
+	dryRun := flags.Bool("dry-run", false, "print every action without performing it")
+	if err := flags.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			return 0
+		}
+		return 2
+	}
+	absolute, err := filepathAbs(*root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
+		return 1
+	}
+
+	if !*dryRun {
+		busy, err := sessionProcessesRunning()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "bakal-reset: check running processes: %v\n", err)
+			return 1
+		}
+		if busy {
+			fmt.Fprintln(os.Stderr, "请先停止游戏/网关再恢复次数，避免在线存档覆盖（检测到 DFO.exe 或 wireprobe 在运行）。")
+			return 1
+		}
+	}
+
+	settings, err := launcher.LoadStorageConfig(absolute)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "storage config: %v\n", err)
+		return 1
+	}
+	logf := func(format string, args ...any) { fmt.Printf(format+"\n", args...) }
+	if !*dryRun {
+		ctx, cancel := context.WithTimeout(context.Background(), 55*time.Second)
+		defer cancel()
+		if _, err := launcher.StartStorage(ctx, settings, 40*time.Second, logf); err != nil {
+			fmt.Fprintf(os.Stderr, "bakal-reset: start storage: %v\n", err)
+			return 1
+		}
+	}
+
+	configPath := filepath.Join(absolute, "server", "work", "dfo-lan", "runtime", "storage", "local.json")
+	if *dryRun {
+		fmt.Printf("Account: %s (preview)\n", *account)
+		fmt.Printf("Storage config: %s\n", configPath)
+		fmt.Println("Dry run: storage ensured up, would open " + configPath + " and preview counters.")
+		return 0
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	fmt.Printf("Restoring Bakal weekly quota for account %q ...\n", *account)
+	if err := bakalreset.RunFromConfig(ctx, configPath, *account, *apply); err != nil {
+		fmt.Fprintf(os.Stderr, "bakal-reset: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+// sessionProcessesRunning detects the client and every wireprobe*.exe gateway,
+// including source-build and candidates, without stopping any process.
+func sessionProcessesRunning() (bool, error) {
+	out, err := exec.Command("tasklist", "/FO", "CSV", "/NH").Output()
+	if err != nil {
+		return false, err
+	}
+	return bakalSessionProcessList(string(out))
+}
+
+// tasklist's first CSV column is the image name. Include source-build and
+// candidate gateways; a match in a session label/PID column is not an image.
+func bakalSessionProcessList(out string) (bool, error) {
+	reader := csv.NewReader(strings.NewReader(out))
+	reader.FieldsPerRecord = -1
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			return false, nil
+		}
+		if err != nil {
+			return false, fmt.Errorf("parse tasklist: %w", err)
+		}
+		if len(row) == 0 {
+			continue
+		}
+		image := strings.ToLower(strings.TrimSpace(row[0]))
+		if image == "dfo.exe" || strings.HasPrefix(image, "wireprobe") && strings.HasSuffix(image, ".exe") {
+			return true, nil
+		}
+	}
+}
+
+// runPrepareInnerPVF is Stage 4's own entry point: it replaces
+// scripts/ensure_inner_pvf.py + scripts/prepare_inner_pvf.py, so the launcher (another
+// repository) and the .cmd entries can generate the inner archive without Python.
+//
+// The gate prints the same sentence launch --check does when it reuses the archive;
+// when it builds, the two log lines come from the generator itself and match the Python's
+// wording (the elapsed time is the only difference, as it must be).
+func runPrepareInnerPVF(args []string) int {
+	flags := flag.NewFlagSet("prepare-inner-pvf", flag.ContinueOnError)
+	root := flags.String("root", ".", "repository root")
+	client := flags.String("client", "", "client directory (default: launcher.local.json)")
+	force := flags.Bool("force", false, "rebuild even when the gate would reuse the archive")
+	dryRun := flags.Bool("dry-run", false, "report the verdict without writing anything")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+	absolute, err := filepathAbs(*root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
+		return 1
+	}
+
+	options := launcher.InnerPVFOptions{
+		Root:      absolute,
+		ClientDir: *client,
+		Force:     *force,
+		DryRun:    *dryRun,
+	}
+	// The generator's own log lines go to stdout, exactly where launch_local.py's
+	// log=print put them.
+	options.Log = func(format string, args ...any) { fmt.Printf(format+"\n", args...) }
+
+	result, err := launcher.PrepareInnerPVF(options)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "prepare-inner-pvf: %v\n", err)
+		// A failure after the rotation left the old archive as <name>.stale-<stamp>;
+		// saying so is the difference between "my file vanished" and "roll back".
+		if result.Rotated != "" {
+			fmt.Fprintf(os.Stderr, "旧件已备份为 %s（可改回原名回滚）\n", result.Rotated)
+		}
+		return 1
+	}
+
+	switch {
+	case result.Generated:
+		fmt.Printf("内层 PVF 已生成（耗时 %.1fs）\n", result.Elapsed.Seconds())
+	case result.NeedsBuild:
+		// Only reachable with --dry-run: without it, a "needs build" verdict is acted on.
+		fmt.Printf("（dry-run）内层 PVF 需要重建：%s\n", result.Reason)
+	default:
+		fmt.Printf("内层 PVF 无需重建：%s\n", result.Reason)
+	}
+	fmt.Printf("Inner:    %s\n", result.Inner)
+	fmt.Printf("Manifest: %s\n", result.Manifest)
+	if result.Generated {
+		// 产物的身份：与 Python 版产物比对、以及写入启动器侧缓存时用的都是这个哈希。
+		fmt.Printf("Size:     %d 字节（%d 段，%d 把段密钥）\n", result.Size, result.Segments, result.Keys)
+		fmt.Printf("SHA256:   %s\n", result.SHA256)
+	}
+	if result.Rotated != "" {
+		fmt.Printf("Rotated:  %s\n", result.Rotated)
+	}
+	return 0
+}
+
+func state(up, dryRun bool) string {
+	switch {
+	case !up:
+		return "Stopped"
+	case dryRun:
+		return "ACTIVE"
+	default:
+		return "ACTIVE (warning)"
+	}
+}
+
+func filepathAbs(path string) (string, error) {
+	if path == "" {
+		path = "."
+	}
+	return filepath.Abs(path)
+}

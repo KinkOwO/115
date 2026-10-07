@@ -2,6 +2,7 @@ package main
 
 import (
 	"dfolan/internal/game/wire"
+	"dfolan/internal/servermod"
 	"encoding/hex"
 )
 
@@ -28,6 +29,12 @@ var beforeClientTypeDispatch = [...]clientDispatchStage{
 	// dispatchIspins 必须首位（next79）：伊斯族 CMD2043/2045/2046 与末世录
 	// 共用信封、按内容号分流，终局剧情 191 也须先于通用 191 处理器。
 	(*gameConnection).dispatchIspins,
+	// dispatchVenus 紧随其后：维纳斯待机区 CMD12/13 与家族拦截（内容 106）
+	// 必须先于 dispatchLegion，防止落进末世录处理器。
+	(*gameConnection).dispatchVenus,
+	// dispatchBakal 再其后：巴卡尔频道（type 82）的 raid 信封（656/2089/
+	// 2069-2074/2261/1134）必须先于 dispatchLegion 与通用副本处理器。
+	(*gameConnection).dispatchBakal,
 	(*gameConnection).dispatchSpecialContent,
 	(*gameConnection).dispatchCashshopAndBoxes,
 	(*gameConnection).dispatchStoryAndAdvancement,
@@ -54,6 +61,26 @@ var commandDispatch = [...]clientDispatchStage{
 }
 
 func (client *gameConnection) dispatch(requestData *clientRequest) dispatchAction {
+	// server 层 mod 的 protocol.request 接入点：内置分发之前的唯一咽喉。
+	// 这里拿到的是**已解密、已判校验和**的报文（client_connection.go 的读循环负责），
+	// 所以钩子看到的内容与内置 handler 看到的完全一致。
+	// 没有登记任何钩子时零开销跳过（HasRequestHooks 不加锁之外不做任何分配）。
+	if servermod.HasRequestHooks() {
+		handled := servermod.ObserveRequest(
+			client.peer,
+			requestData.frame.Type,
+			requestData.frame.ID,
+			requestData.frame.Raw,
+			requestData.plaintext,
+			requestData.verified,
+			func(kind byte, id uint16, payload []byte) error {
+				return client.output.send(kind, id, payload)
+			})
+		if handled {
+			// 钩子整条接手：内置分发表不再看它（应答由 mod 自己经 Reply 发出）。
+			return dispatchHandled
+		}
+	}
 	for _, handler := range beforeClientTypeDispatch {
 		if result := handler(client, requestData); result != dispatchNext {
 			return result

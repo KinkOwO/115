@@ -23,7 +23,7 @@ type AdventureCollectionEquipmentParams struct {
 }
 
 func (q *Queries) AdventureCollectionEquipment(ctx context.Context, arg AdventureCollectionEquipmentParams) (json.RawMessage, error) {
-	row := q.db.QueryRow(ctx, adventureCollectionEquipment, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, adventureCollectionEquipment, arg.AccountID, arg.CharacterID)
 	var equipment json.RawMessage
 	err := row.Scan(&equipment)
 	return equipment, err
@@ -42,7 +42,7 @@ type AdventureEquipmentRegisteredParams struct {
 }
 
 func (q *Queries) AdventureEquipmentRegistered(ctx context.Context, arg AdventureEquipmentRegisteredParams) (bool, error) {
-	row := q.db.QueryRow(ctx, adventureEquipmentRegistered, arg.Template, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, adventureEquipmentRegistered, arg.Template, arg.AccountID, arg.CharacterID)
 	var registered bool
 	err := row.Scan(&registered)
 	return registered, err
@@ -59,7 +59,7 @@ type AdventureEventReceiptParams struct {
 }
 
 func (q *Queries) AdventureEventReceipt(ctx context.Context, arg AdventureEventReceiptParams) (json.RawMessage, error) {
-	row := q.db.QueryRow(ctx, adventureEventReceipt, arg.CharacterID, arg.EventKey)
+	row := q.db.QueryRowContext(ctx, adventureEventReceipt, arg.CharacterID, arg.EventKey)
 	var outcome json.RawMessage
 	err := row.Scan(&outcome)
 	return outcome, err
@@ -77,7 +77,7 @@ type AdventureLevelParams struct {
 }
 
 func (q *Queries) AdventureLevel(ctx context.Context, arg AdventureLevelParams) (int32, error) {
-	row := q.db.QueryRow(ctx, adventureLevel, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, adventureLevel, arg.AccountID, arg.CharacterID)
 	var level int32
 	err := row.Scan(&level)
 	return level, err
@@ -93,7 +93,7 @@ type BleedingMineTeamsRow struct {
 }
 
 func (q *Queries) BleedingMineTeams(ctx context.Context, accountID int64) ([]BleedingMineTeamsRow, error) {
-	rows, err := q.db.Query(ctx, bleedingMineTeams, accountID)
+	rows, err := q.db.QueryContext(ctx, bleedingMineTeams, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ type EnsureAdventureParams struct {
 }
 
 func (q *Queries) EnsureAdventure(ctx context.Context, arg EnsureAdventureParams) error {
-	_, err := q.db.Exec(ctx, ensureAdventure, arg.Name, arg.AccountID)
+	_, err := q.db.ExecContext(ctx, ensureAdventure, arg.Name, arg.AccountID)
 	return err
 }
 
@@ -132,7 +132,7 @@ INSERT INTO account_bleeding_mine_rewards(account_id) VALUES($1) ON CONFLICT DO 
 `
 
 func (q *Queries) EnsureBleedingMineRewards(ctx context.Context, accountID int64) error {
-	_, err := q.db.Exec(ctx, ensureBleedingMineRewards, accountID)
+	_, err := q.db.ExecContext(ctx, ensureBleedingMineRewards, accountID)
 	return err
 }
 
@@ -150,7 +150,7 @@ type EnsureOwnedAdventureParams struct {
 }
 
 func (q *Queries) EnsureOwnedAdventure(ctx context.Context, arg EnsureOwnedAdventureParams) error {
-	_, err := q.db.Exec(ctx, ensureOwnedAdventure, arg.Name, arg.AccountID, arg.CharacterID)
+	_, err := q.db.ExecContext(ctx, ensureOwnedAdventure, arg.Name, arg.AccountID, arg.CharacterID)
 	return err
 }
 
@@ -159,7 +159,7 @@ SELECT name FROM characters WHERE account_id=$1 AND deleted_at IS NULL ORDER BY 
 `
 
 func (q *Queries) FirstActiveCharacterName(ctx context.Context, accountID int64) (string, error) {
-	row := q.db.QueryRow(ctx, firstActiveCharacterName, accountID)
+	row := q.db.QueryRowContext(ctx, firstActiveCharacterName, accountID)
 	var name string
 	err := row.Scan(&name)
 	return name, err
@@ -175,7 +175,7 @@ type ListFavorRow struct {
 }
 
 func (q *Queries) ListFavor(ctx context.Context, characterID int64) ([]ListFavorRow, error) {
-	rows, err := q.db.Query(ctx, listFavor, characterID)
+	rows, err := q.db.QueryContext(ctx, listFavor, characterID)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +213,7 @@ type LoadAdventureRow struct {
 }
 
 func (q *Queries) LoadAdventure(ctx context.Context, arg LoadAdventureParams) (LoadAdventureRow, error) {
-	row := q.db.QueryRow(ctx, loadAdventure, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, loadAdventure, arg.AccountID, arg.CharacterID)
 	var i LoadAdventureRow
 	err := row.Scan(
 		&i.Name,
@@ -238,7 +238,7 @@ type LockAdventureRow struct {
 }
 
 func (q *Queries) LockAdventure(ctx context.Context, accountID int64) (LockAdventureRow, error) {
-	row := q.db.QueryRow(ctx, lockAdventure, accountID)
+	row := q.db.QueryRowContext(ctx, lockAdventure, accountID)
 	var i LockAdventureRow
 	err := row.Scan(
 		&i.Name,
@@ -255,7 +255,7 @@ SELECT state FROM account_bleeding_mine_rewards WHERE account_id=$1 FOR UPDATE
 `
 
 func (q *Queries) LockBleedingMineRewards(ctx context.Context, accountID int64) (json.RawMessage, error) {
-	row := q.db.QueryRow(ctx, lockBleedingMineRewards, accountID)
+	row := q.db.QueryRowContext(ctx, lockBleedingMineRewards, accountID)
 	var state json.RawMessage
 	err := row.Scan(&state)
 	return state, err
@@ -283,7 +283,7 @@ type ReserveFavorGiftRow struct {
 }
 
 func (q *Queries) ReserveFavorGift(ctx context.Context, arg ReserveFavorGiftParams) (ReserveFavorGiftRow, error) {
-	row := q.db.QueryRow(ctx, reserveFavorGift, arg.CharacterID, arg.NpcID, arg.Day)
+	row := q.db.QueryRowContext(ctx, reserveFavorGift, arg.CharacterID, arg.NpcID, arg.Day)
 	var i ReserveFavorGiftRow
 	err := row.Scan(&i.Point, &i.DailyCount, &i.LastGiftDay)
 	return i, err
@@ -302,7 +302,7 @@ type SaveAdventureParams struct {
 }
 
 func (q *Queries) SaveAdventure(ctx context.Context, arg SaveAdventureParams) error {
-	_, err := q.db.Exec(ctx, saveAdventure,
+	_, err := q.db.ExecContext(ctx, saveAdventure,
 		arg.Level,
 		arg.Experience,
 		arg.Data,
@@ -321,7 +321,7 @@ type SaveBleedingMineRewardsParams struct {
 }
 
 func (q *Queries) SaveBleedingMineRewards(ctx context.Context, arg SaveBleedingMineRewardsParams) error {
-	_, err := q.db.Exec(ctx, saveBleedingMineRewards, arg.State, arg.AccountID)
+	_, err := q.db.ExecContext(ctx, saveBleedingMineRewards, arg.State, arg.AccountID)
 	return err
 }
 
@@ -338,7 +338,7 @@ type SaveBleedingMineTeamParams struct {
 }
 
 func (q *Queries) SaveBleedingMineTeam(ctx context.Context, arg SaveBleedingMineTeamParams) error {
-	_, err := q.db.Exec(ctx, saveBleedingMineTeam, arg.AccountID, arg.Team, arg.Members)
+	_, err := q.db.ExecContext(ctx, saveBleedingMineTeam, arg.AccountID, arg.Team, arg.Members)
 	return err
 }
 
@@ -354,6 +354,6 @@ type SaveFavorPointParams struct {
 }
 
 func (q *Queries) SaveFavorPoint(ctx context.Context, arg SaveFavorPointParams) error {
-	_, err := q.db.Exec(ctx, saveFavorPoint, arg.Point, arg.CharacterID, arg.NpcID)
+	_, err := q.db.ExecContext(ctx, saveFavorPoint, arg.Point, arg.CharacterID, arg.NpcID)
 	return err
 }

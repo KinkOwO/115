@@ -44,7 +44,7 @@ func TestPickCraftCost(t *testing.T) {
 
 	// 1) 选 cost 1（登记证 + 金币）：登记证在**账号仓库**、金币也够 ⇒ 材料标记 FromAccount。
 	rich := Bag{Gold: 40000}
-	opt, gold, bagMats, acctMats, e := pickCraftCost(rich, acct, group, 1)
+	opt, gold, bagMats, acctMats, e := pickCraftCost(rich, 0, acct, group, 1)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -62,7 +62,7 @@ func TestPickCraftCost(t *testing.T) {
 	seals := Bag{Gold: 40000, Items: []BagItem{
 		{Slot: 127, Template: 10401346, Amount: 120},
 	}}
-	opt, gold, bagMats, acctMats, e = pickCraftCost(seals, acct, group, 2)
+	opt, gold, bagMats, acctMats, e = pickCraftCost(seals, 0, acct, group, 2)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -80,7 +80,7 @@ func TestPickCraftCost(t *testing.T) {
 	poorSeals := Bag{Gold: 999999, Items: []BagItem{
 		{Slot: 127, Template: 10401346, Amount: 3},
 	}}
-	if _, _, _, _, e = pickCraftCost(poorSeals, acct, group, 2); e == nil {
+	if _, _, _, _, e = pickCraftCost(poorSeals, 0, acct, group, 2); e == nil {
 		t.Fatalf("cost 2 with only 3 seals must be refused, not silently downgraded to cost 1")
 	}
 
@@ -89,8 +89,19 @@ func TestPickCraftCost(t *testing.T) {
 	poorGold := Bag{Gold: 100, Items: []BagItem{
 		{Slot: 127, Template: 10401346, Amount: 120},
 	}}
-	if _, _, _, _, e = pickCraftCost(poorGold, acct, group, 1); e == nil {
+	if _, _, _, _, e = pickCraftCost(poorGold, 0, acct, group, 1); e == nil {
 		t.Fatalf("cost 1 with 100 gold must be refused, not silently downgraded to cost 2")
+	}
+
+	// 4b) ★ 选 cost 1、背包不够但**账号金库够** ⇒ 必须接受：金库金币与变换线同口径参与
+	//     （2026-10-04 662 第十关实机：背包 0 金币被 `have 0` 拒死，而金库有钱）。
+	if _, g2, _, _, e := pickCraftCost(Bag{Gold: 100}, 40000, acct, group, 1); e != nil || g2 != 35000 {
+		t.Fatalf("vault-funded cost 1 must be accepted: gold=%d err=%v", g2, e)
+	}
+	// 4c) 背包 + 金库合计仍不足 ⇒ 拒绝，且拒因要同时报出两边余额。
+	if _, _, _, _, e := pickCraftCost(Bag{Gold: 100}, 20000, acct, group, 1); e == nil ||
+		!strings.Contains(e.Error(), "have 100 in bag + 20000 in vault") {
+		t.Fatalf("shortfall must name both balances, got %v", e)
 	}
 
 	// 5) ★ 登记证**只在背包里**（旧实机的情形）：必须拒绝 —— 背包里那份其实属于账号仓库，
@@ -98,12 +109,12 @@ func TestPickCraftCost(t *testing.T) {
 	bagOnly := Bag{Gold: 40000, Items: []BagItem{
 		{Slot: 124, Template: 10361514, Amount: 5},
 	}}
-	if _, _, _, _, e := pickCraftCost(bagOnly, empty, group, 1); e == nil {
+	if _, _, _, _, e := pickCraftCost(bagOnly, 0, empty, group, 1); e == nil {
 		t.Fatalf("bag-only ticket must be refused (regression: 实机 have 0)")
 	}
 
 	// 6) 付法序号不存在 ⇒ 拒绝，并点名可用的序号（不许猜一支扣下去）。
-	if _, _, _, _, e = pickCraftCost(rich, acct, group, 3); e == nil {
+	if _, _, _, _, e = pickCraftCost(rich, 0, acct, group, 3); e == nil {
 		t.Fatalf("unknown pay option must be refused")
 	} else if !contains(e.Error(), "no cost option 3") {
 		t.Fatalf("refusal should name the requested option, got %v", e)
@@ -248,6 +259,60 @@ func TestCostGroupForFallsBackToGradeRarity(t *testing.T) {
 	}
 	if gold != 40000 || len(mats) != 1 || mats[0] != 10361515 {
 		t.Fatalf("组 3 的 [cost] 1 与源不符：mats=%v gold=%d", mats, gold)
+	}
+}
+
+// 教学免单的门禁：源未定价 **且** 仍在训练轨道。662 第 10 关的教学目标是让玩家走一遍
+// 装备变换，那件（100051285）在源里没有任何 [create cost] 条目，客户端界面显示
+// 0 材料 / 0 金币（实机 2026-10-04 截图确认）。
+func TestTutorialFreeCraftGate(t *testing.T) {
+	cases := []struct {
+		name string
+		plan EquipmentCraftPlan
+		bag  Bag
+		want bool
+	}{
+		{"未定价+训练中 ⇒ 免单", EquipmentCraftPlan{Unpriced: true}, Bag{tutorialActive: true}, true},
+		{"未定价+已出关 ⇒ 不免", EquipmentCraftPlan{Unpriced: true}, Bag{tutorialActive: false}, false},
+		{"已定价+训练中 ⇒ 不免", EquipmentCraftPlan{}, Bag{tutorialActive: true}, false},
+		{"已定价+已出关 ⇒ 不免", EquipmentCraftPlan{}, Bag{tutorialActive: false}, false},
+	}
+	for _, tc := range cases {
+		if got := tutorialFreeCraft(tc.plan, tc.bag); got != tc.want {
+			t.Errorf("%s: got %v want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+// 真实源复核：第 10 关那件必须被判为 Unpriced（源里确实没有它的成本条目），
+// 而组内已定价的近亲必须仍是 Unpriced=false —— 免得免单门禁被放宽成"全都免单"。
+func TestPlanEquipmentCraftMarksUnpricedStep10Item(t *testing.T) {
+	s, cc := loadTransformFixtures(t)
+	s.Journal = &catalog.EquipmentJournalRules{}
+	role := Role{ConfigVersion: s.Catalog.Source.SaveIdentity()}
+
+	const step10Item = 100051285 // 实机第 10 关卡住的那件（源里无成本条目）
+	if _, ok := cc.GroupFor(step10Item); ok {
+		t.Fatalf("前提失效：%d 已在某个组的 items 里（源已给它定价）", step10Item)
+	}
+	plan, e := s.PlanEquipmentCraft(role, step10Item, 14, 1)
+	if e != nil {
+		t.Fatalf("回退档位后仍拿不到 plan：%v", e)
+	}
+	if !plan.Unpriced {
+		t.Fatalf("%d 应被标为 Unpriced（源无成本条目）", step10Item)
+	}
+
+	const priced = 100051318 // 组 2 的 items[0]，源里明确定价
+	if _, ok := cc.GroupFor(priced); !ok {
+		t.Fatalf("前提失效：%d 不在任何组的 items 里", priced)
+	}
+	plan, e = s.PlanEquipmentCraft(role, priced, 14, 1)
+	if e != nil {
+		t.Fatalf("已定价件拿不到 plan：%v", e)
+	}
+	if plan.Unpriced {
+		t.Fatalf("已定价的 %d 不该被标成 Unpriced", priced)
 	}
 }
 

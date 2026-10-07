@@ -90,6 +90,9 @@ func (b Bag) TakeMailItem(c catalog.LootCatalog, equipment *EquipmentCatalog, r 
 		if row.Slot != r.Slot {
 			continue
 		}
+		if b.TutorialSealed(row) {
+			return fail(ErrMailUntradeable)
+		}
 		if row.Template != r.Template || r.Amount != 1 || equipment == nil {
 			return fail(ErrMailUntradeable)
 		}
@@ -122,6 +125,11 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 	}
 	if m.Equipment != nil {
 		item := *m.Equipment
+		// [FIX-20261007 时装孔] 邮件时装附件孔为空时按 PVF 默认孔补孔，
+		// 覆盖系统/GM/玩家邮件（附件生成侧未必写 avatar_options，领取入包即带孔）。
+		if len(item.AvatarOptions) == 0 && equipment != nil {
+			item.AvatarOptions = equipment.DefaultAvatarSockets(item.Template)
+		}
 		if m.Space == 1 {
 			if equipment == nil || equipment.Source.Checksum != r.Source {
 				return b, fmt.Errorf("时装邮件目录版本无效")

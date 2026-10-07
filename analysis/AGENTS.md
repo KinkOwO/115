@@ -2,6 +2,12 @@
 
 > 本文件是逆向分析与协议取证规则的领域索引。先读根 `AGENTS.md`，再读本文件。
 > 逆向主目标为 115 级客户端 `client/DFO.exe` 及权威 IDB `client/DFO.exe.i64`。
+>
+> **强制继承根规范**（2026-10-04）：根 [`AGENTS.md`](../AGENTS.md) §0.3 提交规范、§0.4 代码目录规范、
+> §0.5 开发规范对本目录**完全适用**。提交前必须先跑
+> `pwsh -NoProfile -File scripts/check-commit-hygiene.ps1`；报出缓存/产物或规范违规时**立即停止提交**，
+> 逐条报告业主并取得**明确二次确认**后才可继续。
+> 分析产物落位：任务记录写 `analysis/tasks/`，权威 Dump 写 `analysis/dumps/`（新增 Dump 需同步 `dumps/README.md`）。
 
 ## 1. 证据优先级
 
@@ -59,7 +65,7 @@
 
 ## 4. 实机调试与网络安全隔离
 
-- 客户端测试必须经 `启动游戏.cmd` / `launch_local.py` 启动；启动器用 `probe.exe` 安装 WFP 规则，强制客户端只连回环（127.0.0.1 / 127.0.0.2）。
+- 客户端测试必须经 `scripts\启动游戏-SQLite.cmd` / `scripts\启动游戏-PostgreSQL.cmd`（内部走仓库内 Go 启动器 `dfolauncher launch`）启动；WFP 规则由 Go 隔离实现安装，强制客户端只连回环（127.0.0.1 / 127.0.0.2）。
 - **严禁无人值守**代替用户操作客户端；流程见 `server/AGENTS.md` §4。
 
 ## 5. 分析复用原则

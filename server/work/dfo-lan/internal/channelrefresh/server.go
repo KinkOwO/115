@@ -33,6 +33,37 @@ type Channel struct {
 	Type         uint32
 	Area         string
 	SourceValues []int32
+
+	// The JSON decoder records field presence so Resolve can distinguish an
+	// explicitly configured empty value from an omitted value. Direct struct
+	// literals remain supported through the non-zero checks in Resolve.
+	typeSet, areaSet, sourceValuesSet bool
+}
+
+// UnmarshalJSON tracks whether optional rule fields were present in the local
+// configuration. The wire format is case-insensitive, matching encoding/json.
+func (c *Channel) UnmarshalJSON(data []byte) error {
+	type alias Channel
+	var v alias
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*c = Channel(v)
+	for key := range raw {
+		switch {
+		case strings.EqualFold(key, "Type"):
+			c.typeSet = true
+		case strings.EqualFold(key, "Area"):
+			c.areaSet = true
+		case strings.EqualFold(key, "SourceValues"):
+			c.sourceValuesSet = true
+		}
+	}
+	return nil
 }
 
 // ChannelAttributes 是**直读**来的频道属性。channelrefresh 自己不碰 PVF ——
@@ -134,12 +165,24 @@ func (c *Config) Resolve(attrs func(id uint32) (ChannelAttributes, bool)) error 
 		}
 		// Type 已在配置里写明的，视为**本地覆盖**（目前只有 ID 10：源里是 type 0，
 		// 客户端不认；本地用 22 让它成为普通区域频道 —— 业主 2026-10-02 受控实验判定）。
-		// Area 与 SourceValues 仍然一律以直读为准。
-		if ch.Type == 0 {
+		// 2026-10-04（MR !148）：Type / Area / SourceValues 只要在配置里**显式写出**就优先，
+		// 让本地频道目录能固定官方区域键（[apocalypse] / [ispins_legion] 等）；
+		// 没写的字段才由直读补全。
+		// Configuration fields have priority when they are explicitly present.
+		// Preserve compatibility with direct Channel literals by treating non-zero
+		// values as explicit as well.
+		if !ch.typeSet && ch.Type == 0 {
 			ch.Type = a.Type
 		}
-		ch.Area = a.Area
-		ch.SourceValues = a.SourceValues
+		if !ch.areaSet && ch.Area == "" {
+			ch.Area = a.Area
+		}
+		if !ch.sourceValuesSet && len(ch.SourceValues) == 0 {
+			ch.SourceValues = append([]int32(nil), a.SourceValues...)
+		}
+		if len(ch.SourceValues) != 11 {
+			return fmt.Errorf("频道 %d 的 SourceValues 必须有 11 个，得到 %d", ch.ID, len(ch.SourceValues))
+		}
 	}
 	return nil
 }

@@ -87,7 +87,7 @@ func TestParseEquipmentCreateCostSample(t *testing.T) {
 
 func TestParseEquipmentCreateCostRejectsBroken(t *testing.T) {
 	cases := map[string]string{
-		"缺整段":  "[other]\n [/other]\n",
+		"缺整段":   "[other]\n [/other]\n",
 		"组内无物品": "[create cost]\n [group]\n  [index] 1\n  [item index]\n  [/item index]\n  [costs]\n   [cost] 1\n    0 100\n   [/cost]\n  [/costs]\n [/group]\n[/create cost]\n",
 		"组内无成本": "[create cost]\n [group]\n  [index] 1\n  [item index]\n   100\n  [/item index]\n [/group]\n[/create cost]\n",
 	}

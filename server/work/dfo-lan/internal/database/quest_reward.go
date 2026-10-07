@@ -22,12 +22,12 @@ func (s *Store) CommitQuestReward(ctx context.Context, account, id int64, qid ui
 	if qid == 0 || qid == 65535 || len(version) != 64 || progressModel == "" || rewardModel == "" || apply == nil {
 		return out, fmt.Errorf("invalid quest reward request")
 	}
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return out, e
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	r := &out.Character
 	row, e := queries.LockOwnedCharacterIncludingDeleted(ctx, sqlcgen.LockOwnedCharacterIncludingDeletedParams{AccountID: account, CharacterID: id})
 	if e != nil {
@@ -49,7 +49,7 @@ func (s *Store) CommitQuestReward(ctx context.Context, account, id int64, qid ui
 		if e != nil {
 			return out, e
 		}
-		return out, tx.Commit(ctx)
+		return out, tx.commit(ctx)
 	}
 	if q.Status != "accepted" {
 		return out, fmt.Errorf("quest is not accepted")
@@ -73,7 +73,7 @@ func (s *Store) CommitQuestReward(ctx context.Context, account, id int64, qid ui
 	if e = queries.CompleteRewardedQuest(ctx, sqlcgen.CompleteRewardedQuestParams{CharacterID: id, QuestID: int32(qid)}); e != nil {
 		return out, e
 	}
-	if e = tx.Commit(ctx); e != nil {
+	if e = tx.commit(ctx); e != nil {
 		return out, e
 	}
 	r.State = state

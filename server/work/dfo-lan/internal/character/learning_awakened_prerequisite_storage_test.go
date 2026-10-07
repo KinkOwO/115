@@ -8,16 +8,12 @@ import (
 	"dfolan/internal/game/protocol"
 	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"testing"
 	"time"
 )
 
 func TestBranchlessAwakeningAndLearningPersistence(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("DFO_TEST_POSTGRES_DSN requires dedicated test storage")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	fixture, err := database.OpenTestFixture(ctx)
@@ -43,7 +39,7 @@ func TestBranchlessAwakeningAndLearningPersistence(t *testing.T) {
 	}
 	for _, job := range []byte{9, 10} {
 		prof := c.Professions[job]
-		raw, err := json.Marshal(State{Level: 115, AllJobsPilot: true, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SkillPoints: [2]uint16{5000, 5000}})
+		raw, err := json.Marshal(State{Level: 115, AllJobsPilot: true, SourceSHA256: prof.RawSHA256, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SkillPoints: [2]uint16{5000, 5000}})
 		if err != nil {
 			t.Fatal(err)
 		}

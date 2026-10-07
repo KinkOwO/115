@@ -113,7 +113,10 @@ func DecodeBoosterUseRequest(p []byte) (BoosterUseRequest, error) {
 					break
 				}
 			}
-		} else if a > 0 && a <= 50 {
+		} else if a > 0 && a <= 50 && s > 0 {
+			// Native ability entries follow at least one selected template.
+			// At s == 0 a template's low byte can look like an ability count:
+			// 783000065 (01 a2 ab 2e) used to become an unrelated avatar ID.
 			endOff := off + 1 + a*5
 			if endOff < len(data) && data[endOff] == 0 {
 				allZero := true

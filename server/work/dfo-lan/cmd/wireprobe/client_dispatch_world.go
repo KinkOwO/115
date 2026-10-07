@@ -385,7 +385,11 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 			plan, e = client.worldState.scaleStatus(requestData.plaintext, client.event)
 		case 40:
 			plan, e = client.worldState.playerDeath(requestData.plaintext, requestData.frame.Raw)
-			if e == nil && client.worldState.bleedingMineStart == nil {
+			bakalDeath := client.worldState.bakal != nil && client.worldState.activeDungeon != nil && client.worldState.activeDungeon.RaidManaged
+			if e == nil && bakalDeath {
+				client.worldState.scheduleBakalDeathReturn(time.Now())
+			}
+			if e == nil && !bakalDeath && client.worldState.bleedingMineStart == nil {
 				// [MERGE-20260928-DEATH-FAIL-TIMEOUT] 原生「倒计时结束 → 挑战失败」
 				// 由服务端推进：客户端进复活 UI 后只会等，不会发请求。死亡后等待
 				// deathFailTimeout，期间没复活就下发 NOTI33 (FAIL_CLEAR_DUNGEON)，
@@ -399,6 +403,11 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 					time.AfterFunc(deathFailTimeout, func() {
 						d := w.pilotDeath
 						if d == nil || !d.Dead || w.activeDungeon == nil {
+							return
+						}
+						// A timer from an earlier ordinary dungeon cannot end a
+						// subsequently entered Bakal raid.
+						if w.bakal != nil && w.activeDungeon.RaidManaged {
 							return
 						}
 						// [AZURE-DEATH-AFTER-CLEAR] 结算已经走完的**只回城、不补 FAIL_CLEAR**：
@@ -506,6 +515,12 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 			}
 		case 2015:
 			plan, e = client.worldState.elvenmereTeleport(requestData.plaintext)
+		case 2059:
+			// 维纳斯阶段本的 phase-change 免费复活（CMD2059）由 venusPhaseRevive
+			// 应答；其余副本该命令从未出现，保持静默。
+			if plan = client.worldState.venusPhaseRevive(requestData.plaintext); len(plan) == 0 {
+				return dispatchHandled
+			}
 		case 2062:
 			pending, plan, e = client.worldState.directMoveDungeon(requestData.plaintext)
 		}

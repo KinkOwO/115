@@ -21,7 +21,7 @@ func pilotFixture(t *testing.T) (*Service, Character) {
 		t.Fatal(err)
 	}
 	p := c.Professions[0]
-	state, _ := json.Marshal(State{Level: 1, Attributes: p.InitialAttributes, InitialSkills: p.InitialSkills, SourcePath: p.Path, SourceSHA256: p.RawSHA256})
+	state, _ := json.Marshal(State{Level: 1, Attributes: p.InitialAttributes, InitialSkills: p.InitialSkills, SourceSHA256: p.RawSHA256})
 	var fields map[string]json.RawMessage
 	json.Unmarshal(state, &fields)
 	fields["future_field"] = json.RawMessage(`{"keep":true}`)

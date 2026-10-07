@@ -17,8 +17,10 @@
   },
   "update": {
     "branch": "main",
+    "channel": "dev",
     "enabled": true,
-    "endpoint": "https://gitgud.io/fuckworld/115"
+    "endpoint": "https://gitgud.io/fuckworld/115",
+    "follow_latest": true
   },
   "wallpaper": {
     "enabled": true

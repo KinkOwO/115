@@ -67,3 +67,7 @@ Ispins状态被拒，而ESC菜单回城有效；14:54:54 CMD13离队未处理。
 analysis/tasks/next79-legion-weekly-open.md §29/30。没有改schema、玩家存档或客户端资源。
 
 2026-10-04 数据库重构交付：连接、事务与 sqlc 集中到 internal/database；隔离 PostgreSQL 与真实 PVF charactercheck 验证通过。未替换基线程序、访问玩家库或执行客户端实机回归，以上已确认基线及验收边界保持。
+
+## 2026-10-05：副本穿戴鉴定显示局部确认
+
+用户确认本地候选进副本后问号消失，并明确反馈不是汉化影响。修复包含进本及 CMD19 穿脱后的全身随机词条刷新。确认不扩大至最新主线移植、其它版本换装复发场景或其它玩法；默认程序保持。详见 [协议记录](worn-magic-options-dungeon-20261004.md)。

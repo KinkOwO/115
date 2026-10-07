@@ -5,8 +5,9 @@
 package main
 
 import (
-	"dfolan/internal/channelrefresh"
 	"dfolan/internal/catalog"
+	"dfolan/internal/channelrefresh"
+	"dfolan/internal/servermod"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -16,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -50,11 +52,67 @@ func runGateway(startup Config) error {
 	defer cleanup()
 	startup = prepared.config
 
+	// —— 服务端层 mod：自检阶段（配置与存储已就绪，还没开始监听）——
+	//
+	// mod 的自检失败必须让服务端"起不来"，而不是起一个半残的服务端让玩家撞上。
+	servermod.SetEnvSnapshot(os.Environ())
+	if err := servermod.Boot(&servermod.BootContext{
+		Version:      versionString(),
+		ChannelCount: 0,
+	}); err != nil {
+		return err
+	}
+	log.Print(servermod.Description())
+	// —— 声明与注册的一致性核对 ——
+	//
+	// mod.json 里声明了钩子、Go 里却忘了注册 → "装成功、编成功、什么也没发生"，
+	// 这是最难查的一类失败（只有读 mod 源码才看得出来）。所以在开始监听之前
+	// 就把它变成**启动失败**，口径与 Boot 的 fail-closed 一致。
+	// 唯一出路是把该 mod 写进 mods/enabled.json（启动器「MOD 工具」页可做，
+	// 不需要服务端起得来）。
+	if problems, declErr := servermod.CheckDeclarations(serverModsDir()); declErr != nil {
+		return fmt.Errorf("核对 mod 声明失败：%w", declErr)
+	} else if len(problems) > 0 {
+		lines := make([]string, 0, len(problems))
+		for _, p := range problems {
+			log.Printf("servermod: %s", p)
+			lines = append(lines, p.String())
+		}
+		return fmt.Errorf("mod 声明与注册不一致（%d 个）：%s", len(problems), strings.Join(lines, "；"))
+	}
+	if _, disabled, note := servermod.EnabledInfo(); true {
+		if note != "" {
+			log.Printf("servermod: 启用清单：%s", note)
+		}
+		if len(disabled) > 0 {
+			log.Printf("servermod: 已禁用 %d 个 mod（%s）", len(disabled), strings.Join(disabled, ", "))
+		}
+	}
+	if names := servermod.RewardScriptNames(); len(names) > 0 {
+		log.Printf("servermod: mod 提供的奖励规则脚本 %d 份：%s", len(names), strings.Join(names, ", "))
+	}
+	if claims := servermod.ContentClaims(); len(claims) > 0 {
+		for _, c := range claims {
+			log.Printf("servermod: mod 声明的内容扩展意图 → %s", c)
+		}
+	}
+	// 模式规则（由 mod 通过 internal/modpolicy 设置）：开没开、谁开的都要在日志里。
+	// server/AGENTS §6 的教训是"默认路径悄悄坏掉最难查"，所以这里留一行可核对的证据。
+	logModPolicy()
+	// 启动期一次性 mod 命令（可选）：DFO_SERVERMOD_CONSOLE="<mod-id> <name> [args]"
+	// 服务端没有可交互控制台（启动器以隐藏窗口拉起），所以命令是一次性的、结果进日志。
+	if spec := os.Getenv("DFO_SERVERMOD_CONSOLE"); spec != "" {
+		if err := servermod.RunConsoleOnce(spec); err != nil {
+			return fmt.Errorf("启动期 mod 命令失败：%w", err)
+		}
+	}
+
 	gameHost := prepared.gameHost
 	moonConfig := prepared.moonConfig
 	raw := prepared.raw
 
-	l, err := net.Listen("tcp4", startup.GameListen)
+	// 端口抽签可能抽到 Windows 保留段（WinNAT/Hyper-V 动态保留），换端口重试 —— 见 listen.go。
+	l, err := listenGamePort(startup.GameListen)
 	if err != nil {
 		return err
 	}
@@ -131,25 +189,27 @@ func runGateway(startup Config) error {
 				return errors.New("Moon channel must exist with source online type 101")
 			}
 		}
-		bindHost, _, _ := net.SplitHostPort(startup.GameListen)
-		_, portText, _ := net.SplitHostPort(l.Addr().String())
-		basePort, convErr := strconv.Atoi(portText)
-		if convErr != nil {
-			return convErr
-		}
 		advHost, _, _ := net.SplitHostPort(advertised)
 		endpoints = map[uint32]channelrefresh.ChannelEndpoint{}
 		for i, ch := range channelCfg.Channels {
 			ln := l
 			if i > 0 {
-				ln, err = net.Listen("tcp4", net.JoinHostPort(bindHost, strconv.Itoa(basePort+i)))
+				address, addressErr := channelListenAddress(startup.GameListen, l.Addr(), i)
+				if addressErr != nil {
+					return addressErr
+				}
+				ln, err = listenGamePort(address)
 				if err != nil {
 					return err
 				}
 				defer ln.Close()
 			}
+			port, portErr := channelBoundPort(ln.Addr())
+			if portErr != nil {
+				return portErr
+			}
 			listeners = append(listeners, channelListener{channel: ch.ID, ln: ln})
-			endpoints[ch.ID] = channelrefresh.ChannelEndpoint{ID: ch.ID, Host: advHost, Port: uint16(basePort + i)}
+			endpoints[ch.ID] = channelrefresh.ChannelEndpoint{ID: ch.ID, Host: advHost, Port: port}
 		}
 	} else {
 		listeners = append(listeners, channelListener{channel: 0, ln: l})

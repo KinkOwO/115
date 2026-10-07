@@ -8,7 +8,6 @@ import (
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"encoding/json"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -142,9 +141,6 @@ func TestDefaultCatalogDarkKnightComboShortcuts(t *testing.T) {
 // Real PostgreSQL check in a disposable schema. No production characters are
 // created or modified; exercise editing A -> B -> A, reset, and old-save fields.
 func TestComboSkillPersistenceIntegration(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("DFO_TEST_POSTGRES_DSN requires a dedicated PostgreSQL test database")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	fixture, err := database.OpenTestFixture(ctx)

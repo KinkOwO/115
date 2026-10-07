@@ -1,5 +1,9 @@
 # DFO 服务端源码与启动脚本交接包
 
+## Bot 独立通道候选（2026-10-06）
+
+新增 `go run ./cmd/dfo-tool botclient -h`，用于服主明确选中源码候选连接、签发短期凭据和只读检查角色列表。只有手动启动前设置 `DFO_BOT_CONTROL=1` 才启用服务端操作/数据端，默认配置保持。DLL 通信候选已离线互通（`scripts/build-bot-client.ps1 -Channel`）；服务端邀请/未发布准备和有界 DLL 请求已接线，原生列表 hook、创建角色及战斗尚未接入，不需要重做已通过的场景探针。实际接线、手动命令和验收边界见 [说明](work/dfo-lan/docs/bot-client-channel.md)。
+
 ## 工具命令入口（2026-10-03）
 
 `work/dfo-lan/cmd` 现保留 `wireprobe`、`admin`、`gmtool`、`dfo-tool` 四个入口。原独立导出/审计/维护工具统一改为 `go run ./cmd/dfo-tool <原工具名> <参数>`，在 `work/dfo-lan` 下用 `go run ./cmd/dfo-tool -h` 查看清单。现有游戏启动和GM入口保持；构建工具程序用 `go build -trimpath -o bin/dfo-tool.exe ./cmd/dfo-tool`。详见 [cmd/README.md](work/dfo-lan/cmd/README.md)。
@@ -13,10 +17,10 @@
 ```powershell
 $env:GOTOOLCHAIN = 'go1.26.5'
 pwsh -NoProfile -File ./server/Build-Server.ps1
-./启动游戏.cmd --source-build
+./scripts/启动游戏.cmd --source-build
 ```
 
-只启动服务端时，最后一行改为 `./启动服务端.cmd --source-build`。启动前手动关闭原游戏会话；构建脚本执行测试/vet并生成 `wireprobe-handoff-source.exe`，已有默认程序保留，首次缺少默认程序时会补齐。用户完成实机验收后，再运行 `pwsh -NoProfile -File ./server/Build-Server.ps1 -UpdatePVFDefault` 更新日常默认程序。39归档和现有数据库保持。
+只启动服务端时，最后一行改为 `./scripts/启动服务端.cmd --source-build`。启动前手动关闭原游戏会话；构建脚本执行测试/vet并生成 `wireprobe-handoff-source.exe`，已有默认程序保留，首次缺少默认程序时会补齐。用户完成实机验收后，再运行 `pwsh -NoProfile -File ./server/Build-Server.ps1 -UpdatePVFDefault` 更新日常默认程序。39归档和现有数据库保持。
 
 本轮合入上游61106a0e后的全量测试/vet、25项Python检查、真实PVF默认54域准备通过。下面旧程序身份属于既有实机基线，不冒充本轮构建；新交互仍需手动验收。上游MR集成树含63份顶层JSON，下一批清理未实施。
 
@@ -50,26 +54,23 @@ pwsh -NoProfile -File ./server/Build-Server.ps1
 
 归档元数据候选在已确认物品缓存基础上，本机单次准备33.14→26.18秒，保留堆基本持平；首次建立两类缓存51.10秒，元数据文件约162MiB。关闭会话后用--source-build两轮验证，gateway.err热轮同时出现archive metadata cache hit及derived item cache hit；DFO_PVF_CACHE_DIR='-'同时禁用两种缓存。旧源码8d6f979a备份work/dfo-lan/.tmp/pvf-phase4b/bin/wireprobe-handoff-source.confirmed-before.exe，详细证据及剩余范围见../docs/todo/pvf/PVF启动与内存优化实施计划.md。上文第四批首段记录为历史验证轮次。
 
-1. 解压到固定目录，如 `D:/DFO-dev`。准备 Windows x64 上可用的 Python 3.10+、PostgreSQL。继续编译还需要 Go 1.26（本包用1.26.5验证）。数据库工具需包含 `initdb.exe`、`pg_ctl.exe`、`createdb.exe`。
+1. 解压到固定目录，如 `D:/DFO-dev`。**不需要任何数据库服务**：2026-10-05 起 PostgreSQL 支持已整体移除，存档就是包内 work/dfo-lan/runtime/storage/dfolan.sqlite3 一个 SQLite 文件（服务端首次启动自己创建并建表）。继续编译还需要 Go 1.26（本包用 1.26.5 验证）；**运行不需要 Python**（启动链全部是 Go）。
 2. 向项目提供者取得**完整的、当前能运行的隔离客户端目录**：原工作区 `work/dfo_probe_client`，包括资源和配套文件。可以放到解压目录的同名位置，也可放在其他磁盘。仅复制DFO.exe、PVF、sk.dat三个文件不够。配套校验值见 `client-requirements.json`。
 3. 将 `launcher.example.json` 复制为 `launcher.local.json`。编辑 `client_dir` 为客户端目录，相对路径以解压根目录为基准，或填写绝对路径。Windows JSON路径建议用 `/`。
-4. 仅在朋友自己的电脑上初始化**新库**。从解压根目录打开 PowerShell，修改下方工具路径再运行：
+4. 存储档无需初始化：把 `work/dfo-lan/runtime/storage/local.example.json` 复制成 `local.json`，
+   确认里面的 `sqlite_path` 是本机的绝对路径即可（相对路径会被服务端明确拒绝）。库文件由服务端首次
+   启动创建，重复启动幂等。
+
+> `dfolauncher init-storage` 已随 PostgreSQL 支持一起删除；历史 `pgdata/` 只是留档，
+> 可救路径见 `work/dfo-lan/docs/sqlite-operations.md` §3。
+
+5. 先检查，再启动（`launch --check` 只读，打印 Storage / Binary / Data mode / Client 四行）：
 
 ```powershell
-py -3 work/dfo-lan/scripts/bootstrap_local.py --postgres-bin 'D:/tools/pgsql/bin'
+.\bin\dfolauncher.exe launch --check
 ```
 
-这会在本包 `work/dfo-lan/runtime/storage` 内建立新PG数据目录和随机密码配置，PG端口25438。已有 `local.json` 或 `pgdata` 就拒绝初始化。初始化中途失败请查日志和现有数据，不要直接删除目录反复重试。
-
-5. 先检查，再启动：
-
-```powershell
-py -3 work/dfo-lan/scripts/launch_local.py --check
-```
-
-检查通过后，右键根目录 `Start-DFO.cmd`，以管理员身份运行。脚本启动已有本地存储和默认PVF服务端，然后打开客户端。服务端启动时迁移表结构并建立开发账号 `probe`；角色由客户端创建。不会带入原机6666或LanTest01的存档。
-
-若 `py` 不在PATH，可用 `python` 替代上述命令。双击入口支持 `DFO_PYTHON` 环境变量指向Python.exe；否则依次尝试 `py -3`、`python`。
+检查通过后，以管理员身份运行 `scripts\启动游戏.cmd`（或 `scripts\启动游戏-SQLite.cmd`）。入口用仓库内的 Go 启动器拉起网关与客户端；SQLite 是文件，没有服务要起。服务端启动时迁移表结构并建立开发账号 `probe`；角色由客户端创建。不会带入原机6666或LanTest01的存档。
 
 ## 修改源码与测试
 
@@ -80,6 +81,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./Build-Server.ps1
 ```
 
 若Go不在PATH，给脚本加 `-Go 'D:/tools/go/bin/go.exe'`。脚本依次执行 `go test ./...`、`go vet ./...`、编译源码版；首次构建补齐bin/wireprobe-pvf.exe，已有确认PVF程序默认保留。后续已验收构建使用-UpdatePVFDefault更新默认PVF；**不覆盖原39版**。首次编译可能需要下载 `go.mod/go.sum` 中的依赖，包中没有vendor。
+
+> **装了 mod 的树（2026-10-07 补）**：`work/dfo-lan/mods/zz_mods_gen.go` 是 modkit 生成的
+> **mod 加载器**，它同时进版本库，所以仓库里提交的必须是**干净形态**（不 import 任何 mod）——
+> 只有干净形态才保证别人 clone 下来 `go build ./...`、`go test ./...` 编得过。本机装了哪些
+> mod 由启动器写在**本机**这份（装卸会写，编译前还会按 `mods/` 现状重算），所以**别把本机
+> 那份提交/推上去**；要把某个 mod 分享出去，就把它的源码一起入库。`Build-Server.ps1`
+> 编译前会机械核对加载器里 import 的每个 `dfolan/mods/<id>` 是否已被 git 跟踪，未入库直接
+> 报错中止（本机确实要带着已装 mod 编译时加 `-SkipModGenGate`）；没有 git 的解包目录只告警。
+> 完整说明见 `work/dfo-lan/mods/README.md` §加载器 `zz_mods_gen.go`。
 
 测试源码候选版：关闭同一个测试会话后，在管理员PowerShell运行：
 

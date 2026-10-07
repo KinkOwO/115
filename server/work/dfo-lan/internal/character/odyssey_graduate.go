@@ -14,6 +14,13 @@ import (
 // clear] target (100004990 -> 115) of aradodyssey.etc.
 const OdysseyGraduationLevel byte = 115
 
+// OdysseyGraduationReceiptVersion is the persisted graduation rule version.
+// Bumping it re-runs the graduation plan for characters that already carry an
+// older receipt, so a source-scope correction reaches existing saves instead of
+// only newly graduating ones. The receipt itself is what makes that re-run a
+// missing-rows-only compensation; see database.CommitOdysseyGraduation.
+const OdysseyGraduationReceiptVersion uint8 = 3
+
 // OdysseyGraduated reports whether the persisted state carries the graduation
 // mark. It never consults the create request, so the mark survives even if the
 // original packet is unavailable.

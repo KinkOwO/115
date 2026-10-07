@@ -2,12 +2,11 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"dfolan/internal/database/sqlcgen"
 	"encoding/json"
 	"fmt"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // GrantItem is one item handed out by an operator grant.
@@ -98,12 +97,12 @@ func (s *Store) ApplyGrant(ctx context.Context, g Grant, mutate func(Character) 
 	if g.Character != 0 && mutate == nil {
 		return out, fmt.Errorf("character payout requires a source-backed mutation")
 	}
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return out, e
 	}
-	defer tx.Rollback(ctx)
-	q := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	q := tx.queries()
 
 	// The audit row is the idempotency gate, claimed before anything is paid.
 	// Checking for an existing grant and then inserting one would be a race:
@@ -115,7 +114,7 @@ func (s *Store) ApplyGrant(ctx context.Context, g Grant, mutate func(Character) 
 		return out, e
 	}
 	claim, e := q.ClaimAdminGrant(ctx, sqlcgen.ClaimAdminGrantParams{GrantID: g.ID, AccountID: g.AccountID,
-		CharacterID: pgtype.Int8{Int64: g.Character, Valid: g.Character != 0}, Request: request, Operator: g.Operator, Reason: g.Reason})
+		CharacterID: sql.NullInt64{Int64: g.Character, Valid: g.Character != 0}, Request: request, Operator: g.Operator, Reason: g.Reason})
 	if e != nil {
 		return out, fmt.Errorf("grant target is not a known account/character: %w", e)
 	}
@@ -129,7 +128,7 @@ func (s *Store) ApplyGrant(ctx context.Context, g Grant, mutate func(Character) 
 			return out, err
 		}
 		out.Cera = uint64(balance)
-		return out, tx.Commit(ctx)
+		return out, tx.commit(ctx)
 	}
 
 	if g.Cera != 0 {
@@ -179,7 +178,7 @@ func (s *Store) ApplyGrant(ctx context.Context, g Grant, mutate func(Character) 
 	if e = q.SaveAdminGrantReceipt(ctx, sqlcgen.SaveAdminGrantReceiptParams{GrantID: g.ID, Receipt: receipt}); e != nil {
 		return out, e
 	}
-	if e = tx.Commit(ctx); e != nil {
+	if e = tx.commit(ctx); e != nil {
 		return out, e
 	}
 	out.Receipt, out.Applied = receipt, true

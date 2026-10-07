@@ -1,0 +1,28 @@
+{
+  "schema": 2,
+  "id": "difficulty.rules",
+  "version": "1.0.0",
+  "name": "副本难度（怪物血量 + 怪物伤害倍率）",
+  "author": "DFO 115us",
+  "description": "把启动器内嵌 GM 的「副本难度」字段执行逻辑搬进客户端进程：按 rules.json 里命中的副本，把怪物的四层血量基础值与当前血量按 percent 缩放（保住已受伤比例），并把物攻(desc+0x398)/魔攻(desc+0x3b8)按 attackPercent 缩放（受保护 32 位原生整数，逐字节核对 stored+guard）。attackPercent 省略时默认 100（不改伤害）。不改 DFO.exe、不改任何函数字节、不落位 dinput8.dll；写前逐字节核对现场，对不上就跳过并记日志。默认 enabled=false（不偷偷加强）。",
+  "permissions": [
+    "client.file.write"
+  ],
+  "requires": [
+    "qol.client-host"
+  ],
+  "layers": {
+    "client": {
+      "ops": [
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/DifficultyRules.dll",
+          "source": "client/DifficultyRules.dll",
+          "size": 214528,
+          "sha256": "e2ac4598f468e34ee8d3977b79817888dac23bb83e57f0e78fc17690b0cb0182",
+          "note": "客户端唯一可自动加载的槽位由 qol.client-host 占用，本插件作为它的插件运行。规则文件 rules.json 由插件首次运行时自己生成（不随包落位），这样升级只替换这一个文件，不会撞上 file.add 不能覆盖已改文件的限制。"
+        }
+      ]
+    }
+  }
+}

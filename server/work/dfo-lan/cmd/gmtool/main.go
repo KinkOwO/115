@@ -141,7 +141,7 @@ func resolveDataFile(explicit, name string, dirs []string, fallback string) stri
 }
 
 type server struct {
-	store    *database.Store
+	store    gmStore
 	admin    *admin.Service
 	index    *ItemIndex
 	paths    paths
@@ -254,25 +254,28 @@ func main() {
 	if err != nil {
 		log.Fatalf("读取存储配置失败：%v", err)
 	}
-	// 存储没起来就自己拉起来（pg_ctl 不需要管理员权限）
-	if raw, e := os.ReadFile(p.storage); e == nil {
-		var sc storageConfig
-		if json.Unmarshal(raw, &sc) == nil {
-			if note, e := startStorage(sc, filepath.Dir(p.storage)); e != nil {
-				log.Printf("自动启动存储失败：%v", e)
-			} else if note != "" {
-				log.Printf("%s", note)
-			}
-		}
+	// 存储档校验：SQLite 是唯一引擎，没有服务可起，这里只回报数据库文件位置。
+	// PostgreSQL 的 pg_ctl 自动拉起随引擎一起移除（2026-10-05，见根 AGENTS.md §0.6）。
+	if sc, e := loadStorageConfig(p.storage); e != nil {
+		log.Printf("读取存储档失败（跳过存储档校验）：%v", e)
+	} else if note, e := startStorage(sc); e != nil {
+		log.Printf("存储档校验失败：%v", e)
+	} else if note != "" {
+		log.Printf("%s", note)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	store, err := database.Open(ctx, cfg)
 	if err != nil {
+		if driver, driverErr := database.EngineForConfig(cfg); driverErr == nil && driver == database.DriverSQLite {
+			log.Fatalf("连接 SQLite 失败：%v\n\n处理办法：\n"+
+				"  1. 确认 local.json 里的 sqlite_path 是**绝对路径**；\n"+
+				"  2. 服务端会自己创建该文件，路径上的目录必须存在。\n", err)
+		}
 		log.Fatalf("连接 PostgreSQL 失败：%v\n\n"+
 			"处理办法（任选其一）：\n"+
-			"  1. 双击 D:\\115us\\启动服务端.cmd 启动数据库；\n"+
-			"  2. 检查 D:\\115us\\server\\work\\dfo-lan\\runtime\\storage 下的 postgres.log。\n", err)
+			"  1. 双击 游戏根目录下 scripts\\启动服务端.cmd 启动数据库；\n"+
+			"  2. 检查 DFO 服务端目录下 runtime\\storage\\postgres.log。\n", err)
 	}
 	defer store.Close()
 	if err := store.MigrateGMMail(ctx); err != nil {
@@ -756,3 +759,12 @@ func (s *server) handleGrant(w http.ResponseWriter, r *http.Request) {
 }
 
 var _ = strings.TrimSpace
+
+// handleUnavailableAPI answers the management routes this source distribution does
+// not implement: the response is still authenticated and always 501, so a caller
+// never mistakes an unavailable operation for a successful one.
+func (s *server) handleUnavailableAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusNotImplemented)
+	_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": "management API not implemented in this source distribution"})
+}

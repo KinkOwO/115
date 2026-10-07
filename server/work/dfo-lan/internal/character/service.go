@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"dfolan/internal/adventure"
+	"dfolan/internal/boostup"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -76,6 +77,9 @@ type Service struct {
 	// 装备。缺任一项或不匹配都只是不投影，不构成拒绝创建的理由。
 	Equipment *inventory.EquipmentCatalog
 	WearRules inventory.WearRules
+	// Boost 是活动 662「成长胶囊教学」的源目录，由装配层在 PVF 直读成功后注入。
+	// 为 nil 时活动钩子（第三关技能进化点）整条不生效，不影响技能保存本身。
+	Boost *boostup.Catalog
 	// Rewards is the optional event-triggered reward notifier. Create notifies
 	// it once after a fresh character is committed; nil disables the feature.
 	// It mirrors ProgressionService.Rewards and is never read as rule data.
@@ -168,6 +172,11 @@ func (s *Service) Create(ctx context.Context, account int64, p []byte) (Characte
 			Name:          created.Name,
 			Level:         stateLevel(created.State),
 			ConfigVersion: created.ConfigVersion,
+			// 职业信息：建号这一刻就是已知的（基础职业来自请求、转职来自上面的落账结果）。
+			// 规则常用它来决定发哪一套（例如输出/辅助两套宝珠、辅助不发换装套装）。
+			Profession:    int32(created.Profession),
+			Advancement:   int32(initial.Advancement),
+			HasProfession: true,
 		})
 	}
 	return created, nil
@@ -531,6 +540,13 @@ func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppe
 			bySlot[w.Slot] = w.Template
 		}
 	}
+	for _, w := range bag.Worn {
+		if w.Slot <= maxWornAppearanceSlot {
+			if look := bag.CloneAvatarLook(w); look != 0 {
+				bySlot[w.Slot] = look
+			}
+		}
+	}
 	// 武器幻化（装备外观块）：应用过皮肤时用皮肤 id 覆盖武器槽，城镇模型才跟着换。
 	// 只在槽 12 本来就有穿戴武器时覆盖——空武器槽凭空补一行，客户端会给角色装上一把
 	// 并不存在的武器。
@@ -539,9 +555,26 @@ func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppe
 			bySlot[inventory.WeaponSlot] = bag.WeaponSkin
 		}
 	}
+	// 强化/增幅等级投影（强化特效逻辑说明.md §4）：从穿戴装备实例的 record[10]
+	// 低 5 位读取等级，写进每个外观行的 Flags。客户端 reader 145639840 把该字节
+	// 拆成 [actor+slot*8+0x34]=v>>1（效果等级）与 [actor+slot*4+0x334]=v&1，
+	// 据此重建武器/增幅光效。等级 0..31 打包为 level<<1（最大 62），只使用高 7 位，
+	// 超过 127 拒绝避免回绕。换装/强化刷新走这条路径，不补会让光效在刷新后丢失。
+	levelBySlot := map[uint16]byte{}
+	for _, w := range bag.Worn {
+		if len(w.Record) > 10 {
+			levelBySlot[w.Slot] = w.Record[10] & 0x1f
+		}
+	}
 	rows := make([]protocol.EquippedAppearance, 0, len(bySlot))
 	for slot, model := range bySlot {
 		row := protocol.EquippedAppearance{Slot: byte(slot), Model: model}
+		if lv := levelBySlot[uint16(slot)]; lv > 0 {
+			if int(lv)<<1 > 127 {
+				return nil, fmt.Errorf("强化等级 %d 超出外观行打包字段（>127）", lv)
+			}
+			row.Flags = lv << 1
+		}
 		// 原生 145639840 将首个 u32 保存到 slot*8+48；145BEFD60 经
 		// 145BD63D0、145BEE6C0 用它查找城镇模型的装备模板，不能填 0。
 		// 2026-09-25 的武器互换修复只填了主副手槽（12/24），其余槽位

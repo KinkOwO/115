@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/boostup"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/legion"
 	"dfolan/internal/loot"
 	"dfolan/internal/npcpresence"
 	"dfolan/internal/quest"
@@ -17,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -55,7 +58,48 @@ type worldSession struct {
 	bleedingMineStart   *bleedingMineStart
 	// ispins 是一次伊斯大陆（内容号 101）挑战的会话状态；nil = 无进行中的
 	// 挑战。字节契约见 ispins_flow.go 与 next78 取证文档。
-	ispins                 *ispinsRun
+	ispins *ispinsRun
+	// venus 是一次美神维纳斯（内容号 106）挑战的会话状态；nil = 无进行中的
+	// 挑战。字节契约见 venus_flow.go、internal/legion/venus.go 与
+	// 包规格/全流程 N2655/2290/2291/1474 规格文档。
+	venus *venusRun
+	// bakal 是一次巴卡尔攻坚战（频道 type 82）的会话状态；nil = 无进行中的
+	// raid。字节契约见 bakal_flow.go、internal/legion/bakal*.go 与
+	// next151 取证文档。
+	bakal                    *legion.BakalOpening
+	bakalRun                 string
+	bakalRecruitment         *protocol.RaidRecruitment
+	bakalFailureNotified     bool
+	bakalDeathReturnAt       time.Time
+	bakalDeathReturnRun      string
+	bakalDeathReturnSequence uint32
+	// bakalName 是 CMD656 建团请求内嵌的团名（开战 burst 用它登记成员）；
+	// bakalCurrent / bakalLocation 记录当前进住的作战图与其 raid-map 位置
+	// （CMD2073 加载闭环、CMD2069 战报、CMD2070 跳转都要引用）。
+	bakalName     string
+	bakalCurrent  uint32
+	bakalLocation uint32
+	// bakalRules / bakalRewards 由网关构造时注入；nil = 该内容未装载（建团
+	// 被待机区未绑定拒绝，与交接包拒绝实录一致）。
+	bakalRules             *catalog.BakalRaidRules
+	bakalRewards           *workflow.BakalRewardService
+	bakalQuotaRole         int64
+	bakalQuotaBody         []byte
+	// boostup 是一次新手成长胶囊教学（活动 662）的会话状态。
+	boostup *boostup.Catalog
+	// boostWorldBase / boostOperations / notifyBoostMail 是 Starter Boost 活动
+	// 662 的注入接线：基地世界服务、一次性事件键会话与毕业邮件回调。
+	boostWorldBase  *world.Service
+	boostOperations requestKeySession
+	notifyBoostMail func(int64)
+	// 下列字段由 origin 侧的非巴卡尔内容注入：苏醒之森（forest）、维纳斯
+	// （venus）、永夜之城频道刷新与槽位解锁状态。
+	forest                *forestRun
+	forestPartyHard       bool
+	lastVenusResetCharacter int64
+	pendingRelicReset     bool
+	channelSpawns          map[uint32]database.WorldPosition
+	slotUnlockDirty        bool
 	blackPurgatory         blackPurgatoryState
 	adventureEliteSnapshot [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
@@ -215,6 +259,20 @@ type worldSession struct {
 }
 
 func (w *worldSession) enter(role database.Character, spawn database.WorldPosition) error {
+	// Recover after character selection and before preparing its inventory.
+	// Preserve the selected scene identity, including on partial recovery.
+	if w.bakalRewards != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		saved, err := w.bakalRewards.Recover(ctx, role, time.Now())
+		cancel()
+		saved.WireID = role.WireID
+		role = saved
+		if err != nil {
+			log.Printf("Bakal rewards pending: character=%d: %v", role.ID, err)
+		}
+	}
+	w.bakal, w.bakalRun, w.bakalCurrent, w.bakalLocation = nil, "", 0, 0
+	w.bakalRecruitment = nil
 	var state character.State
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return e
@@ -668,6 +726,9 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 			return e
 		}
 		if e = w.announceSelf(event); e != nil {
+			return e
+		}
+		if e = w.syncBakalMemberArea(send, event); e != nil {
 			return e
 		}
 		a := w.service.Catalog.Areas[catalog.AreaKey(next.Town, next.Area)]

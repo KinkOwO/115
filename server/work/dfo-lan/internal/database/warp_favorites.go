@@ -6,7 +6,6 @@ import (
 	"dfolan/internal/game/protocol"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 )
 
 // This additive table keeps account favorites separate from ordinary numeric
@@ -25,8 +24,8 @@ func (s *Store) SaveAccountWarpFavorites(ctx context.Context, account int64, ent
 	if len(entries) == 0 {
 		return nil
 	}
-	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		queries := s.queries.WithTx(tx)
+	return inTx(ctx, s.engine, func(tx txHandle) error {
+		queries := tx.queries()
 		if _, err := queries.LockAccount(ctx, account); err != nil {
 			return err
 		}

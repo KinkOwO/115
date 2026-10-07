@@ -61,6 +61,8 @@ func (b Bag) Disjoint(
 	var rewardOrder []uint32
 
 	// 从 b.Equipment 中逐槽移除命中项并计算产物
+	// 训练奖励装备（TutorialLocked）在这里刻意**不设门禁**：662 第九关的源任务就是
+	// `[mission][type] disjoint`，要拆的正是训练装备；出售/寄件/入仓/丢弃四处照旧拒绝。
 	for _, reqSlot := range requestedSlots {
 		foundIndex := -1
 		for i, eqItem := range b.Equipment {

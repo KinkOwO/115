@@ -186,7 +186,7 @@ func (w *worldSession) spendSkillMaterialFromStorage(p, raw []byte, rows []proto
 	if e != nil {
 		return nil, e
 	}
-	refresh, e := accountMaterialRefreshPackets(materials, saved)
+	refresh, e := accountMaterialRefreshPackets(materials, saved, w.activeDungeon != nil)
 	if e != nil {
 		return nil, e
 	}

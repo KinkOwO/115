@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"time"
 )
 
 type dungeonReviveStore interface {
@@ -171,6 +172,27 @@ func (w *worldSession) ceraRevive(ctx context.Context, store ceraReviveStore, p,
 
 // useCoinRevive only falls through on a confirmed empty credit or coin stack.
 func (w *worldSession) useCoinRevive(ctx context.Context, store ceraReviveStore, p, frame []byte, pilotEnabled bool) ([]outboundPacket, error) {
+	if w != nil && w.activeDungeon != nil && w.pilotDeath != nil && w.pilotDeath.Run == w.activeDungeon.RunID && w.pilotDeath.Revives[sha256.Sum256(frame)] {
+		return nil, nil
+	}
+	if e := w.odysseyReviveGate(); e != nil {
+		return nil, e
+	}
+	raid := w != nil && w.bakal != nil && w.activeDungeon != nil && w.activeDungeon.RaidManaged
+	if raid {
+		if err := w.bakal.CheckCoinBudget(); err != nil {
+			return nil, err
+		}
+	}
+	plan, err := w.resolveCoinRevive(ctx, store, p, frame, pilotEnabled)
+	if raid && err == nil && len(plan) > 0 {
+		w.bakal.SpendCoinBudget()
+		plan = append(plan, outboundPacket{"bakal_revive_budget", 0, 2285, w.bakal.PartyFrame(w.bakalLocation, time.Now())})
+	}
+	return plan, err
+}
+
+func (w *worldSession) resolveCoinRevive(ctx context.Context, store ceraReviveStore, p, frame []byte, pilotEnabled bool) ([]outboundPacket, error) {
 	if w != nil && w.activeDungeon != nil && w.pilotDeath != nil && w.pilotDeath.Run == w.activeDungeon.RunID && w.pilotDeath.Revives[sha256.Sum256(frame)] {
 		return nil, nil
 	}

@@ -158,7 +158,7 @@ func TestBranchlessReleaseAwakeningPreservesSaveAndBuildsEntry(t *testing.T) {
 	for _, job := range []byte{9, 10} {
 		t.Run(fmt.Sprintf("job%d", job), func(t *testing.T) {
 			prof := c.Professions[job]
-			state := State{Level: 115, AllJobsPilot: true, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills}
+			state := State{Level: 115, AllJobsPilot: true, SourceSHA256: prof.RawSHA256, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills}
 			raw, err := json.Marshal(state)
 			if err != nil {
 				t.Fatal(err)

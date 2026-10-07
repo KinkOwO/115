@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"fmt"
+	"log"
 	"math"
 	"regexp"
 	"slices"
@@ -20,7 +21,7 @@ func importFameRules(a *pvf.Archive, index catalog.ItemIndex, withItems bool) (*
 	if a == nil || index.Source.Checksum == "" || a.Snapshot().Checksum != index.Source.Checksum {
 		return nil, fmt.Errorf("fame PVF/index source mismatch")
 	}
-	r := FameRules{Version: 1, Source: a.Snapshot().Checksum, Sources: map[string]string{}, Tables: map[string]map[int]int64{}, Items: map[uint32]fameSourceValue{}, Sets: map[int][]fameThreshold{}, ItemPoints: map[uint32][]fameSetPoint{}}
+	r := FameRules{Version: 1, Source: a.Snapshot().Checksum, Sources: map[string]string{}, Tables: map[string]map[int]int64{}, Items: map[uint32]fameSourceValue{}, Sets: map[int][]fameThreshold{}, ItemPoints: map[uint32][]fameSetPoint{}, Groups: map[uint32][]int32{}}
 	read := func(path string) ([]fameSourceSection, error) {
 		script, err := catalog.ReadScript(a, path)
 		if err != nil {
@@ -143,6 +144,9 @@ func importFameRules(a *pvf.Archive, index catalog.ItemIndex, withItems bool) (*
 				return nil, fmt.Errorf("invalid fame group template")
 			}
 			template := uint32(v)
+			if !slices.Contains(r.Groups[template], int32(group)) {
+				r.Groups[template] = append(r.Groups[template], int32(group))
+			}
 			for rank, fame := range awakening[group] {
 				if r.Awakening[template] == nil {
 					r.Awakening[template] = map[byte]int64{}
@@ -278,15 +282,21 @@ func readFameSourceItems(a *pvf.Archive, index catalog.ItemIndex, r *FameRules) 
 		file int
 	}
 	entries := []entry{}
+	missing := 0
 	for _, item := range index.Items {
 		if item.Kind != "stackable" {
 			continue
 		}
 		f, ok := a.FindFile(item.Path)
 		if !ok {
-			return fmt.Errorf("missing fame source item %d", item.ID)
+			// devpack 基线差异：缺失源脚本的堆叠物品不可能是名望来源，跳过。
+			missing++
+			continue
 		}
 		entries = append(entries, entry{item, f.Index})
+	}
+	if missing > 0 {
+		log.Printf("PVF fame sources: %d stackable scripts missing (devpack baseline gap)", missing)
 	}
 	slices.SortFunc(entries, func(a, b entry) int { return a.file - b.file })
 	for i, row := range entries {

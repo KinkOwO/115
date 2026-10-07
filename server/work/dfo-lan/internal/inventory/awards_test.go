@@ -3,6 +3,7 @@ package inventory
 import (
 	"encoding/binary"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"dfolan/internal/catalog"
@@ -95,6 +96,17 @@ func TestStampEquipmentPeriodTouchesOnlyGrantedSlots(t *testing.T) {
 	}
 	if b.Equipment[0].Period != 0 {
 		t.Fatal("改到了原背包而不是副本")
+	}
+}
+
+// 模板号必须出现在报错里：规则脚本的池子是一串手抄号，旧口径只回一句
+// "equipment definition missing"，现场判不出是哪一个号错了。
+func TestGrantUnknownTemplateNamesTheTemplate(t *testing.T) {
+	a := testGrantAwarder(t)
+	if _, _, err := a.Grant(json.RawMessage(`{}`), 599999999, 1); err == nil {
+		t.Fatal("两边都不认识的模板应当报错")
+	} else if !strings.Contains(err.Error(), "599999999") {
+		t.Fatalf("报错必须带上模板号，实际：%v", err)
 	}
 }
 

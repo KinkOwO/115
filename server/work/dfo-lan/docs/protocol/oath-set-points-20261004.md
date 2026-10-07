@@ -327,6 +327,13 @@ return sub_145F06760(v1, (unsigned int)v7, HIDWORD(v7));   // 两个 u32 应用�
 
 ### 7.2 积分数值从哪来（**已拿到，PVF 直读**）
 
+> **2026-10-07 订正**：下面第 331-340 行把 `setpointinfo.cos` 的 `[group]` 当成"客户端物品类别号"，
+> **这个理解是错的**。`[group]` 实际是 `etc/equipmentgrouping.etc` 里 `[ability group]` 的组号
+> （实测 9721 个组），两层映射 =
+> 「模板 →`[ability group]`→ 能力组」+「能力组 + 调适档位 →`[info]` 行 → 每件积分」。
+> 因此 `.equ` 里不需要有"数值 group 字段"，最后一层未知项不存在 —— `SetPoints` 已按此实现
+> （见 §7.4 下方"落地"表）。原文保留作为取证过程记录。
+
 ```
 etc/115lvability/setpointinfo.cos      816 行 文本  [set point] [table]
     [info] [group] <g> [awakening] <a> [part set index] <p> [value] <v>
@@ -412,7 +419,10 @@ etc/115lvability2/oathpointinfo.cos    418 行 文本  [oath point] [table]
 | --- | --- | --- |
 | 源表读者 | `internal/catalog/point_rules.go`（+ `_test.go`） | 分段解析 `[set point] [table]` / `[oath point] [table]` / `[grade list]` / `[min oath point]`；真实内层归档装载计数 **set=88 / grades=21 / oath=239 / minOath=1200** |
 | 查表 | `SetPointFor` / `OathPointFor` / `GradeFor` | `[add parameters]` 段的裸 `[part set index]` 与数字列表不会污染结果（有专门测试） |
-| 聚合 | `PointRules.OathPoints` | 精确行 →（套装号≠-1 时）通用行 →（源里没有该档位时）**回退 0 档基础分** →（模板,档位）唯一行；**多行且都非 -1 时跳过**（归属不确定就不瞎算）。`SetPoints` 仍是记录在案的缺口（类别号映射未定），恒返回 `(0,0)` |
+| 聚合 | `PointRules.OathPoints` | 精确行 →（套装号≠-1 时）通用行 →（源里没有该档位时）**回退 0 档基础分** →（模板,档位）唯一行；**多行且都非 -1 时跳过**（归属不确定就不瞎算）。`SetPoints` 已于 **2026-10-07 补齐**（见下条） |
+| 聚合（套装积分，2026-10-07 补齐） | `PointRules.SetPoints` | 两层映射：模板 →（`AbilityGroups`，来自 `etc/equipmentgrouping.etc` 的 `[ability group]`）→ 能力组；再按 `(group, awakening)` 精确查 `setpointinfo.cos`，`[part set index] = -1` 的行用本件套装号补；补不出（本件没有套装号）**不累加**。**档位只精确匹配、不回退 0 档** —— 源里"能力组没有该档位的行"就是 0 分（例：能力组 52 只有档位 0，写调适 3 反而归 0），回退会把 0 分算成有分。未装载 `AbilityGroups` 时返回 `(0,0)`（算不出），调用方不得当"角色积分为 0" |
+| 套装号来源 | `inventory.EquipmentCatalog.PartSetIndexes` | 按模板取 `.equ` 的 `[part set index]`；不跟 `[import script]` 链 —— 与名望侧 `character.fame` 的 `fameInt(d, "[part set index]")` 同一口径（套装积分是"两件算不算同一套"的判据，两侧必须一致） |
+| 计算范围 | `wornPointItems` / `oathPointItems` | SetPoint 取**全部**穿戴（排除副手 24/30 与幻化 11/32，与名望同一批）；OathPoint 只取 36..47。两者独立聚合，同乘一条 NOTI2634 |
 | 调适档位 | `oathPointItems` 读实例行 `Record[170]` | 与名望计算 `internal/character/fame.go` 同一格（181 字节记录 +170 = 实例阶段）；无实例 record 的老件按 0 档（源里 0 档同样有分） |
 | 接入 | `Source.PointRules()` → `Catalogs.Points`（与 `transform` 同域）→ `ItemService.Points` | 装载失败**显式报错**，不静默降级 |
 | 推送 | `cmd/wireprobe/oath_point_flow.go` + `client_entry.go` + `entry_flow.go` | 入场先发 **NOTI2841**（`u16 键 + u32 模板`，6 B/件：把穿戴的誓约装备归位；用户选择"先试一下"的实验项，语义未完全闭环），再发 **NOTI2634**（10 B：`u16 键 + u32 OathPoint + u32 SetPoint`）；两者都**排在所有帧之后**（`actor_appearance_ready` 会重建实体）；积分表未装载时不发 2634，不用 0 冒充 |
@@ -436,3 +446,5 @@ etc/115lvability2/oathpointinfo.cos    418 行 文本  [oath point] [table]
 `"id":2634` / `"id":2635` / `"id":2841` **0 命中**（服务端历史上一次都没发过这三个包），
 同一检索下 `"id":2839` 有 12 条命中 ⇒ 日志确实记录了誓约族出站帧，不是漏记。
 配合"客户端不自己算总分"的反编译结论 ⇒ **「誓约积分恒 0」的根因就是这三个包从未发送**。
+
+

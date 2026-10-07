@@ -179,6 +179,25 @@ func setRefineLevel(gear *BagEquipment, row []byte, level byte) {
 	}
 }
 
+// SetCraftedStatus 给发放路径盖上源声明的打造状态（自选礼盒在
+// [booster select category] 里直接写 [booster equipment upgrade] /
+// [booster equipment separate]）。强化等级走装备行偏移 10 的低五位、高三位的
+// 再封装次数保留；锻造同时写服务端权威字段和行内镜像。传 0 表示该位不动，
+// 免得把已有等级清掉。
+func SetCraftedStatus(gear *BagEquipment, reinforce, refine byte) {
+	if gear == nil || (reinforce == 0 && refine == 0) {
+		return
+	}
+	row := EquipmentRow(*gear)
+	if reinforce > 0 {
+		setAmplifyLevel(row[:], reinforce)
+	}
+	gear.Record = append([]byte(nil), row[:]...)
+	if refine > 0 {
+		setRefineLevel(gear, gear.Record, refine)
+	}
+}
+
 // RefineReceipt 是一次锻造的结果。
 type RefineReceipt struct {
 	Request           protocol.RefineRequest `json:"request"`

@@ -51,34 +51,41 @@ func (a *Awarder) Grant(raw json.RawMessage, id, amount uint32) (json.RawMessage
 		b, slot, e = b.Add(a.Catalog, a.Rules, id, amount, GrantExpireTime)
 		r.Slots = []uint16{slot}
 	} else {
+		// [MOD-CAPABILITY-20261006] 装备分支的每一处失败都**带上模板号**：规则脚本的池子
+		// 是一串手抄的模板号，旧口径只回一句 "equipment definition missing"，
+		// 现场根本判不出是哪一个号错了（2026-10-06 实测踩到）。
 		if a.Equipment == nil {
-			return nil, r, fmt.Errorf("equipment award source missing")
+			return nil, r, fmt.Errorf("模板 %d：装备目录未装配（equipment award source missing）", id)
 		}
 		kind, kindErr := a.Equipment.EquipmentKind(id)
 		if kindErr != nil {
-			return nil, r, kindErr
+			return nil, r, fmt.Errorf("模板 %d 既不是可发放的堆叠物，也取不到装备定义（equipment definition missing）：%w", id, kindErr)
 		}
 		if IsPetGear(kind) {
 			if amount == 0 || amount > uint32(PetGearLast-PetGearFirst+1) {
-				return nil, r, fmt.Errorf("invalid pet equipment award amount")
+				return nil, r, fmt.Errorf("模板 %d：宠物装备发放数量非法（%d）", id, amount)
 			}
 			if _, e = a.Equipment.Reward(id); e != nil {
-				return nil, r, e
+				return nil, r, fmt.Errorf("模板 %d 取不到奖励耐久：%w", id, e)
 			}
 			for n := uint32(0); n < amount; n++ {
 				var slot uint16
 				b, slot, e = b.AddPetGear(BagEquipment{Template: id})
 				if e != nil {
-					return nil, r, e
+					return nil, r, fmt.Errorf("模板 %d 宠物装备入包失败：%w", id, e)
 				}
 				r.Slots = append(r.Slots, slot)
 			}
 		} else {
-			b, r.Slots, e = b.AddEquipment(a.Equipment, a.Rules.EquipmentSlots, id, amount)
+			var slotErr error
+			b, r.Slots, slotErr = b.AddEquipment(a.Equipment, a.Rules.EquipmentSlots, id, amount)
+			if slotErr != nil {
+				return nil, r, fmt.Errorf("模板 %d 装备入包失败：%w", id, slotErr)
+			}
 			// 宠物（[creature]）的期限是脚本 [usable period] 的真值，由
 			// creatureRowPeriod 负责填；其余装备自己没有期限来源，一律标永不过期，
 			// 免得声明过期限的装扮/装备一发下来就显示过期。
-			if e == nil && kind != "[creature]" {
+			if kind != "[creature]" {
 				b = b.stampEquipmentPeriod(r.Slots, GrantExpireTime)
 			}
 		}
@@ -88,6 +95,93 @@ func (a *Awarder) Grant(raw json.RawMessage, id, amount uint32) (json.RawMessage
 	}
 	out, e := SaveBag(raw, b)
 	return out, r, e
+}
+
+// GrantPet 发一只**宠物本体**（放到宠物容器 list 7 的 0..139）。
+//
+// 为什么单开一条而不走 Grant：Grant 的装备分支按规则表把非宠物装备的都塞进**普通装备栏**
+// （Rules.EquipmentSlots），`[creature]` 本体落进去就变成"宠物出现在装备栏里、F6 列表里没有"。
+// 2026-10-06 之前 mod 脚本只能这么发，所以这条能力是补上真正的落位。
+//
+// 门禁（都在这里挡，报错带模板号）：
+//   - 模板必须取得到定义且 `[equipment type]` == "[creature]"；
+//   - **宠物蛋不能当本体发**（蛋要先孵化，模板号在 EggHatchOutputs 里）；
+//   - 数量只能是 1（本体是"一只一行"，不堆叠）。
+func (a *Awarder) GrantPet(raw json.RawMessage, template, count uint32) (json.RawMessage, AwardReceipt, error) {
+	r := AwardReceipt{Template: template, Amount: count}
+	if a == nil {
+		return nil, r, fmt.Errorf("inventory award source missing")
+	}
+	if a.Equipment == nil {
+		return nil, r, fmt.Errorf("模板 %d：装备目录未装配（equipment award source missing）", template)
+	}
+	kind, err := a.Equipment.EquipmentKind(template)
+	if err != nil {
+		return nil, r, fmt.Errorf("模板 %d 取不到装备定义（equipment definition missing）：%w", template, err)
+	}
+	if !IsCreature(kind) {
+		return nil, r, fmt.Errorf("模板 %d 不是宠物本体（[equipment type] = %s）", template, kind)
+	}
+	if IsCreatureEgg(template) {
+		return nil, r, fmt.Errorf("模板 %d 是宠物蛋，先孵化再发（蛋不能当本体入栏）", template)
+	}
+	if count != 1 {
+		return nil, r, fmt.Errorf("模板 %d：宠物本体一次只能发 1 只（现在是 %d）", template, count)
+	}
+	b, err := ReadBag(raw)
+	if err != nil {
+		return nil, r, err
+	}
+	next, slot, err := b.AddPetCreature(template)
+	if err != nil {
+		return nil, r, err
+	}
+	out, err := SaveBag(raw, next)
+	if err != nil {
+		return nil, r, err
+	}
+	r.Slots = []uint16{slot}
+	return out, r, nil
+}
+
+// GrantPetItem 发一件**宠物用品**（饲料 / 改名卡这类，落到宠物容器 list 7 的 376..431）。
+//
+// 复用 Bag.Add 的既有分流（bag.go 里 IsPetConsumable 的堆叠物会自动进 addPetStack），
+// 所以堆叠合并、堆叠上限、56 格上限都只有一份实现；这里只负责**把模板性质校验清楚**并
+// 断言落位落在用品区间（否则说明目录口径变了，宁可报错也不要悄悄写进普通背包）。
+func (a *Awarder) GrantPetItem(raw json.RawMessage, template, count uint32) (json.RawMessage, AwardReceipt, error) {
+	r := AwardReceipt{Template: template, Amount: count}
+	if a == nil {
+		return nil, r, fmt.Errorf("inventory award source missing")
+	}
+	if count == 0 {
+		return nil, r, fmt.Errorf("模板 %d：宠物用品数量必须大于 0", template)
+	}
+	item, known := a.Catalog.Items[template]
+	if !known || item.Kind != "stackable" {
+		return nil, r, fmt.Errorf("模板 %d 不是堆叠物，不能当宠物用品发", template)
+	}
+	if !IsPetConsumable(item.StackableType) {
+		return nil, r, fmt.Errorf("模板 %d 不是宠物用品（stackable type = %s）", template, item.StackableType)
+	}
+	b, err := ReadBag(raw)
+	if err != nil {
+		return nil, r, err
+	}
+	next, slot, err := b.Add(a.Catalog, a.Rules, template, count, GrantExpireTime)
+	if err != nil {
+		return nil, r, err
+	}
+	if slot < PetConsumableFirst || slot > PetConsumableLast {
+		return nil, r, fmt.Errorf("模板 %d 落到了 %d 号格，不在宠物用品区间 %d..%d",
+			template, slot, PetConsumableFirst, PetConsumableLast)
+	}
+	out, err := SaveBag(raw, next)
+	if err != nil {
+		return nil, r, err
+	}
+	r.Slots = []uint16{slot}
+	return out, r, nil
 }
 
 // stampEquipmentPeriod 只给本次发放落到的槽位打期限，不动背包里其它装备行。

@@ -52,11 +52,11 @@ func (s *Store) GiveFavor(ctx context.Context, account, id int64, version string
 	if g.Limit <= 0 || len(g.Levels) == 0 || g.MaxPoint <= 0 || g.Delta <= 0 || g.Day == "" || g.Now.IsZero() || consume == nil {
 		return role, st, nil, fmt.Errorf("invalid favor gift")
 	}
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return role, st, nil, e
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 	role, e = lockCharacter(ctx, tx, account, id)
 	if e != nil {
 		return role, st, nil, e
@@ -64,7 +64,7 @@ func (s *Store) GiveFavor(ctx context.Context, account, id int64, version string
 	if role.ConfigVersion != version {
 		return role, st, nil, fmt.Errorf("favor source mismatch")
 	}
-	queries := s.queries.WithTx(tx)
+	queries := tx.queries()
 	if e = queries.InitializeAccountMaterials(ctx, account); e != nil {
 		return role, st, nil, e
 	}
@@ -97,7 +97,7 @@ func (s *Store) GiveFavor(ctx context.Context, account, id int64, version string
 	}
 	next := point + g.Delta
 	// 不截断到 MaxPoint：用户要求满值后仍可继续送礼。
-	e = sqlcgen.New(tx).UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state})
+	e = tx.queries().UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state})
 	if e != nil {
 		return role, st, nil, e
 	}
@@ -109,7 +109,7 @@ func (s *Store) GiveFavor(ctx context.Context, account, id int64, version string
 	if e != nil {
 		return role, st, nil, e
 	}
-	if e = tx.Commit(ctx); e != nil {
+	if e = tx.commit(ctx); e != nil {
 		return role, st, nil, e
 	}
 	role.State = state

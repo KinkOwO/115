@@ -48,6 +48,7 @@ func TestRemainingRuntimeContentRefusesHistoricalJSON(t *testing.T) {
 				"odyssey-currency":  func() error { _, e := c.LoadOdysseyCurrency(path); return e },
 				"attunement":        func() error { _, e := c.LoadAttunement(path); return e },
 				"apocalypse":        func() error { _, e := c.LoadApocalypse(path); return e },
+				"bakal-raid":        func() error { _, e := c.LoadBakalRaid(); return e },
 				"dungeon-terminal":  func() error { return c.AttachTerminalScenes(&catalog.DungeonCatalog{}, path) },
 				"dungeon-maze":      func() error { return c.AttachMazeRates(&catalog.DungeonCatalog{}, path) },
 				"layer-revisits":    func() error { return c.AttachLayerRevisits(&catalog.DungeonCatalog{}, path) },

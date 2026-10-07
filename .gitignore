@@ -10,6 +10,10 @@
 # 严禁纳入源码仓库。
 # ------------------------------------------------------------------------------
 /tools/
+/gm-tool/python/
+# Python 是 GM 工具专属依赖，放在整合包外的 gm-tool\python（2026-10-05 移出 tools/）。
+# 包内 gm-tool\python 曾有一份没有 python.exe 的残缺副本（1039 个文件被误提交），已停跟踪并删除。
+
 
 # ------------------------------------------------------------------------------
 # 2. 数据库存储与运行时持久化状态 (Database storage & Runtime states)
@@ -36,6 +40,13 @@
 /server/work/dfo-lan/configs/server.local.json
 /server/work/dfo-lan/configs/launcher.local.json
 /server/launcher.local.json
+# 启动器运行期资源缓存（不是配置，不入库；2026-10-07 门禁点名，业主确认不入库）
+/.launcher-resource-cache.json
+# 「本机实验档」一律按本机私有用处理：沉月湖单刷档 moon-solo.local.json、raid 入口次数表
+# raid-entries.local.json 都属此类（2026-10-07 业主确认不入库）。前者源码已改为按 PVF 自动
+# 推导（bootstrap.go 注释「也不再需要 -moon-solo-config 这种手工配置档」），后者依赖的
+# loadRaidEntriesConfig 从未接线，两者当前都零代码引用。
+/server/work/dfo-lan/configs/*.local.json
 
 # ------------------------------------------------------------------------------
 # 4. 补丁构建过程中的中间临时产物与备份 (Build intermediate artifacts & Backups)
@@ -44,6 +55,10 @@
 # ------------------------------------------------------------------------------
 *.orig-bak
 *.bak
+# version.json 的手工备份（version.json.bak-<时间戳>）：上面的 *.bak 通配盖不住这种命名
+/version.json.bak-*
+# 增量更新包安装时在游戏根目录生成的备份目录（scripts/incremental-package），用于一键还原，不入库
+/_update-backup/
 
 # ------------------------------------------------------------------------------
 # 5. Python 编译缓存、系统文件与 IDE 配置
@@ -90,7 +105,9 @@ server/work/dfo-lan/configs/equipment-full.data
 # ------------------------------------------------------------------------------
 # 6. 逆向取证中间产物 (Reverse-engineering evidence dumps)
 # 说明：analysis/dumps/ 下的这些目录是 IDA 伪代码/反汇编导出与扫描结果，
-# 单次取证可达数十 MB。它们由同目录的 ida_*.py / analysis/tools/pe_*.py
+# 单次取证可达数十 MB。它们由同目录的 ida_*.py / analysis/tools/
+# 包内 gm-tool\python 曾有一份没有 python.exe 的残缺副本（1039 个文件被误提交），已停跟踪并删除。
+pe_*.py
 # 脚本可复现，只提交脚本与本目录的说明文档，产物不入库。
 # 《客户端机制与真值索引》见 analysis/dumps/CLIENT-MECHANICS.md。
 # ------------------------------------------------------------------------------
@@ -125,3 +142,23 @@ analysis/dumps/matches.json
 *.stale-*
 analysis/tmp-*/
 server/work/client-build/Script.inner.manifest.json
+
+# ------------------------------------------------------------------------------
+# 仓库根的 .tmp/：构建/抓包临时中间产物（内含 gocache 等，禁止入库；见 scripts/check-commit-hygiene.ps1）
+/.tmp/
+
+# ------------------------------------------------------------------------------
+# mod 示例的打包产物（mods/examples/*/dist*）：中间输出，可随时用 build-mod.cmd 重建
+/mods/examples/*/dist/
+/mods/examples/*/dist-nopvf/
+
+# ------------------------------------------------------------------------------
+# client-patchs 各补丁的构建产物（见 client-patchs/AGENTS.md）：
+#   *.dll / *.zip 由上面的通用规则覆盖，这里补 MSVC 中间产物与打包 staging 目录
+# ------------------------------------------------------------------------------
+*.obj
+*.exp
+/client-patchs/*/dist/
+
+# mod 作者工作区（仓库根 mods/）里的启用名单是运行期状态，不入库（服务端模块的那份另有跟踪）
+/mods/enabled.json

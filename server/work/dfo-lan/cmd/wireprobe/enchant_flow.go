@@ -81,5 +81,9 @@ func (w *worldSession) enchantByBead(service *workflow.WearService, p, raw []byt
 		"card": out.Card, "prev_enchant": out.PrevCard,
 		"row_before": out.RowBefore, "row_after": out.RowAfter,
 	})
+	// 第六关的任务是「穿上已附魔的装备」：附魔成功后如果那件已经在身上，推进不能等
+	// 客户端来问（同 CMD19/CMD26/CMD29 口径）。reconcileBoostEquipment 在活动关闭时
+	// 直接返回 nil，非活动角色零影响；失败只记日志，已提交的附魔不回滚。
+	plan = append(plan, w.reconcileBoostEquipment()...)
 	return w.appendFameUpdate(plan, event), nil
 }

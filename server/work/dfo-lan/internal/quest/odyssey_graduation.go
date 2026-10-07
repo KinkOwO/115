@@ -7,10 +7,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 )
 
 // GraduationQuestPlan combines source clear tables and earlier-level epics.
-// Episode quests and level-115 content remain playable; rewards are not run.
+// The source [quest clear] entry is what an Odyssey character counts as cleared,
+// including its level-115 rows; only the source's own [branch quest] rows at
+// graduation level stay playable, together with epics at or above it. Rewards
+// are not run.
 func (s *Service) GraduationQuestPlan(role character.Character) ([]uint16, error) {
 	if s.Odyssey == nil || s.Odyssey.Quests == nil || len(s.Catalog.Quests) == 0 ||
 		role.ConfigVersion != savecontract.Identity() || role.ConfigVersion != s.Catalog.Source.SaveIdentity() || role.ConfigVersion != s.Professions.Source.SaveIdentity() {
@@ -55,9 +59,6 @@ func (s *Service) GraduationQuestPlan(role character.Character) ([]uint16, error
 			ids = append(ids, uint16(id))
 			continue
 		}
-		if q.MinimumLevel >= uint32(character.OdysseyGraduationLevel) {
-			continue
-		}
 		allowed := jobAllowed(q.Jobs, profession.Job)
 		for _, grow := range cells(q.Script.Cells, "[grow type]") {
 			if grow.Type != 0 {
@@ -94,7 +95,7 @@ func (s *Service) ApplyOdysseyGraduation(role character.Character, rewardPaid bo
 	if err = json.Unmarshal(raw, &doc); err != nil {
 		return nil, nil, nil, err
 	}
-	doc["odyssey_graduation_version"] = json.RawMessage(`2`)
+	doc["odyssey_graduation_version"] = json.RawMessage(strconv.FormatUint(uint64(character.OdysseyGraduationReceiptVersion), 10))
 	// Keep a debt until the independent honor-mail transaction succeeds.
 	// Honour both the old bag receipt and the new mail receipt.
 	owed := uint32(0)
@@ -126,7 +127,7 @@ func (s *Service) GraduateOdyssey(ctx context.Context, role character.Character)
 	if err := json.Unmarshal(role.State, &state); err != nil {
 		return role, false, err
 	}
-	if state.Level < character.OdysseyGraduationLevel || state.OdysseyGraduationVersion >= 2 {
+	if state.Level < character.OdysseyGraduationLevel || state.OdysseyGraduationVersion >= character.OdysseyGraduationReceiptVersion {
 		return role, false, nil
 	}
 	if s.Store == nil || s.Odyssey == nil || s.Progression == nil {

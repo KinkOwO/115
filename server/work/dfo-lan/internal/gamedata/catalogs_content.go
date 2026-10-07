@@ -579,6 +579,17 @@ func preparePVFSpecial(c *Catalogs, s *Source, selected map[string]bool, inputs 
 		log.Printf("PVF apocalypse prepared: records=%d operations=%d phases=%d duty records=%d; positional rewards and operation behavior retained", direct.RecordCount, len(direct.Operations), len(direct.PhaseClock), len(direct.Duties.Records))
 		s.ReleaseReadCaches()
 	}
+	if selected["bakal-raid"] {
+		// 巴卡尔规则真源是 contents/2022/bakalraid/etc/bakal.etc；没有历史
+		// JSON 快照可比对（该团本为新建），严格形状校验由导入器内部完成。
+		direct, err := s.BakalRaid()
+		if err != nil {
+			return err
+		}
+		c.Bakal = direct
+		log.Printf("PVF bakal raid prepared: dungeons=%d locations=%d bosses=%d anger window=%ds settlement=%ds; raid rules retained", len(direct.Dungeons), len(direct.Locations), len(direct.Bosses), direct.NormalPhase.AngerWindow.Secs, direct.NormalPhase.SettlementTimer.Secs)
+		s.ReleaseReadCaches()
+	}
 	if selected["attunement"] {
 		// 副本范围来自源：etc/rewardboostinfo/**.ctp 各自声明 [dungeon index]，
 		// 不再读 configs 的 attunement_dungeons（单一内容真源铁律，server/AGENTS.md §0）。
@@ -631,4 +642,16 @@ func (c *Catalogs) LoadApocalypse(path string) (*catalog.ApocalypseCatalog, erro
 		return c.Apocalypse, nil
 	}
 	return nil, nativeContentRequired("apocalypse")
+}
+
+// LoadBakalRaid hands the prepared bakal rules to the wire layer; there is no
+// legacy JSON projection for this raid, so unselected profiles are refused.
+func (c *Catalogs) LoadBakalRaid() (*catalog.BakalRaidRules, error) {
+	if err := c.RequireSelected("bakal-raid", c.Bakal != nil); err != nil {
+		return nil, err
+	}
+	if c.Bakal != nil {
+		return c.Bakal, nil
+	}
+	return nil, nativeContentRequired("bakal-raid")
 }

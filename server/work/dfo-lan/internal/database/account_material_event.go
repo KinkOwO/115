@@ -5,10 +5,8 @@ import (
 	"dfolan/internal/database/sqlcgen"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 )
 
 // CommitAccountMaterialEvent applies an account-scoped material change exactly
@@ -48,15 +46,15 @@ func (s *Store) commitAccountMaterialEvent(ctx context.Context, account, id int6
 	if e != nil || len(decoded) != 32 || key == "" || len(key) > 200 || model == "" || len(model) > 100 || (apply == nil && txApply == nil) {
 		return role, nil, false, fmt.Errorf("invalid account material event")
 	}
-	tx, e := s.db.Begin(ctx)
+	tx, e := s.engine.begin(ctx)
 	if e != nil {
 		return role, nil, false, e
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 	// Callback operations may share account state across characters.
 	// Lock accounts before characters, matching roster/archival order.
 	if txApply != nil {
-		if _, e = s.queries.WithTx(tx).LockAccountState(ctx, account); e != nil {
+		if _, e = tx.queries().LockAccountState(ctx, account); e != nil {
 			return role, nil, false, e
 		}
 	}
@@ -67,28 +65,28 @@ func (s *Store) commitAccountMaterialEvent(ctx context.Context, account, id int6
 	if role.ConfigVersion != version {
 		return role, nil, false, fmt.Errorf("account material event source mismatch")
 	}
-	if e = sqlcgen.New(tx).InitializeAccountMaterials(ctx, account); e != nil {
+	if e = tx.queries().InitializeAccountMaterials(ctx, account); e != nil {
 		return role, nil, false, e
 	}
-	counts, e := sqlcgen.New(tx).LockAccountMaterials(ctx, account)
+	counts, e := tx.queries().LockAccountMaterials(ctx, account)
 	if e != nil {
 		return role, nil, false, e
 	}
-	prior, e := sqlcgen.New(tx).CharacterEventModel(ctx, sqlcgen.CharacterEventModelParams{CharacterID: id, EventKey: key})
+	prior, e := tx.queries().CharacterEventModel(ctx, sqlcgen.CharacterEventModelParams{CharacterID: id, EventKey: key})
 	if e == nil {
 		if prior != model {
 			return role, nil, false, fmt.Errorf("account material event model mismatch")
 		}
 		// Replayed request: the deduction already happened. Hand back the state
 		// as it stands so the caller can still acknowledge with real counts.
-		return role, counts, false, tx.Commit(ctx)
+		return role, counts, false, tx.commit(ctx)
 	}
-	if !errors.Is(e, pgx.ErrNoRows) {
+	if !isNoRows(e) {
 		return role, nil, false, e
 	}
 	var state, updated json.RawMessage
 	if txApply != nil {
-		state, updated, e = txApply(newTx(tx, account, id), role, counts)
+		state, updated, e = txApply(newTx(tx.queries(), account, id), role, counts)
 	} else {
 		state, updated, e = apply(role, counts)
 	}
@@ -98,16 +96,16 @@ func (s *Store) commitAccountMaterialEvent(ctx context.Context, account, id int6
 	if !json.Valid(state) || !json.Valid(updated) {
 		return role, nil, false, fmt.Errorf("invalid account material JSON")
 	}
-	if e = sqlcgen.New(tx).RecordCharacterEvent(ctx, sqlcgen.RecordCharacterEventParams{CharacterID: id, EventKey: key, ConfigVersion: version, Model: model, Outcome: updated}); e != nil {
+	if e = tx.queries().RecordCharacterEvent(ctx, sqlcgen.RecordCharacterEventParams{CharacterID: id, EventKey: key, ConfigVersion: version, Model: model, Outcome: updated}); e != nil {
 		return role, nil, false, e
 	}
-	if e = sqlcgen.New(tx).UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state}); e != nil {
+	if e = tx.queries().UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: id, State: state}); e != nil {
 		return role, nil, false, e
 	}
-	if e = sqlcgen.New(tx).SaveAccountMaterials(ctx, sqlcgen.SaveAccountMaterialsParams{AccountID: account, Counts: updated}); e != nil {
+	if e = tx.queries().SaveAccountMaterials(ctx, sqlcgen.SaveAccountMaterialsParams{AccountID: account, Counts: updated}); e != nil {
 		return role, nil, false, e
 	}
-	if e = tx.Commit(ctx); e != nil {
+	if e = tx.commit(ctx); e != nil {
 		return role, nil, false, e
 	}
 	role.State = state

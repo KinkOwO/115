@@ -5,7 +5,7 @@
 ```mermaid
 flowchart LR
     L[Windows 登录器] -->|HTTPS 账号密码| A[Go 账号与启动服务]
-    A --> P[(PostgreSQL 持久存储)]
+    A --> P[(SQLite 单文件持久存储)]
     L --> C[原版 DFO 客户端]
     C -.待恢复的原生协议.-> G[Go 游戏接入与玩法模块]
     G --> P
@@ -19,11 +19,15 @@ flowchart LR
 
 选择独立登录器、账号服务与游戏接入边界。账号、会话、持久层、配置导入、客户端启动分别拥有自己的包。后续角色、背包、场景、队伍、战斗作为游戏层内部领域包；有明确的独立扩容或故障隔离需求再拆进程。不为每个玩法启动一个微服务，避免维护复杂度。
 
-## ADR-002：PostgreSQL 为持久数据唯一权威
+## ADR-002：持久数据唯一权威（原 PostgreSQL → 2026-10-05 起 SQLite）
 
+> ⚠️ **2026-10-05 最终口径**：PostgreSQL 支持已**整体移除**，**SQLite 单文件**是唯一引擎与唯一权威存储
+> （见根 `AGENTS.md` §0.6）。下文 2026-10-04 的「双引擎」登记是中间态，已被此次移除取代；
+> PostgreSQL/pgx/pgdata 相关的实现与配置均已从代码中删除，`pgdata` 只作只读留档。
+>
 > ⚠️ **2026-10-04 业主改口（登记，待实施）**：业主明确要求 **PostgreSQL + SQLite 双引擎**。
 > 本节末句"SQLite 适合工具与小型单机，这里不作为多人服主库"与
-> `docs/database-sqlc-migration.md` 的"不提前引入双引擎接口"**均被推翻**，
+> `docs/database-sqlc-migration.md（2026-10-05 已删除）` 的"不提前引入双引擎接口"**均被推翻**，
 > 实施计划见 [database-dual-engine-plan.md](database-dual-engine-plan.md)（S1 抽接口缝 → S5 分叉控制）。
 > 定性保留：**默认引擎仍是 PostgreSQL**；SQLite 用于单机/工具，不做多人服主库（单写者）。
 > 新会话在开工 S1 时须一并修订本节与 sqlc 文档，避免代码与文档互相矛盾。

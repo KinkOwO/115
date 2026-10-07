@@ -33,7 +33,7 @@ func (s *Store) CommitOdysseyHonorMail(ctx context.Context, account, id int64, v
 			if _, err = attachment.Row(); err != nil {
 				return nil, nil, err
 			}
-			mailID, err := insertSystemMailTx(ctx, tx.tx, id, "Arad Odyssey", "Congratulations on reaching Level 115! Please claim your Arad Odyssey Honor Reward Box.", []MailAsset{{Item: item}})
+			mailID, err := insertSystemMailTx(ctx, tx.queries, id, "Arad Odyssey", "Congratulations on reaching Level 115! Please claim your Arad Odyssey Honor Reward Box.", []MailAsset{{Item: item}})
 			if err != nil {
 				return nil, nil, err
 			}

@@ -126,11 +126,12 @@ func (s *Service) entryAdditionWithStats(role Character, state State, stats prot
 	if s.DetailedWornCandidate {
 		var wornProjection struct {
 			Inventory struct {
-				Worn []inventory.BagEquipment `json:"worn"`
+				Worn    []inventory.BagEquipment          `json:"worn"`
+				Special map[byte][]inventory.BagEquipment `json:"special_equipment"`
 			} `json:"inventory"`
 		}
 		if e := json.Unmarshal(role.State, &wornProjection); e == nil {
-			b := inventory.Bag{Worn: wornProjection.Inventory.Worn}
+			b := inventory.Bag{Worn: wornProjection.Inventory.Worn, Special: wornProjection.Inventory.Special}
 			for _, item := range b.WornBaseItems() {
 				if omitResolvedClones && item.Group == 0 && visualOverrides[item.Slot] != 0 {
 					continue
@@ -156,16 +157,23 @@ func (s *Service) entryAdditionWithStats(role Character, state State, stats prot
 				dw.Durability = item.Durability
 				dw.Record = item.Record
 				dw.AvatarOptions = item.AvatarOptions
+				if item.Slot <= 11 && len(dw.AvatarOptions) == 0 && s.Equipment != nil {
+					// 老存档时装未带孔扩展：下发视图按 PVF 默认孔就地补上，
+					// 客户端才能显示孔（镶嵌路径 UseEmblems 同样会补，这里只
+					// 改下发视图、不写回存档）。
+					dw.AvatarOptions = s.Equipment.DefaultAvatarSockets(item.Template)
+				}
 				dw.AvatarSockets = item.AvatarSockets
 				dw.Period = item.Period
 				if item.Slot <= 11 && item.Group == 0 {
+					dw.HeaderTemplateA = b.CloneAvatarLook(item)
 					// Coexisting ordinary look: the row's primary template remains
 					// the clear avatar. Native sub_1452C1540 treats row+24 as the
 					// appearance override for this item category (bit 21). row+28
 					// is consumed only when row+24 has bit 25, the random-clear-
 					// avatar category, so keep it zero for a normal look.
 					for _, other := range b.Worn {
-						if other.Slot == item.Slot && other.Group == 1 {
+						if dw.HeaderTemplateA == 0 && other.Slot == item.Slot && other.Group == 1 {
 							dw.HeaderTemplateA = other.Template
 							break
 						}

@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/legion"
 	"dfolan/internal/loot"
 	"dfolan/internal/workflow"
 	"encoding/binary"
@@ -438,6 +439,12 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 	if w.bleedingMineStart != nil {
 		return w.advanceBleedingMine(r)
 	}
+	// 维纳斯阶段副本的直进 = 清怪后的原生转阶段（客户端按 N2655 推进后的
+	// 阶段记录解析目标副本，2026-10-04 14:41 实机）。必须在这里接管，否则
+	// 普通路径会建出无怪空房、客户端秒清后再转，形成无限进图循环。
+	if legion.IsVenusStageDungeon(r.ID) {
+		return w.enterVenusStageDirectMove(r)
+	}
 	d, ok := w.dungeons.Dungeons[r.ID]
 	if !ok {
 		return nil, nil, fmt.Errorf("direct move target absent from imported source")
@@ -543,7 +550,11 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	if e := w.loadOmenRunState(w.oathProgressDungeon()); e != nil {
 		return nil, e
 	}
-	plan := []outboundPacket{{"dungeon_loading_ack", 1, 37, []byte{1}}, {"dungeon_actor_state", 0, 3, state}, {"dungeon_loading_complete", 0, 30, protocol.DungeonLoaded()}}
+	// 官服巴卡尔军团段（20261002 抓包 21:42:19）：CMD37 ack 之后、N30 之前
+	// 下发 N1474 阶段倒计时（伊斯官服 timer_sync 回放同序）。非维纳斯零开销。
+	plan := []outboundPacket{{"dungeon_loading_ack", 1, 37, []byte{1}}, {"dungeon_actor_state", 0, 3, state}}
+	plan = append(plan, w.venusStageTimer(time.Now())...)
+	plan = append(plan, outboundPacket{"dungeon_loading_complete", 0, 30, protocol.DungeonLoaded()})
 	// 常驻状态：把两个档位在客户端读 getter 之前下发（见 oath_info.go）。
 	grades, e := w.oathInfoPackets()
 	if e != nil {
@@ -596,13 +607,19 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		plan = append(plan, outboundPacket{"dungeon_fatigue_updated", 0, 36, p})
 	}
 	cloneReattached := false
+	// 誓约进图直发是否命中：它决定下面的穿戴快照 13 / 视觉 14 / Clone 重建 / 随机属性块
+	// 要不要**重复**发送。直入时这些内容都已经在 NOTI29 之前发过，再发一次会让原生把穿戴
+	// 效果应用两次（施工图描述的「Buff 两次」来源）。查一次，多处共用（含函数尾部的
+	// dungeon_worn_random_options_restored）。
+	var directEntry bool
+	var directErr error
 	if w.characters != nil {
 		// Dungeon actor reconstruction does not carry oath slot 47 in the
 		// mode-1 detail record. Restore the authoritative worn container before
 		// applying slot updates and the oath selection, as town entry does.
 		// 誓约进图直发命中时，这三项已在 NOTI29 之前发过 ⇒ 此处不再重复
 		// （否则穿戴效果会被应用两次 —— 正是施工图描述的"Buff 两次"来源）。
-		directEntry, directErr := w.oathDirectEntryActive(context.Background())
+		directEntry, directErr = w.oathDirectEntryActive(context.Background())
 		if directErr != nil {
 			return nil, directErr
 		}
@@ -681,6 +698,20 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	}
 	// 房间重建会重置原生场景计时器，每次加载均同步同一个挑战期限。
 	plan = append(plan, w.bleedingMineTimer(time.Now())...)
+	// 维纳斯首关三只圣物怪是事件怪：不能编进 N29 固定行（venus_1phase.map
+	// 无 [monster] 段，客户端按 SourceIndex 找不到源行就不建怪——2026-10-04
+	// 13:52 实机），照月湖动态怪先例在真实 C37 加载完成后用 N2194 注册。
+	plan = append(plan, w.venusDynamicSpawnPackets()...)
+	// 随机属性块（NOTI14 list3）与上面的 13/14 同源：直入时 ID13 的整份穿戴快照
+	// （WornPayload = list3 + restore=true）已经把实例行连同 record[60:76] 一起给过，
+	// 这里再发一次会让原生临时随机属性管理器**应用两次**。
+	// 回退路径（含 Clone 重建后）仍然要发 —— 那时克隆重建把普通装备的行冲掉了。
+	if !directEntry {
+		plan, e = appendDungeonWornRandomOptions(plan, w)
+		if e != nil {
+			return nil, e
+		}
+	}
 	return appendBuffEnhancementRestore(plan, w.characters, w.role, "dungeon_buff_enhancement_restored")
 }
 
@@ -847,9 +878,40 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 		if err == nil {
 			plan = append(plan, outboundPacket{"town_actor_appearance_restored", 0, 2, visual})
 		}
+		// 本局内新写入了扩展装备槽解锁位：趁回城这次机会重建装备栏行对象，把 addition 接在 appearance 之后——与登录/进副本的帧序一致，玩家不必重登就能看到解锁。
+		if w.slotUnlockDirty {
+			if addition, addErr := w.characters.EntryAddition(w.role); addErr == nil {
+				plan = append(plan, outboundPacket{"town_actor_addition_restored", 0, 2, addition})
+				w.slotUnlockDirty = false
+			} else {
+				log.Printf("回城补发装备栏解锁失败：character=%d: %v", w.role.ID, addErr)
+			}
+		}
 		wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
 		if err == nil && len(wornUpdate) > 0 {
 			plan = append(plan, outboundPacket{"town_worn_visuals_restored", 0, 14, wornUpdate})
+		}
+		// Return reconstructs the actor just as entry/loading does. Reapply
+		// the owned source table and existing verified Clone row layouts,
+		// restoring non-avatar slots after both absolute mode1 packets.
+		reset, full, enabled, cloneErr := w.characters.CloneReattachPackets(w.role)
+		if cloneErr != nil {
+			return nil, cloneErr
+		}
+		if enabled {
+			sources, sourceErr := cloneAvatarSourcePackets(w.role.State)
+			if sourceErr != nil {
+				return nil, sourceErr
+			}
+			restore, restoreErr := inventory.NonAvatarWornSpaceUpdate(w.role.State)
+			if restoreErr != nil {
+				return nil, restoreErr
+			}
+			plan = append(plan, sources...)
+			plan = append(plan, outboundPacket{"town_clone_detached", 0, 2, reset}, outboundPacket{"town_clone_reattached", 0, 2, full})
+			if len(restore) > 0 {
+				plan = append(plan, outboundPacket{"town_nonavatar_worn_restored", 0, 14, restore})
+			}
 		}
 		if inventory.HasEquippedCreature(w.role.State) {
 			clPayload, err := inventory.CreatureListPayload(w.role.State)
@@ -1027,7 +1089,10 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 	var newDrops []protocol.SceneDrop
 	if !w.deathSent[uint16(r.Entity)] {
 		body := protocol.MonsterDeathConfirmed(uint16(r.Entity))
-		if w.loot != nil && (!unowned || blackBoss) {
+		// 军团本（维纳斯/伊斯）BOSS 击杀不掉落任何物品：官服口径只有翻牌
+		// 界面给奖励，地面金币/装备掉落是普通副本机制。在此入口整体排除，
+		// 避免 w.drops.Death 为军团 BOSS roll 出地面掉落。
+		if w.loot != nil && (!unowned || blackBoss) && w.venus == nil && w.ispins == nil {
 			if w.drops == nil || w.drops.Run != w.activeDungeon.RunID {
 				// Drops span every job's gear at every level by design; that
 				// breadth is a feature, not a bug, so the pool is not narrowed
@@ -1205,6 +1270,24 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 		plan = append(plan, outboundPacket{"hell_party_clear_sent", 0, 777, protocol.HellPartyClear()})
 		w.activeDungeon.HellClearSent = true
 	}
+	// 维纳斯阶段清怪投影：最后一只战斗怪确认死亡后推进权威 N2655（客户端
+	// 据此直进下一阶段，见 venusStageProjection）。
+	plan = append(plan, w.venusStageProjection(event)...)
+	if w.bakal != nil {
+		var alive []map[string]any
+		for _, actor := range w.activeDungeon.Monsters {
+			if !actor.NonCombat && !w.activeDungeon.Dead[actor.Entity] {
+				alive = append(alive, map[string]any{"entity": actor.Entity, "template": actor.Template, "rank": actor.Rank})
+			}
+		}
+		event(map[string]any{"kind": "bakal_room_combat_state", "dungeon": w.activeDungeon.Definition.ID, "map": w.activeDungeon.Room.Map, "x": w.activeDungeon.Room.X, "y": w.activeDungeon.Room.Y, "reported_entity": r.Entity, "confirmed": confirmed, "cleared": w.activeDungeon.RoomCleared(), "alive": alive})
+		frames, err := w.bakalConfirmDefeats(time.Now())
+		if err != nil {
+			w.completionErr = err
+		} else {
+			plan = append(plan, frames...)
+		}
+	}
 	completed, err := w.completeDungeon()
 	if err != nil {
 		// The death acknowledgement and confirmation are already in plan.
@@ -1229,6 +1312,9 @@ func (w *worldSession) bossCheck(p []byte) ([]outboundPacket, error) {
 }
 
 func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
+	if w.bakal != nil {
+		return nil, nil
+	} // raid phase owns completion and rewards
 	if w.moon.owner != nil {
 		return nil, nil
 	} // Moon final death owns its completion.
@@ -1242,6 +1328,12 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	// N2255 clear → N1658 → N2253 → N2254。阶段推进由 CMD2046 分支处理。
 	if w.ispins != nil {
 		return w.completeIspinsStage()
+	}
+	// 维纳斯阶段本：非终点关走转阶段（CMD2062 直进），completeDungeon 返回 nil；
+	// 终点关由 completeVenusStage 发军团翻牌链（N31→N2252→N2253，仿伊斯），
+	// 绝不走通用结算（CMD46→N34/N35/N261+8张牌）。
+	if w.venus != nil && w.activeDungeon != nil && legion.IsVenusStageDungeon(w.activeDungeon.Definition.ID) {
+		return w.completeVenusStage()
 	}
 	if w.channelType == azureMainChannelType {
 		return w.completeAzureMain()
@@ -1549,25 +1641,53 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 	if w.activeDungeon == nil || w.dungeons == nil {
 		return nil, nil, fmt.Errorf("room transition without active run")
 	}
+	roomCatalog := w.dungeons
+	if w.bakal != nil && w.bakalRules != nil && w.bakalRules.DungeonCatalog != nil {
+		roomCatalog = w.bakalRules.DungeonCatalog
+	}
 	var e error
 	var next *dungeon.Session
-	if r.LayerChange {
+	if w.bakal != nil && w.activeDungeon.RaidManaged && w.activeDungeon.Definition.MoveMapEvenEnemy && r.Dungeon == w.activeDungeon.Definition.ID && r.Position == [2]byte{w.activeDungeon.Room.X, w.activeDungeon.Room.Y} && r.Record[0] == 1 && r.Record[1] == 0 && r.Record[2] == 0 && r.Record[3] == 0 && !r.RaidCinematic && !r.RaidReturn {
+		r.RaidInRoom = true
+	}
+	// [MERGE-20261007-LAYER-REVISIT] 走回头路走进「层序列已播完」的格子时打 layerRevisit：
+	// 普通 CMD45 的 generic Move 分支只给 flag 0，而原生 flag 0 绕过层序号清零、会把末张
+	// 层图的近景道具和 base 描述符拼在一起（远景层没人装配 → 实机「背景全黑」）。这个
+	// 变量在下面 StartMap 前收集该格是否需要打成 layerRevisit 形态。
+	layerRevisit := false
+	if r.RaidCinematic {
+		if w.bakal == nil || r.Dungeon != w.activeDungeon.Definition.ID {
+			return nil, nil, fmt.Errorf("cinematic outside owned raid")
+		}
+		next, e = w.activeDungeon.RaidStageWarp(*roomCatalog, r.Position)
+	} else if r.RaidInRoom {
+		next, e = w.activeDungeon.RaidStageWarp(*roomCatalog, r.Position)
+	} else if r.RaidReturn {
+		if w.bakal == nil || r.Dungeon != w.activeDungeon.Definition.ID {
+			return nil, nil, fmt.Errorf("raid return outside owned Bakal dungeon")
+		}
+		next, e = w.activeDungeon.MoveRaidReturn(*roomCatalog, r.Position)
+	} else if r.LayerChange {
 		// [MERGE-20260928-SCENE-EXIT-VS-SEQUENCE] 同样是 LayerChange，出口方向却相反：
 		//   - 场景房点门（服务端合成，SceneExit）→ 回该位置的 base；
 		//   - 客户端主动换图（序列末尾，CMD45）→ 前进到相邻格。
 		// 之前两条都走 MoveScene，只能二选一，于是修好一边就弄坏另一边。
 		if r.SceneExit {
-			next, e = w.activeDungeon.ExitSceneRoom(*w.dungeons, r.Position)
+			next, e = w.activeDungeon.ExitSceneRoom(*roomCatalog, r.Position)
 		} else {
-			next, e = w.activeDungeon.MoveScene(*w.dungeons, r)
+			next, e = w.activeDungeon.MoveScene(*roomCatalog, r)
 		}
 	} else if r.Record[0] == 1 {
-		next, e = w.activeDungeon.MoveScript(*w.dungeons, r)
+		next, e = w.activeDungeon.MoveScript(*roomCatalog, r)
 		if e != nil {
-			next, e = w.activeDungeon.Move(*w.dungeons, r.Position)
+			next, e = w.activeDungeon.Move(*roomCatalog, r.Position)
 		}
 	} else {
-		next, e = w.activeDungeon.Move(*w.dungeons, r.Position)
+		next, e = w.activeDungeon.Move(*roomCatalog, r.Position)
+		if e == nil {
+			// 服务端房间保持在末张层图上（latestLayer 已是它），只改发包形态。
+			layerRevisit = next.OnFinishedLayer()
+		}
 	}
 	if e != nil {
 		return nil, nil, e
@@ -1585,7 +1705,11 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 	// 上它们会不同：请求带的还是层图所在格的坐标 (0,2)，玩家却已经去了 (0,1)。
 	// StartMap 把 Position 写成包的前两字节，客户端据此安放角色 —— 用错就等于把玩家
 	// 放在地图外，实机表现是「角色不见了」（2026-09-28 贵族机要 100004968）。
-	state := protocol.StartMapState{Position: [2]byte{next.Room.X, next.Room.Y}, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters(), HellPartyMode: next.HellPartyMode(), LayerChange: r.LayerChange, EncodeCreateTrigger: monsterCreateTriggerEnabled()}
+	state := protocol.StartMapState{Position: [2]byte{next.Room.X, next.Room.Y}, Seed: seed, Map: next.Room.Map, Monsters: next.LivingMonsters(), HellPartyMode: next.HellPartyMode(), LayerChange: r.LayerChange || r.RaidReturn || r.RaidCinematic, EncodeCreateTrigger: monsterCreateTriggerEnabled()}
+	if r.RaidInRoom {
+		state.ReuseRoom = true
+		state.Monsters = nil
+	}
 	if resume, ok := w.activeDungeon.SourceLayerResume(*w.dungeons, r); ok && resume != w.activeDungeon.Room.Map {
 		// Flag 2 clears the native layer ordinal at1452b7876; flag 0 only
 		// selects the base descriptor and leaves the active layer unchanged.
@@ -1594,6 +1718,26 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 		state.ExitLayer = true
 		state.ReuseRoom = true
 		state.Monsters = nil
+	}
+	if layerRevisit {
+		// 层序列已经播完的格子被走回头路：上面通用分支给的 flag 0 不会清原生层序号
+		// （1452b787f..7886 设完标志直接跳 LABEL93），客户端于是把末张层图的近景道具
+		// 和 base 描述符拼在一起，远景 `[background animation]` 层没人装配 —— 实机
+		// 2026-10-05 贵族机要「走回头路后房间背景全黑」。
+		//
+		// flag 1 + mode 0 才是「保住这一格层序号」的形态：原生把同格层索引前进并钳在
+		// 最后一张（1452b77ee..1452b788b），按有效序号选中缓存里那张**层图**房间，
+		// mode 0 在 1452b78f0 跳过建图与 ON START MAP 演出。attempt 1/3 的 flag 2 清掉
+		// 序号后选的是 base 缓存 —— 背景不黑了但恢复成入场那间宫殿，内容选错房。
+		state.LayerChange = true
+		state.ReuseRoom = true
+		state.Monsters = nil
+		if state.Transition == nil {
+			// flag 1 要求带换图记录；这一格的回头请求不带落点覆盖，用 StartMap
+			// 的原生默认记录（与同局普通格回头那包的记录逐字节一致）。
+			rec := [18]byte{0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0}
+			state.Transition = &rec
+		}
 	}
 	if r.LayerChange && next.Room.Map == w.activeDungeon.Room.Map {
 		state.ReuseRoom = true
@@ -1609,7 +1753,7 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 	// `0000ffffffffffffffff000000000000`（native1452b7494），全零会覆盖它，客户端
 	// 拿零落点安置角色，表现为「角色不显示」（实机 2026-09-28）。LayerChange 又要求
 	// Transition 必须存在，所以回落到那份默认记录。
-	if r.LayerChange || r.Record[0] == 1 {
+	if r.LayerChange || r.RaidReturn || r.Record[0] == 1 {
 		rec := r.Record
 		if rec == ([18]byte{}) {
 			// [MERGE-20260928-START-LAYER-EXIT] 服务端合成的出口（起点层图格点门）
@@ -1627,7 +1771,20 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 	if e != nil {
 		return nil, nil, e
 	}
-	return next, []outboundPacket{{"dungeon_move_ack", 1, 45, []byte{1}}, {"dungeon_next_map_sent", 0, 29, body}}, nil
+	plan := []outboundPacket{{"dungeon_move_ack", 1, 45, []byte{1}}, {"dungeon_next_map_sent", 0, 29, body}}
+	if w.bakal != nil {
+		location, err := w.bakalLocationForRoom(next)
+		if err != nil {
+			return nil, nil, err
+		}
+		frames, err := w.bakal.StageWarp(location)
+		if err != nil {
+			return nil, nil, err
+		}
+		w.bakalLocation = location
+		plan = append(plan, bakalOutgoing(frames)...)
+	}
+	return next, plan, nil
 }
 
 // oathDirectEntryActive 报告本连接当前是否命中「誓约进图直发」。

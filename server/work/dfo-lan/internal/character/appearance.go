@@ -40,6 +40,10 @@ func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 	if err := json.Unmarshal(raw, &state); err != nil {
 		return nil, err
 	}
+	bag, err := inventory.ReadBag(raw)
+	if err != nil {
+		return nil, err
+	}
 	bySlot := make(map[byte]uint32)
 	// 宠物幻化槽（穿戴槽 32）的按槽绑定值：生物实例 key。它和 NOTI105 里那条生物
 	// 条目必须同源（都用 inventory.CreatureSkinKey），否则客户端对不上。
@@ -65,6 +69,11 @@ func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 			}
 		}
 	}
+	for _, item := range bag.Worn {
+		if look := bag.CloneAvatarLook(item); look != 0 {
+			bySlot[byte(item.Slot)] = look
+		}
+	}
 	// 武器幻化：这条投影的 Item 由 EquipmentAppearance 写进装备外观块的 Placeholder，
 	// 而城镇模型查找（145BEFD60 → 145BD63D0 → 145BEE6C0）读的正是它，所以重登后仍要
 	// 显示幻化外观，就必须把槽 12 的武器模板换成应用的皮肤 id。只在槽 12 本来就有武器
@@ -74,12 +83,24 @@ func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 			bySlot[byte(inventory.WeaponSlot)] = state.Inventory.WeaponSkin
 		}
 	}
+	// 强化/增幅等级投影（强化特效逻辑说明.md §4）：从穿戴装备实例的 record[10]
+	// 低 5 位读取等级，随外观行一并送到客户端，供其按 packed>>1 重建武器/增幅光效。
+	// 幻化（clone/look/weapon_skin）只换外观模板，等级取自该槽真实穿戴装备的 record，
+	// 因此按 bag.Worn 的槽位读取，而不是 bySlot 里已被覆盖的模板。
+	levelBySlot := map[byte]byte{}
+	for _, item := range bag.Worn {
+		if item.Slot >= 48 || len(item.Record) <= 10 {
+			continue
+		}
+		levelBySlot[byte(item.Slot)] = item.Record[10] & 0x1f
+	}
 	var rows []protocol.Equipment
 	for slot, itemID := range bySlot {
 		row := protocol.Equipment{Slot: slot, Item: itemID}
 		if slot == skinSlot {
 			row.Model = skinModel
 		}
+		row.UpgradeLevel = levelBySlot[slot]
 		rows = append(rows, row)
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Slot < rows[j].Slot })

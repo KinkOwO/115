@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>modkit · mod 管理</title>
+<style>
+  :root{--bg:#f6f7f9;--card:#fff;--line:#e3e6ea;--text:#1f2328;--dim:#6b7280;--accent:#2563eb;--danger:#dc2626;--ok:#059669;--warn:#b45309}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 "Segoe UI",system-ui,-apple-system,"Microsoft YaHei",sans-serif}
+  header{padding:16px 20px 8px}
+  h1{margin:0 0 4px;font-size:18px}
+  .dir{color:var(--dim);font-size:12px;word-break:break-all}
+  .note{color:var(--warn);font-size:12px;margin-top:2px}
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 20px 12px}
+  .spacer{flex:1}
+  button{font:inherit;padding:6px 12px;border:1px solid var(--line);background:var(--card);border-radius:6px;cursor:pointer}
+  button:hover{border-color:#c9ced6}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.danger{color:var(--danger);border-color:#f0c9c9}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  button.mini{padding:3px 8px;font-size:12.5px;border-radius:5px}
+  input[type=search],select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card)}
+  .hint{margin:0 20px 10px;padding:8px 12px;border:1px solid #e5e7eb;background:#fbfbfd;border-radius:6px;color:#4b5563;font-size:12.5px;line-height:1.7}
+  .hint code{background:#eef2f7;padding:1px 4px;border-radius:4px}
+  .env{margin:0 20px 10px;padding:8px 12px;border:1px solid var(--line);background:#fff;border-radius:6px;font-size:12.5px;color:#4b5563;line-height:1.8;word-break:break-all}
+  .env b{color:#1f2328}
+  .env .bad{color:var(--danger)}
+  .env .warn{color:var(--warn)}
+  .msg{margin:0 20px 10px;padding:8px 12px;border-radius:6px;display:none;white-space:pre-wrap}
+  .msg.show{display:block}
+  .msg.ok{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+  .msg.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+  .msg.info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+  .run{margin:0 20px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}
+  .run-head{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);background:#fafbfc;font-weight:600}
+  .run-head .sub{font-weight:400}
+  .run-body{padding:10px 12px;max-height:52vh;overflow:auto}
+  .step{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:8px}
+  .step:last-child{margin-bottom:0}
+  .step .st-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .step.ok .st-h b{color:var(--ok)}
+  .step.err .st-h b{color:var(--danger)}
+  .step.block .st-h b{color:var(--warn)}
+  .step .cmd{color:#475569;font-family:Consolas,"Cascadia Mono",monospace;font-size:12px;word-break:break-all;margin-top:4px}
+  .step pre{margin:6px 0 0;padding:8px 10px;background:#f8fafc;border:1px solid #eef2f7;border-radius:5px;
+            font:12px/1.5 Consolas,"Cascadia Mono",monospace;white-space:pre-wrap;word-break:break-all;max-height:32vh;overflow:auto}
+  .step .note{color:var(--warn);font-size:12.5px;margin-top:4px}
+  .tag-ok{background:#ecfdf5;color:#065f46;border-color:#a7f3d0}
+  .tag-err{background:#fef2f2;color:#991b1b;border-color:#fecaca}
+  .tag-block{background:#fff7ed;color:var(--warn);border-color:#fed7aa}
+  .wrap{margin:0 20px 24px;background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+  th{background:#fafbfc;font-weight:600;color:#374151;font-size:13px}
+  tr:last-child td{border-bottom:0}
+  tr.sel td{background:#f5f8ff}
+  .name b{font-weight:600}
+  .sub{color:var(--dim);font-size:12px}
+  .desc{color:#4b5563;font-size:12.5px;line-height:1.45;max-width:520px;
+        display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .tag{display:inline-block;padding:1px 6px;border-radius:999px;font-size:11px;background:#eef2f7;color:#475569;margin-right:4px}
+  .tag.warn{background:#fff7ed;color:var(--warn)}
+  .ops{display:flex;gap:6px;flex-wrap:wrap}
+  .switch{position:relative;display:inline-block;width:40px;height:22px}
+  .switch input{display:none}
+  .switch span{position:absolute;inset:0;background:#cbd5e1;border-radius:999px;transition:.15s}
+  .switch span::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;background:#fff;border-radius:50%;transition:.15s}
+  .switch input:checked + span{background:var(--ok)}
+  .switch input:checked + span::after{transform:translateX(18px)}
+  footer{display:flex;gap:8px;align-items:center;padding:0 20px 28px}
+  .empty{padding:28px;text-align:center;color:var(--dim)}
+  dialog{border:0;border-radius:10px;padding:0;width:min(860px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  dialog::backdrop{background:rgba(15,23,42,.35)}
+  .dlg-h{padding:14px 18px;border-bottom:1px solid var(--line);font-weight:600}
+  .dlg-b{padding:12px 18px;max-height:60vh;overflow:auto}
+  .dlg-f{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center}
+  .cand{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+  .cand .bad{color:var(--danger);font-size:12px;margin-top:4px;white-space:pre-wrap}
+  label.ow{display:flex;gap:6px;align-items:center;color:var(--dim)}
+  label.dry{display:flex;gap:6px;align-items:center;color:#374151;background:#fff;border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>modkit · mod 管理</h1>
+  <div class="dir" id="dirInfo">加载中…</div>
+  <div class="note" id="note"></div>
+</header>
+
+<section class="toolbar">
+  <button id="btnImport" class="primary">导入 mod（zip）</button>
+  <input type="file" id="file" accept=".zip,application/zip" hidden>
+  <button id="btnExport">导出选中</button>
+  <button id="btnEnable">启用选中</button>
+  <button id="btnDisable">停用选中</button>
+  <button id="btnDelete" class="danger">删除选中</button>
+  <button id="btnBuildEngine" hidden>构建引擎</button>
+  <span class="spacer"></span>
+  <label class="dry" title="勾上后「安装 / 卸载」只求解与报告，不写任何文件（游戏在运行时也能看）">
+    <input type="checkbox" id="dry"> 预演（不改盘）
+  </label>
+  <input type="search" id="q" placeholder="搜索 id / 名称 / 作者" style="width:210px">
+  <select id="size">
+    <option value="10">10 / 页</option>
+    <option value="20" selected>20 / 页</option>
+    <option value="50">50 / 页</option>
+    <option value="100">100 / 页</option>
+  </select>
+  <button id="btnRefresh">刷新</button>
+</section>
+
+<div class="env" id="envInfo"></div>
+
+<div class="hint" id="hint">
+  <b>[已装]</b> 是 mod 目录（有 mod.json）；<b>[包]</b> 是 zip 成品包，还没导入成目录 —— 那一行的
+  <b>「导入」</b>按钮把它解成目录（<b>不做安装</b>）。<br>
+  <b>「安装 / 卸载」</b>才是真的装进游戏：走启动器仓 <code>internal/modkit</code> 的既有引擎
+  （<code>verify → plan → install</code> / <code>uninstall</code>），客户端 DLL mod、带 <code>exe.patch</code>
+  的包、含 server 层的 mod 都在这里做。<br>
+  · <b>含客户端层（client/pvf/resource）的装/卸要求游戏未运行</b>（引擎硬门：DFO.exe 在跑就拒绝写盘）；<br>
+  · <b>含 server 层的 mod：源码落位后必须重新编译服务端二进制</b>（启动器点「开始游戏」时会就地编译）；<br>
+  · 升级（同 id 换版本）走"先按备份还原旧条目、再重放"；<b>「启用开关」只写启用名单</b>
+  （<code>enabled.json</code>，改完重启服务端生效），与装/卸是两件事。
+</div>
+
+<div class="msg" id="msg"></div>
+
+<section class="run" id="run" hidden>
+  <div class="run-head"><span id="runTitle"></span><span class="spacer"></span>
+    <button class="mini" id="runClose">收起</button></div>
+  <div class="run-body" id="runBody"></div>
+</section>
+
+<div class="wrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:36px"><input type="checkbox" id="all" title="全选本页"></th>
+        <th>mod 名称</th>
+        <th style="width:26%">描述</th>
+        <th style="width:132px">添加日期</th>
+        <th style="width:150px">启用</th>
+        <th style="width:150px">安装 / 卸载</th>
+        <th style="width:170px">制作人</th>
+        <th style="width:180px">其它</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="empty" id="empty" hidden>这个目录里还没有 mod。点「导入 mod（zip）」开始。</div>
+</div>
+
+<footer>
+  <button id="prev">上一页</button>
+  <button id="next">下一页</button>
+  <span class="sub" id="pageInfo"></span>
+  <span class="spacer"></span>
+  <span class="sub" id="selInfo">已选 0 项</span>
+</footer>
+
+<dialog id="dlg">
+  <div class="dlg-h">导入前校验</div>
+  <div class="dlg-b" id="dlgBody"></div>
+  <div class="dlg-f">
+    <label class="ow"><input type="checkbox" id="ow"> 覆盖已存在的同名目录</label>
+    <span class="spacer"></span>
+    <button id="dlgCancel">取消</button>
+    <button id="dlgGo" class="primary" disabled>校验通过，导入</button>
+  </div>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+let state = { page:1, size:20, q:"", total:0, pages:1, items:[], selected:new Set() };
+let pendingFile = null;
+let env = null;      // 后端解析出来的路径与"游戏在不在跑"
+let busy = false;    // 装/卸进行中：避免连点
+
+function msg(text, kind="info"){
+  const el = $("#msg");
+  el.className = "msg show " + kind;
+  el.textContent = text;
+  if(kind === "ok") setTimeout(()=>{ el.className = "msg"; }, 6000);
+}
+function clearMsg(){ $("#msg").className = "msg"; }
+
+function fmtDate(s){
+  if(!s) return "—";
+  const d = new Date(s);
+  if(isNaN(d)) return s;
+  const p = n => String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function human(bytes){
+  if(!bytes) return "0 B";
+  const u = ["B","KB","MB","GB"]; let i = 0, n = bytes;
+  while(n >= 1024 && i < u.length-1){ n /= 1024; i++; }
+  return (i === 0 ? n : n.toFixed(1)) + " " + u[i];
+}
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+async function api(path, opts){
+  const r = await fetch(path, opts);
+  const ct = r.headers.get("content-type") || "";
+  const body = ct.includes("json") ? await r.json() : await r.text();
+  if(!r.ok){
+    const e = new Error((body && body.error) ? body.error : ("HTTP " + r.status));
+    e.body = body; e.status = r.status;
+    throw e;
+  }
+  return body;
+}
+
+async function load(){
+  clearMsg();
+  const url = `/api/mods?page=${state.page}&size=${state.size}&q=${encodeURIComponent(state.q)}`;
+  try{
+    const d = await api(url);
+    state.items = d.items || [];
+    state.total = d.total; state.pages = d.pages; state.page = d.page; state.size = d.size;
+    env = d.env || null;
+    $("#dirInfo").textContent = "管理的目录：" + d.modsDir;
+    $("#note").textContent = d.note || "";
+    renderEnv();
+    render();
+  }catch(e){ msg("加载失败：" + e.message, "err"); }
+}
+
+// 顶部"这几个路径从哪来"：装/卸出问题时，第一眼要看的就是它。
+function renderEnv(){
+  const el = $("#envInfo");
+  if(!env){ el.textContent = ""; return; }
+  const line = (label, value, why, bad) =>
+    `<div><b>${label}</b>：<span class="${bad?"bad":""}">${esc(value || "（未找到）")}</span>` +
+    (why ? ` <span class="sub">（${esc(why)}）</span>` : "") + `</div>`;
+  const probs = (env.problems||[]).map(p => `<div class="warn">提示：${esc(p)}</div>`).join("");
+  const running = env.clientRunning
+    ? `<div class="warn">DFO.exe 正在运行（PID ${esc((env.clientProcs||[]).join(", "))}）：含客户端层的装/卸会被拒绝 —— 请先退出游戏；「预演」仍然可用。</div>`
+    : `<div class="sub">DFO.exe 未运行：客户端侧的装/卸可以做。</div>`;
+  el.innerHTML =
+    line("客户端目录", env.clientDir, env.clientDirSource, !env.clientDir) +
+    line("服务端模块根", env.moduleDir, env.launcherRootSource, !env.moduleDir) +
+    line("modkit 引擎", env.modkitExe, env.modkitExeSource, !env.modkitExe) +
+    (env.launcherRepo ? line("启动器源码", env.launcherRepo, env.launcherRepoSource, false) : "") +
+    running + probs;
+  $("#btnBuildEngine").hidden = !!env.modkitExe || !env.launcherRepo;
+}
+
+// 装/卸按钮的可用性：与后端同一套判据（路径/引擎缺项、游戏在跑要不要写客户端、有没有合法 id）。
+// 两边判据刻意写成一致：否则会出现"按钮亮着、后端照样拒绝"的困惑。
+function commonBlock(m){
+  if(busy) return "正在处理上一条操作…";
+  if(!env || !env.clientDir || !env.modkitExe) return "客户端目录或 modkit 引擎没找到（见页面顶部）";
+  if(!m.id || m.id === "(清单缺 id)") return "清单里没有合法 id";
+  return "";
+}
+// 是否要动客户端目录（与引擎的 needsClientWrite 同判据）。
+function needsClientWrite(m){
+  return (m.layers||[]).some(l => l === "client" || l === "pvf" || l === "resource");
+}
+// 安装：只有"要写客户端"的 mod 在游戏运行时被挡；只含 server 层的不写客户端，照常放行。
+function insDisabled(m){
+  const base = commonBlock(m);
+  if(base) return base;
+  if(env.clientRunning && !$("#dry").checked && needsClientWrite(m))
+    return "DFO.exe 正在运行：含客户端层的安装要退出游戏后进行（可先勾「预演」）";
+  return "";
+}
+// 卸载：引擎对卸载一律要求游戏未运行（它要还原客户端文件），页面对齐。
+function unsDisabled(m){
+  const base = commonBlock(m);
+  if(base) return base;
+  if(env.clientRunning && !$("#dry").checked)
+    return "DFO.exe 正在运行：卸载要还原客户端文件，请先退出游戏（可先勾「预演」）";
+  return "";
+}
+
+function render(){
+  const tb = $("#rows");
+  tb.innerHTML = "";
+  $("#empty").hidden = state.items.length > 0;
+  const dry = $("#dry").checked;
+  for(const m of state.items){
+    const tr = document.createElement("tr");
+    if(state.selected.has(m.dirName)) tr.classList.add("sel");
+    const layers = (m.layers||[]).map(l=>`<span class="tag">${l}</span>`).join("");
+    const isPkg = m.kind === "package";
+    const kindTag = isPkg ? '<span class="tag warn" title="这是一个 zip 包，还没导入成目录：可以导出/删除，也可以直接安装">包</span>' : "";
+    const warn = (m.problems && m.problems.length)
+      ? `<span class="tag warn" title="${m.problems.join('\n').replace(/"/g,'&quot;')}">清单有问题</span>` : "";
+    const drift = m.problems && m.problems.length
+      ? `<div class="sub" style="color:#b45309">${m.problems[0]}</div>` : "";
+    const insBlock = insDisabled(m);
+    const unsBlock = unsDisabled(m);
+    const seq = (m.layers||[]).includes("server")
+      ? '<div class="sub" style="color:#b45309">含 server 层：装/卸后要重编译服务端</div>' : "";
+    tr.innerHTML = `
+      <td><input type="checkbox" class="row" data-key="${esc(m.dirName)}" ${state.selected.has(m.dirName)?"checked":""}></td>
+      <td class="name">
+        <b>${esc(m.name || m.id)}</b> <span class="sub">${esc(m.id)}${m.version?" · v"+esc(m.version):""}</span>
+        <div class="sub">${layers}${kindTag}${warn}</div>${drift}
+      </td>
+      <td class="desc" title="${esc(m.description || "")}">${m.description ? esc(m.description) : '<span class="sub">—</span>'}</td>
+      <td class="sub">${fmtDate(m.addedAt)}</td>
+      <td>
+        ${isPkg
+          ? `<button class="imp" data-key="${esc(m.dirName)}" title="包没有启停状态：先导入成目录，之后就能启停、也能被引擎加载">导入</button>`
+          : `<label class="switch" title="${m.enabled?"已启用":"已停用"}">
+               <input type="checkbox" class="tg" data-key="${esc(m.dirName)}" ${m.enabled?"checked":""}><span></span>
+             </label>`}
+      </td>
+      <td>
+        <div class="ops">
+          <button class="mini primary ins" data-key="${esc(m.dirName)}" title="${esc(insBlock || (dry ? "预演安装（不写盘）" : "安装/升级这一项（走 modkit 引擎）"))}" ${insBlock?"disabled":""}>安装</button>
+          <button class="mini uns" data-key="${esc(m.dirName)}" title="${esc(unsBlock || (dry ? "预演卸载（不写盘）" : "卸载这一项（按备份逐字节还原）"))}" ${unsBlock?"disabled":""}>卸载</button>
+        </div>
+        ${seq}
+      </td>
+      <td>${m.author ? esc(m.author) : '<span class="sub">—</span>'}</td>
+      <td class="sub">${human(m.sizeBytes)} · ${esc(m.dirName||"")}</td>`;
+    tb.appendChild(tr);
+  }
+  $("#all").checked = state.items.length > 0 && state.items.every(m=>state.selected.has(m.dirName));
+  $("#pageInfo").textContent = `第 ${state.page} / ${state.pages} 页 · 共 ${state.total} 个 mod`;
+  $("#prev").disabled = state.page <= 1;
+  $("#next").disabled = state.page >= state.pages;
+  $("#selInfo").textContent = `已选 ${state.selected.size} 项`;
+  const sel = [...state.selected];
+  $("#btnExport").disabled = sel.length === 0;
+  $("#btnEnable").disabled = sel.length === 0;
+  $("#btnDisable").disabled = sel.length === 0;
+  $("#btnDelete").disabled = sel.length === 0;
+}
+
+// ---- 装/卸的结果面板：跑了哪几步、退出码、**引擎原文**、以及"要重编译"的提醒 ----
+function showRun(action, key, res, httpStatus){
+  const ok = res.ok === true;
+  const blocked = res.blocked === true;
+  const title = `${action === "install" ? "安装" : "卸载"} ${res.id || key}` +
+    (res.dryRun ? "（预演，不改盘）" : "") +
+    (ok ? " —— 完成" : blocked ? " —— 计划被阻断（未改动任何文件）" : " —— 未完成");
+  $("#runTitle").innerHTML = esc(title) +
+    (res.needsRebuild ? ' <span class="tag warn">含 server 层：要重新编译服务端二进制</span>' : "");
+  const body = [];
+  if(res.error) body.push(`<div class="msg err show" style="margin:0 0 8px">${esc(res.error)}</div>`);
+  for(const s of (res.steps||[])){
+    const run = s.run || null;
+    const cls = s.blocked ? "block" : (s.ok ? "ok" : "err");
+    const code = run ? (run.spawnErr ? "没能启动" : ("退出码 " + run.exitCode)) : (s.ok ? "OK" : "失败");
+    body.push(`<div class="step ${cls}">
+      <div class="st-h"><b>${s.ok ? "✔" : (s.blocked ? "⛔" : "✘")}</b><span>${esc(s.name)}</span>
+        <span class="spacer"></span><span class="sub">${esc(code)}</span></div>
+      ${s.detail ? `<div class="sub">${esc(s.detail)}</div>` : ""}
+      ${run && run.cmd ? `<div class="cmd">${esc(run.cmd)}</div>` : ""}
+      ${run && run.output ? `<pre>${esc(run.output)}</pre>` : ""}
+      ${s.note ? `<div class="note">${esc(s.note)}</div>` : ""}
+    </div>`);
+  }
+  for(const n of (res.notes||[])) body.push(`<div class="note" style="margin:0 0 6px">· ${esc(n)}</div>`);
+  $("#runBody").innerHTML = body.join("") || '<div class="sub">（没有步骤）</div>';
+  $("#run").hidden = false;
+  $("#run").scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+$("#runClose").onclick = () => { $("#run").hidden = true; };
+
+async function runOp(kind, key){
+  if(busy) return;
+  const dry = $("#dry").checked;
+  const action = kind === "ins" ? "install" : "uninstall";
+  const label = (action === "install" ? "安装" : "卸载") + (dry ? "（预演）" : "");
+  busy = true; render();
+  msg(`正在${label} ${key} …（引擎会依次跑 verify / plan / ${action}，含 server 层的还要就地编译一次）`, "info");
+  try{
+    const res = await api("/api/" + action, {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({key, dryRun: dry})});
+    showRun(action, key, res, 200);
+    if(res.ok){
+      msg(`${label}完成：${key}` + (dry ? "（预演：没有改动任何文件）" : ""), "ok");
+    } else if(res.blocked){
+      msg(`${label}被阻断：${key} —— 见下面的计划原文（未改动任何文件）`, "err");
+    } else {
+      msg(`${label}失败：` + (res.error || "见下面的原文"), "err");
+    }
+    load();
+  }catch(e){
+    const body = e.body || {};
+    if(body && (body.steps || body.error)){
+      showRun(action, key, Object.assign({action, key, id:key, dryRun:dry}, body), e.status);
+    }
+    msg(`${label}未执行：` + e.message, "err");
+  }finally{
+    busy = false; render();
+  }
+}
+
+// ---- 事件 ----
+$("#rows").addEventListener("change", async e => {
+  const t = e.target;
+  if(t.classList.contains("row")){
+    if(t.checked) state.selected.add(t.dataset.key); else state.selected.delete(t.dataset.key);
+    t.closest("tr").classList.toggle("sel", t.checked);
+    render();
+  }
+  if(t.classList.contains("tg")){
+    const on = t.checked, key = t.dataset.key;
+    t.disabled = true;
+    try{
+      await api(on ? "/api/enable" : "/api/disable", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({keys:[key]})});
+      msg((on?"已启用 ":"已停用 ") + key + "（要重启服务端才生效）", "ok");
+      load();
+    }catch(err){ t.checked = !on; msg(err.message, "err"); }
+    finally{ t.disabled = false; }
+  }
+});
+$("#rows").addEventListener("click", async e => {
+  const imp = e.target.closest("button.imp");
+  if(imp){
+    const key = imp.dataset.key;
+    if(!confirm(`把 ${key} 导入成目录？\n（会落到 mods 目录下；同名目录已存在时覆盖。这只是解包，不做安装）`)) return;
+    imp.disabled = true;
+    try{
+      const d = await api("/api/import-local", {method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({keys:[key], overwrite:true})});
+      let text = `已导入：${(d.imported||[]).join(", ") || "（无）"}`;
+      if((d.skipped||[]).length) text += `\n跳过：${d.skipped.join("；")}`;
+      msg(text + "\n现在它是 [已装] 目录，可以用开关启停、也可以点「安装」装进游戏。", "ok");
+      load();
+    }catch(err){ msg("导入失败：" + err.message, "err"); imp.disabled = false; }
+    return;
+  }
+  const ins = e.target.closest("button.ins");
+  if(ins){ runOp("ins", ins.dataset.key); return; }
+  const uns = e.target.closest("button.uns");
+  if(uns){
+    const key = uns.dataset.key;
+    if($("#dry").checked || confirm(`卸载 ${key}？\n\n会按注册表里的备份**逐字节还原**被它替换过的文件，并删掉它新增的文件。\n含 server 层的还会撤掉服务端源码目录（之后要重新编译服务端）。`)){
+      runOp("uns", key);
+    }
+  }
+});
+$("#all").addEventListener("change", e => {
+  for(const m of state.items){ e.target.checked ? state.selected.add(m.dirName) : state.selected.delete(m.dirName); }
+  render();
+});
+$("#prev").onclick = () => { if(state.page > 1){ state.page--; load(); } };
+$("#next").onclick = () => { if(state.page < state.pages){ state.page++; load(); } };
+$("#size").onchange = e => { state.size = +e.target.value; state.page = 1; load(); };
+$("#btnRefresh").onclick = () => load();
+$("#dry").onchange = () => render();
+let qt = null;
+$("#q").oninput = e => { clearTimeout(qt); qt = setTimeout(()=>{ state.q = e.target.value; state.page = 1; load(); }, 250); };
+
+$("#btnBuildEngine").onclick = async () => {
+  const b = $("#btnBuildEngine");
+  b.disabled = true;
+  msg("正在用 Go 就地构建 modkit 引擎（./cmd/modkit）…首次可能要十几秒。", "info");
+  try{
+    const d = await api("/api/engine/build", {method:"POST"});
+    const out = d.output ? ("\n" + d.output.trim()) : "";
+    if(d.ok){
+      msg("引擎已构建：" + d.exe + out, "ok");
+    }else{
+      msg("构建失败：" + (d.error || "") + out, "err");
+    }
+    if(d.run) showRun("build", d.exe || "modkit", {ok:d.ok, id:"modkit 引擎", steps:[
+      {name:"go build ./cmd/modkit", ok:d.ok, run:d.run, note:d.error||""}
+    ]});
+  }catch(e){
+    msg("构建失败：" + e.message, "err");
+  }finally{ b.disabled = false; load(); }
+};
+
+async function batch(kind){
+  const ids = [...state.selected];
+  if(ids.length === 0) return;
+  if(kind === "delete" && !confirm(`确定删除这 ${ids.length} 项吗（目录或 zip 包）？此操作不可撤销。\n\n${ids.join("\n")}`)) return;
+  const url = {delete:"/api/delete", enable:"/api/enable", disable:"/api/disable"}[kind];
+  try{
+    const d = await api(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({keys:ids})});
+    let text = `完成：${(d.done||[]).length} 项（${(d.done||[]).join(", ") || "无"}）`;
+    if((d.notes||[]).length) text += "\n" + d.notes.join("\n");
+    msg(text, "ok");
+    state.selected.clear();
+    load();
+  }catch(e){ msg(e.message, "err"); }
+}
+$("#btnDelete").onclick = () => batch("delete");
+$("#btnEnable").onclick = () => batch("enable");
+$("#btnDisable").onclick = () => batch("disable");
+$("#btnExport").onclick = () => {
+  const ids = [...state.selected];
+  if(!ids.length) return;
+  msg(`正在导出 ${ids.length} 个 mod…（1 个 = 包根即 mod 根；多个 = 每个 mod 一个子目录）`, "info");
+  window.location = "/api/export?keys=" + encodeURIComponent(ids.join(","));
+};
+
+// ---- 导入：先校验，再导入 ----
+$("#btnImport").onclick = () => $("#file").click();
+$("#file").onchange = async e => {
+  const f = e.target.files[0];
+  e.target.value = "";
+  if(!f) return;
+  pendingFile = f;
+  msg("正在校验 " + f.name + " …", "info");
+  const fd = new FormData();
+  fd.append("file", f);
+  try{
+    const d = await api("/api/inspect", {method:"POST", body: fd});
+    showCandidates(f, d.candidates || []);
+  }catch(err){
+    msg("校验失败：" + err.message, "err");
+    if(err.body && err.body.candidates) showCandidates(f, err.body.candidates);
+  }
+};
+
+function showCandidates(file, cands){
+  clearMsg();
+  const body = $("#dlgBody");
+  let allOk = true;
+  body.innerHTML = cands.map(c => {
+    const bad = (c.problems||[]);
+    if(bad.length) allOk = false;
+    const man = c.manifest || {};
+    return `<div class="cand">
+      <div><b>${esc(man.name || c.dirName || "(未命名)")}</b>
+        <span class="sub">${esc(man.id || "")}${man.version?" · v"+esc(man.version):""}</span>
+        <span class="tag">${c.prefix ? "多 mod 形态" : "单 mod 形态"}</span>
+        ${c.exists ? '<span class="tag warn">目标已存在</span>' : ""}
+      </div>
+      <div class="sub">落位目录：${esc(c.dirName || "?")} · ${human(c.bytes)}${man.author ? " · 制作人：" + esc(man.author) : ""}</div>
+      ${bad.length ? `<div class="bad">${bad.map(esc).join("\n")}</div>` : '<div class="sub" style="color:#059669">校验通过</div>'}
+    </div>`;
+  }).join("");
+  $("#dlgGo").disabled = !allOk;
+  $("#dlgGo").textContent = allOk ? "校验通过，导入" : "校验未通过";
+  $("#ow").checked = cands.some(c => c.exists);
+  $("#dlg").showModal();
+  $("#dlgGo").onclick = () => doImport(file, $("#ow").checked);
+}
+$("#dlgCancel").onclick = () => $("#dlg").close();
+
+async function doImport(file, overwrite){
+  $("#dlg").close();
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("dryRun", "0");
+  fd.append("overwrite", overwrite ? "1" : "0");
+  msg("正在导入 " + file.name + " …", "info");
+  try{
+    const d = await api("/api/import", {method:"POST", body: fd});
+    let text = `导入完成：${(d.imported||[]).length} 个`;
+    if((d.imported||[]).length) text += "（" + d.imported.join(", ") + "）";
+    if((d.skipped||[]).length) text += `\n跳过：${d.skipped.join("；")}`;
+    msg(text, "ok");
+    state.selected.clear();
+    load();
+  }catch(e){ msg("导入失败：" + e.message, "err"); }
+}
+
+load();
+</script>
+</body>
+</html>

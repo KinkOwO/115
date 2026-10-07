@@ -1,8 +1,8 @@
 {
   "created_at": "2026-09-20T15:53:35.267777+00:00",
   "purpose": "server source and portable Windows launcher developer handoff",
-  "default_runtime": "pvf-direct",
-  "source_build": "client-multiversion-merged-confirmed-20261004",
+  "default_runtime": "archived39",
+  "source_build": "restored-source-candidate-not-real-client-accepted",
   "full_client_included": false,
   "player_database_included": false,
   "private_credentials_included": false,
@@ -914,13 +914,8 @@
     },
     {
       "path": "work/dfo-lan/bin/wireprobe-handoff-source.exe",
-      "bytes": 29857792,
-      "sha256": "cc9fd242069cb7d8ef291e9d21fca093e8f1ae06f0c1f582ed801a9c0a06bb86"
-    },
-    {
-      "path": "work/dfo-lan/bin/wireprobe-pvf.exe",
-      "bytes": 29857792,
-      "sha256": "cc9fd242069cb7d8ef291e9d21fca093e8f1ae06f0c1f582ed801a9c0a06bb86"
+      "bytes": 17762816,
+      "sha256": "cfa14097ca30d0e2ddd0aa5e86c9849fc846998bcf3c092ab6d4cfa87a8a862e"
     },
     {
       "path": "work/dfo-lan/bin/wireprobe-repairs.exe",

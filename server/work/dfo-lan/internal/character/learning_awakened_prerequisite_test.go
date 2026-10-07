@@ -11,7 +11,7 @@ import (
 func TestBranchlessAwakeningGrantDoesNotDeadlockLearning(t *testing.T) {
 	s, c := loadAwakeningGrantFixture(t)
 	prof := c.Professions[9]
-	raw, err := json.Marshal(State{Level: 115, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills})
+	raw, err := json.Marshal(State{Level: 115, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills})
 	if err != nil {
 		t.Fatal(err)
 	}

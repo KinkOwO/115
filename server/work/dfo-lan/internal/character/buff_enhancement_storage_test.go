@@ -10,18 +10,13 @@ import (
 	"dfolan/internal/database"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"strings"
 	"testing"
 	"time"
 )
 
-func TestBuffEnhancementPostgres(t *testing.T) {
-	config := os.Getenv("DFO_TEST_POSTGRES_DSN")
-	if config == "" {
-		t.Skip("isolated PostgreSQL integration not requested")
-	}
+func TestBuffEnhancementStorage(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	dbFixture, err := database.OpenTestFixture(ctx)

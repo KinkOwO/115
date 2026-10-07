@@ -14,7 +14,7 @@ var skinStoragePeriodTemplates atomic.Pointer[itemPeriodSet]
 // liftStoredPeriods 兜底开关：装载不到 PVF 期限模板表时，至少保证**存档里已有的
 // 非零期限**不会被当成过期（按永不过期下发）。
 //
-// 为什么需要它：一键启动器（`DFO-115US单机一键启动器.exe`）自己拉起 launch_local.py，
+// 为什么需要它：外部一键启动器（`DFO-115US单机一键启动器.exe`）自己拉起旧脚本编排，
 // 从不设置 DFO_MAX_ITEM_PERIOD（三个 .cmd 入口都设了）⇒ 走启动器时
 // ConfigureMaxItemPeriods 一次都没被调用，脚本声明过期限的模板（如银增幅书，
 // 到期日 2022-11-08）一律按 0 下发，客户端显示「剩余期限已过」并拒绝使用。

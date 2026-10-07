@@ -15,7 +15,7 @@ SELECT counts FROM account_material_storage WHERE account_id=$1
 `
 
 func (q *Queries) AccountMaterials(ctx context.Context, accountID int64) (json.RawMessage, error) {
-	row := q.db.QueryRow(ctx, accountMaterials, accountID)
+	row := q.db.QueryRowContext(ctx, accountMaterials, accountID)
 	var counts json.RawMessage
 	err := row.Scan(&counts)
 	return counts, err
@@ -36,7 +36,7 @@ type AccountVaultEventRow struct {
 }
 
 func (q *Queries) AccountVaultEvent(ctx context.Context, arg AccountVaultEventParams) (AccountVaultEventRow, error) {
-	row := q.db.QueryRow(ctx, accountVaultEvent, arg.AccountID, arg.EventKey)
+	row := q.db.QueryRowContext(ctx, accountVaultEvent, arg.AccountID, arg.EventKey)
 	var i AccountVaultEventRow
 	err := row.Scan(&i.CharacterID, &i.Operation)
 	return i, err
@@ -47,7 +47,7 @@ INSERT INTO account_vaults(account_id) VALUES($1) ON CONFLICT DO NOTHING
 `
 
 func (q *Queries) EnsureAccountVault(ctx context.Context, accountID int64) error {
-	_, err := q.db.Exec(ctx, ensureAccountVault, accountID)
+	_, err := q.db.ExecContext(ctx, ensureAccountVault, accountID)
 	return err
 }
 
@@ -66,7 +66,7 @@ type EnsurePrimaryVaultParams struct {
 }
 
 func (q *Queries) EnsurePrimaryVault(ctx context.Context, arg EnsurePrimaryVaultParams) error {
-	_, err := q.db.Exec(ctx, ensurePrimaryVault,
+	_, err := q.db.ExecContext(ctx, ensurePrimaryVault,
 		arg.Slots,
 		arg.ConfigVersion,
 		arg.CharacterID,
@@ -90,7 +90,7 @@ type EnsureSecondaryVaultParams struct {
 }
 
 func (q *Queries) EnsureSecondaryVault(ctx context.Context, arg EnsureSecondaryVaultParams) error {
-	_, err := q.db.Exec(ctx, ensureSecondaryVault,
+	_, err := q.db.ExecContext(ctx, ensureSecondaryVault,
 		arg.Slots,
 		arg.ConfigVersion,
 		arg.CharacterID,
@@ -104,7 +104,7 @@ INSERT INTO account_material_storage(account_id) VALUES($1) ON CONFLICT(account_
 `
 
 func (q *Queries) InitializeAccountMaterials(ctx context.Context, accountID int64) error {
-	_, err := q.db.Exec(ctx, initializeAccountMaterials, accountID)
+	_, err := q.db.ExecContext(ctx, initializeAccountMaterials, accountID)
 	return err
 }
 
@@ -126,7 +126,7 @@ type LoadAccountVaultRow struct {
 }
 
 func (q *Queries) LoadAccountVault(ctx context.Context, arg LoadAccountVaultParams) (LoadAccountVaultRow, error) {
-	row := q.db.QueryRow(ctx, loadAccountVault, arg.CharacterID, arg.AccountID)
+	row := q.db.QueryRowContext(ctx, loadAccountVault, arg.CharacterID, arg.AccountID)
 	var i LoadAccountVaultRow
 	err := row.Scan(&i.Slots, &i.Gold, &i.Items)
 	return i, err
@@ -137,7 +137,7 @@ SELECT counts FROM account_material_storage WHERE account_id=$1 FOR UPDATE
 `
 
 func (q *Queries) LockAccountMaterials(ctx context.Context, accountID int64) (json.RawMessage, error) {
-	row := q.db.QueryRow(ctx, lockAccountMaterials, accountID)
+	row := q.db.QueryRowContext(ctx, lockAccountMaterials, accountID)
 	var counts json.RawMessage
 	err := row.Scan(&counts)
 	return counts, err
@@ -154,7 +154,7 @@ type LockAccountVaultRow struct {
 }
 
 func (q *Queries) LockAccountVault(ctx context.Context, accountID int64) (LockAccountVaultRow, error) {
-	row := q.db.QueryRow(ctx, lockAccountVault, accountID)
+	row := q.db.QueryRowContext(ctx, lockAccountVault, accountID)
 	var i LockAccountVaultRow
 	err := row.Scan(&i.Slots, &i.Gold, &i.Items)
 	return i, err
@@ -171,7 +171,7 @@ type LockPrimaryVaultRow struct {
 }
 
 func (q *Queries) LockPrimaryVault(ctx context.Context, characterID int64) (LockPrimaryVaultRow, error) {
-	row := q.db.QueryRow(ctx, lockPrimaryVault, characterID)
+	row := q.db.QueryRowContext(ctx, lockPrimaryVault, characterID)
 	var i LockPrimaryVaultRow
 	err := row.Scan(&i.Slots, &i.Items, &i.ConfigVersion)
 	return i, err
@@ -188,7 +188,7 @@ type LockSecondaryVaultRow struct {
 }
 
 func (q *Queries) LockSecondaryVault(ctx context.Context, characterID int64) (LockSecondaryVaultRow, error) {
-	row := q.db.QueryRow(ctx, lockSecondaryVault, characterID)
+	row := q.db.QueryRowContext(ctx, lockSecondaryVault, characterID)
 	var i LockSecondaryVaultRow
 	err := row.Scan(&i.Slots, &i.Items, &i.ConfigVersion)
 	return i, err
@@ -211,7 +211,7 @@ type OwnedPrimaryVaultRow struct {
 }
 
 func (q *Queries) OwnedPrimaryVault(ctx context.Context, arg OwnedPrimaryVaultParams) (OwnedPrimaryVaultRow, error) {
-	row := q.db.QueryRow(ctx, ownedPrimaryVault, arg.CharacterID, arg.AccountID)
+	row := q.db.QueryRowContext(ctx, ownedPrimaryVault, arg.CharacterID, arg.AccountID)
 	var i OwnedPrimaryVaultRow
 	err := row.Scan(&i.Slots, &i.Items, &i.ConfigVersion)
 	return i, err
@@ -234,7 +234,7 @@ type OwnedSecondaryVaultRow struct {
 }
 
 func (q *Queries) OwnedSecondaryVault(ctx context.Context, arg OwnedSecondaryVaultParams) (OwnedSecondaryVaultRow, error) {
-	row := q.db.QueryRow(ctx, ownedSecondaryVault, arg.CharacterID, arg.AccountID)
+	row := q.db.QueryRowContext(ctx, ownedSecondaryVault, arg.CharacterID, arg.AccountID)
 	var i OwnedSecondaryVaultRow
 	err := row.Scan(&i.Slots, &i.Items, &i.ConfigVersion)
 	return i, err
@@ -253,7 +253,7 @@ type RecordAccountVaultEventParams struct {
 }
 
 func (q *Queries) RecordAccountVaultEvent(ctx context.Context, arg RecordAccountVaultEventParams) error {
-	_, err := q.db.Exec(ctx, recordAccountVaultEvent,
+	_, err := q.db.ExecContext(ctx, recordAccountVaultEvent,
 		arg.AccountID,
 		arg.EventKey,
 		arg.CharacterID,
@@ -272,7 +272,7 @@ type SaveAccountMaterialsParams struct {
 }
 
 func (q *Queries) SaveAccountMaterials(ctx context.Context, arg SaveAccountMaterialsParams) error {
-	_, err := q.db.Exec(ctx, saveAccountMaterials, arg.Counts, arg.AccountID)
+	_, err := q.db.ExecContext(ctx, saveAccountMaterials, arg.Counts, arg.AccountID)
 	return err
 }
 
@@ -289,7 +289,7 @@ type SaveAccountVaultParams struct {
 }
 
 func (q *Queries) SaveAccountVault(ctx context.Context, arg SaveAccountVaultParams) error {
-	_, err := q.db.Exec(ctx, saveAccountVault,
+	_, err := q.db.ExecContext(ctx, saveAccountVault,
 		arg.Slots,
 		arg.Gold,
 		arg.Items,
@@ -308,7 +308,7 @@ type SaveAccountVaultItemsParams struct {
 }
 
 func (q *Queries) SaveAccountVaultItems(ctx context.Context, arg SaveAccountVaultItemsParams) error {
-	_, err := q.db.Exec(ctx, saveAccountVaultItems, arg.Items, arg.AccountID)
+	_, err := q.db.ExecContext(ctx, saveAccountVaultItems, arg.Items, arg.AccountID)
 	return err
 }
 
@@ -322,7 +322,7 @@ type SaveAccountVaultSlotsParams struct {
 }
 
 func (q *Queries) SaveAccountVaultSlots(ctx context.Context, arg SaveAccountVaultSlotsParams) error {
-	_, err := q.db.Exec(ctx, saveAccountVaultSlots, arg.Slots, arg.AccountID)
+	_, err := q.db.ExecContext(ctx, saveAccountVaultSlots, arg.Slots, arg.AccountID)
 	return err
 }
 
@@ -336,7 +336,7 @@ type SavePrimaryVaultItemsParams struct {
 }
 
 func (q *Queries) SavePrimaryVaultItems(ctx context.Context, arg SavePrimaryVaultItemsParams) error {
-	_, err := q.db.Exec(ctx, savePrimaryVaultItems, arg.Items, arg.CharacterID)
+	_, err := q.db.ExecContext(ctx, savePrimaryVaultItems, arg.Items, arg.CharacterID)
 	return err
 }
 
@@ -350,7 +350,7 @@ type SavePrimaryVaultSlotsParams struct {
 }
 
 func (q *Queries) SavePrimaryVaultSlots(ctx context.Context, arg SavePrimaryVaultSlotsParams) error {
-	_, err := q.db.Exec(ctx, savePrimaryVaultSlots, arg.Slots, arg.CharacterID)
+	_, err := q.db.ExecContext(ctx, savePrimaryVaultSlots, arg.Slots, arg.CharacterID)
 	return err
 }
 
@@ -364,7 +364,7 @@ type SaveSecondaryVaultItemsParams struct {
 }
 
 func (q *Queries) SaveSecondaryVaultItems(ctx context.Context, arg SaveSecondaryVaultItemsParams) error {
-	_, err := q.db.Exec(ctx, saveSecondaryVaultItems, arg.Items, arg.CharacterID)
+	_, err := q.db.ExecContext(ctx, saveSecondaryVaultItems, arg.Items, arg.CharacterID)
 	return err
 }
 
@@ -378,6 +378,6 @@ type SaveSecondaryVaultSlotsParams struct {
 }
 
 func (q *Queries) SaveSecondaryVaultSlots(ctx context.Context, arg SaveSecondaryVaultSlotsParams) error {
-	_, err := q.db.Exec(ctx, saveSecondaryVaultSlots, arg.Slots, arg.CharacterID)
+	_, err := q.db.ExecContext(ctx, saveSecondaryVaultSlots, arg.Slots, arg.CharacterID)
 	return err
 }

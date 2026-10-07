@@ -4,11 +4,9 @@ import (
 	"context"
 	"dfolan/internal/database/sqlcgen"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 )
 
 type TowerGriefProgress struct {
@@ -50,7 +48,7 @@ func (s *Store) TowerGriefProgress(ctx context.Context, account int64, floors [1
 	}
 	if err := read(); err == nil {
 		return progress, nil
-	} else if !errors.Is(err, pgx.ErrNoRows) {
+	} else if !isNoRows(err) {
 		return progress, err
 	}
 	states, err := s.queries.AccountCharacterStates(ctx, account)
@@ -111,7 +109,7 @@ func (s *Store) AdvanceTowerGrief(ctx context.Context, account int64, floor uint
 	if err == nil {
 		return progress, nil
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !isNoRows(err) {
 		return progress, err
 	}
 	prior, err := s.queries.ReadTowerGriefProgress(ctx, account)

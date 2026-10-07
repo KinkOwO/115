@@ -22,13 +22,54 @@ func (w *worldSession) useStackable(p []byte, event func(map[string]any)) ([]out
 	if e != nil {
 		return nil, e
 	}
+	// 苏醒之森军团口径：副本内消耗品每关限 8 次（用户要求），超限拒绝且
+	// 不扣库存。gate 命中时森林计数已 +1。
+	if refused := w.forestPotionGate(r); refused != nil {
+		return refused, nil
+	}
+	// 维纳斯军团口径：同款每关 8 次（BUG2，用户确认副本内无法使用任何
+	// 消耗品——缺 N1584 许可，见 dungeon_flow）。
+	if refused := w.venusPotionGate(r); refused != nil {
+		return refused, nil
+	}
+	// 奥德赛模式口径（业主 2026-10-06，由服务端 mod 打开）：副本内禁止使用任何
+	// 消耗品、可以携带；城镇不受影响。客户端本来就不发 N1584 = 界面已灰，
+	// 这里挡的是权威侧（改过的客户端绕过界面也拿不到药）。
+	if refused := w.odysseyConsumableGate(r); refused != nil {
+		return refused, nil
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	before, e := inventory.ReadBag(w.role.State)
 	if e != nil {
 		return nil, e
 	}
-	saved, receipt, _, e := (&workflow.ItemService{Store: w.store, Items: w.items}).Consume(ctx, w.role, r)
+	var check func() error
+	limited := false
+	if w.bakal != nil && w.activeDungeon != nil && w.activeDungeon.RaidManaged && r.List == 0 {
+		script, err := w.items.Catalog.ItemScript(r.Template)
+		if err != nil {
+			return nil, err
+		}
+		for _, token := range script.Cells {
+			if token.Type == 3 && token.Text == "[stackable dungeon limit]" {
+				limited = true
+				break
+			}
+		}
+		if limited {
+			check = w.bakal.CheckPotionBudget
+		}
+	}
+	var committed func()
+	if limited {
+		committed = func() {
+			w.bakal.SpendPotionBudget()
+			coins, potions := w.bakal.Budget()
+			event(map[string]any{"kind": "bakal_consumable_budget", "raid": w.bakalRun, "coins": coins, "potions": potions})
+		}
+	}
+	saved, receipt, _, e := (&workflow.ItemService{Store: w.store, Items: w.items}).ConsumeChecked(ctx, w.role, r, check, committed)
 	if e != nil {
 		return nil, e
 	}

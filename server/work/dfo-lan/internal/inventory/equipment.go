@@ -111,14 +111,19 @@ func NewEquipmentCatalog(c EquipmentCatalog, source string) (*EquipmentCatalog, 
 }
 
 type BagEquipment struct {
-	Slot          uint16 `json:"slot"`
-	Template      uint32 `json:"template"`
-	Group         byte   `json:"group,omitempty"`
-	Durability    uint16 `json:"durability"`
-	Record        []byte `json:"record,omitempty"`
-	AvatarOptions []byte `json:"avatar_options,omitempty"`
-	AvatarSockets []byte `json:"avatar_sockets,omitempty"`
-	Period        uint32 `json:"period,omitempty"`
+	// Future/private instance fields survive moves and save upgrades.
+	ExtraFields map[string]json.RawMessage `json:"-"`
+	// CloneSource references the physical look instance in the avatar bag.
+	// Missing in old saves; old dual-Worn rows are migrated transactionally.
+	CloneSource   *CloneAvatarSource `json:"clone_source,omitempty"`
+	Slot          uint16             `json:"slot"`
+	Template      uint32             `json:"template"`
+	Group         byte               `json:"group,omitempty"`
+	Durability    uint16             `json:"durability"`
+	Record        []byte             `json:"record,omitempty"`
+	AvatarOptions []byte             `json:"avatar_options,omitempty"`
+	AvatarSockets []byte             `json:"avatar_sockets,omitempty"`
+	Period        uint32             `json:"period,omitempty"`
 	// Refine 是锻造（Refine / CMD430）等级，服务端权威状态。
 	//
 	// 为什么要单独存一格而不是只读行内字节：装备行里锻造等级那一格（configs/refine.json
@@ -126,6 +131,10 @@ type BagEquipment struct {
 	// 玩家已经锻出来的等级就会读成 0（或者读到上一次写歪的残留值）。
 	// 行内那格只是给客户端渲染用的镜像，不影响判定。
 	Refine byte `json:"refine,omitempty"`
+	// TutorialLocked 是**来源标记**：教学模式（Starter Boost 训练轨道）内新建的装备行
+	// 盖上它，出关后仍然存在，只用来配合「当前是否仍在训练轨道」做门禁。
+	// 老存档没有该字段 → false，向前兼容。分解刻意不受它约束（第九关任务就是拆训练装备）。
+	TutorialLocked bool `json:"tutorial_locked,omitempty"`
 }
 
 // IsCloneAvatar reports whether this equipment has PVF category "clear avatar".
@@ -434,7 +443,7 @@ func (b Bag) AddEquipment(c *EquipmentCatalog, slots [2]uint16, id, count uint32
 	}
 	b.Equipment = append([]BagEquipment(nil), b.Equipment...)
 	for _, n := range available {
-		b.Equipment = append(b.Equipment, BagEquipment{Slot: n, Template: id, Durability: d})
+		b.Equipment = append(b.Equipment, BagEquipment{Slot: n, Template: id, Durability: d, TutorialLocked: b.tutorialActive})
 	}
 	return b, available, nil
 }

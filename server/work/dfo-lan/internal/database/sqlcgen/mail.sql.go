@@ -7,10 +7,9 @@ package sqlcgen
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const insertPlayerMail = `-- name: InsertPlayerMail :one
@@ -19,7 +18,7 @@ VALUES($1,$2,$3,$4,$5,now()+interval '15 days') RETURNING id
 `
 
 type InsertPlayerMailParams struct {
-	SenderID    pgtype.Int8
+	SenderID    sql.NullInt64
 	RecipientID int64
 	SenderName  string
 	Body        string
@@ -27,7 +26,7 @@ type InsertPlayerMailParams struct {
 }
 
 func (q *Queries) InsertPlayerMail(ctx context.Context, arg InsertPlayerMailParams) (int64, error) {
-	row := q.db.QueryRow(ctx, insertPlayerMail,
+	row := q.db.QueryRowContext(ctx, insertPlayerMail,
 		arg.SenderID,
 		arg.RecipientID,
 		arg.SenderName,
@@ -52,7 +51,7 @@ type InsertSystemMailParams struct {
 }
 
 func (q *Queries) InsertSystemMail(ctx context.Context, arg InsertSystemMailParams) (int64, error) {
-	row := q.db.QueryRow(ctx, insertSystemMail,
+	row := q.db.QueryRowContext(ctx, insertSystemMail,
 		arg.RecipientID,
 		arg.SenderName,
 		arg.Body,
@@ -83,7 +82,7 @@ type LockMailCharactersRow struct {
 }
 
 func (q *Queries) LockMailCharacters(ctx context.Context, characterIds []int64) ([]LockMailCharactersRow, error) {
-	rows, err := q.db.Query(ctx, lockMailCharacters, characterIds)
+	rows, err := q.db.QueryContext(ctx, lockMailCharacters, characterIds)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +139,7 @@ type LockMailboxRow struct {
 }
 
 func (q *Queries) LockMailbox(ctx context.Context, arg LockMailboxParams) ([]LockMailboxRow, error) {
-	rows, err := q.db.Query(ctx, lockMailbox, arg.RecipientID, arg.IncludeDeleted, arg.MessageIds)
+	rows, err := q.db.QueryContext(ctx, lockMailbox, arg.RecipientID, arg.IncludeDeleted, arg.MessageIds)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +187,7 @@ type MailRecipientRow struct {
 }
 
 func (q *Queries) MailRecipient(ctx context.Context, name string) (MailRecipientRow, error) {
-	row := q.db.QueryRow(ctx, mailRecipient, name)
+	row := q.db.QueryRowContext(ctx, mailRecipient, name)
 	var i MailRecipientRow
 	err := row.Scan(
 		&i.ID,
@@ -210,7 +209,7 @@ SELECT id FROM characters WHERE lower(name)=lower($1::text) AND deleted_at IS NU
 `
 
 func (q *Queries) MailRecipientID(ctx context.Context, name string) (int64, error) {
-	row := q.db.QueryRow(ctx, mailRecipientID, name)
+	row := q.db.QueryRowContext(ctx, mailRecipientID, name)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
@@ -227,7 +226,7 @@ type MailSendReceiptParams struct {
 }
 
 func (q *Queries) MailSendReceipt(ctx context.Context, arg MailSendReceiptParams) (json.RawMessage, error) {
-	row := q.db.QueryRow(ctx, mailSendReceipt, arg.CharacterID, arg.EventKey)
+	row := q.db.QueryRowContext(ctx, mailSendReceipt, arg.CharacterID, arg.EventKey)
 	var outcome json.RawMessage
 	err := row.Scan(&outcome)
 	return outcome, err
@@ -259,7 +258,7 @@ type MailboxRow struct {
 }
 
 func (q *Queries) Mailbox(ctx context.Context, arg MailboxParams) ([]MailboxRow, error) {
-	rows, err := q.db.Query(ctx, mailbox, arg.AccountID, arg.CharacterID)
+	rows, err := q.db.QueryContext(ctx, mailbox, arg.AccountID, arg.CharacterID)
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +299,7 @@ type MailboxCapacityRow struct {
 }
 
 func (q *Queries) MailboxCapacity(ctx context.Context, recipientID int64) (MailboxCapacityRow, error) {
-	row := q.db.QueryRow(ctx, mailboxCapacity, recipientID)
+	row := q.db.QueryRowContext(ctx, mailboxCapacity, recipientID)
 	var i MailboxCapacityRow
 	err := row.Scan(&i.Messages, &i.UnclaimedAssets)
 	return i, err
@@ -324,7 +323,7 @@ type MailboxDeliveryStateRow struct {
 }
 
 func (q *Queries) MailboxDeliveryState(ctx context.Context, arg MailboxDeliveryStateParams) (MailboxDeliveryStateRow, error) {
-	row := q.db.QueryRow(ctx, mailboxDeliveryState, arg.AccountID, arg.CharacterID)
+	row := q.db.QueryRowContext(ctx, mailboxDeliveryState, arg.AccountID, arg.CharacterID)
 	var i MailboxDeliveryStateRow
 	err := row.Scan(&i.LatestID, &i.Unread)
 	return i, err
@@ -335,7 +334,7 @@ SELECT nextval('mailbox_id_seq')::bigint AS id
 `
 
 func (q *Queries) NextMailID(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, nextMailID)
+	row := q.db.QueryRowContext(ctx, nextMailID)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
@@ -356,7 +355,7 @@ type UpdateMailParams struct {
 }
 
 func (q *Queries) UpdateMail(ctx context.Context, arg UpdateMailParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updateMail,
+	result, err := q.db.ExecContext(ctx, updateMail,
 		arg.Assets,
 		arg.Status,
 		arg.Deleted,
@@ -366,5 +365,9 @@ func (q *Queries) UpdateMail(ctx context.Context, arg UpdateMailParams) (int64, 
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+affected, affectedErr := result.RowsAffected()
+	if affectedErr != nil {
+		return 0, affectedErr
+	}
+	return affected, nil
 }

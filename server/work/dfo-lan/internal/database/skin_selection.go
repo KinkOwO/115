@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/jackc/pgx/v5"
 )
 
 // MigrateSkinSelection stores which skin a character has applied. It only adds a
@@ -43,7 +42,7 @@ func (s *Store) SelectedSkin(ctx context.Context, character int64, category uint
 		return 0, fmt.Errorf("invalid character")
 	}
 	key, err := s.queries.SelectedSkin(ctx, sqlcgen.SelectedSkinParams{CharacterID: character, Page: int64(category)})
-	if errors.Is(err, pgx.ErrNoRows) {
+	if isNoRows(err) {
 		return 0, nil
 	}
 	if err != nil {

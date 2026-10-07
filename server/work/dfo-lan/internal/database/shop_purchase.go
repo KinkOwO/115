@@ -70,7 +70,7 @@ func (tx *Tx) CountShopPurchases(ctx context.Context, scope ShopPurchaseScope, n
 	return countShopPurchases(ctx, tx.queries, scope, tx.accountID, tx.characterID, npcID, template, start)
 }
 
-func countShopPurchases(ctx context.Context, queries *sqlcgen.Queries, scope ShopPurchaseScope,
+func countShopPurchases(ctx context.Context, queries querySet, scope ShopPurchaseScope,
 	accountID, characterID int64, npcID, template uint32, start time.Time) (int, error) {
 	var count int64
 	var err error

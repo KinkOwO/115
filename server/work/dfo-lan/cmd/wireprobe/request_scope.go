@@ -14,7 +14,10 @@ func dungeonRequest(id uint16) bool {
 	// 只登 observedGameRequest 的话 `case 1654` 永远不执行（实机 2026-10-04 前一轮的教训）。
 	// ⚠️ 第一次登它时同时塞了 NOTI70/71/72，客户端闪退、无法归因 ⇒ 已整体回退。
 	// 本次**只**放行这一条路由，azureClearInfo 只回阶段 4/5（不带那三帧），单独验稳定性。
-	case 1654, 1722, 16, 37, 38, 39, 40, 42, 43, 45, 46, 69, 70, 71, 72, 117, 132, 449, 450, 1461, 1852, 2015, 2062, 2319, 2320, 2321, 2322, 2323, 2325, 2327, 2329:
+	// 2059 = ENUM_CMDPACKET_PLAYER_REVIVE_WHEN_PHASE_CHANGE：维纳斯 boss 的
+	// 形态转换技能把玩家 phase-change 击杀后的免费复活请求，venusPhaseRevive
+	// 应答（静默会让客户端复活流程挂起——角色抽搐/技能锁/不能跳）。
+	case 1654, 1722, 16, 37, 38, 39, 40, 42, 43, 45, 46, 69, 70, 71, 72, 117, 132, 449, 450, 1461, 1852, 2015, 2059, 2062, 2319, 2320, 2321, 2322, 2323, 2325, 2327, 2329:
 		return true
 	}
 	return false
@@ -23,7 +26,7 @@ func dungeonRequest(id uint16) bool {
 // Implemented commands and explicitly observed features are decoded on every
 // request. Unknown commands retain the existing eight-body sampling limit.
 func observedGameRequest(id uint16) bool {
-	if mailboxRequest(id) || id >= 2316 && id <= 2328 {
+	if mailboxRequest(id) || legion.BakalRequests(id) || id == 2072 || id >= 2316 && id <= 2328 {
 		return true
 	}
 	switch id {
@@ -36,6 +39,11 @@ func observedGameRequest(id uint16) bool {
 	case 173, 191, 201, 205, 206, 256, 272, 295, 305, 306, 307, 308, 393, 430, 433, 449, 450, 451, 467:
 		return true
 	case 469, 483, 495, 500, 502, 507, 527, 623, 627, 637, 649, 681, 684, 777, 795, 806, 848:
+		return true
+	case 643, 680:
+		// Starter Boost 662 的两条领奖线路：643 领取创建礼盒、680 领取本关奖励
+		// （681 查看引导已在上面登记）。不登记的话第 BodySampleLimit(8) 次之后正文
+		// 不再保留，诊断会静默变弱。
 		return true
 	case 857, 1301, 1395, 1406, 1417, 1418, 1421, 1422, 1426, 1438, 1461, 1462, 1551, 1554, 1565, 1592, 1719:
 		return true

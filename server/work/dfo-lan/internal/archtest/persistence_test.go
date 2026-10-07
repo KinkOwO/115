@@ -11,6 +11,13 @@ import (
 	"testing"
 )
 
+// driverImports are the packages only internal/database may import: the SQLite driver
+// itself and database/sql. PostgreSQL's pgx used to be listed here; it went with the
+// engine (2026-10-05 业主口径，见根 AGENTS.md §0.6).
+func driverImports(name string) bool {
+	return name == "modernc.org/sqlite" || name == "database/sql"
+}
+
 // Generated persistence types must not become the domain or gateway API. This
 // guard also prevents reintroducing a generic SQL transaction facade.
 func TestPersistenceBoundary(t *testing.T) {
@@ -50,14 +57,11 @@ func TestPersistenceBoundary(t *testing.T) {
 				if name == "dfolan/internal/database/sqlcgen" && !isDatabase {
 					t.Errorf("%s exposes generated database types outside database", path)
 				}
-				if !isDatabase && (strings.HasPrefix(name, "github.com/jackc/pgx/") || name == "database/sql") {
+				if !isDatabase && driverImports(name) {
 					t.Errorf("%s imports a database driver outside database", path)
 				}
-				if strings.HasPrefix(name, "github.com/jackc/pgx/") || name == "database/sql" || name == "dfolan/internal/database/sqlcgen" {
+				if driverImports(name) || name == "dfolan/internal/database/sqlcgen" {
 					alias := filepath.Base(name)
-					if name == "github.com/jackc/pgx/v5" {
-						alias = "pgx"
-					}
 					if imp.Name != nil {
 						alias = imp.Name.Name
 					}
@@ -90,6 +94,27 @@ func TestPersistenceBoundary(t *testing.T) {
 					method, ok := decl.(*ast.FuncDecl)
 					if !ok || !method.Name.IsExported() {
 						continue
+					}
+					// The rule protects the package's public surface. A method on an
+					// UNEXPORTED receiver is not part of it: neither the receiver type
+					// nor any interface it satisfies can be named from outside the
+					// package, so a generated adapter is free to speak in generated
+					// types. Exported receivers (Store) are still checked.
+					if method.Recv != nil {
+						exportedReceiver := false
+						if len(method.Recv.List) > 0 {
+							switch recvType := method.Recv.List[0].Type.(type) {
+							case *ast.StarExpr:
+								if ident, ok := recvType.X.(*ast.Ident); ok {
+									exportedReceiver = ident.IsExported()
+								}
+							case *ast.Ident:
+								exportedReceiver = recvType.IsExported()
+							}
+						}
+						if !exportedReceiver {
+							continue
+						}
 					}
 					ast.Inspect(method.Type, func(node ast.Node) bool {
 						selector, ok := node.(*ast.SelectorExpr)

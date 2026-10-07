@@ -1,12 +1,23 @@
 # DFO GM 工具（独立网页版）
 
+> **2026-10-05：这个独立 GM 工具已经移除。**
+>
+> 两条入口（`Start-GMWeb.cmd` → `scripts/gmweb.py` → `bin/gmweb.exe`，以及 `GM管理台.cmd` →
+> `dashboard/gm_dashboard_proxy.py` + `bin/gmweb.exe`）都跑不起来：`gm-tool\bin\` 下**没有**
+> `gmweb.exe` / `admin.exe`，包内那份 `gm-tool\python` 也已在去 Python 那轮删除（Python 运行时只在
+> 整合包外的 `..\gm-tool\python`）。因此这些入口与它们的 Python 代理、Dashboard 前端一并删掉了。
+>
+> **GM 现在只有启动器内嵌的那一个**：启动器仓库 `gm/` → `gmbridge.exe`（Go；PostgreSQL 与 SQLite
+> 两条存储档都支持），命令行部分用服务端的 `dfo-tool accountlist` / `cmd/admin` / `dfo-tool setlevel`。
+> 下面这些小节是**历史记录**（路径多为旧的 `D:\115us\...`），保留作排查参考，不再维护。
+
 ## 2026-10-04 数据库访问收口候选
 
 Dashboard 的管理台邮件列表/发送/撤销与个人仓库发放统一转发到 Go GM 后端的认证接口。Python 不再读取数据库配置、调用 psql 或写 SQL；对应查询由服务端 storage 内的 sqlc 生成方法执行。管理台 `gm_mail` 队列仍独立于游戏 `character_mail`，不将管理台发送视为游戏内投递或领取。
 
 仓库发放复用现有角色/主金库事务，校验账号归属，拒绝超出 uint32 的数量及合并溢出，保留未知物品 JSON 字段。新代理须与包含这些接口的 Go 候选配套使用；旧发布二进制没有这些接口，本轮尚未替换发布程序或进行实机验收。
 
-离线转发回归：`tools/python/python.exe -m unittest discover -s gm-tool/dashboard -p test_gm_dashboard_proxy.py`（在仓库根执行，不启动网页或数据库）。数据库集成统一使用显式 `DFO_TEST_POSTGRES_DSN` 和自动清理的隔离 schema。
+离线转发回归：`../gm-tool/python/python.exe -m unittest discover -s gm-tool/dashboard -p test_gm_dashboard_proxy.py`（在仓库根执行，不启动网页或数据库）。Python 是 **GM 工具专属依赖**，已从 `tools\` 移到整合包外的 `gm-tool\python`（与 `tools\` 同级；启动游戏不需要它）。数据库集成统一使用显式 `DFO_TEST_POSTGRES_DSN` 和自动清理的隔离 schema。
 
 ## 2026-10-03 当前源码：PVF 唯一内容源
 
@@ -17,7 +28,7 @@ GM/admin 源码和 Python 启动器默认使用原生 PVF，拒绝 JSON 内容�
 本批候选位于 `server/work/dfo-lan/.tmp/item-equipment-cleanup/gmweb.exe`，未替换 `gm-tool/bin` 发布程序。仓库根目录下可只读检查候选（不读取存储配置、不启动 PostgreSQL、网页服务或浏览器）：
 
 ```powershell
-./tools/python/python.exe ./gm-tool/scripts/gmweb.py --check --gmweb-binary ./server/work/dfo-lan/.tmp/item-equipment-cleanup/gmweb.exe
+../gm-tool/python/python.exe ./gm-tool/scripts/gmweb.py --check --gmweb-binary ./server/work/dfo-lan/.tmp/item-equipment-cleanup/gmweb.exe
 ```
 
 需要手动回归时使用同目录 `启动GM候选.cmd`，可附加 `--storage` 等参数。本批已完成离线原生目录与发放回归，未增加实机确认范围。以下为旧发布包和早期候选的历史说明，旧 JSON 启动参数不适用于当前源码。
@@ -27,7 +38,7 @@ GM/admin 源码和 Python 启动器默认使用原生 PVF，拒绝 JSON 内容�
 源码`server/work/dfo-lan/cmd/gmtool`新增原生源入口；独立程序放在模块的`.tmp/pvf-management/bin/gmweb.exe`，现有发布程序和默认启动参数保持。模块根目录下只检查候选目录（不需要数据库）：
 
 ```powershell
-../../../tools/python/python.exe ../../../gm-tool/scripts/gmweb.py --check --catalog-source pvf --gmweb-binary .tmp/pvf-management/bin/gmweb.exe --pvf-archive ../client-build/Script.inner.pvf --pvf-source-checksum 7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80
+../../../../gm-tool/python/python.exe ../../../gm-tool/scripts/gmweb.py --check --catalog-source pvf --gmweb-binary .tmp/pvf-management/bin/gmweb.exe --pvf-archive ../client-build/Script.inner.pvf --pvf-source-checksum 7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80
 ```
 
 候选索引599771个原生LIST绑定，旧386230个ID、kind/grade/rarity全部一致。部位/最低等级直接读EQU；旧缓存包含过期字段，候选不继续用它决定筛选。名称按脚本实际引用定位，不拼ID；旧中文译名作为外部显示覆盖，当前PVF原文多数为英文。具体663处名称和旧部位/等级差异见`docs/todo/pvf/PVF直读第五批迁移进度.md`，这批还未实机验收。
@@ -138,7 +149,7 @@ gm-tool/
   configs/names.client.json    客户端 PVF 文本表导出的显示名（41.9 万条）
   configs/equipment.slots.json 装备 id → 部位/最低等级（13.9 万件）
   configs/equipment.current37.json / loot.next25.json / characters.next25.json / ...
-  python/                  精简 Python（仅标准库）
+  python/                  GM 专属 Python 3.11 便携版（本目录缺 python.exe 时用整合包外的 ../gm-tool/python；启动游戏不需要它）
   scripts/gmweb.py         启动脚本
   Start-GMWeb.cmd          双击入口
 ```

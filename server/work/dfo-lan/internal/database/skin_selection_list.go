@@ -37,12 +37,12 @@ func (s *Store) SetSkinSelectionList(ctx context.Context, character int64, categ
 	if character == 0 {
 		return errors.New("invalid skin selection")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	if err = queries.ClearSkinSelectionList(ctx, sqlcgen.ClearSkinSelectionListParams{CharacterID: character, Category: int64(category)}); err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func (s *Store) SetSkinSelectionList(ctx context.Context, character int64, categ
 			return err
 		}
 	}
-	return tx.Commit(ctx)
+	return tx.commit(ctx)
 }
 
 // SkinSelectionList returns the skins the character has applied for one category,
@@ -91,12 +91,12 @@ func (s *Store) SetSkinSelectionSlots(ctx context.Context, character int64, cate
 	if character == 0 {
 		return errors.New("invalid skin selection")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
-	queries := s.queries.WithTx(tx)
+	defer tx.rollback(ctx)
+	queries := tx.queries()
 	if err = queries.ClearSkinSelectionSlots(ctx, sqlcgen.ClearSkinSelectionSlotsParams{CharacterID: character, Category: int64(category)}); err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func (s *Store) SetSkinSelectionSlots(ctx context.Context, character int64, cate
 			return err
 		}
 	}
-	return tx.Commit(ctx)
+	return tx.commit(ctx)
 }
 
 // SkinSelectionSlots returns the category's selection as a slice of exactly width

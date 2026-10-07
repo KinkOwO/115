@@ -3,12 +3,10 @@ package database
 import (
 	"context"
 	"dfolan/internal/database/sqlcgen"
-	"errors"
 	"fmt"
 	"regexp"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 )
 
 // TowerProgress keeps each tower's account progression and daily admissions
@@ -75,7 +73,7 @@ func (s *Store) ReserveTowerEntry(ctx context.Context, account int64, policy Tow
 	day := policy.ServiceDay(now)
 	row, err := s.queries.ReserveTowerEntry(ctx, sqlcgen.ReserveTowerEntryParams{AccountID: account, TowerKey: policy.Key, Day: day, Floor: int32(floor)})
 	out = storedTowerProgress(sqlcgen.ReadTowerProgressRow(row))
-	if errors.Is(err, pgx.ErrNoRows) {
+	if isNoRows(err) {
 		return out, fmt.Errorf("%s tower entry unavailable", policy.Key)
 	}
 	return out, err
@@ -93,7 +91,7 @@ func (s *Store) AdvanceTowerFloor(ctx context.Context, account int64, policy Tow
 	if err == nil {
 		return out, nil
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !isNoRows(err) {
 		return out, err
 	}
 	prior, err := s.queries.ReadTowerProgress(ctx, sqlcgen.ReadTowerProgressParams{AccountID: account, TowerKey: policy.Key})

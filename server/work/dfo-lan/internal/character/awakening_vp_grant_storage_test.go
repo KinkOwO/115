@@ -7,14 +7,10 @@ import (
 
 	"dfolan/internal/database"
 	"encoding/json"
-	"os"
 	"testing"
 )
 
 func TestReconcileTechniquePointsBackfillsLegacyThirdAwakening(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("isolated schema integration")
-	}
 	ctx := context.Background()
 	fixture, e := database.OpenTestFixture(ctx)
 	if e != nil {

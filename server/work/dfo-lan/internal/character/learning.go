@@ -53,9 +53,7 @@ func (s *Service) skillRows(role Character, state State, tree int) ([]protocol.L
 		return nil, e
 	}
 	prof, ok := s.Catalog.Professions[role.Profession]
-	// Match the profession reference, as automaticSkills does. Rebuilding the
-	// PVF string pool changes raw .chr hashes without changing this reference.
-	if !ok || prof.Path != state.SourcePath {
+	if !ok || prof.RawSHA256 != state.SourceSHA256 {
 		return nil, fmt.Errorf("skill profession source mismatch")
 	}
 	ids := skillOrder(state, known)
@@ -332,6 +330,12 @@ func (s *Service) Learn(ctx context.Context, role Character, key string, req pro
 			state.SkillSlots[req.Tree][v.ID] = v.Slot
 		}
 		p, e := mergeSkillState(current.State, state)
+		if e != nil {
+			return nil, nil, e
+		}
+		// 活动 662 第三关（技能进化点）与技能保存同事务判定：变体已通过源校验后，
+		// 按活动源的 [condition] 点数把关卡推进。未装载活动时原样返回。
+		p, _, e = s.completeBoostVPSave(p, state, req)
 		if e != nil {
 			return nil, nil, e
 		}

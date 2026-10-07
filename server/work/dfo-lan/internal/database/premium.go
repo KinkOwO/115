@@ -4,11 +4,9 @@ import (
 	"context"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/database/sqlcgen"
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 )
 
 const (
@@ -28,7 +26,7 @@ func (s *Store) MigratePremiums(ctx context.Context) error {
 // ActivePremiums returns the account timers consumed by the character-select
 // payload. Expired rows remain auditable in PostgreSQL but are not advertised.
 func (s *Store) ActivePremiums(ctx context.Context, account int64, now time.Time) ([]CashPremium, error) {
-	if s == nil || s.db == nil {
+	if s == nil || s.engine == nil {
 		return nil, nil
 	}
 	rows, err := s.queries.ActivePremiums(ctx, sqlcgen.ActivePremiumsParams{AccountID: account, NowEpoch: now.Unix()})
@@ -48,7 +46,7 @@ func (s *Store) ActivePremiums(ctx context.Context, account int64, now time.Time
 
 // HasActivePremium checks if a specific premium contract is currently active for an account.
 func (s *Store) HasActivePremium(ctx context.Context, account int64, premiumType uint8, now time.Time) (bool, error) {
-	if s == nil || s.db == nil {
+	if s == nil || s.engine == nil {
 		return false, nil
 	}
 	return s.queries.HasActivePremium(ctx, sqlcgen.HasActivePremiumParams{AccountID: account, PremiumType: int16(premiumType), NowEpoch: now.Unix()})
@@ -69,22 +67,22 @@ func (s *Store) ActivePremiumSet(ctx context.Context, account int64, now time.Ti
 
 // ActivatePremium updates the account contract timer atomically and returns the new end_time.
 func (s *Store) ActivatePremium(ctx context.Context, account int64, premiumType uint8, durationSecond int64) (int64, error) {
-	if s == nil || s.db == nil {
+	if s == nil || s.engine == nil {
 		return 0, fmt.Errorf("storage unavailable")
 	}
 	if durationSecond <= 0 {
 		return 0, fmt.Errorf("invalid premium duration")
 	}
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.engine.begin(ctx)
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback(ctx)
+	defer tx.rollback(ctx)
 
 	now := time.Now().Unix()
-	q := s.queries.WithTx(tx)
+	q := tx.queries()
 	oldEnd, err := q.LockPremiumExpiry(ctx, sqlcgen.LockPremiumExpiryParams{AccountID: account, PremiumType: int16(premiumType)})
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && !isNoRows(err) {
 		return 0, err
 	}
 	base := now
@@ -99,7 +97,7 @@ func (s *Store) ActivatePremium(ctx context.Context, account int64, premiumType 
 	if err != nil {
 		return 0, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.commit(ctx); err != nil {
 		return 0, err
 	}
 	return end, nil

@@ -146,6 +146,12 @@ type Equipment struct {
 	// 宠物幻化栏（穿戴槽 32）用它指向要画的生物实例 key；其余槽位留 0，
 	// 客户端对 Len=0 的处理是「保留该槽原有的模型索引」。
 	Model uint32
+	// UpgradeLevel 是该装备的强化/增幅等级（record[10] 低 5 位，0..31）。
+	// 由 EntryBasicProbe 从穿戴装备的 EquipmentRow(item)[10] 读取并投影到
+	// 外观行 offset 9（打包为 UpgradeLevel<<1）；客户端 reader 145639840
+	// 按 packed>>1 重建效果等级，决定武器光效/增幅光效是否创建。
+	// 详见 强化特效逻辑说明.md §4。
+	UpgradeLevel byte
 }
 
 // 145639840 calls 1459a0220 with list46 for EVERY row, including weapons.
@@ -171,7 +177,19 @@ func EquipmentAppearance(rows []Equipment) ([]byte, error) {
 			p = add32(p, equippedAppearanceModelSize)
 			p = add32(p, row.Model)
 		}
-		p = append(p, make([]byte, 26)...)
+		// 强化/增幅等级投影（强化特效逻辑说明.md §4）：外观行 offset 9 是打包的
+		// 强化等级字段。无模型载荷时（Model==0，Len=0）这一格正好落在行内 offset 9
+		// （即 26 字节尾部的第一个字节，等价 EquippedAppearance.Flags）；客户端原生
+		// reader 145639840 按 packed>>1 得到效果等级。只使用高 7 位（bit0 留给其它
+		// 标志），超出 127 直接拒绝避免回绕（等级 0..31 时 <<1 最大 62，不会触发）。
+		tail := make([]byte, 26)
+		if row.UpgradeLevel > 0 {
+			if int(row.UpgradeLevel)<<1 > 127 {
+				return nil, fmt.Errorf("upgrade level %d overflows the packed effect byte", row.UpgradeLevel)
+			}
+			tail[0] = row.UpgradeLevel << 1
+		}
+		p = append(p, tail...)
 	}
 	return p, nil
 }

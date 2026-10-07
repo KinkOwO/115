@@ -2,6 +2,7 @@ package gamedata
 
 import (
 	"dfolan/internal/adventure"
+	"dfolan/internal/boostup"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
@@ -58,6 +59,10 @@ type Catalogs struct {
 	OdysseyCurrency                              *loot.OdysseyCurrency
 	Attunement                                   *loot.AttunementRewards
 	Apocalypse                                   *catalog.ApocalypseCatalog
+	MaxLevelReward                               *catalog.MaxLevelReward
+	Bakal                                        *catalog.BakalRaidRules
+	BoostUp                                      *boostup.Catalog
+	RaidEntrances                                map[uint32]catalog.RaidEntrance
 	MazeRates                                    *catalog.MazeChanceOverlay
 	HellMaps                                     *catalog.SourceMapOverlay
 	HellRules                                    *catalog.HellPartyRules
@@ -133,7 +138,7 @@ type CatalogAdapters struct {
 
 func (i CatalogInputs) checksBaselines() bool { return i.VerifyBaselines }
 
-const SupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,transform,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps,layer-revisits,characters,cashshop,boxes,item-shops"
+const SupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,transform,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps,layer-revisits,characters,cashshop,boxes,item-shops,bakal-raid,boostup"
 
 func (c *Catalogs) Selected(domain string) bool { return c != nil && c.selected[domain] }
 func (c *Catalogs) Prepared(domain string) bool { return c != nil && c.prepared[domain] }
@@ -267,6 +272,8 @@ func (c *Catalogs) validateSelectedProjections() error {
 			ready = c.MazeRates != nil
 		case "apocalypse":
 			ready = c.Apocalypse != nil
+		case "bakal-raid":
+			ready = c.Bakal != nil
 		case "attunement":
 			ready = c.Attunement != nil && c.Items != nil
 		case "odyssey-growth":

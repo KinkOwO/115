@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/boostup"
 	"dfolan/internal/catalog"
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
@@ -199,7 +200,7 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 	//
 	// ★ 无论哪条失败分支，都**只记日志、绝不回包** —— 客户端在 2259 上没有失败分支，
 	//   两次实测收到 Error 都 `exit=0xC0000005`。
-	if r.Action == 1 && len(templates) > 0 {
+	if (r.Action == 1 || w.boostJournalSwap(r)) && len(templates) > 0 {
 		if equipmentTransformApply == "observe" {
 			log.Printf("equipment craft TRANSFORM-PLAN (observe): requested=%d slots=%v templates=%v",
 				len(templates), slots, templates)
@@ -244,9 +245,40 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 					plan = append(plan, outboundPacket{"equipment_transform_inventory_refreshed", 0, 13, body})
 				}
 			}
+			// ★ 变换会改图鉴（目标 −1、旧件 +1 登记回去），必须补发 NOTI2610 权威快照。
+			//
+			// 本仓既有规则（`equipment_journal_flow.go` CMD2264 § / `disjoint_flow.go` CMD26）：
+			// 客户端的图鉴计数**只认 2610**，只回 ACK 时它那套"乐观显示"不会被权威值覆盖。
+			// 变换此前只发 14/13，没发 2610 —— 与第 9 关分解当初的缺陷同型。顺序照参考行为，
+			// 排在背包刷新之后、金库金币刷新之前。组包失败**不能吞掉已经提交的变换**：只记日志，
+			// 重登仍会在入场拿到快照。
+			if len(receipt.Pairs) > 0 {
+				body, jErr := equipmentJournalEntryPayload(w.role, w.journalRules())
+				if jErr != nil {
+					if event != nil {
+						event(map[string]any{"kind": "equipment_transform_journal_refresh_failed",
+							"character_id": w.role.ID, "reason": jErr.Error()})
+					}
+				} else if len(body) > 0 {
+					plan = append(plan, outboundPacket{"equipment_transform_journal_refreshed", 0,
+						protocol.EquipmentJournalOpcode, body})
+				}
+			}
 			// 金币不够时从**账号金库**调取过 ⇒ 必须补发金库金币显示包，否则金库界面停在旧值、
 			// 客户端本地校验会把存取卡住（"塞满了取不出放不进"）。
 			plan = append(plan, w.vaultGoldRefreshPackets(ctx, receipt.VaultGold)...)
+			// ★ 第 10 关的关卡推进：变换把身上那件换成了图鉴里的目标，而第 10 关的任务
+			// `transform equip journal or equip item` 与 `equip item` 走的是**同一个穿戴类判定**
+			// （`boostup.Step.WearRequirement`，按 `[equip grouping]` 比对**身上穿的**，
+			// 见 internal/boostup/equipment_mission.go:38）—— 判定事实已经具备，
+			// 缺的只是**没人重算并补帧**：
+			// 实机 2026-10-06 03:34:08 `TRANSFORM: pairs=1 gold=0 applied=true` 之后，
+			// 整个会话里一帧 `boost_equipment_mission_progress` 都没有 ⇒ 任务面板不动、
+			// 第 10 关不推进（业主报告「变化成功了但活动不认为我成功」）。
+			// 与 CMD19 穿戴（equipment_flow.go）/ CMD272 附魔（enchant_flow.go）同一口径：
+			// 推进不能等客户端来问 —— 它收到 2259 应答之后只发心跳。
+			// 失败只记日志，**不回滚已提交的变换**。
+			plan = append(plan, w.reconcileBoostEquipment()...)
 		}
 		log.Printf("equipment craft TRANSFORM: requested=%d pairs=%d gold=%d option=%d skipped=%d applied=%t",
 			len(templates), len(receipt.Pairs), receipt.Gold, receipt.Option, len(receipt.Skipped), applied)
@@ -339,7 +371,7 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 		log.Printf("equipment craft: decode account materials after craft: %v", e)
 		return plan, nil
 	}
-	refresh, e := accountMaterialRefreshPackets(account, saved)
+	refresh, e := accountMaterialRefreshPackets(account, saved, w.activeDungeon != nil)
 	if e != nil {
 		log.Printf("equipment craft: build account material refresh: %v", e)
 		return plan, nil
@@ -356,6 +388,32 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 			"cost_option": receipt.Cost, "gold": receipt.Gold})
 	}
 	return plan, nil
+}
+
+// boostJournalPanel / boostJournalContext 是 **662 教学期装备库窗口**的标识
+// （实机 2026-10-04 帧：`u32@0=36`、`u32@8=0x054131D0`）。
+//
+// 该窗口的 `[12]` 实测为 **0**，但它与既有取证的两对来源不符
+// （`panel=164 / context=0x46ece836` = 变换，`panel=0 / context=0x005ff2f9` = 生成，
+// 见 `analysis/tasks/next126-装备库制作CMD2259阶段一落地.md` §9），且请求点名的是
+// 「槽位 + 图鉴已登记的目标」—— 正是变换的输入形状（把图鉴那件换到点名槽位）。
+// ⇒ 该窗口在教学轨道内按**变换**分派。
+// ⚠️ **只看 panel，不要钉 context**：实测两天两个不同的值
+// （2026-10-04 、2026-10-05 ）—— 它随窗口实例变，不是窗口标识。
+// 前一次就是因为把 context 钉死成常量而没命中，学员号仍走了生成路径（落背包、不是互换）。
+const boostJournalPanel = 36
+
+// boostJournalSwap 判定这次 2259 是否来自教学期图鉴窗口、且角色仍在 662 训练轨道。
+// 两个条件都满足才改派为变换；出关或换窗口一律回到按 `[12]` 分派。
+func (w *worldSession) boostJournalSwap(r protocol.EquipmentCraftRequest) bool {
+	if w == nil || w.boostup == nil || w.role.ID == 0 {
+		return false
+	}
+	if r.Panel != boostJournalPanel {
+		return false
+	}
+	st, e := boostup.ReadState(w.role.State)
+	return e == nil && st.Activated && !st.Training.Finished
 }
 
 // craftFingerprint 把一次 2259 请求压成一个字符串指纹。

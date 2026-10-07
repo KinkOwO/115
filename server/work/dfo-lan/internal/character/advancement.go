@@ -28,10 +28,7 @@ func (s *Service) ApplyAdvancement(role Character, advancement byte) (json.RawMe
 		return role.State, nil
 	}
 	prof, ok := s.Catalog.Professions[role.Profession]
-	// 2026-10-04：源身份用 SourcePath（L2 引用身份）而非 RawSHA256——.chr 原始哈希随
-	// 字符串池偏移漂移（2.38.2.34 与 2.38.3.25 逐 token 一致但哈希不同），按 savecontract
-	// 原则不得做拒档理由。
-	if !ok || prof.Path != state.SourcePath || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
+	if !ok || prof.RawSHA256 != state.SourceSHA256 || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return nil, fmt.Errorf("advancement source mismatch")
 	}
 	if len(prof.AdvancementGrowth[advancement]) == 0 {
