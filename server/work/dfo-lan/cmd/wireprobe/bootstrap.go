@@ -954,6 +954,13 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		} else {
 			log.Printf("warning: full equipment catalog is not enabled; mod reward scripts can only mail equipment that is already in the drop catalog")
 		}
+		// [FIX-20261007 时装孔显示] 运行时角色服务注入完整装备目录：
+		// 此前 character.New 只给 Service{Store,Catalog,Rules}，Equipment 恒为 nil，
+		// 导致背包/穿戴下发路径的 DefaultAvatarSockets 补孔参数拿到 nil 直接跳过
+		//（下发包 options 全 0，客户端不显示孔）。gear 已含 Full 目录，挂上即可。
+		if characters != nil && gear != nil {
+			characters.Equipment = gear
+		}
 		dropCatalog := c
 		if pvfCatalogs.Items != nil {
 			if err := pvfCatalogs.SupplementStackables(&c, ""); err != nil {
@@ -1269,6 +1276,11 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			vaultService.BagRules = lootService.BagRules
 			if shopPilot != nil {
 				shopPilot.SetItemCatalog(lootService.Catalog.Items)
+				// [FIX-20261007 时装孔] 商城散件入包按 PVF 默认孔补孔，
+				// 与礼包/抽奖/邮件发放路径保持一致（存档即带孔）。
+				if characters != nil && characters.Equipment != nil {
+					shopPilot.SetAvatarSockets(characters.Equipment.DefaultAvatarSockets)
+				}
 				vaultService.Catalog, e = shopPilot.StorageCatalog(vaultService.Catalog)
 				if e != nil {
 					return nil, nil, e

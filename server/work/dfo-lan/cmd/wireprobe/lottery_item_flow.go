@@ -350,6 +350,10 @@ func (w *worldSession) openLotteryItem(ctx context.Context, store lotteryItemSto
 					bag.Special = make(map[byte][]inventory.BagEquipment)
 				}
 				item := inventory.BagEquipment{Slot: rewardSlot, Template: reward.Template}
+				// [FIX-20261007 时装孔] 抽奖开出时装时按 PVF 默认孔补孔，存档即带孔。
+				if w.characters != nil && w.characters.Equipment != nil {
+					item.AvatarOptions = w.characters.Equipment.DefaultAvatarSockets(item.Template)
+				}
 				bag.Special[1] = append(bag.Special[1], item)
 				resultRow = inventory.EquipmentRow(item)
 				specialRefresh, err = inventory.EquipmentPayload(1, bag.Special[1], false)

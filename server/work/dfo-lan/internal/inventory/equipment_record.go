@@ -86,6 +86,13 @@ func creatureRowPeriod(template, stored, existing uint32) uint32 {
 // Native NOTI14 1452e9b65/85 reads two length-prefixed avatar blocks;
 // 1452e9ba2 reads their period. NOTI13 adds a period for every worn row.
 func EquipmentPayload(space byte, items []BagEquipment, restore bool, avatarExpansion ...byte) ([]byte, error) {
+	return EquipmentPayloadWithSockets(space, items, restore, nil, avatarExpansion...)
+}
+
+// EquipmentPayloadWithSockets 与 EquipmentPayload 同格式，但序列化时装行时
+// 对「老存档空孔扩展」的时装按 defaultSockets 就地补上下发视图（仅本次下发，
+// 不写回存档；镶嵌路径 UseEmblems 同样会补，两端一致客户端才能显示孔）。
+func EquipmentPayloadWithSockets(space byte, items []BagEquipment, restore bool, defaultSockets func(template uint32) []byte, avatarExpansion ...byte) ([]byte, error) {
 	var tier byte
 	if len(avatarExpansion) > 1 || (len(avatarExpansion) == 1 && (space != 1 || !restore || avatarExpansion[0] > protocol.MaxAvatarInventoryExpansion)) {
 		return nil, fmt.Errorf("invalid avatar expansion payload")
@@ -145,6 +152,9 @@ func EquipmentPayload(space byte, items []BagEquipment, restore bool, avatarExpa
 		p = append(p, row[:]...)
 		avatar := space == 1 || (space == 3 && i.Slot <= 11 && i.Template != 0)
 		if avatar {
+			if len(i.AvatarOptions) == 0 && defaultSockets != nil {
+				i.AvatarOptions = defaultSockets(i.Template)
+			}
 			u32(uint32(len(i.AvatarOptions)))
 			p = append(p, i.AvatarOptions...)
 			u32(uint32(len(i.AvatarSockets)))
