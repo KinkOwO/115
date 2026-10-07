@@ -83,6 +83,14 @@ func enchantCard(row []byte) uint32 {
 	return binary.LittleEndian.Uint32(row[enchantCardOffset:])
 }
 
+// EnchantCardOf 读一件装备记录上的附魔卡。附魔卡只有本包这一个写入方
+// （CMD272 写 offset 14），其它包要看「这件装备附魔了哪张卡」时走这里，
+// 不要再各自解析 181 字节行。
+func EnchantCardOf(item BagEquipment) uint32 {
+	row := EquipmentRow(item)
+	return enchantCard(row[:])
+}
+
 // setEnchantCard 把附魔卡写进装备行 offset 14（覆盖旧附魔）。
 func setEnchantCard(row []byte, card uint32) {
 	if len(row) < enchantCardOffset+4 {

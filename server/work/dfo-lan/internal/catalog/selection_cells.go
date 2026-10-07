@@ -69,6 +69,18 @@ func parseSelectionCategory(cells []pvf.Token, i int) (SelectionCategory, int, b
 				cat.Grade = uint32(cells[i].Value)
 				i++
 			}
+		case "[booster equipment upgrade]", "[booster equipment separate]":
+			// 成品礼盒在分类块里直接声明打造状态：upgrade=强化、separate=锻造
+			// （实机源 590015875/876 的分类 [0 0] 写 12/8）。
+			i++
+			if i < len(cells) && cells[i].Type == 0 {
+				if c.Text == "[booster equipment upgrade]" {
+					cat.Reinforce = uint32(cells[i].Value)
+				} else {
+					cat.Refine = uint32(cells[i].Value)
+				}
+				i++
+			}
 		case "[recommend]":
 			i++
 			if i < len(cells) && cells[i].Type == 0 {

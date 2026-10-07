@@ -134,6 +134,11 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role Cha
 				}
 			}
 		}
+		// 活动 665 的通关计数与经验/记录同事务提交；未装载活动（s.Boost 为 nil）时原样返回。
+		next.State, e = s.applyBoostChallengeClear(next.State, run.Definition.ID)
+		if e != nil {
+			return nil, nil, e
+		}
 		outcome, e := json.Marshal(ClearReceipt{GrowthClearGain: gain, Source: s.Catalog.Source.SaveIdentity(), Run: run.RunID, Elapsed: uint32(elapsed), BestElapsed: best, NewRecord: improved, AllClear: all, MonsterExperience: uint32(monsterTotal), CreatureExperienceGained: creatureAwarded, SeasonExperienceGained: seasonAwarded,
 			RecommendedDungeonClear: recommended, DungeonID: run.Definition.ID, CharacterLevel: before.Level, TowerRewards: towerRewards})
 		return next.State, outcome, e

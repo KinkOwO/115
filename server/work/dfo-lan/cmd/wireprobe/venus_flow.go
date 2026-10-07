@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/legion"
 	"dfolan/internal/loot"
-	"dfolan/internal/database"
 )
 
 // 维纳斯军团（频道 Type 99 / 内容 106）在重构后分发架构上的挂接层。
@@ -65,6 +65,9 @@ type venusRun struct {
 	// completeVenusStage 时 roll 一次，N2252 展示、Awarder 入库与 cardPlan
 	// 三处共用，保证翻牌界面与背包一致。
 	flipGear []uint32
+	// potionUsed[stage] 是本关已使用的消耗品次数（CMD44）：军团口径每关
+	// 限 8 次（用户要求，参考伊斯），进图时清零、超限拒绝不扣库存。
+	potionUsed [4]int
 	// stageClock 是各阶段倒计时的开始时刻（venusStageTimer 冻结）：阶段
 	// 第一次真实加载完成时取当时服务器秒，同阶段重载/换房复用原值——1474
 	// 规格文档「不能以当前发送时间覆盖阶段最初开始时间」，否则每次发包
@@ -79,6 +82,11 @@ type venusRun struct {
 	// 角面板 + 回城 + 作废 run——通关后 Open 不得再进图）。
 	finalDone     bool
 	storyFinished bool
+	// entered 标记本场挑战是否进过图（CMD2045/2062 任一成功入场）：难度锁
+	// 的判据——进图前（确认了难度但还没进）变更提示里的「变更难度」仍可重
+	// 选（action4 重开三卡窗，13:33 会话实机路径），进图后锁定（用户口径：
+	// 已选择的难度无法在中途变更）。撤退/超时的进度保留路径置回 true。
+	entered bool
 }
 
 // resetRun 把 run 复位成「已开战、未选难度」的全新状态（choice FF、stage 0、
@@ -94,6 +102,7 @@ func (r *venusRun) resetRun() {
 	r.flipGear = nil
 	r.stageClock = [4]time.Time{}
 	r.windowDeadline = time.Time{}
+	r.entered = false
 }
 
 // clearedCount 返回已通关阶段数，即下一个待进阶段的序号。
@@ -208,10 +217,28 @@ func (w *worldSession) startVenus(p []byte) ([]outboundPacket, []map[string]any,
 	if !w.soloPartyReady {
 		return nil, nil, fmt.Errorf("venus start before the standby party was created (no CMD12)")
 	}
-	w.venus = &venusRun{choice: 0xff}
+	// BUG3（第二十二轮）：撤退/失败后重开保留 cleared/stage 进度（从撤退
+	// 或失败的下一关继续）。第三十三轮起难度一并锁定（2290 规格：官网口径
+	// 开局后不可改档；官服 C72 返回等待区保留原run、难度及遗物）：难度在锁
+	// （choice≠FF，进图前置保证开战过）的进行中挑战保留 choice，waiting 向
+	// 量带权威已选难度——客户端按钮意图 getter 按 Choice≠FF 直接进「变更提
+	// 示」（已选择X。确定要进入吗？），不再弹三卡片重选窗；难度不在锁（未
+	// 选过/预选未进图后主动放弃）才回未选重开。
+	if w.venus == nil || w.venus.finalDone {
+		w.venus = &venusRun{choice: 0xff}
+	} else {
+		w.venus.flipGear = nil
+		w.venus.windowDeadline = time.Time{}
+	}
+	waiting := legion.VenusWaitingInfo()
+	if w.venus.choice != 0xff {
+		waiting = legion.VenusChosenInfo(w.venus.choice, w.venus.clearedCount())
+	} else if kept := w.venus.clearedCount(); kept > 0 {
+		waiting = legion.VenusReopenInfo(kept)
+	}
 	return []outboundPacket{
 			{"venus_start_ack", 1, legion.CmdStart, legion.StartAck()},
-			{"venus_info_waiting", 0, legion.NotiVenusInfo, legion.VenusWaitingInfo()},
+			{"venus_info_waiting", 0, legion.NotiVenusInfo, waiting},
 		}, []map[string]any{{
 			"kind":         "venus_started",
 			"character_id": w.role.ID,
@@ -236,6 +263,15 @@ func (w *worldSession) venusOperation(p []byte) ([]outboundPacket, []map[string]
 	}
 	switch req.Action {
 	case 1:
+		// 第三十三轮：进过图的挑战难度已锁（2290 规格：客户端只在未选择时
+		// 才发 Action1 开三卡窗；已选时按钮意图直接走变更提示，正常流不会
+		// 到这里）。万一收到也不得重开自由选窗——那会复现「重选低难度 →
+		// 终点回退 → 越终点拒绝」类状态分裂（172342 会话实证），回原生
+		// 公共负包（141C3D3D0 清 2290 待答、不触发开窗回调，UI 不卡死）。
+		if run.entered {
+			return []outboundPacket{{"venus_operation_locked_refused", 1, legion.CmdVenusOperationSelect, protocol.Refusal(4)}},
+				[]map[string]any{{"kind": "venus_operation_locked", "character_id": w.role.ID, "action": req.Action}}, nil
+		}
 		deadline := uint32(time.Now().Unix()) + legion.VenusSelectionSeconds
 		// 窗口截止时刻记进 run：归 0 后由 venusOperationClose 推原生 close ACK
 		// 自动关窗（客户端自己对 0 不做任何事，实测 2026-10-05）。
@@ -252,11 +288,20 @@ func (w *worldSession) venusOperation(p []byte) ([]outboundPacket, []map[string]
 		if req.Choice > 2 {
 			return nil, nil, fmt.Errorf("venus choice %d is not a supported difficulty (0/1 normal, 2 descent)", req.Choice)
 		}
+		// 锁定期间的换档确认同样拒绝（同 Choice 的重复确认放行——那是变更
+		// 提示里「进入地下城」的原生子模式路径）。
+		if run.entered && req.Choice != run.choice {
+			return []outboundPacket{{"venus_operation_locked_refused", 1, legion.CmdVenusOperationSelect, protocol.Refusal(4)}},
+				[]map[string]any{{"kind": "venus_operation_locked", "character_id": w.role.ID,
+					"action": req.Action, "locked": run.choice, "choice": req.Choice}}, nil
+		}
 		run.choice = req.Choice
 		// 确认即原生关窗：清掉截止时刻，venusOperationClose 不再推 close。
 		run.windowDeadline = time.Time{}
+		// BUG3 回归：chosen 态携带下一个待进阶段（撤退/失败保留进度后
+		// 重开，C2045 确认的不是第 0 关而是 clearedCount）。
 		return []outboundPacket{
-				{"venus_info_chosen", 0, legion.NotiVenusInfo, legion.VenusChosenInfo(req.Choice)},
+				{"venus_info_chosen", 0, legion.NotiVenusInfo, legion.VenusChosenInfo(req.Choice, run.clearedCount())},
 				{"venus_operation_confirm_ack", 1, legion.CmdVenusOperationSelect, legion.VenusOperationAck(2, false, 0, 0)},
 			}, []map[string]any{{
 				"kind":         "venus_operation_confirmed",
@@ -271,6 +316,13 @@ func (w *worldSession) venusOperation(p []byte) ([]outboundPacket, []map[string]
 		// 静默拒绝让客户端作战窗口状态机卡死，卡片点不动、后续点 Open 无上行。
 		if w.activeDungeon != nil {
 			return nil, nil, fmt.Errorf("venus operation inside a dungeon")
+		}
+		// 第三十三轮：进过图的挑战难度锁定，变更提示里的「变更难度」按钮由
+		// 客户端按权威状态置灰不给点；万一收到重选请求也只回负包（不清锁、
+		// 不重开三卡窗——否则复现 172342 会话的难度/终点分裂）。
+		if run.entered {
+			return []outboundPacket{{"venus_operation_locked_refused", 1, legion.CmdVenusOperationSelect, protocol.Refusal(4)}},
+				[]map[string]any{{"kind": "venus_operation_locked", "character_id": w.role.ID, "action": req.Action}}, nil
 		}
 		run.choice = 0xff
 		deadline := uint32(time.Now().Unix()) + legion.VenusSelectionSeconds
@@ -456,6 +508,8 @@ func (w *worldSession) venusStageTimeout(now time.Time, event func(map[string]an
 		return nil
 	}
 	choice := w.venus.choice
+	relicMask := w.venus.relicMask
+	kept := w.venus.clearedCount()
 	route, err := w.leaveDungeon()
 	if err != nil {
 		log.Printf("venus stage timeout leave failed (stage %d): %v", stage, err)
@@ -470,6 +524,15 @@ func (w *worldSession) venusStageTimeout(now time.Time, event func(map[string]an
 	w.resultSent = false
 	w.resetCards()
 	w.venus.resetRun()
+	// BUG3（第二十二轮，第三十一/三十二轮补丁错乱中丢失、本轮随难度锁一并
+	// 补回）：超时失败不清进度——保留 cleared/难度/遗物，回待机区从失败关
+	// 继续（DGN [no giveup panalty]，无惩罚语义）。
+	w.venus.choice = choice
+	w.venus.relicMask = relicMask
+	w.venus.entered = true
+	for i := 0; i < kept; i++ {
+		w.venus.cleared[i] = true
+	}
 	if event != nil {
 		event(map[string]any{"kind": "venus_stage_timeout", "character_id": w.role.ID,
 			"stage": stage, "choice": choice, "started": started.Unix(), "limit": int(limit / time.Second)})
@@ -487,7 +550,13 @@ func (w *worldSession) venusStageTimeout(now time.Time, event func(map[string]an
 		revive[2] = 1
 		packets = append(packets, outboundPacket{"venus_timeout_actor_revived", 0, 32, revive})
 	}
-	return append(packets, outboundPacket{"venus_info_timeout_waiting", 0, legion.NotiVenusInfo, legion.VenusWaitingInfo()})
+	// 序列末尾的 N2655：难度在锁时带权威已选难度（变更提示直出，不给三卡
+	// 重选——与撤退路径同一语义）；无锁（理论不可达，防御）回未选择等待态。
+	trailing := legion.VenusWaitingInfo()
+	if choice != 0xff {
+		trailing = legion.VenusChosenInfo(choice, kept)
+	}
+	return append(packets, outboundPacket{"venus_info_timeout_waiting", 0, legion.NotiVenusInfo, trailing})
 }
 
 // venusOperationClose 在难度选择窗倒计时归 0 时推原生 close ACK 自动关窗
@@ -550,6 +619,8 @@ func (w *worldSession) venusStageEntryShared(stage int, ackName string, ackID ui
 	if err != nil {
 		return nil, nil, err
 	}
+	// 入场成功即锁定本场难度（CMD2045 与转阶段 2062 共用此处）。
+	run.entered = true
 	return s, frames, nil
 }
 
@@ -635,6 +706,7 @@ func (w *worldSession) enterVenusStage(p []byte) ([]outboundPacket, []map[string
 	w.leaveScene()
 	w.activeDungeon = s
 	run.stage = stage
+	run.potionUsed[stage] = 0
 	return plan, notes, nil
 }
 
@@ -723,6 +795,26 @@ func (w *worldSession) venusRewardEnd(p []byte) ([]outboundPacket, []map[string]
 	}, []map[string]any{note}, nil
 }
 
+// venusPotionGate 是维纳斯副本内的消耗品限制（军团口径每关 8 次，同伊斯
+// N1584 上限）：命中返回拒绝应答；未命中计数 +1 并返回 nil。计数在
+// venusStageEntryShared 进图时清零。
+const venusPotionLimit = 8
+
+func (w *worldSession) venusPotionGate(r protocol.UseStackableRequest) []outboundPacket {
+	if w.venus == nil || w.activeDungeon == nil {
+		return nil
+	}
+	stage, err := legion.VenusStageOfDungeon(w.activeDungeon.Definition.ID)
+	if err != nil || stage >= len(w.venus.potionUsed) {
+		return nil
+	}
+	if w.venus.potionUsed[stage] >= venusPotionLimit {
+		return []outboundPacket{{"venus_potion_refused", 1, 44, protocol.UseStackableRefused(r)}}
+	}
+	w.venus.potionUsed[stage]++
+	return nil
+}
+
 // venusStoryPause 应答终局通关视频期间的 CMD191（剧情暂停/恢复）：暂停/恢复
 // 都答原生 N170（StoryPauseNotice）；**恢复（state=1）= 视频播完**——发
 // leave 态（N2655 State5）关右上角面板与遗物显示。之后玩家点返回城镇
@@ -744,6 +836,9 @@ func (w *worldSession) venusStoryPause(p []byte) ([]outboundPacket, error) {
 	plan := []outboundPacket{{"venus_story_pause", 0, 170, notice}}
 	if r.State == 1 && !run.storyFinished {
 		run.storyFinished = true
+		// BUG4：视频播完即挂起「待重置」标记——此后同连接切角色时由
+		// dispatchVenus 的 CMD35 分支补发 mask=0 重置（遗物 UI 归零）。
+		w.pendingRelicReset = true
 		plan = append(plan, outboundPacket{"venus_info_leave", 0, legion.NotiVenusInfo, legion.VenusLeaveInfo(run.choice, run.stage, run.relicMask)})
 	}
 	return plan, nil
@@ -1184,8 +1279,9 @@ func (w *worldSession) venusRelic(p []byte) ([]outboundPacket, []map[string]any,
 		}}, nil
 }
 
-// dispatchVenus 是维纳斯族的统一派发层：待机区组队（CMD12/13）→ 家族命令。
-// 必须排在 dispatchLegion（末世录共用信封）之前。
+// dispatchVenus 是维纳斯族的统一派发层：入场遗物重置（CMD35 角色变化）→
+// 待机区组队（CMD12/13）→ 家族命令。必须排在 dispatchLegion（末世录共用
+// 信封）之前。
 func (client *gameConnection) dispatchVenus(requestData *clientRequest) dispatchAction {
 	if requestData.frame.Type != 1 || !client.bootstrapped || client.worldState == nil {
 		return dispatchNext
@@ -1193,6 +1289,66 @@ func (client *gameConnection) dispatchVenus(requestData *clientRequest) dispatch
 	w := client.worldState
 	if !requestData.verified {
 		return dispatchNext
+	}
+	// BUG4：同一频道连接内切换角色后，客户端的军团内容对象仍缓存上一个
+	// 角色的遗物收集位（N2655 mask 只置位不清）。
+	// 第二十三轮回归修正：第二十二轮把触发条件写成「角色变化后的首个
+	// CMD35」，但进维纳斯频道本身就会发 CMD35——首次进频道也命中，待机区
+	// 凭空出现等待态 UI（虚假「继续」，Open 无反应，015424 会话实证）。
+	// 改为显式两段式：终局视频播完（storyFinished）置 pendingRelicReset，
+	// 其后同连接内角色变化的首个 CMD35 才补发 mask=0 重置；首次进频道与
+	// 未打过本场挑战的连接永不触发。
+	// BUG2（第三十三轮重做）：返回选择角色（CMD7，菜单动作、不可取消）的
+	// 过场里，客户端先 Close 右上角面板再按 manager 里最后一次 N2655 状态
+	// 重建 VENUS_MAIN_INFO_WINDOW（171948 会话 trace：Close 3789 → Open
+	// 3789 → focus POPUP_WINDOW_TYPE_VENUS_MAIN_INFO_WINDOW）——选角界面
+	// 因此残留面板。在过场请求应答前发 State0 关闭态（此时客户端仍在完整
+	// 世界语境，State0 的关面板语义已实机验证）。
+	// 第三十四轮（用户口径）：退出队伍 = 放弃攻坚——不管经返回选角还是
+	// 其他途径，只要队伍没了，run 一律整体作废（难度/进度/遗物全清零，重进
+	// 走 CMD12 重建队伍 + CMD2043 全新开团），不再保留关卡续打；保留进度
+	// 只属于「撤退回待机区」（CMD72，队伍还在）。关闭态用 VenusClosedInfo
+	// （ChoiceFF/掩码0）——run 已作废，权威状态同步归零，客户端遗物显示
+	// 一并清掉。终局已完成的 run 同样在此作废（leave 态早已关面板，重复
+	// State0 是无害收尾）。
+	// 注意不能在退出爆发帧（1566）期间补发 N2655——上一轮就是这么做的：
+	// 1566 实际伴随「退出游戏」爆发（紧邻 CMD3，连接随即关闭），且拆屏期
+	// 间的 N2655 到达只会把窗口重建打开（172342 会话 trace：Close 3789 →
+	// RECV N2655 → Open 3789），残留依旧，该钩子已删除。
+	if requestData.frame.ID == 7 && w.channelType == 99 && w.venus != nil {
+		run := w.venus
+		// 副本内直接返回选角（ESC 菜单）时通用 CMD7 处理器只清
+		// activeDungeon/role，战斗期残留字段在此一并收尾。
+		w.selectingDungeon = false
+		w.approvedDungeonGate = 0
+		w.deathSent = map[uint16]bool{}
+		w.drops = nil
+		w.completionSent = false
+		w.completionErr = nil
+		w.resultSent = false
+		w.pendingTownArrival = nil
+		w.resetCards()
+		w.venus = nil
+		if client.output.send(0, legion.NotiVenusInfo, legion.VenusClosedInfo()) != nil {
+			return dispatchClose
+		}
+		client.event(map[string]any{"kind": "venus_exit_to_select", "character_id": client.selectedCharacterID,
+			"choice": run.choice, "stage": run.stage, "kept": run.clearedCount(), "abandoned": true})
+	}
+	if requestData.frame.ID == 35 && w.channelType == 99 && w.venus == nil &&
+		w.pendingRelicReset && client.selectedCharacterID != 0 &&
+		w.lastVenusResetCharacter != client.selectedCharacterID {
+		w.pendingRelicReset = false
+		w.lastVenusResetCharacter = client.selectedCharacterID
+		// 第三十五轮：重置包必须是 State0 关闭态而不是 State2 等待态——
+		// 客户端在城镇里周期性发 CMD35（位置同步，191905 会话 11:26:23 实
+		// 证：通关 CMD72 回城 1 秒后周期 CMD35 命中本钩子），等待态会把右
+		// 上角面板重新顶起来；本钩子只负责清客户端缓存的遗物掩码，State0
+		// 掩码照样归零且面板保持关闭。
+		if client.output.send(0, legion.NotiVenusInfo, legion.VenusClosedInfo()) != nil {
+			return dispatchClose
+		}
+		client.event(map[string]any{"kind": "venus_relic_ui_reset", "character_id": client.selectedCharacterID})
 	}
 	handled, packets, err := w.venusStandbyPartyHandle(requestData.frame.ID, requestData.plaintext)
 	if handled {

@@ -242,6 +242,15 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 	if e != nil {
 		return nil, e
 	}
+	before := w.role
 	w.role = saved
-	return skillMutationResponsePlan(cs, saved, id, body, applied, varied)
+	plan, e := skillMutationResponsePlan(cs, saved, id, body, applied, varied)
+	if e != nil {
+		return nil, e
+	}
+	// 训练关卡在技能事务里完成时（第三关技能进化点，character.completeBoostVPSave）
+	// 不会自己带进度帧，实机 2026-10-04 会话里加点完成后客户端只发心跳：这里比较本次
+	// 事务前后的训练状态，只在确实前进时补发一条 NOTI2638，任务面板才会刷新。
+	plan = append(plan, boostTrainingProgress(w.boostup, before, saved)...)
+	return plan, nil
 }

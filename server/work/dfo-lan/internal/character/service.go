@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"dfolan/internal/adventure"
+	"dfolan/internal/boostup"
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
@@ -76,6 +77,9 @@ type Service struct {
 	// 装备。缺任一项或不匹配都只是不投影，不构成拒绝创建的理由。
 	Equipment *inventory.EquipmentCatalog
 	WearRules inventory.WearRules
+	// Boost 是活动 662「成长胶囊教学」的源目录，由装配层在 PVF 直读成功后注入。
+	// 为 nil 时活动钩子（第三关技能进化点）整条不生效，不影响技能保存本身。
+	Boost *boostup.Catalog
 	// Rewards is the optional event-triggered reward notifier. Create notifies
 	// it once after a fresh character is committed; nil disables the feature.
 	// It mirrors ProgressionService.Rewards and is never read as rule data.
@@ -534,6 +538,13 @@ func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppe
 	for _, w := range bag.Worn {
 		if w.Slot <= maxWornAppearanceSlot && w.Group == 1 {
 			bySlot[w.Slot] = w.Template
+		}
+	}
+	for _, w := range bag.Worn {
+		if w.Slot <= maxWornAppearanceSlot {
+			if look := bag.CloneAvatarLook(w); look != 0 {
+				bySlot[w.Slot] = look
+			}
 		}
 	}
 	// 武器幻化（装备外观块）：应用过皮肤时用皮肤 id 覆盖武器槽，城镇模型才跟着换。

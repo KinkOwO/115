@@ -25,9 +25,14 @@ type SelectionItem struct {
 // server validates that pick against. Sections records which content blocks the
 // source carried — only [equipment] is modelled so far, the [avatar]/[etc]
 // blocks still travel the generic destination path.
+// Reinforce/Refine are the source's own crafted status for that block
+// ([booster equipment upgrade] / [booster equipment separate]); a gift box that
+// hands out ready-built gear declares them, and the grant path stamps them.
 type SelectionCategory struct {
 	Category  [2]byte         `json:"category"`
 	Grade     uint32          `json:"grade,omitempty"`
+	Reinforce uint32          `json:"reinforce,omitempty"`
+	Refine    uint32          `json:"refine,omitempty"`
 	Recommend []uint32        `json:"recommend,omitempty"`
 	Items     []SelectionItem `json:"items"`
 	Sections  []string        `json:"sections,omitempty"`
@@ -151,6 +156,7 @@ func normalizeSelectionBox(box SelectionBox) (SelectionBox, error) {
 
 func sameSelectionCategory(a, b SelectionCategory) bool {
 	return a.Category == b.Category && a.Grade == b.Grade &&
+		a.Reinforce == b.Reinforce && a.Refine == b.Refine &&
 		slices.Equal(a.Recommend, b.Recommend) &&
 		slices.Equal(a.Items, b.Items) &&
 		slices.Equal(a.Sections, b.Sections)
@@ -183,6 +189,27 @@ func (s *SelectionBoxes) IsFixed(template uint32) bool {
 		return false
 	}
 	return s.fixed[template]
+}
+
+// CategoryStatus returns the crafted status the source declares for that
+// category's equipment block: [booster equipment upgrade] (强化) and
+// [booster equipment separate] (锻造). ok is false when the box, the category
+// or the status is absent, so the caller leaves the granted gear uncrafted
+// instead of inventing a level.
+func (s *SelectionBoxes) CategoryStatus(template uint32, category [2]byte) (reinforce, refine uint32, ok bool) {
+	box, found := s.ByTemplate(template)
+	if !found {
+		return 0, 0, false
+	}
+	for _, cat := range box.Categories {
+		if cat.Category == category {
+			if cat.Reinforce == 0 && cat.Refine == 0 {
+				return 0, 0, false
+			}
+			return cat.Reinforce, cat.Refine, true
+		}
+	}
+	return 0, 0, false
 }
 
 // Resolve looks the player's picks up in the box's source range. It returns the
