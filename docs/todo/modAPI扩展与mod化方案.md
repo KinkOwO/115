@@ -724,6 +724,77 @@ mkdir ...\server\work\dfo-lan\mods\demo.request-hook-pilot: Access is denied.
 **待办**：server 层的 install→uninstall 往返需要在**普通 shell**（不受本会话限制）里补测一次；
 这正是业主实机验收里应当包含的一步。
 
+（补：2026-10-07 又用 `cmd /c "<modkit.exe>" install …` 试了一次 —— **同样被拒**。
+所以该限制与"怎么启动它"无关，是环境对这个二进制本身写该路径的限制。不再尝试。）
+
+---
+
+## 13. 客户端 lane 的落地结论
+
+### 13.1 真包已生成（本地，未入库）
+
+用 `modkit npkdiff` 对第四次更新里**全部 5 个被改动的 ImagePacks2 容器**生成条目级增量，
+组装成**一个** mod 包（放在 `.tmp/4th-client-mods/`，不入库：包内是派生自外部更新包的载荷）：
+
+| 容器 | 条目 | 变化 | 条目级 | 整份 | 倍数 |
+| --- | --- | --- | --- | --- | --- |
+| `sprite_interface.NPK` | 212 | 22 | 7.03 MB | 507.23 MB | 72.2× |
+| `sprite_live_event_kor_2025_0109_boostup.NPK` | 4 | 1 | 0.46 MB | 12.56 MB | 27.6× |
+| `sprite_interface2_titlebook.NPK` | 5 | 1 | 0.45 MB | 1.15 MB | 2.5× |
+| `sprite_live_event_kor_2026_0326_boostup.NPK` | 6 | 3 | 0.86 MB | 1.59 MB | 1.9× |
+| `sprite_interface2_aura.NPK` | 6 | 3 | 1.33 MB | 1.24 MB | 0.9× |
+| **合计** | | **30** | **≈10.1 MB** | **523.8 MB** | **≈52×** |
+
+实测：`115us.4th.client-npk-1.0.0.zip` = **9.85 MB**，
+`verify` exit 0，`plan --client <DFO 客户端根>` = **30 执行 / 0 已就绪 / 0 阻断**。
+
+⇒ 你最初问的"**这些补丁能不能做成 mod**"，对客户端资源这一半的回答是：
+**能，而且比整份替换小 52 倍**。
+
+### 13.2 决定性检查：启动器会不会把 mod 改过的客户端资源覆盖回去？
+
+**不会。** `internal/resources/manifest.go:50` 的 `ManagedGlobs` 是启动器"受管文件"的
+**唯一真源**，内容只有服务端路径：
+
+```
+server/work/dfo-lan/configs/**
+server/work/dfo-lan/cmd/wireprobe/testdata/**
+server/work/dfo-lan/runtime/*.bin
+server/work/dfo-lan/bin/*.exe
+server/work/dfo_probe_tools/probe.exe
+```
+
+源码注释原话（`manifest.go:49`）："**只动这里列出的路径**：存档（runtime/storage/**）、
+设置、日志、**客户端目录一律不在其中**。"
+
+全仓核对也一致：非测试代码里提到 `ImagePacks2` / `Script.pvf` / `sk.dat` 的地方**全是只读**
+（GM 工具提物品图标、启动器检查三件套是否存在）。**没有任何"按哈希自动替换客户端资源"的逻辑。**
+⇒ 客户端 mod 装上之后**不会被 更新/自检 悄悄还原** —— 这是客户端 lane 可用的前提。
+
+### 13.3 但 PVF 不能随便换：受"三件套"约束
+
+`gm/internal/servercompat/catalog/pvf/client.go:61` 的报错是
+「客户端资源解密校验失败，请检查 **DFO.exe、sk.dat 与 Script.pvf** 是否配套」——
+即服务端解内层 PVF 时，这三者必须是**同一套构建**。
+
+结合更新清单里的 `required_client_exe_sha256`，结论比"PVF 太大"更硬：
+
+> **PVF mod 必须带一套与目标 DFO.exe 配套的 `Script.pvf` + `sk.dat`。**
+> 换 PVF 不换 EXE（或反过来）会让服务端解不开内层归档。所以 PVF 的 mod 化不是
+> "打包大小"问题，而是"**版本绑定**"问题 —— 这也解释了为什么 20261006 那个包
+> 把三者当同一个版本单元一起发。
+
+### 13.4 客户端 lane 的剩余边界
+
+| 项 | 结论 |
+| --- | --- |
+| 5 个被改容器 | ✅ 条目级增量可 mod 化（真包已验证） |
+| 2 个**新增** NPK（127/177 MB）+ 4 个字体（8.4~18.3 MB） | ⚠️ 纯新增，只能整份带 ⇒ 包内 ≈356 MB；且单 blob 超 §0.3.3 的 5 MB 阈值，**入库要先问业主** |
+| `NpkIndex.etc` | 走 `npk.index`，**要 pwsh 7**（计划期已能正确阻断） |
+| `dinput8.dll` / `dstr.dat` / `sk.dat` | 被 `.gitignore` 挡（`*.dll` / `*.dat`）⇒ 素材不能入库 |
+| `Script.pvf` | 受 §13.3 的三件套绑定；`replace` 不需 pwsh 但要带整份 832 MB，`merge` 要 pwsh |
+
+
 
 
 
