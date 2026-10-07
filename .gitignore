@@ -162,3 +162,27 @@ server/work/client-build/Script.inner.manifest.json
 
 # mod 作者工作区（仓库根 mods/）里的启用名单是运行期状态，不入库（服务端模块的那份另有跟踪）
 /mods/enabled.json
+
+# ------------------------------------------------------------------------------
+# mod **库条目**（mods/<mod-id>/）不入库 —— 2026-10-07 业主定调
+#
+# 与上面的「mod 作者工作区」不是一回事：
+#   · 作者工作区（mods/examples/、mods/odyssey-hardcore/ 等）是**源码树**，要入库；
+#   · 库条目是「导入 mod…」把 mod 包解开落位后的**运行期产物**，不入库。
+#
+# 为什么不入库（硬伤，不是洁癖）：包里的载荷（*.dll / *.zip / 大资源）会被本文件
+# 上面的通用规则挡在库外，而 mod.json 与文本仍会被跟踪 ⇒ 克隆/同步出来的库条目是
+# **残缺的包**。实测两台机器上的报错正是它：
+#   · qol.client-host：client/ 里唯一的文件就是被 *.dll 挡住的 DLL ⇒ 整个目录在
+#     git 里等于不存在 ⇒ 管理器报「包内缺少 client 层目录」；
+#   · odyssey.hardcore：client/rules.d/*.json 被跟踪、client/DifficultyRules.dll 没有
+#     ⇒ 管理器报「client 层声明的包内文件不存在」。
+# 两种都让「安装」正确地失败。分发只走 mod 包（zip）+「导入 mod…」。
+# ------------------------------------------------------------------------------
+# 注意：下面写的是**实际目录名**，不是 mod id —— 两套值可以不同（例如 id 是
+# newchar.kit 的条目，目录其实是 mods/newchar-kit/）。新增条目按目录名补一行。
+/mods/qol.client-host-1.0.0/
+/mods/qol.chinese-input-probe/
+/mods/odyssey.hardcore/
+/mods/difficulty.rules/
+/mods/newchar-kit/
