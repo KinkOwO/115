@@ -751,6 +751,19 @@ mkdir ...\server\work\dfo-lan\mods\demo.request-hook-pilot: Access is denied.
 ⇒ 你最初问的"**这些补丁能不能做成 mod**"，对客户端资源这一半的回答是：
 **能，而且比整份替换小 52 倍**。
 
+**这个真包已通过安装→卸载验收（在临时客户端副本上，未碰现网）**：
+
+```
+install    30 步执行 / 0 已就绪             exit 0
+           安装后逐容器与更新包核对：233 条目全部逐字节相同（0 变化 / 0 新增 / 0 删除）
+              sprite_interface 212、aura 6、titlebook 5、2025_0109 4、2026_0326 6
+uninstall  还原 5 / 删除 0 / 保留现场 0      exit 0
+           备份大小逐容器等于现网原版（含 531,868,113 的 sprite_interface）
+           卸载后 5 个容器全部逐字节还原 = True；注册表清空
+```
+
+这一跑同时覆盖了 §12 修掉的那两个洞（**多条目同归档** 22 条 + **多归档同 mod** 5 个）。
+
 ### 13.2 决定性检查：启动器会不会把 mod 改过的客户端资源覆盖回去？
 
 **不会。** `internal/resources/manifest.go:50` 的 `ManagedGlobs` 是启动器"受管文件"的
