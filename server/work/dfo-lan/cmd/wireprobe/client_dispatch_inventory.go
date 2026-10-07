@@ -431,13 +431,20 @@ func (client *gameConnection) dispatchEquipmentSkillsAndMoves(requestData *clien
 		var e error
 		switch requestData.plaintext[0] {
 		case 0:
+			client.event(map[string]any{"kind": "item_sort_request", "list": requestData.plaintext[0]})
+			plan, e = client.sortState.handle(client.wearService, client.worldState, requestData.plaintext, requestData.frame.Raw)
+		case 1, 7:
+			// [FIX-20261007 特殊容器整理] 时装栏（space 1）与宠物栏（space 7）
+			// 整理：客户端以 CMD20 提交本地排列，走 SortItems 的 List 1/7 分支。
+			client.event(map[string]any{"kind": "item_sort_request", "list": requestData.plaintext[0]})
 			plan, e = client.sortState.handle(client.wearService, client.worldState, requestData.plaintext, requestData.frame.Raw)
 		case 2, 45:
 			plan, e = client.worldState.sortVaultSpace(requestData.plaintext[0])
 		case 12:
 			plan, e = client.worldState.sortAccountVaultCmd()
 		default:
-			client.event(map[string]any{"kind": "sort_unsupported_container", "space": requestData.plaintext[0]})
+			// 记录请求字节，便于定位其它栏位（如徽章栏）整理的实际 list 值。
+			client.event(map[string]any{"kind": "sort_unsupported_container", "space": requestData.plaintext[0], "hex": hex.EncodeToString(requestData.plaintext)})
 			return dispatchHandled
 		}
 		if e != nil {
@@ -1057,7 +1064,18 @@ func (client *gameConnection) dispatchEquipmentTransactions(requestData *clientR
 		}
 		plan, e := client.worldState.useEmblems(requestData.plaintext, client.event)
 		if e != nil {
-			client.event(map[string]any{"kind": "avatar_emblem_refused", "id": requestData.frame.ID, "character_id": client.worldState.role.ID, "reason": e.Error()})
+			// [FIX-20261007 调试] 记录被拒请求的原始字段（space/avatar slot/template/inputs），
+			// 用于定位"穿戴时装无法镶嵌"时客户端实际发送的目标空间与槽位。
+			reqDesc := fmt.Sprintf("bytes=%d", len(requestData.plaintext))
+			if len(requestData.plaintext) >= 8 {
+				reqDesc = fmt.Sprintf("space=%d avatar_slot=%d template=%d inputs=%d hex=%s",
+					requestData.plaintext[0],
+					binary.LittleEndian.Uint16(requestData.plaintext[1:3]),
+					binary.LittleEndian.Uint32(requestData.plaintext[3:7]),
+					requestData.plaintext[7],
+					hex.EncodeToString(requestData.plaintext))
+			}
+			client.event(map[string]any{"kind": "avatar_emblem_refused", "id": requestData.frame.ID, "character_id": client.worldState.role.ID, "reason": e.Error(), "request": reqDesc})
 			if e = client.output.send(1, requestData.frame.ID, protocol.Refusal(17)); e != nil {
 				return dispatchClose
 			}
