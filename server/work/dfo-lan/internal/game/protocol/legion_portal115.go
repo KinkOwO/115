@@ -19,6 +19,16 @@ func LegionDirectMoveNotice115() []byte { return make([]byte, 38) }
 // Native14069BCC0 ->146D465C0 sends46 logical bytes, with an opaque13B
 // prefix. Position words are presentation data, NOT a trusted spawn location.
 func DecodeLegionPortal115(p []byte) (LegionPortal115, error) {
+	return decodeNativePortal115(p, false)
+}
+
+// Bakal uses the same writer with arbitrary source entry x/y (captured3/0),
+// unlike the legion portal's fixed first coordinate0.
+func DecodeBakalPortal115(p []byte) (LegionPortal115, error) {
+	return decodeNativePortal115(p, true)
+}
+
+func decodeNativePortal115(p []byte, bakal bool) (LegionPortal115, error) {
 	var r LegionPortal115
 	if len(p) < 46 || len(p) > 61 {
 		return r, fmt.Errorf("invalid legion direct-move size")
@@ -32,7 +42,7 @@ func DecodeLegionPortal115(p []byte) (LegionPortal115, error) {
 		r.SpawnWindow[i] = int32(binary.LittleEndian.Uint32(p[29+4*i:]))
 	}
 	r.Mode = p[45]
-	if r.Dungeon == 0 || r.Difficulty > 4 || r.TargetGrid[0] != 0 {
+	if r.Dungeon == 0 || r.Difficulty > 4 || (!bakal && r.TargetGrid[0] != 0) || (bakal && (r.TargetGrid[0] < 0 || r.TargetGrid[0] > 255 || r.TargetGrid[1] < 0 || r.TargetGrid[1] > 255)) {
 		return r, fmt.Errorf("unsupported legion direct-move fields")
 	}
 	for _, v := range p[46:] {

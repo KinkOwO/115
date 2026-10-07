@@ -43,6 +43,12 @@ func (w *worldSession) dungeonGate(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
+	if w.channelType == 82 && w.raidWaiting {
+		if err := w.bakalOpening.AuthorizeDungeon(requested, time.Now()); err != nil {
+			return nil, err
+		}
+		return []outboundPacket{{"bakal_gate_ack", 1, 15, []byte{1}}, {"bakal_selection", 0, 27, protocol.EnterDungeonSelection()}}, nil
+	}
 	if w.channelType == 73 || requested == blackPurgatorySquadDungeon {
 		if err := w.validateBlackPurgatoryDungeon(requested); err != nil {
 			return nil, err
@@ -175,6 +181,15 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 	if e != nil {
 		return nil, nil, e
 	}
+	if w.channelType == 82 && w.raidWaiting {
+		if err := w.bakalOpening.AuthorizeDungeon(r.ID, time.Now()); err != nil {
+			return nil, nil, err
+		}
+		if !w.selectingDungeon || w.approvedDungeonGate != r.ID {
+			return nil, nil, fmt.Errorf("Bakal dungeon selection has no matching active gate")
+		}
+		return w.prepareDungeonEntry(r)
+	}
 	if w.channelType == 73 || r.ID == blackPurgatorySquadDungeon {
 		if !w.selectingDungeon || w.approvedDungeonGate != r.ID || r.Difficulty != 2 {
 			return nil, nil, fmt.Errorf("黑鸦小队缺少本次选图许可或源难度不匹配")
@@ -264,6 +279,10 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 	var e error
 	if dungeon.IsTrainingRoom(*w.dungeons, r.ID) {
 		s, e = dungeon.SelectTrainingRoom(*w.dungeons, r, w.level)
+	} else if w.channelType == 82 && w.raidWaiting && w.bakalOpening != nil {
+		// Raid admission is owned by its source phase/roster, not an ordinary
+		// story-quest ledger. Final scripted movement uses the same boundary.
+		s, e = dungeon.Select(*w.dungeons, r, w.level, nil)
 	} else {
 		var accepted map[uint16]bool
 		accepted, e = w.acceptedQuestIDs(ctx)
@@ -282,6 +301,21 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 		return nil, nil, e
 	}
 	noteMazeEntry(s)
+	if w.channelType == 82 && w.raidWaiting {
+		matched := s.Definition.ID == w.bakalOpening.FinalDungeon() && w.bakalOpening.FinalDungeon() != 0
+		for _, slot := range w.bakalRules.Slots {
+			if slot.Dungeon != s.Definition.ID {
+				continue
+			}
+			if _, err := w.bakalOpening.AuthorizeSlot(slot.ID, s.Definition.ID, s.Room.Map, time.Now()); err == nil {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return nil, nil, fmt.Errorf("Bakal entry map is outside active source battlefield slots")
+		}
+	}
 	if w.fatigue != nil && !s.Definition.NoFatigue && w.fatigue.EnterCostFor(s.Definition.ID) > 0 {
 		fp, err := w.fatigue.State(ctx, w.account, w.role.ID, time.Now())
 		if err != nil {
@@ -356,7 +390,7 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 		}
 	}
 	// 黑鸦已在大厅建立原生小队，入图不能用普通队伍通知覆盖模式和开场状态。
-	if w.soloPartyBootstrap && !(w.channelType == 73 && w.blackPurgatory.created) {
+	if w.soloPartyBootstrap && !(w.channelType == 73 && w.blackPurgatory.created) && w.bakalOpening == nil {
 		party, e := protocol.SoloPartyInfo(w.role.WireID)
 		if e != nil {
 			return nil, e
@@ -405,6 +439,17 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 		}
 		plan = append(plan, outboundPacket{"hell_party_apcs_preloaded", 0, 666, body})
 	}
+	// Publish native raid symbols before map actors run their first ACT.
+	symbols, symbolErr := w.bakalEnterSymbolPlan(s, false)
+	if symbolErr != nil {
+		return nil, symbolErr
+	}
+	plan = append(plan, symbols...)
+	location, locationErr := w.bakalRoomPartyPlan(s)
+	if locationErr != nil {
+		return nil, locationErr
+	}
+	plan = append(plan, location...)
 	// 苏醒之森用官服 48B N28 形状 + N1584 STACKABLE_DUNGEON_LIMIT（官方
 	// 21:42:18.601 实发、首字段 = 8 = 每关消耗品上限；伊斯 replay 同款——
 	// 伊斯副本能用药正是因为发了它。没有这一帧客户端把消耗品全部本地禁用，
@@ -476,6 +521,9 @@ func (w *worldSession) acceptedQuestIDs(ctx context.Context) (map[uint16]bool, e
 func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outboundPacket, error) {
 	if w == nil || w.dungeons == nil || w.role.ID == 0 {
 		return nil, nil, fmt.Errorf("dungeon catalog or character unavailable")
+	}
+	if w.channelType == 82 && w.raidWaiting {
+		return w.enterBakalPortal(p)
 	}
 	// 苏醒之森直进：音符记录类型 0x04 的关卡，客户端确认音符后不走 CMD2045
 	// 而发 CMD2062 直进下一关（官服 21:44:34.387、私服 21:06 会话实证）。
@@ -622,9 +670,23 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	// 官服巴卡尔军团段（20261002 抓包 21:42:19）：CMD37 ack 之后、N30 之前
 	// 下发 N1474 阶段倒计时（伊斯官服 timer_sync 回放同序）。非维纳斯零开销。
 	plan := []outboundPacket{{"dungeon_loading_ack", 1, 37, []byte{1}}, {"dungeon_actor_state", 0, 3, state}}
-	plan = append(plan, w.venusStageTimer(time.Now())...)
-	// 苏醒之森关卡倒计时：同款挂点（官服 21:42:19.431 N1474，60 分钟/关）。
-	plan = append(plan, w.forestStageTimer(time.Now())...)
+	if w.bakalOpening != nil {
+		// 巴卡尔入场（pack 线）：先注记源竞技场角色 + 出 BOSS，再走普通完成段。
+		symbols, err := w.bakalEnterSymbolPlan(w.activeDungeon, true)
+		if err != nil {
+			return nil, err
+		}
+		spawn, err := w.bakalLoadedBoss(w.activeDungeon, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, symbols...)
+		plan = append(plan, spawn...)
+	} else {
+		plan = append(plan, w.venusStageTimer(time.Now())...)
+		// 苏醒之森关卡倒计时：同款挂点（官服 21:42:19.431 N1474，60 分钟/关）。
+		plan = append(plan, w.forestStageTimer(time.Now())...)
+	}
 	plan = append(plan, outboundPacket{"dungeon_loading_complete", 0, 30, protocol.DungeonLoaded()})
 	// 常驻状态：把两个档位在客户端读 getter 之前下发（见 oath_info.go）。
 	grades, e := w.oathInfoPackets()
@@ -632,6 +694,13 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		return nil, e
 	}
 	plan = append(plan, grades...)
+	border, e := w.borderRewardPackets()
+	if e != nil {
+		return nil, e
+	}
+	// Insert before loading_complete, retaining the other modes' packet order.
+	plan = insertBorderBeforeLoaded(plan, border)
+
 	// 征兆队伍状态（noti 2836）。客户端进 EOO 副本时自己已经把两个征兆窗开好，
 	// 这里只负责把每个座位的状态填进去。见 omen_info.go。
 	omen, e := w.omenInfoPackets()
@@ -1391,6 +1460,9 @@ func (w *worldSession) bossCheck(p []byte) ([]outboundPacket, error) {
 }
 
 func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
+	if w.bakalOpening != nil {
+		return w.bakalConfirmDefeats()
+	}
 	if w.moon.owner != nil {
 		return nil, nil
 	} // Moon final death owns its completion.
@@ -1598,12 +1670,29 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 	}
 	var e error
 	var next *dungeon.Session
-	// [MERGE-20261005-LAYER-REVISIT-LAYER] 回头路走进「层序列已播完」的格子。
+	if w.bakalOpening != nil {
+		if e = w.bakalOpening.AuthorizeDungeon(w.activeDungeon.Definition.ID, time.Now()); e != nil {
+			return nil, nil, e
+		}
+	}
+	stage, stageWarp := w.bakalOpening.StageWarp(w.activeDungeon.Definition.ID, [2]byte{w.activeDungeon.Room.X, w.activeDungeon.Room.Y}, r.Position)
+	// [MERGE-20261007] 本冲突块两侧各有独立意图，逐处保留：
+	//   · 我方：raid 阶段换图 / RaidReturn，以及「场景房点门」（r.SceneExit）回 base；
+	//   · 上游：回头路走进「层序列已播完」的格子时打 layerRevisit（见下方 if layerRevisit 段）。
 	layerRevisit := false
-	if r.LayerChange {
-		// 客户端主动换图（CMD45 p10=1）→ MoveScene：序列未完则推进层图，
-		// 序列走完则前进到相邻格（出口方向判据见 dungeon.MoveScene）。
-		next, e = w.activeDungeon.MoveScene(*w.dungeons, r)
+	if stageWarp && !r.LayerChange && r.Dungeon == w.activeDungeon.Definition.ID {
+		next, e = w.activeDungeon.MoveRaidStage(*w.dungeons, stage)
+	} else if r.RaidReturn {
+		next, e = w.activeDungeon.MoveRaidReturn(*w.dungeons, r.Position)
+	} else if r.LayerChange {
+		if r.SceneExit {
+			// [MERGE-20260928-SCENE-EXIT-VS-SEQUENCE] 场景房点门（服务端合成）→ 回该位置的 base。
+			next, e = w.activeDungeon.ExitSceneRoom(*w.dungeons, r.Position)
+		} else {
+			// 客户端主动换图（CMD45 p10=1）→ MoveScene：序列未完则推进层图，
+			// 序列走完则前进到相邻格（出口方向判据见 dungeon.MoveScene）。
+			next, e = w.activeDungeon.MoveScene(*w.dungeons, r)
+		}
 	} else if r.Record[0] == 1 {
 		next, e = w.activeDungeon.MoveScript(*w.dungeons, r)
 		if e != nil {
@@ -1696,7 +1785,13 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 	if e != nil {
 		return nil, nil, e
 	}
-	return next, []outboundPacket{{"dungeon_move_ack", 1, 45, []byte{1}}, {"dungeon_next_map_sent", 0, 29, body}}, nil
+	location, err := w.bakalRoomPartyPlan(next)
+	if err != nil {
+		return nil, nil, err
+	}
+	plan := []outboundPacket{{"dungeon_move_ack", 1, 45, []byte{1}}}
+	plan = append(plan, location...)
+	return next, append(plan, outboundPacket{"dungeon_next_map_sent", 0, 29, body}), nil
 }
 
 // oathDirectEntryActive 报告本连接当前是否命中「誓约进图直发」。

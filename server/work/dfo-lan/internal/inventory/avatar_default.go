@@ -5,24 +5,33 @@ import (
 	"encoding/binary"
 )
 
-// avatarPlatinumSocket 是 S socket（白金徽章孔）。客户端徽章目标掩码语义
-// （emblem_inlay_rules.go 注释："M excludes S (platinum)"）里 [S socket] = 16，
-// 只接受白金徽章；[M socket] = 65519 是彩色孔（Multicolored，接受除白金外的
+// avatarSocketOptionsSize 是客户端时装徽章孔扩展的固定长度：
+// 5 槽 × (u16 socket 类型 + u32 已嵌徽章模板) = 30 字节（小端）。
+// 打孔（avatar_socket.go）、镶嵌（emblem_inlay.go）和这里补默认孔
+// 必须写同一个布局，客户端显示的孔**完全来自该字段**。
+const avatarSocketOptionsSize = 30
+
+// avatarPlatinumSocket 是 [S socket]（白金徽章孔）的掩码。客户端徽章目标掩码
+// 语义见 emblem_inlay_rules.go（"M excludes S (platinum)"）：[S socket] = 16
+// 只接受白金徽章，[M socket] = 65519 是彩色孔（Multicolored，接受除白金外的
 // 四色徽章），与美服文档一致。
 const avatarPlatinumSocket uint16 = 16
 
 // DefaultAvatarSockets 返回一件时装的默认徽章孔扩展
-// （30 字节 = 5 槽 × (u16 socket type + u32 emblem)，与打孔器/嵌徽章同格式）。
+// （30 字节 = 5 槽 × (u16 socket 类型 + u32 emblem)，与打孔器/嵌徽章同格式）。
 //
 // 默认孔**直接读 PVF 时装定义**，不硬编码：
 //   - 光环等带 [emblem socket default] 段：按段内声明的 socket 逐个写入
 //   - 其余时装读 [avatar type select] 尾部 "N [socket1] [socket2]…" 声明
-//   - 定义里没有默认孔（如部分武器装扮）则返回 0 孔
+//   - 定义里没有默认孔（如部分武器装扮、Look 纯外观时装）则返回 0 孔
 //
-// 时装不在 selection 的 Rows（仅 3174 条基本装备）里，所以优先走
-// Full 全量目录（bootstrap 已挂载）；无 Full 时回退 selection 自身。
+// 时装不在 selection 的 Rows（仅 3174 条基本装备）里，所以优先走 Full 全量
+// 目录（bootstrap 已挂载）：Full.Definition 直接取源脚本原始字段，不做
+// "[import script] 链补齐"——那条链只补 [rarity]/[equipment type]/[durability]
+// 等少数键，会把 [avatar type select] / [emblem socket default] 丢掉，补孔
+// 就会变成 0 孔。只有没有 Full 时才回退 selection 自身，读不到即返回 0 孔。
 func (c *EquipmentCatalog) DefaultAvatarSockets(id uint32) []byte {
-	opts := make([]byte, 30)
+	opts := make([]byte, avatarSocketOptionsSize)
 	if c == nil {
 		return opts
 	}
@@ -41,8 +50,7 @@ func (c *EquipmentCatalog) DefaultAvatarSockets(id uint32) []byte {
 	if d.ID == 0 {
 		return opts
 	}
-	sockets := defaultSocketsFromFields(d.Fields)
-	for i, s := range sockets {
+	for i, s := range defaultSocketsFromFields(d.Fields) {
 		if i >= 5 {
 			break
 		}

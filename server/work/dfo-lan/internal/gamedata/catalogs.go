@@ -39,6 +39,7 @@ type Catalogs struct {
 	ChannelDirectory             *catalog.ChannelDirectory
 	ChannelInfo                  *catalog.ChannelInfo
 	ChannelTowns                 map[uint32]catalog.TownArea
+	RaidEntrances                map[uint32]catalog.RaidEntrance
 	RosterBackgrounds            *character.RosterBackgroundTicketCatalog
 	OdysseyRoutes                *catalog.OdysseyJournalRoutes
 	SeasonRules                  *adventure.SeasonRules
@@ -127,6 +128,8 @@ type CatalogInputs struct {
 	RandomOptionPath, ShieldPath, WearRulesPath, OathPath, VaultPath, VaultPolicyPath              string
 	TownPath, DungeonPath, TrainingDungeonPath, TutorialDungeonPath, ScenePolicyPath               string
 	EnhancementPolicyPath                                                                          string
+	// BoostChallenge 打开活动 662 毕业后的可选挑战（665）源绑定；关闭时不解析，挑战路径 fail-closed。
+	BoostChallenge bool
 }
 
 type CatalogAdapters struct {

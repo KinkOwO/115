@@ -12,6 +12,7 @@ import (
 	"dfolan/internal/loot"
 	"dfolan/internal/npcpresence"
 	"dfolan/internal/quest"
+	"dfolan/internal/raid"
 	"dfolan/internal/reward"
 	"dfolan/internal/workflow"
 	"dfolan/internal/world"
@@ -216,6 +217,19 @@ type worldSession struct {
 	// nil when the gateway runs without a multiplayer hub.
 	hub  *lanHub
 	peer *lanPeer
+	// —— 巴尔卡/使徒 raid 会话状态（raid_bakal_*.go、dungeon_flow.go）——
+	// raidWaiting 表示本次连接已落在 raid 待机频道；bakalOpening 非 nil 表示
+	// 巴卡尔开场已在 CMD2062 建好（internal/raid.PrepareBakalOpening）。
+	raidWaiting        bool
+	bakalOpening       *raid.BakalOpening
+	bakalRules         *catalog.BakalRaidRules
+	bakalParty         uint32
+	bakalTown          uint32
+	bakalSettledRun    string
+	bakalRewardRetryAt time.Time
+	// channelSpawns 镜像 gatewayRuntime.channelSpawns，供内容频道落点覆盖使用
+	// （odyssey_teleport.go 判断目标频道是否属于内容频道）。
+	channelSpawns map[uint32]database.WorldPosition
 	// lastMotion and lastSpeed are the most recent values this client reported with
 	// CMD 35. NOTI 22 carries them so the other clients animate the movement.
 	lastMotion byte

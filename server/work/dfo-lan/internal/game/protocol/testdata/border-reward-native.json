@@ -1,0 +1,70 @@
+{
+  "client_sha256": "a174b93e4cb3652e2c0918e680705ee4d6513af5e29f1b1692addd0807146ccf",
+  "handler": "0x1406b18d0",
+  "getter": "0x1406b1c20",
+  "vectors": [
+    {
+      "name": "unique",
+      "primary": 42,
+      "bonus": 40,
+      "payload": "ffffffff2a00000028000000",
+      "consumed": 12,
+      "native_maximum": 42,
+      "member58": -1
+    },
+    {
+      "name": "legendary",
+      "primary": 43,
+      "bonus": 40,
+      "payload": "ffffffff2b00000028000000",
+      "consumed": 12,
+      "native_maximum": 43,
+      "member58": -1
+    },
+    {
+      "name": "epic",
+      "primary": 44,
+      "bonus": 40,
+      "payload": "ffffffff2c00000028000000",
+      "consumed": 12,
+      "native_maximum": 44,
+      "member58": -1
+    },
+    {
+      "name": "primeval",
+      "primary": 45,
+      "bonus": 40,
+      "payload": "ffffffff2d00000028000000",
+      "consumed": 12,
+      "native_maximum": 45,
+      "member58": -1
+    },
+    {
+      "name": "bonus_primeval",
+      "primary": 44,
+      "bonus": 45,
+      "payload": "ffffffff2c0000002d000000",
+      "consumed": 12,
+      "native_maximum": 45,
+      "member58": -1
+    },
+    {
+      "name": "special50",
+      "primary": 44,
+      "bonus": 50,
+      "payload": "ffffffff2c00000032000000",
+      "consumed": 12,
+      "native_maximum": 44,
+      "member58": -1
+    },
+    {
+      "name": "special51",
+      "primary": 44,
+      "bonus": 51,
+      "payload": "ffffffff2c00000033000000",
+      "consumed": 12,
+      "native_maximum": 44,
+      "member58": -1
+    }
+  ]
+}

@@ -189,7 +189,6 @@ func runStop(args []string) int {
 	return 1
 }
 
-
 // runCheck verifies the dependencies the selected mode needs and starts nothing, which
 // is what makes it safe to run before a session.
 func runCheck(args []string) int {
@@ -209,9 +208,9 @@ func runCheck(args []string) int {
 		return 1
 	}
 	report, err := launcher.Check(absolute, launcher.CheckOptions{
-		ServerOnly:  *serverOnly,
-		ClientOnly:  *clientOnly,
-		SourceBuild: *sourceBuild,
+		ServerOnly:    *serverOnly,
+		ClientOnly:    *clientOnly,
+		SourceBuild:   *sourceBuild,
 		JSONMode:      *jsonMode,
 		RepairProfile: *repairProfile,
 	})

@@ -1,157 +1,168 @@
-# client 层字节补丁说明（odyssey.hardcore）
+# client 层说明（odyssey.hardcore）—— 已改用客户端插件
 
-本层只做 `exe.patch`，没有整文件替换，所以这个目录里只有说明。补丁内容在 `mod.json` 的
-`layers.client.ops[0]` 里，逐字节如下。
+**本包不再对 `DFO.exe` 做任何字节补丁**（`mod.json` 的 `client.ops` 里没有 `exe.patch`）。
+client 层现在是**两条 `file.add`**：
 
-`DFO.exe` = 258,972,712 字节，
-sha256 `01c633dfda5c883ba126261246cb8067b0a0331500587d8062df368da175a836`（= mod.json 的 `sourceSHA256` 门）。
-本 EXE **没有基址重定位目录**（DataDirectory[5] 为空），所以加载器不会改写任何字节，
-按文件偏移打的补丁在运行期地址稳定。
+| # | kind | target | source | 内容 |
+| --- | --- | --- | --- | --- |
+| 1 | `file.add` | `.115us-mods/DifficultyRules.dll` | `client/DifficultyRules.dll` | 客户端难度引擎（宿主插件） |
+| 2 | `file.add` | `.115us-mods/rules.d/odyssey.hardcore.json` | `client/rules.d/odyssey.hardcore.json` | 本 mod 自带的**范围规则**：只对奥德赛副本，`percent`/`attackPercent` = 1000 |
 
-## 一、补丁内容（3 处，每一处 before/after 长度相等）
+DLL 的源文件是 `client-patchs\difficulty\dist\DifficultyRules.dll`（由
+`client-patchs\difficulty\build-dll.cmd` 编译），**打包时从那个路径取**；
+`build-mod.py` 在该文件缺失时直接报错退出（不会生成一个"装上去但没有倍率"的包）。
 
-| # | 文件偏移 | VA | before | after | 语义 |
-| --- | --- | --- | --- | --- | --- |
-| 1 | `0x5A06EB6` | `0x145A06EB6` | `e8 85 9f 81 01` | `e9 f0 17 c7 02` | `call <HP getter>` → `jmp 0x1486786AB`（**同长度 5 字节**） |
-| 2 | `0x5A06F56` | `0x145A06F56` | `e8 e5 9e 81 01` | `e9 50 17 c7 02` | `call <HP getter>` → `jmp 0x1486786AB`（**同长度 5 字节**） |
-| 3 | `0x86786AB` | `0x1486786AB` | `cc` × 21 | `4c 8b d1 e8 8d 87 ba fe 48 6b c0 0a 49 8b ca c3` + `cc` × 5 | 16 字节 trampoline 写进函数间对齐填充 |
+> 本目录里只有说明文件 + 一份范围规则 JSON：**没有** `.dll` 二进制副本入库
+> （`/.gitignore` 里 `*.dll` 被忽略，见 `client-patchs/AGENTS.md` §1.6「构建产物不入库」）。
+> 打包时由 `build-mod.py` 从上面的 dist 路径取，再算 size/sha256 写进 `mod.json`。
 
-补丁 3 的 trampoline 反汇编（用 x86 解码器实测输出）：
+> **本文件（`client/PATCH-NOTES.md`）只是包内的普通文件，不生成任何 manifest op**：
+> `build-mod.py` 的 doc 阶段把 `client/*.md` 拷进 staging（`build-mod.py:161-174`），
+> 于是它随 zip 可读，但**不落位到客户端**、`mod.json` 的 `client.ops` 里也没有它 ——
+> modkit 只按 `ops` 干活，所以"包里多一份说明文档"不会多出任何安装动作。
 
-```
-0x1486786AB  4C 8B D1          MOV  R10, RCX          ; 保存调用者传的描述块指针（getter 会打掉 rcx）
-0x1486786AE  E8 8D 87 BA FE    CALL 0x147220E40       ; 原样调用 HP getter ⇒ RAX = 血量
-0x1486786B3  48 6B C0 0A       IMUL RAX, RAX, 0xA     ; ★ 返回值 ×10
-0x1486786B7  49 8B CA          MOV  RCX, R10          ; 按原契约把 rcx 交回调用者
-0x1486786BA  C3                RET                    ; 回到 0x145A06EBB / 0x145A06F5B
-```
+---
 
-rel32 全部按 `目标 − (指令地址 + 指令长度)` 逐条复核：
+## 一、为什么以前用 `exe.patch`
 
-| 指令地址 | 长度 | 目标 | disp32 |
-| --- | --- | --- | --- |
-| `0x145A06EB6` | 5 | `0x1486786AB` | `0x02C717F0` |
-| `0x145A06F56` | 5 | `0x1486786AB` | `0x02C71750` |
-| `0x1486786AE` | 5 | `0x147220E40` | `0xFEBA878D` |
+业主口径是"奥德赛模式怪物血量 ×10"。2026-10-06 的取证结论是**服务端做不到、内容层也没有目标**：
 
-## 二、为什么这样设计（逐条论证）
+1. **服务端不下发怪物血量**：全仓 `MaxHP|max_hp|CurrentHP` 零命中，怪物包
+   （NOTI29 / `protocol.DungeonMonster`）只有 `entity / template / level / rank / team`；
+2. **内容层没有目标可改**：内层 `Script.inner.pvf`（5,650,173 条目）里 `.tbl` **0** 个，
+   `commonmonsterbase`/`baseparameter`/`difficultybonus` **0** 个；客户端 14,643 个 NPK /
+   456,188 条目里 `.tbl` **0** 个、血量/难度相关条目 **0** 个；
+3. 于是当时只剩 `exe.patch`：把 HP getter 的**两个 flag==1 调用点**改道到一个 16 字节
+   trampoline（`mov r10,rcx` / `call getter` / `imul rax,rax,10` / `mov rcx,r10` / `ret`），
+   写进 `0x1486786AB` 的函数间 21 字节 `cc` 填充。
 
-### 1. 返回值寄存器：**RAX**（不是 xmm0）
+那一版**能用但不好**，两个硬伤：
 
-getter `0x147220E40` 的两个返回出口都是整数：
+* **补丁是全局的**：改的是两个取值调用点，所有副本走同一入口的怪物都会变厚，
+  做不到"只有奥德赛" —— 而业主的需求是**普通角色/普通副本不受影响**；
+* **它改的是 `DFO.exe` 文件本身**（26 个字节）：多一个必须备份/还原的现场，
+  还撞上 TheMida 节的存在性风险；而且那 2 个调用点所在的函数
+  （`0x145A06DB0`）是 6 分支的伤害/招式辅助函数，静态无法排除"怪物打人也变疼"。
 
-```
-0x147220FFF  C3                       RET                 （早退分支，xmm6 直接转整数在下面）
-0x147221000  F2 48 0F 2C C6           CVTTSD2SI RAX, X6   ← 出口 A
-0x147221011  C3                       RET
-```
+## 二、为什么现在不用
 
-两个 flag==1 调用点的后继指令也证实调用者读的是 `RAX`：
+2026-10-07 起 `client-patchs/difficulty` 的 **`DifficultyRules` 插件**成熟了：它同样读写怪物血量与
+物攻/魔攻字段，但走的是**宿主插件通道**（`qol.client-host` 占住客户端唯一可自动加载的槽位，
+插件从 `<客户端>\.115us-mods\*.dll` 被加载），于是：
 
-```
-0x145A06EB6  E8 85 9F 81 01   CALL getter
-0x145A06EBB  0F 57 F6         XORPS X6, X6
-0x145A06EBE  F3 48 0F 2A F0   CVTSI2SS X6, RAX     ← 读 RAX
-0x145A06F56  E8 E5 9E 81 01   CALL getter
-0x145A06F5B  0F 57 C0         XORPS X0, X0
-0x145A06F5E  F3 48 0F 2A C0   CVTSI2SS X0, RAX     ← 读 RAX
-```
-
-因为返回值是 **RAX**（整数），且是精确的整数值，所以「×10」用 `imul rax,rax,10` 就够，
-**比原来的 `CVTSI2SS` 更精确**（原路径把 64 位整数截成 float32，超过 2^24 会丢精度）。
-
-### 2. 为什么不会覆盖相邻指令
-
-三处补丁**全部是等长原位替换**，不动任何指令边界：
-
-* 补丁 1/2：`E8 rel32`（5 字节）→ `E9 rel32`（5 字节）。只有第 1 个操作码字节
-  （`E8`→`E9`）与 4 字节位移变化；紧随其后的 `0F 57 F6`（`XORPS X6,X6`）
-  与更后面的指令**一个字节都没动**。
-* 补丁 3：只往一段 **21 字节的 `cc` 填充**里写 16 字节代码 + 5 字节 `cc`。
-  该区间前面是 `0x1486786AA C3`（上一函数的 `RET`），后面是
-  `0x1486786C0 48 89 54 24 10`（下一个函数的序言），两者都未改动。
-
-对照**已被否决**的旧方案 A：它想把 `0x147220ECF` 的 `75 6F`（2 字节）改写成 5 字节 `E9 rel32`，
-那会**吃掉紧随其后的 3 个字节**，而那 3 个字节正是 flag==0 路径的入口指令
-`0x147220ED1 48 8D 4F 48`（`lea rcx,[rdi+0x48]`）——21 个 flag==0 调用点（含角色面板）会被改坏。
-本补丁不做任何不等长改写，因此这个问题不存在。
-
-（顺带记录：旧方案 A 选用的 25 字节洞 `0x143327897` 也**不能用**——全镜像线性反汇编发现
-`0x143327B14 E8 87 FD FF FF` 这条真实 `CALL` 的目标正好是 `0x1433278A0`，**落在那个洞里**，
-而 `0x143327B10` 这个函数有 200+ 个调用点（步距 36 字节）。写在有引用的洞里会互相破坏。
-本补丁改用 `0x1486786AB`：线性反汇编 + 全节分支目标扫描对它**零命中**。）
-
-### 3. 为什么只影响 flag==1（怪物侧）
-
-getter 里区分角色/怪物的唯一判据是 `flag` 参数：
-
-```
-0x147220ECD  84 DB        TEST BL, BL
-0x147220ECF  75 6F        JNE 0x147220F40      ← flag!=0 直接跳过乘算，去汇合点
-0x147220ED1  48 8D 4F 48  LEA RCX, [RDI+0x48]  ← flag==0 专属路径（角色面板/血条比例）
-...
-0x147220F34  F2 0F 58 05 E4 6F 8D 04   ADDSD X0, [1.0]
-0x147220F3C  F2 0F 59 F0               MULSD X6, X0
-```
-
-* 本补丁**没有碰 getter 的任何字节**：`test bl,bl`、`jne`、`lea`、`addsd`、
-  `mulsd` 以及 `.rdata` 那颗被 25 个点共用的 `1.0` 常量全部原样。
-* 改动只在「那 2 个显式传 `MOV DL,1` 的调用点」上。全镜像里把 flag 置非 0 后调用
-  这个 getter 的位置**只有这 2 处**（都在函数 `0x145A06DB0` 内）；其余 21 处都是
-  `XOR EDX,EDX`（flag==0），行为**逐字节不变**。
-* 因此「角色面板变 10 倍血」这种复发在原理上不可能：那条路的代码与常量都没变。
-
-### 4. 待确认的假设（残余风险，见下节）
-
-本设计依赖两条**未经实机确认**的假设：
-
-1. `0x145A06DB0` 里那 2 个 flag==1 调用点取到的数**就是怪物血量本体**；
-2. ×10 之后不会把该函数里的其它量（伤害/招式系数）一起放大到不可接受的程度。
-
-假设 1 的支持证据：全镜像仅此 2 处 flag==1；而旧方案（改 flag==0 共享常量）实测
-「角色变 10 倍、怪物不变」，与 flag 分布完全一致 —— 但**没有直接观测到怪物血量变成 10 倍**。
-
-## 三、影响面
-
-* **全局生效**：凡走过 2 个调用点取值的怪物都会变厚，**不是奥德赛专属**。
-  想只影响奥德赛需要在模式判据里分流，而该判据在客户端内部、当前取证不足以定点。
-* **不碰**：getter 本体、共享 `1.0` 常量（`0x14BAF7F20`）、`+0x4810` 属性对象、
-  `[obj]->vtable[0x12C8]` 分派表、以及任何 flag==0 的调用点。
-* **寄存器副作用**：trampoline 会写 `R10`/`R11`。这两个是易失寄存器，原 `CALL` 本来
-  就会打掉它们；函数 `0x145A06DB0` 的 6 个上层调用者（`0x145A681AA`/`0x145A6830E`/
-  `0x145A68478`/`0x145A685D4`/`0x14684F691`/`0x14684F7E1`）在 call 之后都直接从
-  `xmm0` 取返回值（`MULSS X0,…` / `CVTTSS2SI ESI/EDI, X0`），不依赖 `rcx/r10/r11`。
-* **TheMida 完整性校验**：EXE 带 `.themida` 节（17 MB），静态无法判定它是否校验 `.text` 的
-  校验和/CRC。**首次安装后必须实机确认能正常起游戏**；若被拦下，这就是原因（一键还原见下）。
-
-## 四、一键还原
-
-modkit 自带还原（安装时会把整份 EXE 备份到 `<client>\.launcher-mods\`，卸载按备份整文件回写）：
-
-```powershell
-modkit uninstall --client C:\Game\dof\115us\DFO --id odyssey.hardcore --root <启动器根>
-```
-
-手工还原（把下面 3 段字节按偏移写回即可，全部是 `before` 的值）：
-
-| # | 文件偏移 | 写回字节 |
+| | 旧 `exe.patch` | 现在的插件 |
 | --- | --- | --- |
-| 1 | `0x5A06EB6` | `e8 85 9f 81 01` |
-| 2 | `0x5A06F56` | `e8 e5 9e 81 01` |
-| 3 | `0x86786AB` | `cc` × 21 |
+| 碰 `DFO.exe` 文件 | 是（26 字节，要整文件备份/还原） | **否**（一个字节都不改） |
+| 落位 `dinput8.dll` | 否 | 否 |
+| inline 钩子 / 函数改写 | 是（2 处 `call`→`jmp` + 代码洞） | **否**（只做内存读写，不调用任何游戏代码） |
+| 作用范围 | **全局**（所有副本） | **按副本 id**（`dungeonIds`，本包 = 真实 PVF 解析出的 56 个奥德赛副本） |
+| 能不能只对奥德赛 | 做不到 | **能**，这就是换掉它的主要原因 |
+| 改倍率要做什么 | 重新打 EXE 补丁 + 重装 mod | 改 `rules.d\*.json` 后重启客户端 |
+| 风险 | TheMida 完整性未知；伤害可能连带变化 | 写前逐字节核对 + 读回校验 + 失败回滚；指纹不符不接管 |
 
-还原后整文件 sha256 应回到
-`01c633dfda5c883ba126261246cb8067b0a0331500587d8062df368da175a836`。
-打了补丁的整文件 sha256 是
-`e8f1aa283cc54d350f6202dfa54fa3eac6a4dd137a3405c7b8e7fdefeae34bfa`
-（与原件全文件只差 **26 个字节**：5+5+16，正好是上表三处）。
+插件纪律（与 `client-patchs/AGENTS.md` §1 一致）：**不覆盖 `DFO.exe`、不落 `dinput8.dll`、
+无 inline 钩子、日志只写插件自己目录、指纹不符不接管、写前逐字节核对**。
 
-## 五、打包前自证
+## 三、范围规则（本包的核心）
 
-`build-mod.py` 在打包前会**只读**打开 `DFO.exe`，逐条核对 `before` 是否与现场一致
-（含 `test bl,bl` / `jne` / flag==0 入口 `lea` / 旧补丁点 `addsd` / 共享 `1.0` 常量 /
-洞前 `RET` / 洞后函数序言），任何一条不符就**停手**且不复写任何文件：
+`.115us-mods/rules.d/odyssey.hardcore.json` 只有一条规则：
+
+```json
+{
+  "schema": 1,
+  "enabled": true,
+  "rules": [
+    {
+      "id": "odyssey-hardcore-10x",
+      "enabled": true,
+      "dungeonIds": [100004934, "... 共 56 个 ...", 100004990],
+      "percent": 1000,
+      "attackPercent": 1000
+    }
+  ]
+}
+```
+
+* `percent` / `attackPercent` 单位 **100 = 1.00 倍**，`1000` = ×10；
+* `dungeonIds` 是**真实 PVF 解析**出来的：`contents/2026/aradodyssey/**/*.dgn` 里
+  `[dungeon mode script] arad odyssey` 的全部副本（服务端解析为
+  `catalog.DungeonDefinition.Odyssey == true`），共 **56** 个，区间
+  `100004934..100004957` + `100004959..100004990`（`100004958` 在源里没有这个 DGN）；
+* **没有** `all: true` —— 这是"普通角色不受影响"的保证：不在列表里的副本插件一条规则都不命中，
+  保持原版（`percent` 走 100）。
+
+### 插件怎么合并多份规则文件（决定"谁赢"）
+
+插件（≥ 本次这一版）按固定顺序读**两处**规则：
+
+1. `<插件目录>\rules.d\*.json` —— 按**文件名升序**遍历；
+2. `<插件目录>\rules.json` —— **最后**读。
+
+每个文件内部仍是"第一条 `enabled` 且命中的规则生效"；跨文件是**先遍历到的文件里命中就赢**。
+所以本包 `rules.d` 里的奥德赛规则在奥德赛副本内**赢过**玩家 `rules.json` 里的通用规则，
+其它副本仍按玩家的规则（或原版）。
+
+**为什么这样定优先级**：`rules.json` 是**玩家的**文件、`rules.d` 是**随 mod 分发的**文件。
+如果让玩家的通用规则（例如"全副本 ×2"）先命中，mod 作者声明的范围就被打穿，
+而 mod 作者既无法预期也无法修（他不能去改玩家的文件）。让 mod 自带文件先于玩家文件
+= "更具体的规则优先"，且**不需要引入任何新字段**。
+
+`rules.d` 里**单个文件解析失败只跳过它自己**（日志里醒目记一行 `[跳过]`），
+不影响其它文件；玩家 `rules.json` 缺失/读失败/解析失败仍保持旧语义（整份配置不可用 → 还原并停止接管）。
+`rules.d` 目录不存在 = 与旧版行为完全一致。
+
+## 四、装 / 卸
 
 ```powershell
-python mods\odyssey-hardcore\build-mod.py --modkit <modkit.exe>
+# 打包（两个变体：完整包 + rules-only）
+python mods\odyssey-hardcore\build-mod.py
+python mods\odyssey-hardcore\build-mod.py --rules-only
+
+# 看计划（必须 0 阻断）
+<modkit.exe> plan --client C:\Game\dof\115us\DFO --mod "mods\odyssey-hardcore\dist\odyssey.hardcore-1.0.0.zip" --root C:\Game\dof\115us\115
+
+# 安装；server 层是 Go 包，装完要重编服务端
+<modkit.exe> install --client C:\Game\dof\115us\DFO --mod "mods\odyssey-hardcore\dist\odyssey.hardcore-1.0.0.zip" --root C:\Game\dof\115us\115
+
+# 一键卸载（client 层两条 file.add 逐字节还原；rules.d 里的 JSON 也会被删）
+<modkit.exe> uninstall --client C:\Game\dof\115us\DFO --id odyssey.hardcore --root C:\Game\dof\115us\115
 ```
+
+> **游戏运行时 modkit 拒绝写入客户端**。要装/卸先关掉 `DFO.exe`。
+
+### ⚠️ 与 `difficulty.rules` 互斥（有意为之）
+
+`difficulty.rules` 与本 mod 都投 `.115us-mods/DifficultyRules.dll`。
+两个都装时 modkit 会以「**目标已被 mod difficulty.rules 占用**」**阻断**安装计划。
+
+这是**故意的**：同一个难度引擎只允许一个实例 —— 双份加载会把倍率叠成 ×100。
+要换用本 mod，先卸掉 `difficulty.rules`：
+
+```powershell
+<modkit.exe> uninstall --client C:\Game\dof\115us\DFO --id difficulty.rules --root C:\Game\dof\115us\115
+```
+
+`rules.json`（玩家的通用规则）两者共用，**不需要动**；只装本 mod 时它是 `enabled: false` 的模板，
+不会与 `rules.d` 里的奥德赛规则打架。
+
+## 五、怎么确认客户端这一层生效
+
+进游戏后看 `<客户端>\.115us-mods\`：
+
+1. `difficulty-rules.log` 里应有
+   `规则已加载：共 2 份文件、N 条规则（… rules.d 指纹 0x…、1 个 .json）`
+   与两份文件的逐条清单（`<odyssey.hardcore.json> enabled=1 共 1 条` / `<rules.json> …`）；
+   进奥德赛副本后应出现
+   `副本 1000049xx 命中规则 odyssey-hardcore-10x（…，来自 odyssey.hardcore.json）→ 血量 10.00 倍 / 伤害 10.00 倍`
+   与逐只怪的 `血量已调整` / `属性0x398已调整` 行；
+2. `difficulty-rules.status.json` 里 `ready: true`、`enabled: true`、`ruleFile` = `odyssey.hardcore.json`、
+   命中时 `percent`/`attackPercent` = 1000；普通副本里 `ruleId` 为空、`percent` = 100；
+3. 指纹不符（换了客户端构建）时 `ready: false` + `rejectReason: clientFingerprintMismatch`，
+   插件**一个字节都不改**。
+
+## 六、历史（已经不在本包里了）
+
+被替换的那版 `exe.patch`（3 处、26 字节）完整记录在 git 历史里
+（`mods/odyssey-hardcore/client/PATCH-NOTES.md` 的 2026-10-06 版本、`build-mod.py` 的
+`make_client_ops` / `build_trampoline` / `verify_patch_sites`）。
+如果将来还需要 EXE 补丁路线，请从那里取，**不要**在新版本里重新发明一套偏移。

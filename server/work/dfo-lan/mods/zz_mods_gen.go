@@ -21,5 +21,12 @@
 // 拦这一条（有 git 时中止并报错，没有 git 的解包目录只告警）。
 package mods
 
-// 当前没有已安装的服务端 mod：干净形态，RegisterMods() 什么都不注册。
-func RegisterMods() {}
+import (
+	"dfolan/mods/odyssey.hardcore"
+)
+
+// RegisterMods 按稳定顺序调用每个 mod 的注册入口。
+// 服务端在完成配置与存储初始化之后、开始监听之前调用它。
+func RegisterMods() {
+	modpkg.Register()
+}

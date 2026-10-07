@@ -38,6 +38,9 @@ type DungeonDefinition struct {
 	Script                   ScriptRecord `json:"script"`
 	MinimumLevel, BasisLevel uint32
 	Tutorial, NoFatigue      bool
+	// Bakal is the source [dungeon type] bakal. A local boss clear advances
+	// the raid battlefield and does not end navigation through this maze.
+	Bakal bool `json:"bakal,omitempty"`
 	// EnterFatigue 是源 [use fatigue only start dungeon] <N> 声明的**进本消耗**（only start = 进本只收一次）
 	// 0 表示源未声明该段，服务端回退本地策略或在策略里查 dungeon_enter_fatigue 兜底。
 	// 注意 [minimum enter fatigue] 是**门槛**而非消耗，不读它。
@@ -358,11 +361,23 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 		d.RewardCard = uint32(cards[0].Value)
 	}
 	minimum := sectionCells(s.Cells, "[minimum required level]")
+	// Native Bakal raid scripts repeat scalar level tags later in the file.
+	// Each assignment replaces the previous value; concatenating them makes
+	// all these otherwise valid raid dungeons fail ordinary scalar validation.
+	variant := sectionCells(s.Cells, "[dungeon type]")
+	bakal := len(variant) == 1 && variant[0].Type == 6 && variant[0].Text == "bakal"
+	d.Bakal = bakal
+	if bakal && len(minimum) > 1 {
+		minimum = minimum[len(minimum)-1:]
+	}
 	if len(minimum) != 1 || minimum[0].Type != 0 || minimum[0].Value < 1 {
 		return d, fmt.Errorf("invalid [minimum required level]")
 	}
 	d.MinimumLevel = uint32(minimum[0].Value)
 	basis := sectionCells(s.Cells, "[basis level]")
+	if bakal && len(basis) > 1 {
+		basis = basis[len(basis)-1:]
+	}
 	hasBasis := false
 	for _, c := range s.Cells {
 		hasBasis = hasBasis || c.Type == 3 && c.Text == "[basis level]"

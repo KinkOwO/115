@@ -187,9 +187,63 @@ func TestOathPointsAggregation(t *testing.T) {
 	if total, hits := p.OathPoints([]PointItem{{Template: 100610095, Awakening: 9, PartSetIndex: -1}}); total != 355 || hits != 1 {
 		t.Fatalf("unknown awakening must fall back to 0; got %d/%d, want 355/1", total, hits)
 	}
-	// SetPoints 仍是缺口：必须返回 (0,0) —— 调用方不得把它当"角色积分为 0"。
-	if total, hits := p.SetPoints([]PointItem{{Template: 100610095}}); total != 0 || hits != 0 {
-		t.Fatalf("SetPoints must stay a documented gap; got %d/%d", total, hits)
+	// SetPoints 不再是缺口：两层映射（模板 →能力组→ (group,awakening) 行）现在可算。
+	// 见 TestSetPointsAggregation。
+}
+
+// SetPoints 的两层映射与归属规则：
+//
+//	模板 --(AbilityGroups)--> 能力组号 --(+档位)--> setpointinfo.cos 的行
+//
+// 三种行的处理各钉一条：`[part set index] = -1` 用本件套装号补；补不出（本件没有套装号）
+// **不累加**；档位只精确匹配（不回退 0 档，否则会把 0 分算成有分）。
+func TestSetPointsAggregation(t *testing.T) {
+	table, e := ParseSetPointInfo(setPointInfoSample)
+	if e != nil {
+		t.Fatalf("parse: %v", e)
+	}
+	p := PointRules{
+		Set: table,
+		AbilityGroups: map[uint32][]uint32{
+			1001: {55},      // 只命中 -1 行 → 靠本件套装号补
+			1002: {55},      // 本件没有套装号 → 命不中
+			1003: {51},      // 同组两行：-1 行 + 16201 行
+			1004: {999},     // 组不在表里
+			1005: {55, 999}, // 多组，只有一组有行
+		},
+	}
+	cases := []struct {
+		name      string
+		item      PointItem
+		wantTotal uint32
+		wantHits  int
+	}{
+		{"-1 行用本件套装号补，命中", PointItem{Template: 1001, PartSetIndex: 16201}, 65, 1},
+		{"没有套装号可归属 ⇒ 不累加", PointItem{Template: 1002, PartSetIndex: -1}, 0, 0},
+		{"两行都用本件套装号 ⇒ 累加", PointItem{Template: 1003, PartSetIndex: 16201}, 115 + 130, 1},
+		{"能力组不在表里 ⇒ 0", PointItem{Template: 1004, PartSetIndex: 16201}, 0, 0},
+		{"多组里只有一组有行", PointItem{Template: 1005, PartSetIndex: 16201}, 65, 1},
+		{"档位只精确匹配，不回退 0 档", PointItem{Template: 1003, Awakening: 3, PartSetIndex: 16201}, 0, 0},
+		{"表里没有的档位", PointItem{Template: 1001, Awakening: 2, PartSetIndex: 16201}, 0, 0},
+		{"未知模板不猜", PointItem{Template: 999999, PartSetIndex: 16201}, 0, 0},
+	}
+	for _, c := range cases {
+		total, hits := p.SetPoints([]PointItem{c.item})
+		if total != c.wantTotal || hits != c.wantHits {
+			t.Errorf("%s: got %d/%d, want %d/%d", c.name, total, hits, c.wantTotal, c.wantHits)
+		}
+	}
+	// 合计与命中件数按件累加。
+	if total, hits := p.SetPoints([]PointItem{
+		{Template: 1001, PartSetIndex: 16201},
+		{Template: 1003, PartSetIndex: 16201},
+		{Template: 1002, PartSetIndex: -1},
+	}); total != 65+115+130 || hits != 2 {
+		t.Errorf("aggregate = %d/%d, want %d/2", total, hits, 65+115+130)
+	}
+	// 未装载能力组 ⇒ 返回"算不出"(0,0)，调用方不得当"角色积分为 0"。
+	if total, hits := (PointRules{Set: table}).SetPoints([]PointItem{{Template: 1001, PartSetIndex: 16201}}); total != 0 || hits != 0 {
+		t.Errorf("missing ability groups must report uncomputable, got %d/%d", total, hits)
 	}
 }
 

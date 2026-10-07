@@ -32,6 +32,7 @@ package main
 // back to the single 0x0308 record.
 //
 // Records, in official-table order (id: name):
+//
 //	0x0991 FiendWarEnterDungeonEvent (45)          0x019E PreyRaidEnterDungeonEvent (50)
 //	0x01CE DefaultEvent(ENTER_SIROCO_RAID) (67)    0x01E2 DefaultEvent(ENTER_OZMA_RAID) (76)
 //	0x0308 Ispins Legion Open (81/86/87)           0x0280 DefaultEvent(ENTER_PRE_BAKAL_RAID) (83)

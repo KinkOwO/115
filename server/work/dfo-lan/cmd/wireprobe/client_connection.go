@@ -45,9 +45,13 @@ type gameConnection struct {
 	selectedAddition    []byte
 	selectedBasic       []byte
 	selectedCharacterID int64
-	skillState          skillSession
-	sortState           sortSession
-	worldState          *worldSession
+	// raidOwnerRole / ownedRaidID 是本次连接认领的 raid 队伍身份（每连接私有）；
+	// 队伍本身登记在 gatewayRuntime.raidTeams 上，由同一网关的各连接共享。
+	raidOwnerRole int64
+	ownedRaidID   uint32
+	skillState    skillSession
+	sortState     sortSession
+	worldState    *worldSession
 }
 
 type gameGateway struct {

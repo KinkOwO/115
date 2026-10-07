@@ -7,13 +7,14 @@ import (
 
 const NotiUnassignedMonsterAdd uint16 = 2194
 
-// Native1452BA4B0 consumes u8 count + count*33 bytes. Moon's141330350
+// Native1452B9C10 consumes u8 count + count*33 bytes. Moon's141330350
 // uses row0/1 for grid,2 for entity,6 for template,17/21 for coordinates.
 type UnassignedMonster115 struct {
 	Grid     [2]byte
 	Entity   uint16
 	Template uint32
 	X, Y     int32
+	Rank     byte // Bakal consumer14254b707 reads row+11 as monster grow type.
 	Carried  bool // Moon source move: row+29 bit0, NOT a new normal spawn.
 }
 
@@ -25,7 +26,7 @@ func UnassignedMonsterAdd115(rows []UnassignedMonster115) ([]byte, error) {
 	p[0] = byte(len(rows))
 	seen := map[uint16]bool{}
 	for i, v := range rows {
-		if v.Entity == 0 || v.Entity == 65535 || seen[v.Entity] || v.Template == 0 {
+		if v.Entity == 0 || v.Entity == 65535 || seen[v.Entity] || v.Template == 0 || v.Rank > 3 {
 			return nil, fmt.Errorf("invalid dynamic monster identity")
 		}
 		seen[v.Entity] = true
@@ -33,6 +34,7 @@ func UnassignedMonsterAdd115(rows []UnassignedMonster115) ([]byte, error) {
 		r[0], r[1] = v.Grid[0], v.Grid[1]
 		binary.LittleEndian.PutUint32(r[2:], uint32(v.Entity))
 		binary.LittleEndian.PutUint32(r[6:], v.Template)
+		r[11] = v.Rank
 		binary.LittleEndian.PutUint32(r[13:], 100) // observed enemy affiliation/default
 		binary.LittleEndian.PutUint32(r[17:], uint32(v.X))
 		binary.LittleEndian.PutUint32(r[21:], uint32(v.Y))

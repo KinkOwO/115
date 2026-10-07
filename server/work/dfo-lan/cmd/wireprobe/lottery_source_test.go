@@ -4,9 +4,9 @@ import "testing"
 
 // 2026-10-01（next146）：直读模式下抽奖目录的来源身份令牌必须能从编译期常量
 // 切到当次内层 checksum，否则整族在直读启动时被拦下。这里锁定三件事：
-//   1) 显式钉的旧版本仍被接受（保留手工钉版本意图）；
-//   2) 空来源 = 接受并派生为当前令牌（直读派生路径）；
-//   3) 别的 64 位哈希 = 拒绝（不能把任意客户端版本混进来）。
+//  1. 显式钉的旧版本仍被接受（保留手工钉版本意图）；
+//  2. 空来源 = 接受并派生为当前令牌（直读派生路径）；
+//  3. 别的 64 位哈希 = 拒绝（不能把任意客户端版本混进来）。
 func TestLotterySourceAcceptsDerivedAndExplicit(t *testing.T) {
 	original := lotterySourcePVFSHA256
 	t.Cleanup(func() { lotterySourcePVFSHA256 = original })

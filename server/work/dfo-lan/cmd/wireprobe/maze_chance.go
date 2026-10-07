@@ -89,6 +89,7 @@ func forceMaze(c *catalog.DungeonCatalog, spec string) error {
 	}
 	return nil
 }
+
 // noteMazeEntry 把「这次进的是哪张 maze、加载的是哪张地图」写进 gateway.err。
 //
 // 选图改成按权重掷骰之后，「到底有没有进到 special 那张图」不该只能靠掉落去反推

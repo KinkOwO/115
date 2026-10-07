@@ -44,6 +44,7 @@ func TestMoonRewardFullBagIsAtomicAndPreservesOtherState(t *testing.T) {
 		t.Fatal("unrelated state lost")
 	}
 }
+
 // 件数分布：牌面 6 个格子、装备位最多 4 件（玩家 2026-10-02 核实），而"经常只出一件"
 // 的体感来自等概率分布 —— 这条钉住加权后的期望落在 2~3 件。
 func TestMoonEquipmentCountExpectation(t *testing.T) {

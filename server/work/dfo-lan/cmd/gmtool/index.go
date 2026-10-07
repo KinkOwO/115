@@ -14,11 +14,13 @@ package main
 
 import (
 	"bufio"
+	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/inventory"
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -307,6 +309,16 @@ type ItemEntry struct {
 	RarityLabel string `json:"rarity_label,omitempty"`
 	Stackable   bool   `json:"stackable"`
 	Grantable   bool   `json:"grantable"`
+	// Restrictions 是三个发放通道（背包 / 个人仓库 / 邮箱）各自能不能放的**真实**判定，
+	// 由 server.itemRestrictions 按服务端目录算，不是按显示索推测。
+	Restrictions map[string]any `json:"restrictions,omitempty"`
+	// DefaultDurability 是装备在源目录里的初始耐久（EquipmentCatalog.Reward），
+	// 发给仓库/邮箱时要拿它生成实例行，否则发出去的装备耐久为 0。
+	DefaultDurability uint16 `json:"default_durability,omitempty"`
+	// Home 是这件物品「应该待在哪个容器」，发放时按它分流（见 server.itemHome）。
+	// HomeSlot 只在 home=account_material 时有意义：账号材料仓库的固定格号。
+	Home     string `json:"home,omitempty"`
+	HomeSlot uint16 `json:"home_slot,omitempty"`
 }
 
 // ItemIndex 汇总可发放物品，并提供按 ID / 名称 / 分类 / 部位 / 等级 / 稀有度的检索。
@@ -478,6 +490,47 @@ func (ix *ItemIndex) RarityIndex(token string) (int, bool) {
 	return -1, false
 }
 
+// IndexOptions 汇总建立索引需要的全部输入，避免 LoadItemIndex 长成一串位置参数。
+type IndexOptions struct {
+	Configs     string
+	IndexPath   string
+	Gear        *inventory.EquipmentCatalog
+	SlotMap     map[string]slotMapEntry
+	NamesClient NameTable
+	NamesZH     NameTable
+	NamesEN     NameTable
+}
+
+// LoadItemIndex 建立物品索引。
+//
+// 优先使用 IndexPath 指向的 items.index.json；文件不存在时回落到
+// configs/loot.next25.json + configs/equipment.current37.json，
+// 并通过 note 返回提示文本（由调用方打印）。
+func LoadItemIndex(o IndexOptions) (*ItemIndex, string, error) {
+	ix := &ItemIndex{
+		byID:        map[uint32]int{},
+		namesClient: o.NamesClient,
+		namesZH:     o.NamesZH,
+		namesEN:     o.NamesEN,
+		slotMap:     o.SlotMap,
+	}
+	if o.IndexPath != "" {
+		if _, err := os.Stat(o.IndexPath); err == nil {
+			if err := ix.loadItemsIndexFile(o.IndexPath, o.Gear); err != nil {
+				return nil, "", fmt.Errorf("载入物品库 %s: %w", o.IndexPath, err)
+			}
+			ix.finish()
+			return ix, "", nil
+		}
+	}
+	note := fmt.Sprintf("未找到物品库 %s，回落到 loot.next25.json + equipment.current37.json（物品数会远少于 386230）", o.IndexPath)
+	if err := ix.loadFromCatalogs(o.Configs); err != nil {
+		return nil, note, err
+	}
+	ix.finish()
+	return ix, note, nil
+}
+
 // loadItemsIndexFile 读取全量物品库。43MB，只解析一次并常驻。
 func (ix *ItemIndex) loadItemsIndexFile(path string, gear *inventory.EquipmentCatalog) error {
 	f, err := os.Open(path)
@@ -625,6 +678,90 @@ func (ix *ItemIndex) applySlot(it *ItemEntry, cell string, level int32) {
 	if it.Level == 0 && level > 0 {
 		it.Level = level
 	}
+}
+
+// loadFromCatalogs 是原有行为：从掉落目录 + 装备目录建立索引。
+// equipCatalog 缺失时只索引普通消耗品/材料。
+func (ix *ItemIndex) loadFromCatalogs(configs string) error {
+	lootPath := filepath.Join(configs, "loot.next25.json")
+	lootCatalog, err := catalog.LoadLoot(lootPath)
+	if err != nil {
+		return fmt.Errorf("载入掉落目录 %s: %w", lootPath, err)
+	}
+
+	// 兜底分类需要知道背包规则里消耗品区间的归属；取不到就按文档默认 [65,120]。
+	var rules inventory.BagRules
+	if r, err := inventory.LoadBagRules(filepath.Join(configs, "inventory.next29.json")); err == nil {
+		rules = r
+	}
+	fallbackKey := resolveStackableFallback(rules)
+	fallbackLabel := labelOf(fallbackKey)
+
+	for id, item := range lootCatalog.Items {
+		key := ""
+		for _, c := range item.Script.Cells {
+			if c.Type == 8 {
+				key = nameKey(c.Reference)
+				break
+			}
+		}
+		zh, en := ix.display(key)
+		typeKey, typeLabel := classifyStackable(item.StackableType)
+		if _, known := stackableTypeKeys[item.StackableType]; !known {
+			typeKey, typeLabel = fallbackKey, fallbackLabel
+		}
+		ix.byID[id] = len(ix.items)
+		ix.items = append(ix.items, ItemEntry{
+			ID: id, Kind: "stackable", Name: zh, NameEN: en,
+			Grade: item.Grade, Rarity: item.Rarity, RarityLabel: ix.rarityLabel(item.Rarity),
+			Type: item.StackableType, TypeKey: typeKey, TypeLabel: typeLabel,
+			Stackable: true, Grantable: true,
+		})
+	}
+
+	eqPath := filepath.Join(configs, "equipment.current37.json")
+	if gear, err := inventory.LoadEquipmentCatalog(eqPath, lootCatalog.Source.Checksum); err == nil {
+		for _, row := range gear.Rows {
+			key := ""
+			if cells, ok := row.Fields["[name]"]; ok {
+				for _, c := range cells {
+					if c.Type == 8 {
+						key = nameKey(c.Reference)
+						break
+					}
+				}
+			}
+			zh, en := ix.display(key)
+			var grade, rarity, level int32
+			if cells, ok := row.Fields["[grade]"]; ok {
+				grade = cellInt(cells)
+			}
+			if cells, ok := row.Fields["[rarity]"]; ok {
+				rarity = cellInt(cells)
+			}
+			if cells, ok := row.Fields["[minimum level]"]; ok {
+				level = cellInt(cells)
+			}
+			if _, dup := ix.byID[row.ID]; dup {
+				continue
+			}
+			// 部位必须来自目录里的真实 cell 文本。
+			slot, group, _ := slotOfEquipmentCell(cellText(row.Fields["[equipment type]"]))
+			ix.byID[row.ID] = len(ix.items)
+			ix.items = append(ix.items, ItemEntry{
+				ID: row.ID, Kind: "equipment", Name: zh, NameEN: en,
+				Grade: grade, Rarity: rarity, RarityLabel: ix.rarityLabel(rarity),
+				Level: level, Type: cellText(row.Fields["[equipment type]"]),
+				TypeKey: slot, TypeLabel: slot, Slot: slot, Group: group,
+				Grantable: true,
+			})
+		}
+	} else if err != nil {
+		fmt.Fprintf(os.Stderr, "警告：装备目录不可用（%v），只能发放普通物品\n", err)
+	}
+
+	ix.source = "loot+equipment"
+	return nil
 }
 
 // finish 排序并按 ID 重建下标。

@@ -1232,7 +1232,50 @@ type ItemService struct {
 	// Transform 是三条变换链的费用/返还表（装备 2259 + 晶体 2381 共用）。
 	// nil = 算不出成本 ⇒ 变换拒绝执行，绝不静默改成免费。
 	Transform *catalog.EquipmentTransformSystem
-	// Points 是逐件「套装/誓约积分」表（setpointinfo.cos / oathpointinfo.cos）。
-	// nil = 算不出积分 ⇒ 不推 NOTI2634（客户端保持原值），绝不发 0 冒充。
+	// Points 是逐件「套装/誓约积分」表（setpointinfo.cos / oathpointinfo.cos +
+	// equipmentgrouping.etc 的能力组映射）。nil = 算不出积分 ⇒ 不推 NOTI2634
+	// （客户端保持原值），绝不发 0 冒充。
 	Points *catalog.PointRules
+}
+
+// PartSetIndexes 返回每个模板的套装号（`.equ` 的 `[part set index]`），
+// 套装积分按它归属；没有该字段的模板记 -1。
+//
+// 源里**根本没有这件模板**时同样记 -1（并交由调用方决定是否出声）：套装积分是逐件相加的，
+// 一件查不到只该让这一件 0 分，不该把整个角色的积分数抹成"算不出"。读源**出错**
+// （源已关闭、文件损坏）仍然如实返回错误，不吞。
+//
+// 为什么用 `Definition`（而不是 `definitionResolved` 的 import 链）：名望侧
+// `character.fame` 读的是 `[part set index]` 的**自身**值（`fameInt(d, …)` 直接取字段，
+// 不跟 `[import script]`）。套装积分是"一件与另一件算不算同一套"的判据，两侧口径必须
+// 一致，所以这里同样只认自身字段。
+func (c *EquipmentCatalog) PartSetIndexes(ids []uint32) (map[uint32]int32, error) {
+	out := make(map[uint32]int32, len(ids))
+	if c == nil {
+		for _, id := range ids {
+			out[id] = -1
+		}
+		return out, nil
+	}
+	for _, id := range ids {
+		if id == 0 {
+			continue
+		}
+		if _, done := out[id]; done {
+			continue
+		}
+		d, err := c.Definition(id)
+		if err != nil {
+			// 源里没有这件模板、或读不出来 ⇒ 这一件不归属任何套装。
+			// 聚合是逐件相加的，所以这里不给整批报错。
+			out[id] = -1
+			continue
+		}
+		index := int32(-1)
+		if cells := d.Fields["[part set index]"]; len(cells) > 0 {
+			index = cells[0].Value
+		}
+		out[id] = index
+	}
+	return out, nil
 }

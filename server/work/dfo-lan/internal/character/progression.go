@@ -56,7 +56,7 @@ func (s *ProgressionService) Monster(ctx context.Context, role Character, run *d
 	if !found {
 		return role, false, fmt.Errorf("experience target absent from current room")
 	}
-	if monster.NonCombat {
+	if run.Definition.ExperienceDisabled() || monster.NonCombat {
 		return role, false, nil
 	}
 	// This independent read must finish before opening the event transaction.

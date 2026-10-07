@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"fmt"
+	"log"
 	"math"
 	"regexp"
 	"slices"
@@ -338,15 +339,21 @@ func readSeasonCapsules(a *pvf.Archive, index catalog.ItemIndex) (map[uint32]Sea
 		file int
 	}
 	entries := []entry{}
+	missing := 0
 	for _, item := range index.Items {
 		if item.Kind != "stackable" {
 			continue
 		}
 		f, ok := a.FindFile(item.Path)
 		if !ok {
-			return nil, fmt.Errorf("missing season source item %d", item.ID)
+			// devpack 基线差异：缺失源脚本的堆叠物品不可能是赛季胶囊，跳过。
+			missing++
+			continue
 		}
 		entries = append(entries, entry{item, f.Index})
+	}
+	if missing > 0 {
+		log.Printf("PVF season capsules: %d stackable scripts missing (devpack baseline gap)", missing)
 	}
 	slices.SortFunc(entries, func(a, b entry) int { return a.file - b.file })
 	out := map[uint32]SeasonCapsule{}

@@ -487,7 +487,7 @@ func (s *Session) RoomCleared() bool {
 	return true
 }
 func (s *Session) Move(c catalog.DungeonCatalog, target [2]byte) (*Session, error) {
-	if s.Completed() || s.completionTarget != 0 {
+	if !s.Definition.Bakal && (s.Completed() || s.completionTarget != 0) {
 		// [MERGE-20260928-POSTBOSS-SCENE] 完成之后仍允许走向「还有剧情层图的相邻格」。
 		// 苏醒之森 100004977 在 boss 房 (5,0) 就判完成，但后面还有 (6,0) 的过场
 		// （层图 100017263，scene_route 100017262→100017263）。一律拒会把这最后一段

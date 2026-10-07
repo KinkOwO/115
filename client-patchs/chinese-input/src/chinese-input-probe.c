@@ -117,6 +117,11 @@ static int g_fixGate = 1;          /* 钩住客户端门禁本体（RVA 0x6F2240
 /* 下面两个是**备用手段**，默认关：只在日志证明"客户端自己不处理组字"时才打开 */
 static int g_fixCancel = 1;        /* 吞掉客户端主动取消组字（ImmNotifyIME/CPS_CANCEL）——实机验证必需 */
 static int g_fixIsIme = 1;           /* ImmIsIME 对假 HKL 改报「是输入法」（实机 16:32 证据要求） */
+static int g_fixCharPos = 1;        /* v2.0.3：自己回答 IME 的位置询问（WM_IME_REQUEST） */
+/* 客户端通过 ImmSetCompositionWindow 告诉输入法的组字位置（客户区坐标），
+ * 用来回答 IME 的 IMR_QUERYCHARPOSITION / IMR_CANDIDATEWINDOW。 */
+static int g_compPointValid = 0;
+static POINT g_compPoint;
 static int g_imeBridge = 1;        /* 兜底：客户端若不接收上屏文字，我们投 WM_CHAR（实机验证时它没触发，客户端自己处理了） */
 static volatile LONG g_clientReadResult; /* 客户端本轮组字里有没有自己来读 GCS_RESULTSTR */
 static wchar_t g_imeName[64] = L"CINTLGNT.IME";
@@ -124,6 +129,41 @@ static DWORD g_layoutZhCN = 0xE00E0804;
 static DWORD g_layoutZhTW = 0xE0080404;
 
 
+
+/* v2.0.3：IME 位置询问用到的结构/常量（布局与 SDK 一致，自己定义避免依赖 imm.h 的包含顺序）。 */
+#ifndef IMR_CANDIDATEWINDOW
+#define IMR_CANDIDATEWINDOW 0x0002
+#endif
+#ifndef IMR_QUERYCHARPOSITION
+#define IMR_QUERYCHARPOSITION 0x0006
+#endif
+#ifndef CFS_RECT
+#define CFS_RECT 0x0001
+#endif
+#ifndef CFS_POINT
+#define CFS_POINT 0x0002
+#endif
+#ifndef CFS_CANDIDATEPOS
+#define CFS_CANDIDATEPOS 0x0008
+#endif
+typedef struct {
+    DWORD dwStyle;
+    POINT ptCurrentPos;
+    RECT  rcArea;
+} probe_compositionform;
+typedef struct {
+    DWORD dwIndex;
+    DWORD dwStyle;
+    POINT ptCurrentPos;
+    RECT  rcArea;
+} probe_candidateform;
+typedef struct {
+    DWORD dwSize;
+    DWORD dwCharPos;
+    POINT pt;
+    UINT  cLineHeight;
+    RECT  rcDocument;
+} probe_imecharposition;
 
 /* 我们报给客户端的三个传统 IME 布局（门禁取证见 analysis/tasks/chinese-input-probe-20261006.md） */
 static const DWORD kFakeHkl[3] = {0xE0080404, 0xE0090404, 0xE00E0804};
@@ -430,6 +470,18 @@ static BOOL WINAPI h_ImmSetCompositionStringW(HIMC_ c, DWORD idx, LPCVOID p1, DW
 static BOOL WINAPI h_ImmSetCompositionWindow(HIMC_ c, const void *f) {
     BOOL r = r_ImmSetCompositionWindow ? r_ImmSetCompositionWindow(c, f) : FALSE;
     logf_("ImmSetCompositionWindow(himc=%p, form=%p) -> %d", c, f, (int)r);
+    /* v2.0.3：记下客户端给输入法的位置，稍后用来回答 IME 的位置询问。 */
+    if (f) {
+        const probe_compositionform *cf = (const probe_compositionform *)f;
+        if (cf->dwStyle & (CFS_POINT | CFS_CANDIDATEPOS)) {
+            g_compPoint = cf->ptCurrentPos;
+            g_compPointValid = 1;
+        } else if (cf->dwStyle & CFS_RECT) {
+            g_compPoint.x = cf->rcArea.left;
+            g_compPoint.y = cf->rcArea.top;
+            g_compPointValid = 1;
+        }
+    }
     return r;
 }
 static BOOL WINAPI h_ImmSetCandidateWindow(HIMC_ c, const void *f) {
@@ -670,6 +722,46 @@ static LRESULT CALLBACK probe_proc(HWND h, UINT msg, WPARAM w, LPARAM l) {
         break;
     default:
         break;
+    }
+    /* v2.0.3：输入法问"字符画在哪 / 候选窗摆哪"时自己回答，并跳过客户端那套处理。
+     *
+     * 实机证据（业主 2026-10-06 17:40 日志）：候选窗不出字、中文角色名检查时客户端卡住，
+     * 而日志里恰好出现 `WM_IME_REQUEST wparam=0x6`（IMR_QUERYCHARPOSITION）。这条老路径
+     * 只在"客户端认为有传统 IME"时才会走（正是我们打开的那条），它的实现要么缺失要么卡住：
+     * 输入法拿不到坐标就摆不出候选窗，严重时就在等这个回答。
+     * 这里用客户端自己通过 ImmSetCompositionWindow 给的位置回答，风险面最小（只答两个纯查询）。 */
+    if (g_fixCharPos && msg == WM_IME_REQUEST && l) {
+        POINT pt = g_compPoint;
+        if (!g_compPointValid || (pt.x == 0 && pt.y == 0)) {
+            RECT rc;
+            GetClientRect(h, &rc);
+            pt.x = rc.left + 24;
+            pt.y = rc.top + 24;
+        }
+        ClientToScreen(h, &pt);
+        if (w == IMR_QUERYCHARPOSITION) {
+            probe_imecharposition *p = (probe_imecharposition *)l;
+            DWORD size = p->dwSize ? p->dwSize : (DWORD)sizeof(*p);
+            p->pt = pt;
+            if (size > 12) {
+                p->cLineHeight = p->cLineHeight ? p->cLineHeight : 18;
+            }
+            if (size >= (DWORD)sizeof(*p)) {
+                GetClientRect(h, &p->rcDocument);
+                MapWindowPoints(h, NULL, (POINT *)&p->rcDocument, 2);
+            }
+            logf_("★ 回 IME 字符位置询问：char=%u -> (%ld,%ld) size=%u 行高=%u",
+                  (unsigned)p->dwCharPos, (long)pt.x, (long)pt.y, (unsigned)size,
+                  (unsigned)p->cLineHeight);
+            return TRUE;
+        }
+        if (w == IMR_CANDIDATEWINDOW) {
+            probe_candidateform *p = (probe_candidateform *)l;
+            p->ptCurrentPos = pt;
+            p->dwStyle |= CFS_CANDIDATEPOS;
+            logf_("★ 回 IME 候选窗位置询问：-> (%ld,%ld)", (long)pt.x, (long)pt.y);
+            return TRUE;
+        }
     }
     /* 先让客户端自己处理这条消息；它如果自己读了 GCS_RESULTSTR，我们就不插手
      * （避免同一串字被插两遍）。 */
@@ -1302,6 +1394,9 @@ static const char *kDefaultIni =
     "# 如果日志里看到客户端一直在取消组字、导致组字串永远只有单个字母，就打开它。\n"
         "# ImmIsIME 对“传统布局”改报“是输入法”：实机 16:32 日志里客户端问 ImmIsIME(0xE00E0804) 得到 0，于是把拼音当普通字母上屏（kuang）。\n"
     "fix_isime=1\n"
+"# 自己回答 IME 的位置询问（候选窗摆位）。实机若出现「候选字不显示 / 中文角色名检查卡住」，\n"
+"# 先把它改成 0 对照一次：关掉就退回客户端自己处理那条老路径。\n"
+"fix_charpos=1\n"
 "fix_cancel=1\n"
     "\n"
     "# 客户端不处理组字时，把已上屏的结果串（GCS_RESULTSTR）逐字当 WM_CHAR 投给它。\n"
@@ -1350,6 +1445,7 @@ static void load_config(void) {
     g_fixSlots = ini_int(text, "fix_slots", 1);
     g_fixGate = ini_int(text, "fix_gate", 1);
     g_fixCancel = ini_int(text, "fix_cancel", 1);
+    g_fixCharPos = ini_int(text, "fix_charpos", 1);
     g_fixIsIme = ini_int(text, "fix_isime", 1);
     g_imeBridge = ini_int(text, "ime_bridge", 0);
     g_traceC2S = ini_int(text, "trace_c2s", 0);
@@ -1359,9 +1455,9 @@ static void load_config(void) {
     char name8[128];
     w2u(g_imeName, name8, sizeof(name8));
     logf_("配置 %s：fix_layout=%d fix_ime_name=%d post_layout=%d fix_slots=%d fix_gate=%d fix_isime=%d "
-          "fix_cancel=%d ime_bridge=%d trace_c2s=%d ime_name=%s zhcn=%#lx zhtw=%#lx",
+          "fix_cancel=%d fix_charpos=%d ime_bridge=%d trace_c2s=%d ime_name=%s zhcn=%#lx zhtw=%#lx",
           path, g_fixLayout, g_fixImeName, g_postLayout, g_fixSlots, g_fixGate, g_fixIsIme,
-          g_fixCancel, g_imeBridge, g_traceC2S, name8, (unsigned long)g_layoutZhCN,
+          g_fixCancel, g_fixCharPos, g_imeBridge, g_traceC2S, name8, (unsigned long)g_layoutZhCN,
           (unsigned long)g_layoutZhTW);
 }
 

@@ -1,11 +1,12 @@
 // equipmentfull 从 PVF 里**直接枚举** equipment/**/*.equ 导出完整装备目录。
 //
 // 为什么不用 cmd/equipmentaudit：
-//   它是按 `list/equipment.lst` 索引遍历的，而该索引**不含 115 级新装备**
-//   （实测：115 武器 equipment/character/swordman/weapon/ssword/101001153.equ
-//     文件存在，但导出结果里没有它，等级>=110 的条目只有 2 个）。
-//   客户端能显示这些装备，服务端却因为查不到定义而报
-//   "equipment definition missing"（表现为装备脱下来就穿不回去）。
+//
+//	它是按 `list/equipment.lst` 索引遍历的，而该索引**不含 115 级新装备**
+//	（实测：115 武器 equipment/character/swordman/weapon/ssword/101001153.equ
+//	  文件存在，但导出结果里没有它，等级>=110 的条目只有 2 个）。
+//	客户端能显示这些装备，服务端却因为查不到定义而报
+//	"equipment definition missing"（表现为装备脱下来就穿不回去）。
 //
 // 本工具改用 Archive.Files() 枚举全部 565 万个文件条目，
 // 按路径前缀/后缀筛选，因此不依赖任何索引文件是否完整。

@@ -3,6 +3,7 @@ package catalog
 import (
 	"dfolan/internal/catalog/pvf"
 	"fmt"
+	"log"
 )
 
 // Global stack limits and classifications remain compact typed projections.
@@ -15,10 +16,26 @@ func (c *LootCatalog) EnableRuntimeDetails(a *pvf.Archive, index ItemIndex) erro
 		return fmt.Errorf("item detail source mismatch")
 	}
 	refs := map[uint32]ScriptRecord{}
+	missing := 0
+	var missingSamples []string
 	for id, r := range index.Items {
-		if r.Kind == "stackable" {
-			refs[id] = ScriptRecord{Path: ResolveScriptPath(a, r.Path)}
+		if r.Kind != "stackable" {
+			continue
 		}
+		path := ResolveScriptPath(a, r.Path)
+		if _, ok := a.FindFile(path); !ok {
+			// devpack 基线差异：缺失源脚本的堆叠物品不进详情视图
+			// （运行期对该物品的详情读取按物品报缺失）。
+			missing++
+			if len(missingSamples) < 8 {
+				missingSamples = append(missingSamples, fmt.Sprintf("%d %s", id, path))
+			}
+			continue
+		}
+		refs[id] = ScriptRecord{Path: path}
+	}
+	if missing > 0 {
+		log.Printf("PVF loot runtime details: %d stackable scripts missing (devpack baseline gap); samples: %v", missing, missingSamples)
 	}
 	d, err := NewScriptDetails(a, refs, func(_ uint32, s ScriptRecord) ScriptRecord { return s }, ScriptBytes)
 	if err != nil {

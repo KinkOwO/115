@@ -141,21 +141,28 @@ func (b Bag) UseEmblems(c catalog.LootCatalog, eq *EquipmentCatalog, rules *Embl
 	if err := item.ValidateRecord(); err != nil {
 		return fail(err)
 	}
-	d, err := eq.definitionResolved(item.Template, 0)
+	// [MERGE-20261007] 上游把这里的定义取出来做「必须是时装」门禁，我方原先只校验解析成功
+	// （丢弃返回值）；两边都要 —— 捕获定义 + 保留上游门禁。
+	def, err := eq.definitionResolved(item.Template, 0)
 	if err != nil {
 		return fail(err)
 	}
-	if !d.IsAvatar() {
+	if !def.IsAvatar() {
 		return fail(fmt.Errorf("emblem insertion requires an avatar"))
 	}
-	if len(item.AvatarOptions) > 30 || len(item.AvatarOptions)%6 != 0 || (len(item.AvatarSockets) != 0 && len(item.AvatarSockets) != 4) {
+	// 2026-10-07（合并源码候选）：时装徽章入口不再限定 [skin avatar] 的
+	// "2 × [M socket]" 布局。客户端显示的孔**完全来自存档 avatar_options**，
+	// 而 115 级时装/光环按 PVF 定义可带 [S socket]（白金）与最多 5 个孔；
+	// 原门禁会让这些时装镶嵌被 "unsupported source skin avatar socket layout"
+	// 拒绝。现在改为按请求的孔位与定义生成的孔掩码逐孔判定。
+	if len(item.AvatarOptions) > avatarSocketOptionsSize || len(item.AvatarOptions)%6 != 0 || (len(item.AvatarSockets) != 0 && len(item.AvatarSockets) != 4) {
 		return fail(fmt.Errorf("unsupported or unopened avatar emblem extension"))
 	}
-	options := make([]byte, 30)
+	options := make([]byte, avatarSocketOptionsSize)
 	if len(item.AvatarOptions) == 0 {
 		// 老存档时装在默认孔规则上线前发放，扩展为空。按 PVF 时装定义的
 		// 默认孔就地补上，否则嵌徽章会被 "socket is not open" 拒绝，
-		// 客户端也看不到孔。
+		// 客户端也看不到孔（补 0 孔 = 定义本身无默认孔，仍按原规则拒绝）。
 		copy(options, eq.DefaultAvatarSockets(item.Template))
 	} else {
 		copy(options, item.AvatarOptions)

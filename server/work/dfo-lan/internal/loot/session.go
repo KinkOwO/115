@@ -42,6 +42,7 @@ type Session struct {
 	// attunementRolled 保证一轮只抽一次专属奖励：同一只源领主再被确认死亡
 	// （或同模板的第二只 rank3）都不会重复发奖。
 	attunementRolled bool
+	borderPlan       *borderRewardPlan
 	// omenRolled 与 attunementRolled 同理：同一场只推进一次征兆。
 	omenRolled bool
 	// oathTierRolled 与上面两个同理：同一场只按天平档位发一次罐子。
@@ -105,6 +106,10 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	if p, ok := s.deaths[entity]; ok {
 		return append([]protocol.SceneDrop(nil), p...), nil
 	}
+	if d.Definition.ItemDropsDisabled() {
+		s.deaths[entity] = nil
+		return nil, nil
+	}
 	blackBoss := s.BlackPurgatory != nil && s.BlackPurgatoryPlan != nil && BlackPurgatoryBossDeath(d, entity)
 	hellActor, hellOwned := d.HellPartyReward(entity)
 	hellKey := [2]uint16{hellActor.Order, hellActor.Group}
@@ -122,6 +127,8 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		}
 	}
 	result := Outcome{NextSeed: seed}
+	attunementPending, oathPending := false, false
+	var omenPending *OmenOutcome
 	excludeGold, excludeRandom := dungeonDropExclusions(d.Definition)
 	if hellOwned && !excludeRandom {
 		var err error
@@ -229,6 +236,9 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		_ = groupTaken
 	}
 	result.Awards = filterDungeonAwards(d.Definition, result.Awards)
+	// 宠物蛋不走怪掉：本服设计为蛋只来自商城/魔盒/礼包，官方掉落表里的蛋在这里拦下
+	// （见 egg_drop_filter.go；商城/魔盒/任务等其它路径不受影响）。
+	result.Awards = dropCreatureEggs(s.Equipment, result.Awards)
 	// Append this independent pool after map awards; it cannot replace gear.
 	// Deferred/special modes do not consume its RNG or runtime policy.
 	// 开关用**取用处**的实际速率（目录值 × mod 倍率），不是构造时的旧值：
@@ -294,33 +304,44 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	// 所以把触发器放宽到「任何声明了源领主的副本」不会给别的副本发奖。
 	if s.Attunement.Enabled() && d.Definition.SourceBoss != 0 &&
 		monster.Rank == 3 && monster.Template == d.Definition.SourceBoss && !s.attunementRolled {
-		awards, next, err := s.Attunement.Roll(result.NextSeed, d.Definition.ID, uint32(d.Maze.Index))
-		if err != nil {
-			return nil, err
-		}
-		// 征兆（omen）：本副本的通关判定与源领主的死亡是同一个事实（见上），所以
-		// 征兆也在这里推进。它和固定奖励走**同一条**开箱路径（见下面的统一展开），
-		// 分两条路就等于同一件东西有两个分布。
-		if s.Omen != nil && !s.omenRolled {
-			outcome, omenAwards, err := s.Omen.Advance(s.Character, d.Definition.ID, next)
+		if s.borderPlan != nil {
+			if !s.borderPlanMatches(d) {
+				return nil, fmt.Errorf("border reward plan identity changed")
+			}
+			p := s.borderPlan
+			result.Awards = append(result.Awards, p.awards...)
+			result.SkippedKinds = append(result.SkippedKinds, p.skipped...)
+			result.NextSeed = p.next
+			omenPending, oathPending, attunementPending = p.omen, p.oath, true
+		} else {
+			awards, next, err := s.Attunement.Roll(result.NextSeed, d.Definition.ID, uint32(d.Maze.Index))
 			if err != nil {
 				return nil, err
 			}
-			awards = append(awards, omenAwards...)
-			next = outcome.Seed
-			s.omenRolled = true
+			// 征兆（omen）：本副本的通关判定与源领主的死亡是同一个事实（见上），所以
+			// 征兆也在这里推进。它和固定奖励走**同一条**开箱路径（见下面的统一展开），
+			// 分两条路就等于同一件东西有两个分布。
+			if s.Omen != nil && !s.omenRolled {
+				outcome, omenAwards, err := s.Omen.preview(s.Character, d.Definition.ID, next)
+				if err != nil {
+					return nil, err
+				}
+				awards = append(awards, omenAwards...)
+				next = outcome.Seed
+				omenPending = &outcome
+			}
+			// 天平档位（业主 2026-10-01 定调）：与征兆**平行**的一条线 —— 变色就发对应的
+			// 「星蕴石自选套装罐子」，与上面那条各发各的，同一场都触发就拿两份。
+			// 罐子同样交给下面统一的 OpenRewardBoxes 展开（源写着「以开封状态发放」），
+			// 所以玩家拿到的是里面的装备而不是盒子。
+			if coffer := oathTierCoffer(s.OathTier); coffer != 0 && !s.oathTierRolled {
+				awards = append(awards, Award{Template: coffer, Amount: 1})
+				oathPending = true
+			}
+			attunementPending = true
+			result.Awards = append(result.Awards, awards...)
+			result.NextSeed = next
 		}
-		// 天平档位（业主 2026-10-01 定调）：与征兆**平行**的一条线 —— 变色就发对应的
-		// 「星蕴石自选套装罐子」，与上面那条各发各的，同一场都触发就拿两份。
-		// 罐子同样交给下面统一的 OpenRewardBoxes 展开（源写着「以开封状态发放」），
-		// 所以玩家拿到的是里面的装备而不是盒子。
-		if coffer := oathTierCoffer(s.OathTier); coffer != 0 && !s.oathTierRolled {
-			awards = append(awards, Award{Template: coffer, Amount: 1})
-			s.oathTierRolled = true
-		}
-		s.attunementRolled = true
-		result.Awards = append(result.Awards, awards...)
-		result.NextSeed = next
 	}
 	// 包装展开：**所有来源统一在这里做一次** —— 通用掉落池、章节盒、调律专属奖励、征兆。
 	//
@@ -383,6 +404,12 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	if d.NextEntity == 0 || uint64(d.NextEntity)+uint64(len(result.Awards)) >= 65535 || uint64(s.next)+uint64(len(result.Awards)) >= 65535 {
 		return nil, fmt.Errorf("drop identity exhausted")
 	}
+	// Commit once all fallible award validation and capacity checks passed.
+	if omenPending != nil {
+		if err := s.Omen.commit(s.Character, *omenPending); err != nil {
+			return nil, err
+		}
+	}
 	var rows []protocol.SceneDrop
 	for awardIndex, a := range result.Awards {
 		// Scene drops and monsters share the native object namespace. Consume
@@ -410,6 +437,9 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		}
 		rows = append(rows, protocol.SceneDrop{Object: object, Item: item, Sentinel: 65535, Owner: s.Actor})
 	}
+	s.attunementRolled = s.attunementRolled || attunementPending
+	s.omenRolled = s.omenRolled || omenPending != nil
+	s.oathTierRolled = s.oathTierRolled || oathPending
 	s.seeds[d.Room.Map] = result.NextSeed
 	s.deaths[entity] = rows
 	s.blackPurgatoryRolled = s.blackPurgatoryRolled || blackBoss
