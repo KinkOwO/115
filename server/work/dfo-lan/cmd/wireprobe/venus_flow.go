@@ -32,7 +32,8 @@ import (
 // 成全新未选状态并垫等待态 N2655，待机区可不经门弹窗直接 Open 重选重进。
 // 每关的阶段倒计时由 venusStageTimer 以 NOTI1474（DUNGEON_TIMEOUT_TIME，
 // 8B [时限秒, 冻结开始秒]）在加载完成应答里同步：第 1..3 关 600 秒、降临
-// 第 4 关 900 秒（VenusPhaseLimits）。
+// 第 4 关 900 秒（VenusPhaseLimits，不得超过客户端 DGN 源上限，见 venus.go
+// 第四十四轮注释）。
 //
 // 仍显式拒绝（不回构造包）：CMD2293（降临中止领奖）、CMD2046 之后的终局
 // 结算分支。家族命令必须在 dispatchLegion 之前拦截——CMD2043/2045/2046 与
@@ -1038,14 +1039,16 @@ func (w *worldSession) enterVenusStageDirectMove(r protocol.DungeonDirectMove) (
 	if w.activeDungeon != nil && legion.IsVenusStageDungeon(w.activeDungeon.Definition.ID) {
 		if current, err := legion.VenusStageOfDungeon(w.activeDungeon.Definition.ID); err == nil &&
 			current == stage && !run.cleared[stage] {
-			// 同关守卫：未清 boss 时玩家走进门矩形（每关战斗房的门），客户端
-			// LegionBase::procCheckDirectMove 进 ForceMove 并发本 2062。静默拒绝
-			// 的实机后果（17:00/17:42 会话 client_trace）：ForceMove 每帧持续把
-			// 玩家拉向门（走路抽搐、技能进冷却不释放、无法跳跃），直到 boss 死亡
-			// 投影刷新 N2655 才解除；17:00 会话单次持续 52 秒。回通用拒绝形状
-			// （Result=00 + 错误码 4）让客户端拿到失败结果、放弃过门。
+			// 同关直进：未清 boss 时玩家走进/站在过关门矩形内，客户端每 5 秒
+			// 强制取消当前动作并发本 2062（113830 会话实证：拒绝期间 60 秒内
+			// 重发 12 次，取消落在技能动画中间=技能被吞进冷却；第 1 关战斗区
+			// 不在门矩形内所以从未复现）。官服对副本内直进请求一律回 16B 成功
+			// ACK（巴卡尔抓包 21:44:34 战斗中同款帧：01 b2ce8d5940 00000000
+			// 00000000），客户端收到后自行完成过门、停止重发——房间移动是客
+			// 户端本地行为，boss/阶段状态不变。拒绝（任何错误码）都会复现
+			// 5 秒节拍的技能吞噬，第四十一轮改回官服成功形状。
 			return nil, []outboundPacket{{
-				"venus_direct_move_refused", 1, 2062, protocol.Refusal(4),
+				"venus_direct_move_ack", 1, 2062, protocol.VenusDirectMoveAck(),
 			}}, nil
 		}
 	}
