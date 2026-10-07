@@ -20,9 +20,13 @@
 //
 // # 边界（刻意做小）
 //
-// 第一期只提供 5 个宿主机操作（见 HostOp*），且**全部是名字取用、不是类型共享**：
-// mod 不 import 服务端内部包，就不会被内部重构拖着走。加一个操作等于承诺它的语义
-// 长期稳定，所以宁缺勿滥。
+// 宿主机操作**全部是名字取用、不是类型共享**：这些操作函数是 mod 与服务端之间
+// 的稳定契约，加一个等于承诺它的语义长期稳定，所以宁缺勿滥。
+//
+// 注意：mod 包与内核同属 dfolan 模块，Go 层面**允许**它 import 服务端内部包
+// （现成例子：mods/odyssey.hardcore 就 import 了 internal/modpolicy）。那是
+// "行为覆盖"的既有通道（见 internal/modpolicy），不是本文件要管的事；本文件管的是
+// **钩子点**——即"服务端在什么时机回头调用 mod"。
 package servermod
 
 import (
@@ -44,6 +48,9 @@ const (
 	OpConsoleReply    = "console.reply"
 	// OpRegisterReward 对应的宿主机操作名（与 modkit.HostOpRegisterReward 同名）。
 	OpRegisterReward = "reward.register"
+	// OpReplySend 是"按连接发一条报文"的操作名。它只对 protocol.request 钩子开放：
+	// 短路的 mod 必须能自己应答客户端，否则钩子等于残废（见 RequestContext.Reply）。
+	OpReplySend = "reply.send"
 )
 
 // 钩子点名——与启动器侧 modkit.HookPoints 必须一致。
@@ -54,6 +61,14 @@ const (
 	// HookRewardScript 由 mod 在启动装配阶段登记事件奖励规则时声明。
 	// 它与 modkit 的 HookPoints["reward.script"] 必须同名。
 	HookRewardScript = "reward.script"
+	// HookProtocolRequest 是**请求侧**接入点：每收到一帧客户端报文、在内置分发之前
+	// 调用一次。它给 mod 的是"实现新玩法"的能力——返回 handled=true 即短路，
+	// 由 mod 自己经 RequestContext.Reply 应答（见该类型的注释）。
+	//
+	// 它与 HookProtocolResponse 的分工是刻意的：
+	//   - protocol.request  在**请求**入口短路，mod 自己产生应答 → 不走旁路改写；
+	//   - protocol.response 在**应答**出口只读观察，保住协议取证链。
+	HookProtocolRequest = "protocol.request"
 )
 
 // BootContext 是 server.boot 钩子拿到的上下文。
@@ -91,6 +106,38 @@ type ConsoleHook func(cmd ConsoleCommand) (handled bool, err error)
 // 服务端自身的代码路径，不能从 mod 侧旁路，否则协议取证链就断了。
 type ResponseHook func(conn string, opcode uint16, body []byte)
 
+// RequestContext 是 protocol.request 钩子拿到的上下文。
+//
+// 它刻意是**只读 + 一个应答口**：mod 要么放行（返回 handled=false，交给内置分发），
+// 要么整条接手（返回 handled=true，再用 Reply 自己应答）。
+//
+// 为什么不给"就地改写 Plaintext"的能力：那等于把重算校验和与重加密搬进宿主，
+// 协议真源就会从"服务端自身代码路径 + IDA/实机取证"退化成"某个 mod 的猜测"。
+// 要改行为就让 mod 自己接手这条报文——归属清楚、日志可归因、取证链不断。
+type RequestContext struct {
+	// Conn 是连接标识（peer），用于归因与多连接隔离。
+	Conn string
+	// Type 是帧类型，ID 是 CMD/NOTI 号。
+	Type byte
+	ID   uint16
+	// Raw 是原始帧（只读）。
+	Raw []byte
+	// Plaintext 是解密后的正文（只读；已过校验和门时 Verified 为真）。
+	Plaintext []byte
+	// Verified 表示该帧校验和是否通过。
+	Verified bool
+	// Reply 是 reply.send 操作：按**本连接**发一条报文。
+	//
+	// 只有在钩子返回 handled=true 之后才应该用它——放行的报文由内置分发应答。
+	Reply func(kind byte, id uint16, payload []byte) error
+}
+
+// RequestHook 是 protocol.request 钩子签名。
+//
+// 返回 handled=true 表示这条报文由该 mod 接手，内置分发表不再看它。
+// 返回 error 表示处理失败：宿主记日志并把它算作该帧失败，不影响其它连接。
+type RequestHook func(ctx *RequestContext) (handled bool, err error)
+
 type bootReg struct {
 	modID string
 	order int
@@ -107,12 +154,18 @@ type responseReg struct {
 	fn    ResponseHook
 }
 
+type requestReg struct {
+	modID string
+	fn    RequestHook
+}
+
 var (
 	mu        sync.RWMutex
 	seq       int
 	boots     []bootReg
 	consoles  []consoleReg
 	responses []responseReg
+	requests  []requestReg
 
 	// modValues 是 config.write 的进程内落地位置：键空间由白名单约束。
 	modValues = map[string]string{}
@@ -169,6 +222,23 @@ func RegisterResponse(modID string, fn ResponseHook) {
 	mu.Lock()
 	defer mu.Unlock()
 	responses = append(responses, responseReg{modID: modID, fn: fn})
+	registeredIDs[modID] = true
+}
+
+// RegisterRequest 登记一个 protocol.request 钩子。
+//
+// 钩子按**注册顺序**依次询问，第一个返回 handled=true 的接手这条报文
+// （顺序稳定 = 谁的日志在前谁先看到，多 mod 行为可复现）。
+func RegisterRequest(modID string, fn RequestHook) {
+	if fn == nil {
+		panic("servermod: RegisterRequest 收到 nil 回调")
+	}
+	if !validModID(modID) {
+		panic("servermod: 非法 mod id: " + modID)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	requests = append(requests, requestReg{modID: modID, fn: fn})
 	registeredIDs[modID] = true
 }
 
@@ -370,6 +440,49 @@ func HasObservers() bool {
 	return len(responses) > 0
 }
 
+// HasRequestHooks 报告是否登记了任何请求钩子。
+//
+// 每帧都会问一次，所以它必须极便宜：没有钩子时调用方直接跳过，不做任何分配。
+func HasRequestHooks() bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	return len(requests) > 0
+}
+
+// ObserveRequest 把一条**客户端请求**交给所有已登记的请求钩子。
+//
+// 返回 handled=true 表示某个 mod 接手了这条报文：调用方**必须跳过内置分发**。
+// 钩子返回 error 时记一行日志并继续问下一个——一个 mod 出错，不该让别的 mod
+// 与内置分发跟着一起失效。
+//
+// 短路一定打日志：否则"哪条报文被哪个 mod 吃掉了"在排障时无从复原。
+func ObserveRequest(conn string, typ byte, id uint16, raw, plaintext []byte, verified bool,
+	reply func(kind byte, id uint16, payload []byte) error) bool {
+	mu.RLock()
+	if len(requests) == 0 {
+		mu.RUnlock()
+		return false
+	}
+	list := append([]requestReg(nil), requests...)
+	mu.RUnlock()
+	ctx := &RequestContext{
+		Conn: conn, Type: typ, ID: id, Raw: raw, Plaintext: plaintext,
+		Verified: verified, Reply: reply,
+	}
+	for _, r := range list {
+		handled, err := r.fn(ctx)
+		if err != nil {
+			Logf(r.modID, "处理请求 type=%d id=%d 失败：%v", typ, id, err)
+			continue
+		}
+		if handled {
+			Logf(r.modID, "短路请求 type=%d id=%d（连接 %s）", typ, id, conn)
+			return true
+		}
+	}
+	return false
+}
+
 // ---------------------------------------------------------------------------
 // 宿主操作：mod 只能通过这 5 个名字取用服务端能力
 // ---------------------------------------------------------------------------
@@ -480,6 +593,9 @@ func Description() string {
 	}
 	if len(responses) > 0 {
 		fmt.Fprintf(&b, "；response 观察者 %d 个", len(responses))
+	}
+	if len(requests) > 0 {
+		fmt.Fprintf(&b, "；request 钩子 %d 个", len(requests))
 	}
 	if n := len(modScripts); n > 0 {
 		fmt.Fprintf(&b, "；奖励规则脚本 %d 份", n)

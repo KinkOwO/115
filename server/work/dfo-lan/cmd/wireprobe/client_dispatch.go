@@ -2,6 +2,7 @@ package main
 
 import (
 	"dfolan/internal/game/wire"
+	"dfolan/internal/servermod"
 	"encoding/hex"
 )
 
@@ -61,6 +62,26 @@ var commandDispatch = [...]clientDispatchStage{
 }
 
 func (client *gameConnection) dispatch(requestData *clientRequest) dispatchAction {
+	// server 层 mod 的 protocol.request 接入点：内置分发之前的唯一咽喉。
+	// 这里拿到的是**已解密、已判校验和**的报文（client_connection.go 的读循环负责），
+	// 所以钩子看到的内容与内置 handler 看到的完全一致。
+	// 没有登记任何钩子时零开销跳过（HasRequestHooks 不加锁之外不做任何分配）。
+	if servermod.HasRequestHooks() {
+		handled := servermod.ObserveRequest(
+			client.peer,
+			requestData.frame.Type,
+			requestData.frame.ID,
+			requestData.frame.Raw,
+			requestData.plaintext,
+			requestData.verified,
+			func(kind byte, id uint16, payload []byte) error {
+				return client.output.send(kind, id, payload)
+			})
+		if handled {
+			// 钩子整条接手：内置分发表不再看它（应答由 mod 自己经 Reply 发出）。
+			return dispatchHandled
+		}
+	}
 	for _, handler := range beforeClientTypeDispatch {
 		if result := handler(client, requestData); result != dispatchNext {
 			return result
