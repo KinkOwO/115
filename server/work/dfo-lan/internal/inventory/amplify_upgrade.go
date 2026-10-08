@@ -160,6 +160,15 @@ func AmplifySafeMaxLevel() int {
 	return 9
 }
 
+// AmplifyMaxLevelCap 是普通/便携增幅的当前上限（过渡保护）。
+//
+// 客户端未打补丁时，CMD80 成功回包只接受 ≤+15；服务端直接在此拒绝
+// +15 之后的增幅（+14→+15 是最后一次），与客户端行为对齐，并保证
+// AmplifyUpgradeResultCap（=31）的降级逻辑永远不会被触发，无需客户端
+// 补丁也安全。后续统一打客户端补丁（上限 10→30）后，把这里放宽到 31
+// 即可让 +16 及更高播放成功动画。
+const AmplifyMaxLevelCap = 15
+
 // AmplifySafeCost 返回该等级安全增幅的材料数量与金币。
 // [safe upgrade] 每级两行：enabled=1 是武器行、enabled=0 是非武器行（官方：武器与非武器消耗不同）。
 func AmplifySafeCost(level int, weapon bool) (uint32, uint32, bool) {
@@ -294,6 +303,15 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 	}
 
 	var count, gold uint32
+	// 增幅上限保护（过渡方案）：客户端未打客户端补丁前，CMD80 成功回包只认
+	// ≤+15（更高的成功回包会触发 ADD_HACKTYPE_CNT 锁死窗口，见
+	// internal/game/protocol/reinforcement.go 的 AmplifyUpgradeResultCap 注释）。
+	// 因此这里把普通/便携增幅直接限到 +15（+14→+15 是最后一次），
+	// 与客户端行为对齐；安全增幅另有 AmplifySafeMaxLevel()=9 的上限。
+	// 后续统一给客户端打补丁（放开 31）后，把 AmplifyMaxLevelCap 放宽到 31 即可。
+	if !safe && level >= AmplifyMaxLevelCap {
+		return nil, out, Refuse(RefusalLimit, "增幅已达上限 +%d，无法继续增幅", AmplifyMaxLevelCap)
+	}
 	if portable {
 		// 便携增幅器固定消耗 1 个、不耗金币。
 		count, gold = 1, 0
