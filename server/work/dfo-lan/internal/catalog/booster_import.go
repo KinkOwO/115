@@ -76,6 +76,16 @@ type BoosterDefinition struct {
 	//            这类模板常伴 `[oath item booster]` / `[lottery ani info]` / `[mulit open limit]`）
 	// 见 next176 §19.3。零值 = 没有标记，与「目录由旧 JSON 生成」的情形一致。
 	InstantlyOpen bool `json:"instantly_open,omitempty"`
+	// ClientOpenPath 是「**客户端自己就有开箱入口**」的标记：源里声明了
+	// `[oath item booster]`（誓约物品罐，如光辉意志）或 `[lottery ani info]`（抽奖演出）的，
+	// 玩家能在 UI 里自己开，服务端**不该**代开。
+	//
+	// 它与 InstantlyOpen 是**两个方向**的标记，缺一不可：
+	//   ClientOpenPath = true  ⇒ 原样落地（玩家自己开，能看到抽奖演出）
+	//   否则（含既无即开、也无客户端入口的一般礼盒，例如 10419728）⇒ **服务端代开**
+	// 依据：2026-10-08 玩家反馈「只出盒子且打不开」——10419728 两个标记都没有，
+	// 若按「只有 [instantly open] 才代开」处理就会变成谁也开不了的死盒子。见 next179。
+	ClientOpenPath bool `json:"client_open_path,omitempty"`
 }
 
 func parseBoosterInfo(cells []pvf.Token) []BoosterRewardPool {
@@ -356,6 +366,8 @@ func ImportBoosters(a *pvf.Archive, index ItemIndex) (map[uint32]BoosterDefiniti
 					Type:          item.StackableType,
 					Pools:         pools,
 					InstantlyOpen: declaresSection(cells, "[instantly open]"),
+					ClientOpenPath: declaresSection(cells, "[oath item booster]") ||
+					declaresSection(cells, "[lottery ani info]"),
 				}
 			} else if hasInfo && !isBooster {
 				result[id] = BoosterDefinition{Template: id, Type: item.StackableType}

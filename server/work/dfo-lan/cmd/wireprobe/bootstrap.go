@@ -1525,9 +1525,9 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, errors.New("attunement rewards need -booster-catalog: the table pays wrappers, and without the box catalog they cannot be opened at drop time")
 		}
 		boxes := boosterBoxSource{catalog: boosterCatalog}
-		// 调律之边界专用：按源标记（[instantly open]）决定拆不拆。
+		// 调律之边界专用：按「客户端是否有开箱入口」决定拆不拆。
 		// 与上面的 boxes 同源同目录，只是多一条判据 —— 所以两者不会互相漂移。
-		instantlyOpenBoxes := boosterBoxSource{catalog: boosterCatalog, instantlyOpenOnly: true}
+		instantlyOpenBoxes := boosterBoxSource{catalog: boosterCatalog, serverUnwrap: true}
 		empties, unopenable, e := attunement.ValidateBoxes(boxes)
 		if e != nil {
 			return nil, nil, e
