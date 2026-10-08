@@ -204,3 +204,15 @@ CHANGELOG及confirmed baseline按本次单次快速进入/APC出现收口；原0
 **未修复 / 未闭环**：确认仅覆盖名单变化后重新加载/入场；攻坚/军团特殊队伍、完整死亡包采集、宠物成长等仍单独待证。工作区没有本次确认后的新实机会话日志，按业主明确验收记录，不填写未观察的进本次数或原生事件数据。
 
 **bug 测试取证**：analysis/tasks/adventure-elite-roster-reload-candidate-20261009.json。旧实现回归10例失败，修正后13子例通过；0.3.15候选两工作树完整build/vet/test与88采集夹具通过。手动确认对应源码提交52b778b94bc69083630294b04d499efacf962c2c。未修改PVF、schema、玩家存档或默认发布程序。
+
+## 奥德赛转场后精锐名单与 APC 保持确认（服务端0.3.17）
+
+**已修复 / 已完成**：业主确认“确认修复，可以提交”。将普通精锐账号名单可见性与加载/入场资格分开，城镇传送等待不再发送临时空名单，避免客户端释放 APC 后与 CMD15 选图抢先发生的 CMD1811 加载拒绝；实际名单变化仍清除旧准备，相同名单保留角色并同步设置身份。候选0.3.17 / 1ee81eaf，DLL仍0.3.10 / a46493c6。本次一并补跟踪远端遗漏的精锐 Go 源码、测试和采集/取证文件；DLL源码已在37774428入库。
+
+**未修复 / 未闭环**：确认范围为业主报告的转场/重进消失问题。本次日志观察两场（100004939→CMD2062→100004940），不扩大为全部奥德赛、军团/攻坚机制或完整死亡采集通过。会话缺run.json，采集时未观察正常退出；原生死亡发送与服务端CMD39计数差异保留，汇总overall combat及allFreshEntriesRegistered=false没有改成通过。
+
+**bug 测试取证**：053059_378049_next37 / PID100452 / runTick161280828，原CMD1811仅一次，两次入场冻结[2,3,4]一致；events271/1131准入成功，entry5~7/58~60各三个原生登记result1，fresh loader8/61场景成员均[1,1,1]。原0.3.16失败和旧回归六子例失败保留；0.3.17完整go build ./...、go vet ./...、go test ./... -count=1通过（3943通过/269跳过，无失败及新增失败），真实PVF50条奥德赛journal来源与采集夹具通过。详见analysis/tasks/adventure-elite-stable-warp-confirmed-20261009.json；没有修改PVF、SQLite/schema/玩家存档或发布默认程序，二进制与运行日志不入库。
+
+提交完整性：gud/main已有BufferRentalRules/Source.BufferRental接线但遗漏两份buffer_rental.go，独立拟提交源码先构建失败，补入既有文件后构建通过。业主明确授权“允许补入两份源码（推荐）”，仅补跟踪internal/catalog/buffer_rental.go及internal/gamedata/buffer_rental.go；其余无关未跟踪文件不入库。已fetch实际唯一远端gud，HEAD与gud/main一致，无需合并；共享工作区重跑完整build/vet/test通过，无失败/新增失败。
+
+独立拟提交源码build/vet/test均退出0，3837通过/283跳过，无失败/新增失败。独立测试保留仓库已跟踪mods目录及本机既有runtime/login_ok.bin测试夹具；夹具不入库，首次遗漏测试环境所致的两项失败在恢复原上下文后均消失。

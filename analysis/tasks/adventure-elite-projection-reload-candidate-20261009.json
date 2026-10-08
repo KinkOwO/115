@@ -1,0 +1,302 @@
+{
+  "status": "candidate-ready-awaiting-user-manual-validation",
+  "hypothesis": "Emitted hidden mode-2 selection invalidated native actors but retained server preparation, blocking the restoration-triggered original CMD1811.",
+  "attempt": "selection-projection-reload 1/3; existing Odyssey admission 3/3 remains unchanged, no new packet/layout hypothesis",
+  "failedSession": "projection-reload-failure-20261009",
+  "processId": 65932,
+  "runTick": 158854218,
+  "observedServerVersion": "0.3.15",
+  "observedDLLVersion": "0.3.10",
+  "source": {
+    "archiveSHA256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+    "script": "contents/2026/aradodyssey/dungeon/05_darkelf/darkelf.dgn",
+    "scriptSHA256": "ec5d4a37dcf0912e0480b5a93d25c2e33fabd019968670062cc63431d0cb5c4c",
+    "id": 100004939,
+    "firstMap": 100016019,
+    "minimumPlayerLevel": 38,
+    "designatedDifficulty": 2,
+    "storyLayers": 1,
+    "chain": "PVF Source -> journal.cos dungeon references -> Source.Dungeons -> existing dungeon.Select -> existing entry/state/storage executors; no content changes"
+  },
+  "nativeProof": {
+    "idb": "client/DFO.exe.i64",
+    "function": "142E5A4C0",
+    "clearSelectionMap": "142E5A6DD regardless of count",
+    "compareSlotIdentities": "142E5ABFC",
+    "releaseOldActors": "142E5AE64",
+    "requestOriginal1811": "142E5AED6"
+  },
+  "logEvidence": {
+    "hiddenSelectionLine": 1019,
+    "restoredSelectionLine": 1027,
+    "rejectedLoadLine": 1030,
+    "rejectedReason": "精锐资料已经准备，请勿重复加载",
+    "nativeReleaseLine": 19,
+    "nativeRelease": {
+      "traceVersion": 2,
+      "processId": 65932,
+      "runTick": 158854218,
+      "sequence": 5,
+      "ordinal": 3,
+      "tick": 159098265,
+      "thread": 107444,
+      "opcode": 1754,
+      "phase": "after",
+      "traceDropped": 0,
+      "remaining": 10,
+      "headerCount": -1,
+      "headerMode": -1,
+      "ownerWireId": -1,
+      "companionCount": -1,
+      "currentChannel": 22,
+      "currentOwner": 1,
+      "entryChannel": 22,
+      "entryOwner": 1,
+      "preparedChannel": 22,
+      "managerField40": 0,
+      "weakAlive": 0,
+      "weakStrong": [
+        -1,
+        -1,
+        -1
+      ],
+      "preparationScope": 1,
+      "scopeReason": "selection-nonempty",
+      "nonEmpty": 1,
+      "modeSeen": 3,
+      "modeCalls": 3,
+      "modeNative": [
+        0,
+        0
+      ],
+      "modeEffective": [
+        2,
+        2
+      ],
+      "predicateSeen": 0,
+      "predicateCalls": 0,
+      "predicateNative": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "predicateEffective": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "flushSeen": 1,
+      "requestObserved": 1,
+      "readerSuccess": 1,
+      "exceptionCode": 0,
+      "exceptionIp": 0,
+      "pending": {
+        "thread": 107444,
+        "channel": 22,
+        "owner": 1,
+        "waiting": 1,
+        "info": 0,
+        "deadline": 159108265
+      }
+    },
+    "entryRejectionLines": [
+      51,
+      55
+    ],
+    "frozenSelected": [
+      2,
+      3,
+      4
+    ]
+  },
+  "implementation": {
+    "commonSync": "syncAdventureElitePreparation used after successful save and changed refresh payload; empty/changed view clears stale preparation, identical slots refresh settings hash and retain native actors.",
+    "duplicateLoadGatePreserved": true,
+    "specialChannelGatePreserved": true,
+    "newContentList": false
+  },
+  "validation": {
+    "build": {
+      "command": [
+        "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+        "build",
+        "./..."
+      ],
+      "exitCode": 0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\projection-reload-build.log"
+    },
+    "vet": {
+      "command": [
+        "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+        "vet",
+        "./..."
+      ],
+      "exitCode": 0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\projection-reload-vet.log"
+    },
+    "test": {
+      "command": [
+        "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+        "test",
+        "-json",
+        "./...",
+        "-count=1"
+      ],
+      "exitCode": 0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\projection-reload-test.log",
+      "passed": 3940,
+      "skipped": 269,
+      "failures": [],
+      "baselineFailures": [],
+      "newFailures": []
+    },
+    "binary": {
+      "command": [
+        "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+        "build",
+        "-trimpath",
+        "-o",
+        "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\projection-reload-candidate.exe",
+        "./cmd/wireprobe"
+      ],
+      "exitCode": 0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\projection-reload-binary.log"
+    },
+    "source": {
+      "command": [
+        "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+        "test",
+        "./cmd/wireprobe",
+        "-run",
+        "^TestEliteOdysseyCurrentPVFJournalSourceAdmission$",
+        "-count=1",
+        "-v"
+      ],
+      "exitCode": 0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\projection-reload-source.log"
+    }
+  },
+  "regression": "Old implementation failed companions-1/2/3 at stale frozen identity; fixed tests pass two warp cycles for each roster width, restored original1382/1879 only, duplicate and unsupported-scope refusals, account roster/skills and entry ordinal preservation.",
+  "captureFixtures": "All prior fixtures and added0.3.16 compatibility fixture passed; offline fixture does not certify live acceptance.",
+  "delivery": {
+    "serverVersion": "0.3.16",
+    "sha256": "72c811689b9cdd7ad4998988972ea82bc09c433ac21c89b0cee0807313e0bdf4",
+    "bytes": 30555648,
+    "backup": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\projection-reload-delivery-backup",
+    "DLLChanged": false,
+    "defaultSha256Unchanged": "a6f269603887f18fa8bb60814a655641f12c5eeaf1a07f89d840e166a393be6c",
+    "schemaChanged": false,
+    "playerStoreModified": false,
+    "failedSessionCapture": "F:\\projects\\agents\\reverse\\115us\\server\\work\\dfo-lan\\runtime\\adventure-elite-captures\\projection-reload-failure-20261009",
+    "failedSessionFiles": [
+      {
+        "path": "server/work/dfo-lan/runtime/adventure-elite-captures/projection-reload-failure-20261009/events.jsonl",
+        "sha256": "7b865cff98e53372d8f68489a476dda3374d931db77f44d24b193ac5750ecc18",
+        "bytes": 803545
+      },
+      {
+        "path": "server/work/dfo-lan/runtime/adventure-elite-captures/projection-reload-failure-20261009/client.log",
+        "sha256": "3da7c6975005f193d312e261a6d8bd305427505dd11f3353cd1dc6f5b8e8e8e8",
+        "bytes": 841
+      },
+      {
+        "path": "server/work/dfo-lan/runtime/adventure-elite-captures/projection-reload-failure-20261009/helper.err",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      {
+        "path": "server/work/dfo-lan/runtime/adventure-elite-captures/projection-reload-failure-20261009/helper.out",
+        "sha256": "9ff2ebe410838b7f302f57ca35da56efb0d30eb0f4b76b730c663bd31bedf04b",
+        "bytes": 2899
+      },
+      {
+        "path": "server/work/dfo-lan/runtime/adventure-elite-captures/projection-reload-failure-20261009/run.json",
+        "sha256": "a3baec13a3c20f7d030565a137eb53a61fee4de6c57f153387be266c26a0a08e",
+        "bytes": 56
+      },
+      {
+        "path": "server/work/dfo-lan/runtime/adventure-elite-captures/projection-reload-failure-20261009/adventure-elite.status.json",
+        "sha256": "02880beab3534cae17fbe3c36195cad6f481ca37dcd1f722a46b71369d65d780",
+        "bytes": 967
+      },
+      {
+        "path": "server/work/dfo-lan/runtime/adventure-elite-captures/projection-reload-failure-20261009/adventure-elite.log",
+        "sha256": "8501dd7c3c8e3b7fe9071e116aa457d74852c58fb962b2c2af7641d631ef2ff1",
+        "bytes": 306
+      },
+      {
+        "path": "server/work/dfo-lan/runtime/adventure-elite-captures/projection-reload-failure-20261009/adventure-elite-combat-65932-158854218.jsonl",
+        "sha256": "0011efcfa4259656758a507c50585b587b8f5e3e3d28bee861777d6e353d75ff",
+        "bytes": 228912
+      },
+      {
+        "path": "server/work/dfo-lan/runtime/adventure-elite-captures/projection-reload-failure-20261009/adventure-elite-entry-65932-158854218.jsonl",
+        "sha256": "558d535f1b50c20af545c701ff8a0b8171cad873fbeea9969359fd85978b4246",
+        "bytes": 49336
+      },
+      {
+        "path": "server/work/dfo-lan/runtime/adventure-elite-captures/projection-reload-failure-20261009/adventure-elite-lifecycle-65932-158854218.jsonl",
+        "sha256": "185411c1056736ea2b103a427a1bc155a2448d8e2e1743b935a7bc7bad70c2ca",
+        "bytes": 258219
+      },
+      {
+        "path": "server/work/dfo-lan/runtime/adventure-elite-captures/projection-reload-failure-20261009/adventure-elite-native-65932-158854218.jsonl",
+        "sha256": "8e2bf43042836e0ccb6889da1534b78255b1bec91c0630d3d59955adb63da2fb",
+        "bytes": 16109
+      }
+    ],
+    "captureProvenance": "Original failed session had no build manifest in the deployed DLL directory; original logs copied unchanged, current hashes are observations, not retroactive capture certification."
+  },
+  "unchanged": {
+    "DLL": true,
+    "clientEXE": true,
+    "defaultServer": true,
+    "PVF": true,
+    "schema": true,
+    "playerStore": true
+  },
+  "sourceDuplicationLedger": "Existing Type22/publishedID10 compatibility versus etc/channel_info.etc [server], and creature names/experience rules remain recorded in the existing ledger; not extended by this lifecycle fix.",
+  "notConfirmed": [
+    "Candidate warp/reload/APC live behavior",
+    "All Odyssey maps",
+    "Special party modes",
+    "Native object lifetime release and complete death coverage",
+    "Cause/content of configured-client versus repository-reference EXE/PVF differences; no new client or resource modification in this candidate"
+  ],
+  "manualSession": [
+    "Use the existing character and roster, enable DFO_ADVENTURE_ELITE=1 and source-build launcher.",
+    "Use the original town teleport entry to Dark Elf Heroes, enter and inspect HUD/APC.",
+    "If successful, return to town, teleport and enter again; check HUD/APC, optionally cross one room.",
+    "Exit normally; if first entry fails, stop immediately. No repeated roster save or new role creation."
+  ],
+  "runtimeClientIdentity": {
+    "configuredClientDir": "F:\\wip\\dof\\115US",
+    "configPath": "server/launcher.local.json",
+    "resources": [
+      {
+        "name": "DFO.exe",
+        "path": "F:\\wip\\dof\\115US\\DFO.exe",
+        "sha256": "eb3e04a2f07f2eeb69919c3830e9b631c017b3110049ae109efcb9d3d979d552",
+        "referenceSHA256": "1d3948784e5e0f77ed744017bf82bf0c50de9421423f9e59f6f70aed609d8ffa",
+        "sameAsRepositoryReference": false
+      },
+      {
+        "name": "Script.pvf",
+        "path": "F:\\wip\\dof\\115US\\Script.pvf",
+        "sha256": "e18cd1c5a91e158138880e29d0c78f425b833f39a2e6f138b4e5c4d000d7a961",
+        "referenceSHA256": "5dd03873edf2c1df7aea16db5ad146a776fb8461a947be73042cabd932e66f0a",
+        "sameAsRepositoryReference": false
+      },
+      {
+        "name": "sk.dat",
+        "path": "F:\\wip\\dof\\115US\\sk.dat",
+        "sha256": "59d78371335d22dae0eaeca2a827939576e85a5f5ede4ba286f0438d2fbc6eaf",
+        "referenceSHA256": "59d78371335d22dae0eaeca2a827939576e85a5f5ede4ba286f0438d2fbc6eaf",
+        "sameAsRepositoryReference": true
+      }
+    ],
+    "scope": "Configured runtime client differs from repository analysis/reference copies for EXE and outer PVF. Do not certify these copies as runtime inputs. Existing DLL startup byte checks and live native logs are from PID65932 in the configured client."
+  }
+}

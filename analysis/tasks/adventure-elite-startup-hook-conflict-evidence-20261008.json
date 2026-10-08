@@ -1,0 +1,77 @@
+{
+  "stage": "startup-fix-candidate-awaiting-manual",
+  "baseCommit": "a7aca57ce11dc0fee0db31daa4b8729e58a39239",
+  "failedLive": {
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_203224_202175_next37",
+    "pid": 63616,
+    "runTick": 128937343,
+    "version": "0.3.5",
+    "returnCode": 13,
+    "preparationReady": true,
+    "entryReady": true,
+    "registrationReady": false,
+    "failure": "site-mismatch"
+  },
+  "cause": "registration rechecks original142E60CF0 bytes after preparation already hooks that same entry; duplicate-hook design",
+  "fix": {
+    "sharedPredicate": "ElitePreparedPredicate",
+    "registrationExtension": "g_preparePredicateRegistration(caller,nativeResult)",
+    "duplicateHookRemoved": true,
+    "conditionByteGuardRetained": true,
+    "gameplayScopeUnchanged": true,
+    "newC2SPackets": false
+  },
+  "offlineStartupFixture": {
+    "source": "client-patchs/adventure-elite/src/registration-startup-test.cpp",
+    "realProductionSequence": true,
+    "copiedClientCodeSites": 16,
+    "gameStarted": false,
+    "authorityExePassed": true,
+    "activeExe": "F:/wip/dof/115US/DFO.exe",
+    "activeExeSHA256": "eb3e04a2f07f2eeb69919c3830e9b631c017b3110049ae109efcb9d3d979d552",
+    "activeExePassed": true,
+    "wholeFilesIdentical": false,
+    "verified": [
+      "dependency order",
+      "CMP mismatch refusal",
+      "only one predicate hook",
+      "shared entry unchanged by registration",
+      "original result/last-error/exception forwarding",
+      "condition and hooks restored"
+    ]
+  },
+  "pending": [
+    "manual initialization status",
+    "original first-room registration observation",
+    "combat/owner/cleanup and story/Odyssey remain unverified"
+  ],
+  "storageSchemaChanged": false,
+  "PVFChanged": false,
+  "verification": {
+    "build": {
+      "kind": "build",
+      "exitCode": 0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\startup-gate-build.log"
+    },
+    "vet": {
+      "kind": "vet",
+      "exitCode": 0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\startup-gate-vet.log"
+    },
+    "test": {
+      "kind": "test",
+      "exitCode": 0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\startup-gate-test.jsonl",
+      "passed": 3769,
+      "skipped": 279,
+      "failures": [],
+      "baselineFailures": [],
+      "newFailures": []
+    },
+    "cppMechanisms": 10,
+    "collectorFixtures": 35,
+    "nonGameEnvSmoke": 6,
+    "diskContexts": 15,
+    "dllSHA256": "5e80ee140dd4f968f84d122464cbc17a68919527bee547a634e91e4bae1597d4"
+  }
+}

@@ -121,19 +121,7 @@ func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, pre
 		return nil, err
 	}
 	w.adventureEliteSnapshot = sha256.Sum256(body)
-	if prepared := w.adventureElitePrepared; prepared != nil {
-		view := w.eliteProfileView(profile).Data.EliteSelections[2]
-		// Native142E5ABFC compares slot identities: changed slots release the
-		// actors at142E5AE64 and request1811 at142E5AED6. Clear only the stale
-		// preparation so that original request can build the new roster.
-		// Unchanged slots retain actors and apply skills via142E653A0 without
-		// requesting1811; keep their identity and refresh its settings hash.
-		if view == ([3]int64{}) || view != prepared.Selected || prepared.Owner != w.role.ID || prepared.Channel != w.channelType {
-			w.adventureElitePrepared = nil
-		} else {
-			prepared.Settings = w.adventureEliteSnapshot
-		}
-	}
+	w.syncAdventureElitePreparation(profile)
 	// 成功ACK只弹成功提示，不更新设置map；先发NOTI1754，界面才会回显。
 	return []outboundPacket{{"精锐角色设置同步", 0, 1754, body}, {"精锐角色保存完成", 1, 1719, []byte{1}}}, nil
 }

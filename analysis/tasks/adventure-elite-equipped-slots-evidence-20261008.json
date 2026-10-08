@@ -1,0 +1,309 @@
+{
+  "scope": "server native equipment-slot coverage fix; town preparation remains candidate; no battle admission",
+  "liveSession": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_155318_415820_next37",
+  "processId": 73516,
+  "dllVersion": "0.3.1",
+  "liveConfirmedByLogs": [
+    "correct version/PID; byte contexts/hooks ready",
+    "N1754 exact scoped mode native0/effective2; modeCalls3; original readerSuccess1; flushSeen1/requestObserved1",
+    "currentChannel22/currentOwner2/pending matches; actual CMD1811 arrives",
+    "server ordinary source row allows published channel10/server1; load rejects slot36 before N1382/N1879"
+  ],
+  "anchors": [
+    {
+      "line": 194,
+      "kind": "adventure_elite_transaction_decision",
+      "id": 1719,
+      "accepted": true,
+      "reason": null
+    },
+    {
+      "line": 195,
+      "kind": "adventure_elite_packet_sent",
+      "id": 1754,
+      "accepted": true,
+      "reason": null
+    },
+    {
+      "line": 198,
+      "kind": "client_frame",
+      "id": 1811,
+      "accepted": null,
+      "reason": null
+    },
+    {
+      "line": 199,
+      "kind": "adventure_elite_transaction_decision",
+      "id": 1811,
+      "accepted": false,
+      "reason": "精锐装备技能资料无法完整编码：队友穿戴槽位或模板无效：36"
+    }
+  ],
+  "failure": "TagEquipment restricted slots0..29 or32; saved companion ID3 has primer36..45",
+  "pvf": {
+    "archiveChecksum": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+    "nativeIndexHashes": {
+      "list/equipment.lst": "7ffc480eee357d1dbd507de2c75621e0fca3a209dac76e64254bc00bc0557b71",
+      "list/stackable.lst": "7d747f6158803518d71527d28a1ad00839cdf83f4498f3ad587c237f32b80daf"
+    },
+    "template": {
+      "id": 100401592,
+      "path": "equipment/character/common/primer/100401592.equ",
+      "kind": "equipment"
+    },
+    "scriptSHA256": "3507558bb07ff5ac38ab1f3045bc43f250d000c448c2989b4cb7eb613b69edfe",
+    "fields": [
+      {
+        "tag": "[minimum level]",
+        "nextCell": {
+          "type": 0,
+          "value": 115
+        }
+      },
+      {
+        "tag": "[equipment buff]",
+        "nextCell": {
+          "type": 0,
+          "value": 4500
+        }
+      },
+      {
+        "tag": "[fame value]",
+        "nextCell": {
+          "type": 0,
+          "value": 1400
+        }
+      },
+      {
+        "tag": "[equipment type]",
+        "nextCell": {
+          "type": 6,
+          "value": 202030005,
+          "text": "[primer]"
+        }
+      }
+    ]
+  },
+  "native": {
+    "database": "client/DFO.exe.i64",
+    "session": "c1000f62",
+    "function": "1452C1540",
+    "completePagination": [
+      0,
+      420,
+      920,
+      1420
+    ],
+    "totalLines": 1605,
+    "slotEvidence": [
+      "  __int64 v294; // [rsp+540h] [rbp+440h] BYREF\n  __int16 v295; // [rsp+548h] [rbp+448h]\n  _BYTE v296[48]; // [rsp+550h] [rbp+450h] BYREF\n\n  v219 = -2; /*0x1452c155b*/",
+      "      if ( !v11 ) /*0x1452c15cd*/\n        _report_rangecheckfailure(); /*0x1452c30dc*/\n      v296[v10++] = 0; /*0x1452c15d3*/\n      v11 = (unsigned __int64)v10 < 0x30; /*0x1452c15de*/\n    }",
+      "        v12 = 0; /*0x1452c165d*/\n        HIBYTE(v147) = 0; /*0x1452c1660*/\n        sub_146EA09F0(a1: &v132); /*0x1452c166f*/\n        sub_146EA0BA0(a1: &v154); /*0x1452c1679*/\n        sub_146EA0BA0(a1: &v184); /*0x1452c1682*/",
+      "        LOBYTE(v18) = 1; /*0x1452c184e*/\n        v20 = sub_14021BE90(a1: qword_14E683B30, a2: v154, a3: v18); /*0x1452c185c*/\n        if ( v20 != 0 && *(_DWORD *)(v20 + 2120) == 26 ) /*0x1452c186d*/\n        {\n          v198 = 0; /*0x1452c186f*/",
+      "            __wind /*0xf1c000000000057c*/\n            {\n              v30 = (*(__int64 (__fastcall **)(__int64, _QWORD))(*(_QWORD *)a1 + 7944LL))(a1, a2: v132); /*0x1452c2165*/\n              v31 = v30; /*0x1452c216b*/\n              if ( v30 != 0 ) /*0x1452c2171*/",
+      "                      a3: 0xFFFFFFFFLL,\n                      a4: v76,\n                      a5: v132);\n              v84 = v83; /*0x1452c27ae*/\n              v194 = &off_149271DA0; /*0x1452c27b8*/",
+      "LABEL_112:\n              v64 = v132; /*0x1452c2543*/\n              v296[v132] = 1; /*0x1452c2548*/\n              v65 = (*(__int64 (__fastcall **)(__int64, _QWORD))(*(_QWORD *)a1 + 7944LL))(a1, a2: v64); /*0x1452c2558*/\n              v66 = v65; /*0x1452c255e*/",
+      "          {\n            v107 = 0; /*0x1452c2d3f*/\n            v108 = v296; /*0x1452c2d42*/\n            do /*0x1452c2ef7*/\n            {"
+    ],
+    "actorReader": [
+      "  sub_145639B70(a1: v10); /*0x145962620*/",
+      "  LOBYTE(v19) = 1; /*0x145962625*/",
+      "  sub_1452C1540(a1: v13, a2: 0, a3: 0, a4: v19); /*0x145962630*/"
+    ],
+    "bytes": [
+      {
+        "addr": "0x1452C15D3",
+        "data": "0xc6 0x84 0xd 0x50 0x4 0x0 0x0 0x0 0x48 0xff 0xc1 0x48 0x83 0xf9 0x30 0x7c 0xe9 0xc6",
+        "diskMatched": true
+      },
+      {
+        "addr": "0x1452C2543",
+        "data": "0xf 0xb6 0x4c 0x24 0x30 0xc6 0x84 0xd 0x50 0x4 0x0 0x0 0x1 0x48 0x8b",
+        "diskMatched": true
+      },
+      {
+        "addr": "0x1452C2EEF",
+        "data": "0xff 0xc3 0x49 0xff 0xc6 0x83 0xfb 0x30 0xf 0x8c 0x53 0xfe 0xff 0xff",
+        "diskMatched": true
+      },
+      {
+        "addr": "0x145962625",
+        "data": "0x41 0xb1 0x1 0x45 0x33 0xc0 0x33 0xd2 0x48 0x8b 0xcf 0xe8 0xb 0xef 0x95 0xff 0x48 0x85",
+        "diskMatched": true
+      }
+    ]
+  },
+  "change": "TagEquipment validates slot<48 instead of slot<=29 or32; identical row payload and native template branches; no row dropped or save mutated",
+  "runtimeAttempt": "ordinary transaction adaptation attempt3/3; no changed packet layout (native layout attempt1/3); trace-only prior version did not count",
+  "offlineActualSavedCharacters": {
+    "characters": [
+      {
+        "equipmentBytes": 1724,
+        "equipmentSHA256": "8e1c63cac1ebd1a2310c06d9fd5e0baf37a59a60d7260bdb5d485691b341ce75",
+        "learnedSkillCount": 19,
+        "level": 1,
+        "roleID": 1,
+        "slots": [
+          12,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21
+        ]
+      },
+      {
+        "equipmentBytes": 4194,
+        "equipmentSHA256": "a7c3cc3cbee565c011ac8a7dbe974c71d89a86e7eb64558bf9e28fbf15b8bf49",
+        "learnedSkillCount": 42,
+        "level": 115,
+        "roleID": 3,
+        "slots": [
+          12,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          25,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45
+        ]
+      }
+    ],
+    "database": "read-only exported inputs; no database opened by Go probe",
+    "n1382Bytes": 7449,
+    "n1382SHA256": "05f3bc8a1f84f1be8e595eaaecda317d3d81810902b9d7498c1462aecd25bedb",
+    "n1879": "0200",
+    "source": {
+      "format": "dfo_20260901_inner",
+      "path": "F:\\projects\\agents\\reverse\\115us\\server\\work\\client-build\\Script.inner.pvf",
+      "size": 771470242,
+      "checksum": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+      "loaded_at": "2026-10-08T08:17:05.007237Z",
+      "file_count": 5650173,
+      "group_count": 82571,
+      "cached_chunks": 0,
+      "cached_texts": 0
+    }
+  },
+  "validation": {
+    "build": 0,
+    "vet": 0,
+    "test": 0,
+    "testCounts": {
+      "run": 3936,
+      "output": 8667,
+      "pass": 3656,
+      "skip": 280
+    },
+    "oldFailureSet": [],
+    "failureSet": [],
+    "targetedTests": 0,
+    "savedInventoryRegression": true,
+    "nativeDiskVectorsMatched": 4,
+    "sharedHygiene": 0,
+    "integrationHygiene": 2,
+    "diffCheck": 0,
+    "preflight": {
+      "exit": 0,
+      "artifactsMatched": 3,
+      "resourcesUnchanged": 4
+    }
+  },
+  "sourceRuleDuplication": "No new gameplay table; slot48 is native execution-container bound. Existing local ordinary channel compatibility overrides remain recorded in ordinary plan; no source condition/level/template list copied to runtime policy.",
+  "unchanged": [
+    "DLL0.3.1 and launcher identities",
+    "PVF/client EXE/sk.dat",
+    "SQLite schema and player saves",
+    "ordinary battle hold; story/Odyssey/special-party battle unverified"
+  ],
+  "nextLive": "restart normally; ordinary town open current saved squad, wait10seconds and normal exit; no need to save again, no dungeon",
+  "references": [
+    {
+      "url": "https://www.dfoneople.com/news/updates/4388/Items-and-Equipment",
+      "purpose": "current equipment expansion context only; not evidence for packet slots"
+    }
+  ],
+  "worktree": "C:\\Users\\zonre\\.codex\\worktrees\\adventure-elite-slots\\115us",
+  "commit": "not staged/committed; prior missing-default-binary hygiene confirmation remains pending",
+  "backups": {
+    "server/work/dfo-lan/bin/wireprobe-handoff-source.exe": {
+      "path": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\slots-backup\\wireprobe-handoff-source-7be50278fe8d564d5a7345bb73c2dbeeb6d2d54ac61f6451810e8c3ba8f9387b.exe",
+      "sha256": "7be50278fe8d564d5a7345bb73c2dbeeb6d2d54ac61f6451810e8c3ba8f9387b",
+      "bytes": 30287872
+    },
+    "client-patchs/adventure-elite/dist/adventure-elite-eligibility-0.3.1.zip": {
+      "path": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\slots-backup\\adventure-elite-eligibility-0.3.1-f710c1f784cc9dcecc3b39c5f670677776d755b5dd030b2bb79fafbc15a65ff4.zip",
+      "sha256": "f710c1f784cc9dcecc3b39c5f670677776d755b5dd030b2bb79fafbc15a65ff4",
+      "bytes": 106651
+    },
+    "client-patchs/adventure-elite/dist/adventure-elite-build.json": {
+      "path": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\slots-backup\\adventure-elite-build-5270dc4c87a6b8ec107effefa0ada0cda692425875a09dd77ac9c9304ac338f1.json",
+      "sha256": "5270dc4c87a6b8ec107effefa0ada0cda692425875a09dd77ac9c9304ac338f1",
+      "bytes": 1364
+    }
+  },
+  "artifacts": [
+    {
+      "path": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+      "bytes": 193024,
+      "sha256": "630bca38a443ec5e25ccbc884636ffcd6e5a27603e27b52f97df9119c3972835"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+      "bytes": 30287872,
+      "sha256": "c957e508bd16900123b3f761e835d83cbc93aacb09a40115fc9cebcd6c35073f"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe",
+      "bytes": 16969728,
+      "sha256": "94296f900bba7495ee1f7dba3209dcbf74b9c977a0a418a70ee7d39378719232"
+    }
+  ],
+  "deliveredTo": "F:\\projects\\agents\\reverse\\115us",
+  "clientStarted": false,
+  "changedFilesThisTurn": [
+    "server/work/dfo-lan/internal/game/protocol/tag_equipment.go",
+    "server/work/dfo-lan/internal/game/protocol/tag_equipment_test.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_equipment_test.go",
+    "analysis/tasks/adventure-elite-equipped-slots-evidence-20261008.json",
+    "docs/todo/adventure-elite-ordinary-plan.md",
+    "client-patchs/adventure-elite/README.md",
+    "CHANGELOG"
+  ],
+  "goalAudit": {
+    "objective": "继续直到第一版完成或下一次实机",
+    "turnClassification": "progress",
+    "reachedBranch": "next manual live checkpoint",
+    "firstVersionComplete": false,
+    "requirements": {
+      "latestLiveReadAndPIDVersionMatched": true,
+      "failureFromLogsRatherThanGuess": true,
+      "PVFAndCurrentIDBNativeBoundsClosed": true,
+      "regressionAndBuildVetFullTestsPassed": true,
+      "isolatedCandidateDeliveredAndHashed": true,
+      "rawLogsAndCollectorReady": true,
+      "manualOperationInstructionsConcrete": true,
+      "defaultPVFSaveOtherWritersProtected": true
+    },
+    "reasonNextLiveRequired": "No N1382/N1879 was sent in the measured run because server rejected slot36; offline encoding proves emission can succeed, but only user-run client can prove native consumption and clone creation. Dungeon admission remains held until that evidence.",
+    "remaining": "town clone creation; battle registration/owner/rooms/death/story/Odyssey; no default release or commit"
+  }
+}

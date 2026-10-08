@@ -1,0 +1,386 @@
+{
+  "scope": "confirmed list display and initial clone; ordinary selection/return lifecycle retention candidate",
+  "status": "confirmed-ordinary-selection-cancel-return; battle-unverified",
+  "userConfirmation": "确认页面正确显示列表，继续吧，到需要实机再通知我",
+  "confirmedBoundary": "list page shows test level1 and glow level115; not battle or final clone retention",
+  "liveSession": "server/work/dfo-lan/runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_164902_605424_next37",
+  "processId": 51160,
+  "runTick": 115542562,
+  "dllVersion": "0.3.1",
+  "nativeTrace": "client-patchs/adventure-elite/dist/adventure-elite-native-51160-115542562.jsonl",
+  "originalServerSha256": "c957e508bd16900123b3f761e835d83cbc93aacb09a40115fc9cebcd6c35073f",
+  "anchors": [
+    {
+      "file": "events.jsonl",
+      "lines": [
+        231,
+        233,
+        234,
+        235,
+        237
+      ],
+      "fact": "N1754 -> CMD1811 accepted -> N1382/N1879 actually sent"
+    },
+    {
+      "file": "native trace",
+      "line": 11,
+      "fact": "N1879 readerSuccess1, weakAlive2, weakStrong[1,1,-1], no exception"
+    },
+    {
+      "file": "events.jsonl",
+      "lines": [
+        243,
+        244,
+        245,
+        247
+      ],
+      "fact": "CMD15 opens selection; subsequent poll sends empty N1754"
+    },
+    {
+      "file": "events.jsonl",
+      "lines": [
+        248,
+        249,
+        260,
+        261,
+        262
+      ],
+      "fact": "CMD132 returns to town; poll restores mode2; repeated CMD1811 rejected as already prepared"
+    },
+    {
+      "file": "native trace",
+      "line": 19,
+      "fact": "restored N1754 causes weakAlive2 -> 0 and sends CMD1811"
+    }
+  ],
+  "rootCause": "eliteProfileView reused ordinaryElitePreparationAllowed, so selectingDungeon temporarily removed mode2 from the entire selection map; restoring that row enters the native destruction/reload branch",
+  "ida": {
+    "session": "c1000f62",
+    "database": "client/DFO.exe.i64",
+    "selectionReader": "0x142E5A4C0",
+    "clearSelectionMap": "0x142E5A6DD",
+    "compareSavedSlots": "0x142E5ABFC",
+    "releaseThreeCompanionsCall": "0x142E5AE64",
+    "flushReload": "0x142E5AEEB",
+    "releaseFunction": "0x142E63BA0",
+    "weakControlClear": "0x142E63CD3",
+    "fullDecompileSaved": ".tmp/adventure-elite/transition-native-proof.json",
+    "savedProofSha256": "95f5d12fe4d717f25adc2638db98088241983d15e7ab0a5dccd8fb574d4466ae"
+  },
+  "sourceRules": {
+    "unchanged": true,
+    "archiveChecksum": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+    "channelInfo": "etc/channel_info.etc [server] -> ImportChannelInfo",
+    "specialAttributes": "etc/clientchannelinfo.etc and channelslotinfo.etc -> ImportChannelDirectory",
+    "consumer": "ordinaryEliteSelectionVisible retains source scope; ordinaryElitePreparationAllowed additionally checks scene readiness",
+    "existingDuplicatePolicy": "channel.local34/35.json Type/Area/SourceValues compatibility overrides retained under previous migration ledger; no new gameplay content table"
+  },
+  "candidateChanges": [
+    "separate selection visibility from activeDungeon/selectingDungeon/pendingTownArrival load gate",
+    "retain tutorial, warp, bleeding mine, isolated, training and dedicated source exclusions",
+    "unchanged owner/selection freeze and rejection of repeat or mid-scene loads",
+    "exercise actual elite notification polling helper against temporary SQLite saved selections",
+    "collector reports latest clone observation and clone-observed-then-released instead of initial success alone"
+  ],
+  "attempts": {
+    "ordinaryPreparation": "3/3 initial native creation now observed; no further guesses",
+    "selectionLifecycle": "1/3, concrete CMD15/CMD132 evidence; independent of packet layout",
+    "nativeLayout": "1/3 unchanged"
+  },
+  "remoteMerge": {
+    "from": "54ee3b56883aa951b080f414225b2696d58b1b99",
+    "to": "48f22d4fa79fdce60439c18edec59eb0992825e6",
+    "method": "14 task-owned tracked files backed up; normalized newline three-way content merge; fast-forward gud/main; reapply merged task edits; no root workspace reset",
+    "backup": ".tmp/adventure-elite/transition-merge/report.json",
+    "staged": false
+  },
+  "preMergeValidation": {
+    "build": 0,
+    "vet": 0,
+    "test": 0,
+    "pass": 3660,
+    "skip": 280,
+    "failures": [],
+    "baselineFailures": []
+  },
+  "captureTests": "six cases pass in PowerShell5.1: success, released, no request, old version, incomplete phases, dropped/capped; read-only preflight creates no output",
+  "observationLimit": "weakAlive is observed during watched notifications only. With no later notification after selector return, last observation refers to N1879 completion; no claim of continuous or post-return native liveness is made. Next checkpoint verifies list preservation and absence of destructive refresh/reload, not full battle lifecycle.",
+  "postMergeValidation": {
+    "build": 0,
+    "vet": 0,
+    "test": 0,
+    "pass": 3717,
+    "skip": 280,
+    "failures": [],
+    "baselineFailures": [],
+    "logs": ".tmp/adventure-elite/transition-merged-build.log, transition-merged-vet.log, transition-merged-test.jsonl"
+  },
+  "delivery": {
+    "serverCandidate": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+    "serverSha256": "3f773468c146af529408fde182f379a2505b4ce770e757209e609de1d4f10518",
+    "serverBytes": 30486528,
+    "selfDescription": "go version -m: go1.26.0, dfolan/cmd/wireprobe, windows/amd64, CGO_ENABLED=0; source revision separately recorded in sidecar",
+    "defaultUntouchedSha256": "a6f269603887f18fa8bb60814a655641f12c5eeaf1a07f89d840e166a393be6c",
+    "backups": ".tmp/adventure-elite/transition-backup",
+    "report": ".tmp/adventure-elite/transition-delivery.json",
+    "dllAndLauncherUnchanged": true,
+    "schema2PackageVerified": true,
+    "newCandidateLive": false
+  },
+  "unchanged": [
+    "DLL code/version",
+    "native packet layout",
+    "PVF",
+    "SQLite schema/player saves",
+    "confirmed default program",
+    "ordinary battle admission hold"
+  ],
+  "nextManualCheckpoint": [],
+  "expectedEvidence": "one initial N1754/CMD1811, successful N1382/N1879 with weakAlive2; no empty/restored N1754 or duplicate load on selector round trip",
+  "unverified": [
+    "retention candidate live result",
+    "type5 battle registration/owner",
+    "AI damage/kills and room transitions",
+    "story/Odyssey/special-party battles"
+  ],
+  "commitBlocked": false,
+  "confirmedSelectionReturn": {
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_180054_958631_next37",
+    "processId": 39224,
+    "runTick": 119854828,
+    "userFeedback": {
+      "2": "正常",
+      "3": "副本显示没有发生变化",
+      "4": "正常"
+    },
+    "candidateValid": true,
+    "coverageComplete": true,
+    "issues": [],
+    "clientFrameCounts": {
+      "15": 2,
+      "132": 2,
+      "1395": 4,
+      "1719": 0,
+      "1811": 1,
+      "16": 0
+    },
+    "anchors": [
+      {
+        "line": 257,
+        "kind": "dungeon_gate_ack",
+        "id": 15
+      },
+      {
+        "line": 262,
+        "kind": "dungeon_selection_return",
+        "id": 132
+      },
+      {
+        "line": 272,
+        "kind": "dungeon_gate_ack",
+        "id": 15
+      },
+      {
+        "line": 276,
+        "kind": "dungeon_selection_return",
+        "id": 132
+      }
+    ],
+    "uiFlushSamples": 4,
+    "uiRequestsAfterCompletion": 4,
+    "postReturnCloneVerified": true,
+    "postReturnCloneObservation": {
+      "traceVersion": 1,
+      "processId": 39224,
+      "runTick": 119854828,
+      "ordinal": 55,
+      "tick": 120052796,
+      "thread": 23252,
+      "cause": "native-flush",
+      "callerRva": 63400111,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "currentChannel": 22,
+      "currentOwner": 2,
+      "identityMatches": 1,
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "weakStrong": [
+        1,
+        1,
+        0
+      ],
+      "actorKind": [
+        5,
+        5,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "controllerWire": [
+        65535,
+        65535,
+        -1
+      ],
+      "controllerBound": [
+        1,
+        1,
+        -1
+      ]
+    },
+    "lifecycleRecords": 71,
+    "allSamples": "identity/available/consistent=1; weakAlive=2; kind=[5,5,-1]; controllerId/controllerWire=[65535,65535,-1]; weak-binding=[1,1,-1]; dropped/limit=0",
+    "normalExitObserved": true,
+    "battleVerified": false,
+    "captureSummarySha256": "721553dd8e8ede8720a862c4c87a75df4ed70c7cd300f6b7f3bfedfc31124f2c",
+    "lifecycleSha256": "b214b5fc5e6a58d0afec2bb6a73ba803f26760d35ecd185d701d1485368f2877",
+    "limits": "Only sampled points and actual ordinary selection/cancel. No battle, all-time survival, other exits, story/Odyssey/special-party validation."
+  },
+  "confirmedReturnValidation": {
+    "build": 0,
+    "vet": 0,
+    "test": 0,
+    "passed": 3733,
+    "skipped": 279,
+    "failures": [],
+    "baselineFailures": [],
+    "newFailures": [],
+    "remote": "gud/main",
+    "base": "55099b2a35b85cf051f99a545fbf3bbc7b7fc475",
+    "originAndFork": "not configured; attempted fetch reports absent; existinggud fetched andHEADmatches",
+    "environmentFix": "Copied existing frozen ignored wireprobe-pvf.exe to isolated checkout; no tracked profile edit, no default publication",
+    "hygiene": "isolated -All passed47paths",
+    "commit": "local source closure; hash recorded in ignored confirmation-delivery.json and git log",
+    "remoteMerge": "Fast-forward merged55099b2a; three-way reapplied16owned tracked files; CHANGELOG preserves both sections; no new code conflicts",
+    "runtimeCandidateChanged": false
+  },
+  "priorTownRecoveryManual": {
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_172355_230248_next37",
+    "processId": 85712,
+    "requests1811": 1,
+    "nativeInitialCloneCount": 2,
+    "selectionOpenRequests15": 0,
+    "selectionCancelRequests132": 0,
+    "actualPath": "town area change CMD36, not dungeon selection",
+    "selectionReturnVerified": false,
+    "nextEvidence": "analysis/tasks/adventure-elite-lifecycle-controller-evidence-20261008.json"
+  },
+  "latestManual": {
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_180054_958631_next37",
+    "processId": 39224,
+    "runTick": 119854828,
+    "userFeedback": {
+      "2": "正常",
+      "3": "副本显示没有发生变化",
+      "4": "正常"
+    },
+    "candidateValid": true,
+    "coverageComplete": true,
+    "issues": [],
+    "clientFrameCounts": {
+      "15": 2,
+      "132": 2,
+      "1395": 4,
+      "1719": 0,
+      "1811": 1,
+      "16": 0
+    },
+    "anchors": [
+      {
+        "line": 257,
+        "kind": "dungeon_gate_ack",
+        "id": 15
+      },
+      {
+        "line": 262,
+        "kind": "dungeon_selection_return",
+        "id": 132
+      },
+      {
+        "line": 272,
+        "kind": "dungeon_gate_ack",
+        "id": 15
+      },
+      {
+        "line": 276,
+        "kind": "dungeon_selection_return",
+        "id": 132
+      }
+    ],
+    "uiFlushSamples": 4,
+    "uiRequestsAfterCompletion": 4,
+    "postReturnCloneVerified": true,
+    "postReturnCloneObservation": {
+      "traceVersion": 1,
+      "processId": 39224,
+      "runTick": 119854828,
+      "ordinal": 55,
+      "tick": 120052796,
+      "thread": 23252,
+      "cause": "native-flush",
+      "callerRva": 63400111,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "currentChannel": 22,
+      "currentOwner": 2,
+      "identityMatches": 1,
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "weakStrong": [
+        1,
+        1,
+        0
+      ],
+      "actorKind": [
+        5,
+        5,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "controllerWire": [
+        65535,
+        65535,
+        -1
+      ],
+      "controllerBound": [
+        1,
+        1,
+        -1
+      ]
+    },
+    "lifecycleRecords": 71,
+    "allSamples": "identity/available/consistent=1; weakAlive=2; kind=[5,5,-1]; controllerId/controllerWire=[65535,65535,-1]; weak-binding=[1,1,-1]; dropped/limit=0",
+    "normalExitObserved": true,
+    "battleVerified": false,
+    "captureSummarySha256": "721553dd8e8ede8720a862c4c87a75df4ed70c7cd300f6b7f3bfedfc31124f2c",
+    "lifecycleSha256": "b214b5fc5e6a58d0afec2bb6a73ba803f26760d35ecd185d701d1485368f2877",
+    "limits": "Only sampled points and actual ordinary selection/cancel. No battle, all-time survival, other exits, story/Odyssey/special-party validation."
+  },
+  "preMergeConfirmedReturnValidation": {
+    "build": 0,
+    "vet": 0,
+    "test": 0,
+    "passed": 3733,
+    "skipped": 279,
+    "failures": [],
+    "baselineFailures": [],
+    "newFailures": [],
+    "remote": "gud/main",
+    "base": "55099b2a35b85cf051f99a545fbf3bbc7b7fc475",
+    "originAndFork": "not configured; attempted fetch reports absent; existinggud fetched andHEADmatches",
+    "environmentFix": "Copied existing frozen ignored wireprobe-pvf.exe to isolated checkout; no tracked profile edit, no default publication",
+    "hygiene": "isolated -All passed47paths",
+    "commit": "local source closure; hash recorded in ignored confirmation-delivery.json and git log",
+    "remoteMerge": "Fast-forward merged55099b2a; three-way reapplied16owned tracked files; CHANGELOG preserves both sections; no new code conflicts",
+    "runtimeCandidateChanged": false
+  }
+}
