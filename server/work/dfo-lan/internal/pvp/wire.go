@@ -133,9 +133,25 @@ func seatUserID(s Seat) uint16 {
 	return s.Owner.UserID
 }
 
-// RoomList 构造 noti41 PVP_ROOM_INFO：u16 房间数 + 每条房间记录。
-// 与 90US class0/op41 的消费口径一致（8 个座位各 u8 状态 + u16 uid）。
+// RoomList 构造 noti41 PVP_ROOM_INFO。
+//
+// ⚠️ 2026-10-08 两次实机对照（结论：**旧结构可用，官方"空列表"形态不可用**）：
+//
+//  1. 官方抓包 `official_20261002`：noti41 有 10 次推送、**0 次 c2s 41**（⇒ 服务器主动推送），
+//     明文恒为 **8 字节**：`00 00 a51f257d3f00`（跨 52 分钟完全一致 ⇒ 后缀不是时间戳）。
+//  2. 但把本函数改成"恒发这 8 字节空列表"后，**业主侧建房直接失败**（"不能创建房间了"）。
+//
+// ⇒ **不能**用"空列表"形态去编码"有房间"的列表。旧结构（90 级形态）虽然未经官方样本证实，
+// **但实测客户端接受它、建房/进房/座位/准备全流程都跑得通**，所以保留。
+//
+// 待闭环：官方那 8 字节的 6 字节后缀含义（疑似服务器会话/校验值）未知；
+// 「有房间」的官方样本仍缺。**在此之前不要动这个结构** —— 动了就建房失败。
 func RoomList(rooms []Room) []byte {
+	return roomListWithRooms(rooms)
+}
+
+// roomListWithRooms 是当前生效的结构（源自 90 级，实测可用但未经官方样本证实）。
+func roomListWithRooms(rooms []Room) []byte {
 	w := writer{}
 	w.u16(uint16(len(rooms)))
 	for _, r := range rooms {

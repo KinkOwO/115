@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/game/protocol"
 	"dfolan/internal/pvp"
 	"encoding/hex"
 	"strconv"
@@ -19,6 +20,12 @@ var pvpRooms pvp.Manager
 // CHANNEL_INTEGRATED_FREEPVP 符号，城镇是 Town/Fair_PVP.twn（town 10）。
 const pvpFreePvpChannelType uint32 = 13
 
+// pvpArenaChannelType 是决斗场「无双/综合」的频道类型（CHANNEL_INTEGRATED_PVP）。
+//
+// 90 级的分工：type 8 走 practice/arcade（练习/街机，**单人打 APC**），type 13 走自由房间。
+// 所以「PK 练习」这类单人内容应挂在 type 8 上。
+const pvpArenaChannelType uint32 = 8
+
 // pvpLoggedOpcodes 是本 handler 真正接管的 C→S 命令集合，用于正文取证日志。
 // 进 dispatchPvp 只代表"人在 type 13 频道"，频道里还有大量非 PvP 流量
 // （2127 进程扫描等 400 字节包），全量记录会把 events.jsonl 刷爆。
@@ -36,7 +43,8 @@ func (client *gameConnection) pvpChannelType() uint32 {
 }
 
 func (client *gameConnection) inFreePvpChannel() bool {
-	return client.pvpChannelType() == pvpFreePvpChannelType
+	ct := client.pvpChannelType()
+	return ct == pvpFreePvpChannelType || ct == pvpArenaChannelType
 }
 
 func (client *gameConnection) pvpIdentity() pvp.Identity {
@@ -107,14 +115,14 @@ func (client *gameConnection) dispatchPvp(requestData *clientRequest) dispatchAc
 			// 而不是练习房间的 1。90US 的 Manager.Create 正是吃 SpecialMode=0 的这一支。
 			room, err = pvpRooms.Create(id, int(client.channel), q)
 		case 1:
+			// 练习房间：房主占 0 号位，1..7 号位对客户端显示为「关闭」。
+			// APC 由客户端本地插入，服务端不占第二个座位。
 			room, err = pvpRooms.CreatePractice(id, int(client.channel), q)
 		case 3:
-			// 街机（单人打 APC）：客户端本地跑 AI 与伤害，服务端只记流程。
-			// 尚未实现 —— 显式拒绝，不伪造一个空房间。
-			client.event(map[string]any{"kind": "pvp_arcade_unimplemented", "map": q.Map, "flag": q.Flag})
-			return refuse()
+			// 街机：同样单人打 APC，Flag 1..3 = 难度档。
+			room, err = pvpRooms.CreateArcade(id, int(client.channel), q)
 		default:
-			return refuse()
+			return refuse("不支持的 SpecialMode=" + strconv.Itoa(int(q.SpecialMode)))
 		}
 		if err != nil {
 			return refuse()
@@ -163,6 +171,33 @@ func (client *gameConnection) dispatchPvp(requestData *clientRequest) dispatchAc
 			client.event(map[string]any{"kind": "pvp_room_left", "room": room.ID})
 			if a := broadcast(42, pvp.RoomState(room)); a != dispatchHandled {
 				return a
+			}
+			// ★ 「离开房间 = 回到 PKC 频道（城镇）」—— 业主 2026-10-08 的思路。
+			//
+			// 只发 noti42（房间没了）不够：客户端会停在"已删房间 + 无位置"的空状态上，
+			// 随后点退出时进入 relay 清理路径而崩（实机 2026-10-08，崩溃报告 <LOADINGFAILED>）。
+			// 这里照搬**已有的「离开副本回城」包序列**（cmd/wireprobe/dungeon_flow.go:1084）：
+			//   noti23 user_area（落点）+ noti24 area_users（同区玩家）+ noti3 user_state（城镇态）
+			// 角色位置全程留在 town 10（进频道时 channel_town_spawn 就是这里），
+			// 所以 userAreaPayload() 直接给出正确的回城落点，无需另算坐标。
+			if w := client.worldState; w != nil && w.role.ID != 0 {
+				if ua, err := w.userAreaPayload(); err != nil {
+					client.event(map[string]any{"kind": "pvp_leave_area_error", "error": err.Error()})
+				} else if err = client.output.send(0, 23, ua); err != nil {
+					return dispatchClose
+				}
+				if area, err := w.areaPayload(); err != nil {
+					client.event(map[string]any{"kind": "pvp_leave_users_error", "error": err.Error()})
+				} else if err = client.output.send(0, 24, area); err != nil {
+					return dispatchClose
+				}
+				if state, err := protocol.UserState(w.role.WireID, protocol.UserStateTown); err != nil {
+					client.event(map[string]any{"kind": "pvp_leave_state_error", "error": err.Error()})
+				} else if err = client.output.send(0, 3, state); err != nil {
+					return dispatchClose
+				}
+				client.event(map[string]any{"kind": "pvp_returned_to_town",
+					"town": w.state.Position.Town, "area": w.state.Position.Area})
 			}
 			return dispatchHandled
 		}

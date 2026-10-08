@@ -193,7 +193,7 @@ func TestWireBuilderLengths(t *testing.T) {
 		t.Errorf("RoomState len = %d, want %d", len(rs), 2+1+1+2+1+4)
 	}
 
-	// RoomList = u16 count + 每条房间记录
+	// RoomList = u16 count + 每条房间记录（90 级形态；实测客户端接受，见 wire.go 注释）
 	rl := RoomList([]Room{room})
 	if got := binary.LittleEndian.Uint16(rl[:2]); got != 1 {
 		t.Errorf("RoomList count = %d, want 1", got)
@@ -314,6 +314,63 @@ func TestSetModeRejectedOnPracticeRoom(t *testing.T) {
 	}
 	if _, err := m.SetMode(host, 1); err == nil {
 		t.Error("练习房间不应接受 CMD54 改模式")
+	}
+}
+
+// 街机（SpecialMode=3）：单人打 APC，难度 = Flag-1（1..3），Map 必须 0。
+// 90 级：这是 CHANNEL_INTEGRATED_PVP(type 8) 的内容，客户端把 APC 插进空座位，
+// 服务端不占第二个座位。
+func TestCreateArcadeRoom(t *testing.T) {
+	for _, flag := range []byte{1, 2, 3} {
+		var m Manager
+		room, err := m.CreateArcade(testIdentity(8), 8, MakeRequest{SpecialMode: 3, Flag: flag, Map: 0})
+		if err != nil {
+			t.Fatalf("Flag=%d 应被接受：%v", flag, err)
+		}
+		if room.Mode != ArcadeMode {
+			t.Errorf("Mode = %d, want ArcadeMode(%d)", room.Mode, ArcadeMode)
+		}
+		if room.ArcadeDifficulty != flag-1 {
+			t.Errorf("难度 = %d, want %d", room.ArcadeDifficulty, flag-1)
+		}
+		if room.Seats[0].Owner.UserID != 8 {
+			t.Errorf("seat0 owner = %d, want 8", room.Seats[0].Owner.UserID)
+		}
+	}
+	// 非法组合必须拒。
+	bad := []MakeRequest{
+		{SpecialMode: 3, Flag: 0},                // Flag 下界外
+		{SpecialMode: 3, Flag: 4},                // Flag 上界外
+		{SpecialMode: 3, Flag: 1, Map: 1},        // Map 必须 0
+		{SpecialMode: 3, Flag: 1, Password: []byte("x")}, // 不接受密码
+		{SpecialMode: 1, Flag: 1},                // SpecialMode 不对
+	}
+	for i, req := range bad {
+		var m Manager
+		if _, err := m.CreateArcade(testIdentity(8), 8, req); err == nil {
+			t.Errorf("bad case %d 应被拒绝：%+v", i, req)
+		}
+	}
+}
+
+// 练习房（SpecialMode=1）与街机房（3）都应是单人房：1..7 号位不可加入。
+func TestSinglePlayerRoomsCloseOtherSeats(t *testing.T) {
+	var practice, arcade Manager
+	pr, err := practice.CreatePractice(testIdentity(1), 8, MakeRequest{Name: []byte("p"), SpecialMode: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 1; i < SeatCount; i++ {
+		if pr.Seats[i].State != ClosedSeat {
+			t.Errorf("练习房 seat%d = %d, want ClosedSeat", i, pr.Seats[i].State)
+		}
+	}
+	ar, err := arcade.CreateArcade(testIdentity(1), 8, MakeRequest{SpecialMode: 3, Flag: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ar.Seats[0].Owner.UserID != 1 {
+		t.Errorf("街机房 seat0 owner = %d, want 1", ar.Seats[0].Owner.UserID)
 	}
 }
 

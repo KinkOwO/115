@@ -54,6 +54,9 @@ type Room struct {
 
 	Finishing bool
 	Draw      bool
+
+	// ArcadeDifficulty 仅街机模式有意义（0..2，来自 CMD50 的 Flag-1）。
+	ArcadeDifficulty byte
 }
 
 func (r Room) SeatOf(who Identity) int {
@@ -186,6 +189,28 @@ func (m *Manager) CreatePractice(who Identity, channel int, req MakeRequest) (Ro
 	for i := 1; i < SeatCount; i++ {
 		r.Seats[i].State = ClosedSeat
 	}
+	m.rooms[r.ID] = r
+	return r.clone(), nil
+}
+
+// CreateArcade 建街机房间（单人打 APC）。
+//
+// 90 级注释：*"Arcade AI, damage, result UI and next-round selection run in the client"*、
+// *"solo room"* —— **APC 是客户端本地的**，服务端只跟踪单人房间的生命周期，不占第二个座位。
+// Flag 1..3 = 难度档（存入 ArcadeDifficulty = Flag-1），Map 必须为 0。
+func (m *Manager) CreateArcade(who Identity, channel int, req MakeRequest) (Room, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if req.SpecialMode != 3 || req.Flag < 1 || req.Flag > 3 || req.Map != 0 || len(req.Password) != 0 {
+		return Room{}, ErrRoom
+	}
+	normal := req
+	normal.SpecialMode, normal.Flag = 0, 0
+	r, err := m.createLocked(who, channel, normal)
+	if err != nil {
+		return Room{}, err
+	}
+	r.Mode, r.ArcadeDifficulty = ArcadeMode, req.Flag-1
 	m.rooms[r.ID] = r
 	return r.clone(), nil
 }
