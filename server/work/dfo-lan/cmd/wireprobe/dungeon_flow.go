@@ -324,15 +324,29 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 	if e != nil {
 		return nil, e
 	}
-	plan := []outboundPacket{{ackName, 1, ackID, []byte{1}}}
-	// 无缝续刷（CMD72 选项 5）**不重建角色对象**：这两帧是「进图/登录帧」，
-	// 客户端收到它们会重新读一遍角色最小信息（trace：`<read minimum Information>`），
-	// 临时 buff 与召唤物随之被重上；国服的无缝续刷是延续的（见 next173 §7）。
+	plan := []outboundPacket{}
+	// 官服的无缝再次挑战**不**回这条选图 ack（那一轮客户端也没发 CMD16）⇒ 只有 relay = 0 才发。
+	if w.dungeonRelayFlag() == 0 {
+		plan = append(plan, outboundPacket{ackName, 1, ackID, []byte{1}})
+	}
+	// 角色对象（NOTI2）**无缝续刷也发**（2026-10-08 反转，见 next178 §15）。
+	//
+	// 旧注释推测「发 NOTI2 会让客户端重读角色最小信息（`<read minimum Information>`）、
+	// 把 buff/召唤物重上」，所以无缝续刷整段跳过。实测**两次否定这个推测**：
+	// A1（NOTI28 body[30]=5）与 A2（NOTI27 relay=1）都确认代码跑上了，而 buff 仍被重上
+	// —— 也就是说「不发 NOTI2」并没有换来状态延续。
+	//
+	// 官服抓包的帧列里，再次挑战**有 3 个 NOTI2**（1008B zlib / 768 / 784，§14），
+	// 本仓却一条都不发 ⇒ 客户端拿不到服务端的角色状态快照，只能按「新副本」从 ACT
+	// 重新推导一遍状态，那一步正是把 buff / 召唤物重上的地方（业主 2026-10-08 判断）。
+	//
+	// 仍然跳过 14（穿戴外观）/105（宠物列表）/102（宠物成长）：它们在 CMD37 那一步由
+	// *_restored 那几帧补发（会话日志里 N14/N105/N102 都在），不会少。
 	// 标志只在这里消费一次。
 	// 只读、不清零：同一个标志后面还要让 finishDungeonLoading 跳过 1361（增益强化注册），
 	// 那一步发生在客户端 CMD37 时，晚于这里。消费与清零都在 finishDungeonLoading。
 	seamless := w.seamlessRetry
-	if w.characters != nil && !seamless {
+	if w.characters != nil {
 		channel := [2]byte{}
 		if channelCtx != nil {
 			channel = *channelCtx
@@ -347,17 +361,21 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 		if err == nil {
 			plan = append(plan, outboundPacket{"dungeon_actor_addition_sent", 0, 2, addition})
 		}
-		wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
-		if err == nil && len(wornUpdate) > 0 {
-			plan = append(plan, outboundPacket{"dungeon_worn_visuals_sent", 0, 14, wornUpdate})
-		}
-		if inventory.HasEquippedCreature(w.role.State) {
-			clPayload, err := inventory.CreatureListPayload(w.role.State)
-			if err == nil {
-				plan = append(plan, outboundPacket{"dungeon_creature_list_sent", 0, 105, clPayload})
-				growth, err := inventory.CreatureGrowthPayload(w.role.State)
+		// 实机验收要看得出「这一轮到底发没发 NOTI2」：无缝续刷以前是不发的。
+		log.Printf("dungeon entry: NOTI2（角色对象 appearance+addition）已发；seamless=%v", seamless)
+		if !seamless {
+			wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
+			if err == nil && len(wornUpdate) > 0 {
+				plan = append(plan, outboundPacket{"dungeon_worn_visuals_sent", 0, 14, wornUpdate})
+			}
+			if inventory.HasEquippedCreature(w.role.State) {
+				clPayload, err := inventory.CreatureListPayload(w.role.State)
 				if err == nil {
-					plan = append(plan, outboundPacket{"dungeon_creature_growth_sent", 0, 102, growth})
+					plan = append(plan, outboundPacket{"dungeon_creature_list_sent", 0, 105, clPayload})
+					growth, err := inventory.CreatureGrowthPayload(w.role.State)
+					if err == nil {
+						plan = append(plan, outboundPacket{"dungeon_creature_growth_sent", 0, 102, growth})
+					}
 				}
 			}
 		}
@@ -416,7 +434,14 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 	// 21:42:18.601 实发、首字段 = 8 = 每关消耗品上限；伊斯 replay 同款——
 	// 伊斯副本能用药正是因为发了它。没有这一帧客户端把消耗品全部本地禁用，
 	// 0953 会话实证 N28 48B 单独无效，限制载体是本包）。
-	dungeonInfo := protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition})
+	dungeonInfo := protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition, Entry: w.dungeonEntryKind()})
+	// 入口类型同时打一行日志：实机验收要一眼看出「这一轮是继续还是新副本」，
+	// 不必去 events.jsonl 里数第 31 个字节。
+	log.Printf("dungeon entry: dungeon=%d map=%d NOTI28 body[30]=%d relay=%d（0/0=普通进本，5/1=无缝再次挑战）",
+		sel.ID, s.Room.Map, w.dungeonEntryKind(), w.dungeonRelayFlag())
+	if w.dungeonRelayFlag() != 0 {
+		log.Printf("dungeon entry: relay —— 只发 NOTI27（无 15 门应答、无 16 选图 ack），对齐官服再次挑战")
+	}
 	var stackableLimit []outboundPacket
 	// N1584 STACKABLE_DUNGEON_LIMIT：副本消耗品许可（@0 = 每关上限 8）。
 	// 森林与维纳斯军团本都需要：没有这一帧客户端把副本消耗品全部本地禁用
@@ -433,7 +458,12 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 	plan = append(plan, []outboundPacket{
 		{"dungeon_info_sent", 0, 28, dungeonInfo},
 		{"dungeon_start_map_sent", 0, 29, start},
+		// NOTI475 CHARACTER_BUFF_DUNGEON（角色 buff·副本）：官服**每次进图都发**
+		//（冷进场与无缝再次挑战都有；见 next178 §14/§17 与 protocol.CharacterBuffDungeon），
+		// 而本仓正常进图路径此前一帧都不发 ⇒ 无缝续刷的 buff 延续在服务端没有依据。
+		{"dungeon_character_buff_sent", 0, 475, protocol.CharacterBuffDungeon()},
 	}...)
+	log.Printf("dungeon entry: NOTI475 角色 buff（副本）已发 —— 官服每次进图都发，本仓此前从不发")
 	plan = append(plan, stackableLimit...)
 	if s.Tournament != nil {
 		info, err := protocol.TournamentInfo(s.Tournament.Opening)
@@ -572,6 +602,20 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 // to be preceded by this pair, or the entry frames land on a scene the client
 // has already torn down and it exits (0xC0000005).
 func dungeonSelectionHead() []outboundPacket {
+	return dungeonSelectionHeadFor(false)
+}
+
+// dungeonSelectionHeadFor 组装这次进本的「选图 UI 层」；relay 为真 = 无缝再次挑战
+//（CMD72 选项 5，见 card_flow.go 的 restartDungeon）。
+//
+// ⚠️ relay 时**只发 NOTI27**：连门应答（NOTI15）也不发 —— 对齐官服。那一轮服务端的帧列里
+// 既没有 15 也没有 16（analysis/tasks/next178 §14），客户端那一轮也没发 CMD15/CMD16；
+// 本仓此前把 15/27/16 整套当「合成握手」主动发出去，客户端因此走 `change module :
+// MAIN_GAME -> SELECT_DUNGEON` 的「新副本」路径（buff / 召唤物在那一步被重上）。
+func dungeonSelectionHeadFor(relay bool) []outboundPacket {
+	if relay {
+		return []outboundPacket{{"dungeon_selection_sent", 0, 27, protocol.EnterDungeonSelectionRelay()}}
+	}
 	return []outboundPacket{
 		{"dungeon_gate_ack", 1, 15, []byte{1}},
 		{"dungeon_selection_sent", 0, 27, protocol.EnterDungeonSelection()},
@@ -619,6 +663,31 @@ func seamlessSelectionHead() []outboundPacket {
 // it is dropped here: the direct move replays the town selection entry exactly.
 func (w *worldSession) directMoveEntryPlan(sel protocol.DungeonSelection, s *dungeon.Session) ([]outboundPacket, error) {
 	return w.dungeonEntryPlan(context.Background(), "dungeon_select_ack", 16, sel, s)
+}
+
+// dungeonRelayFlag 是 NOTI27 头部 `relay` 字节（0 = 普通进本 / 1 = 无缝再次挑战）。
+// 与 dungeonEntryKind 同源同因：都来自 seamlessRetry，见下一处注释与 next178 §3/§12。
+func (w *worldSession) dungeonRelayFlag() byte {
+	if w != nil && w.seamlessRetry {
+		return 1
+	}
+	return 0
+}
+
+// dungeonEntryKind 是 NOTI28 body[30] 的「入口类型」：0 = 普通进本，5 = EPLP 无缝再次挑战。
+//
+// 官服取证（2026-10-08 抓包，analysis/tasks/next178 §3）：同一个副本冷进场的 NOTI28 该字节
+// 是 0x00、两次「继续挑战」（CMD72 选项 5）都是 0x05，而两次之间的其余字段**逐帧相同** ——
+// 这一字节就是「这是继续，不是新副本」的信号，官方靠它让客户端延续 buff / 召唤物。
+// 本仓客户端在 0x1452ada9e 单独读它（testdata/native_dungeon_info_cursor.json 的 offset=30）。
+//
+// 消费时机：`w.seamlessRetry` 由 card_flow.go 的 SettlementExitSeamless 置位，
+// 在 finishDungeonLoading 里清；进图计划在它清之前构建，所以这里读得到。
+func (w *worldSession) dungeonEntryKind() byte {
+	if w != nil && w.seamlessRetry {
+		return protocol.SettlementExitSeamless
+	}
+	return 0
 }
 
 // ⚠️ seamlessRoomReset 已实机证伪：2026-10-07 18:44 把它接到 CMD72 选项 5 上，
@@ -694,7 +763,8 @@ func (w *worldSession) seamlessRoomReset() (*dungeon.Session, []outboundPacket, 
 		return nil, nil, err
 	}
 	plan := []outboundPacket{
-		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition})},
+		// 这条路径（seamlessRoomReset）按定义只服务无缝续刷，所以入口类型恒为 5。
+		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition, Entry: protocol.SettlementExitSeamless})},
 		{"dungeon_start_map_sent", 0, 29, start},
 	}
 	plan = append(plan, grades...)
@@ -812,16 +882,23 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		// applying slot updates and the oath selection, as town entry does.
 		// 誓约进图直发命中时，这三项已在 NOTI29 之前发过 ⇒ 此处不再重复
 		// （否则穿戴效果会被应用两次 —— 正是施工图描述的"Buff 两次"来源）。
+		// relay = 无缝续刷（CMD72 选项 5）。下面这一整段是「角色对象被重建之后才需要」的
+		// 状态重喂；官方抓包里**冷进场与再次挑战都不发**它们（见 next178 §16 的四方对照），
+		// 而仓库自己的注释就写着后果是「穿戴效果被应用两次」「随机属性管理器应用两次」
+		// —— 正是玩家看到的「再次挑战时 buff 被重上」。
+		relay := w.seamlessRetry
 		directEntry, directErr = w.oathDirectEntryActive(context.Background())
 		if directErr != nil {
 			return nil, directErr
 		}
 		if !directEntry {
-			wornSnapshot, err := inventory.WornPayload(w.role.State)
-			if err != nil {
-				return nil, err
+			if !relay {
+				wornSnapshot, err := inventory.WornPayload(w.role.State)
+				if err != nil {
+					return nil, err
+				}
+				plan = append(plan, outboundPacket{"dungeon_worn_equipment_restored", 0, 13, wornSnapshot})
 			}
-			plan = append(plan, outboundPacket{"dungeon_worn_equipment_restored", 0, 13, wornSnapshot})
 			wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
 			if err == nil && len(wornUpdate) > 0 {
 				plan = append(plan, outboundPacket{"dungeon_worn_visuals_restored", 0, 14, wornUpdate})
@@ -831,7 +908,7 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		if err != nil {
 			return nil, err
 		}
-		if enabled && !directEntry {
+		if enabled && !directEntry && !relay {
 			sources, sourceErr := cloneAvatarSourcePackets(w.role.State)
 			if sourceErr != nil {
 				return nil, sourceErr
@@ -850,7 +927,7 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 				plan = append(plan, outboundPacket{"dungeon_nonavatar_worn_restored", 0, 14, restore})
 			}
 		}
-		if inventory.HasEquippedCreature(w.role.State) {
+		if inventory.HasEquippedCreature(w.role.State) && !relay {
 			clPayload, err := inventory.CreatureListPayload(w.role.State)
 			if err == nil {
 				plan = append(plan, outboundPacket{"dungeon_creature_list_restored", 0, 105, clPayload})
@@ -863,12 +940,14 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		// The damage font the player applied in town is state the rebuilt actor
 		// never asks the warehouse for, so the owned page and the selection go
 		// back here the way the worn visuals do.
-		plan = append(plan, w.damageFontRestore()...)
+		if !relay {
+			plan = append(plan, w.damageFontRestore()...)
+		}
 	}
 	if w.characters != nil && w.store != nil {
 		// Direct entry already restored the selection before NOTI29. The
 		// fallback must apply it after any Clone reconstruction cleared slot 47.
-		if !directEntry || cloneReattached {
+		if (!directEntry || cloneReattached) && !w.seamlessRetry {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			selection, err := w.dungeonOathSelectionPacket(ctx)
@@ -900,8 +979,9 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	// （WornPayload = list3 + restore=true）已经把实例行连同 record[60:76] 一起给过，
 	// 这里再发一次会让原生临时随机属性管理器**应用两次**。
 	// 回退路径（含 Clone 重建后）仍然要发 —— 那时克隆重建把普通装备的行冲掉了。
-	if !directEntry {
+	if !directEntry && !w.seamlessRetry {
 		plan, e = appendDungeonWornRandomOptions(plan, w)
+
 		if e != nil {
 			return nil, e
 		}
@@ -922,6 +1002,9 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	// **延续** buff 与召唤物，不是重绑。⇒ 这里跳过；标志在本次消费并清零。
 	if w.seamlessRetry {
 		w.seamlessRetry = false
+		// 对齐记录：官方再次挑战的帧列里没有这些「重建后重喂」帧（next178 §16），
+		// 所以这条路径上它们都被跳过 —— 若后面还要动，先看那份四方对照。
+		log.Printf("seamless retry: 已跳过重建后重喂块（13/105/102/1545×2/2839/随机属性/克隆）—— 对齐官服再次挑战")
 		log.Printf("seamless retry: skip buff registration (NOTI1361) — 延续而不是重绑")
 		return plan, nil
 	}
@@ -1257,6 +1340,8 @@ func (w *worldSession) noteOmenClear(event func(map[string]any)) error {
 		"gained":  outcome.Gained,
 		"paid":    outcome.Paid,
 		"stage":   outcome.Stage,
+		"misses":  outcome.MissesAfter,
+		"pity":    outcome.Pity,
 	}
 	if len(outcome.Awards) > 0 {
 		ids := make([]uint32, 0, len(outcome.Awards))
