@@ -82,6 +82,25 @@
       "Name": "LAN 16"
     },
     {
+      "Area": "[none]",
+      "ID": 21,
+      "Name": "Free PvP",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Type": 13
+    },
+    {
       "ID": 45,
       "Name": "DNF Tournament",
       "Type": 45,

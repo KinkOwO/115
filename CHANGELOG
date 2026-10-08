@@ -26,6 +26,36 @@
 
 ---
 
+## 2026-10-08 决斗场（PKC）自由练习场频道接入 + 建房/座位/准备（服务端首批）
+
+**现象**：游戏内无决斗场入口。客户端内置的「自由练习场」频道在服务端不存在，玩家无法进入；
+即便手工加频道，角色也落不到决斗场城镇。
+
+**根因**：两处都缺。(1) 决斗场频道类型 `CHANNEL_INTEGRATED_FREEPVP`（**channelType=13**）**不在**
+内层 PVF 的 `etc/clientchannelinfo.etc`（该表只有 41 个团本/特殊类型），频道目录自然发布不出来；
+(2) `ChannelTowns` 只从 `clientchannelinfo.etc` 的 `[seriaRoomTown]` 构建，同样补不到 type 13，
+进该频道会沿用普通频道城镇。服务端侧对 cmd 50-59 系列**没有任何 handler**。
+
+**修复（服务端）**：
+- `configs/channel.local35.json` 走 `channelrefresh.Config.Resolve` 的**本地 Type 覆盖**分支
+  （PVF 里没有该 `[channelType]` 时，配置写了 Type 即放行），新增 `{ID:21, Name:"Free PvP", Type:13}`，频道数 50 → 51。
+- `internal/gamedata/catalogs_channel.go` 本地补 type 8/13 → `Town/Fair_PVP.twn`（town 10）落点，
+  候选探测与既有逻辑同口径（读不出可行走区域就不补）。
+- 新增 `internal/pvp/`（`wire.go` 解析/构造 + `room.go` 房间管理器）与
+  `cmd/wireprobe/pvp_flow.go`（`dispatchPvp`），接 cmd **50 建房 / 51 进房 / 52 座位 / 53 准备 /
+  54 队伍模式 / 59 选地图 / 298 加载完成**；在 `client_dispatch.go` 的 `commandDispatch` 注册。
+- **应答走同号（kind=1），广播走 noti 表（kind=0）**；建房成功只广播 noti41+noti3，进房才回 `EnterSuccess`。
+
+**验证**：go build / go vet 通过；`go test ./internal/pvp/` **11 个用例全过**（3 个直接跑在实机采样字节上）。
+实机（业主操作）：进频道 21 后角色落在 town 10（`channel_town_spawn`），客户端 `MODULE_TYPE_TOWN` +
+`POPUP_WINDOW_TYPE_PVP_TOWN`；点「创建房间」服务端产出 `pvp_room_created room=1 mode=2`（业主确认"进去了"）。
+
+**未闭环**：战斗期命令（55/56/57/58/110/112/195/299/1285）只记录不响应；街机（`SpecialMode=3`）显式拒绝；
+多客户端广播未接（当前只发发起者自己）；进城镇后客户端每 0.5 秒 `Open Fail IRDPopupWindow Type : 13`，与本批包无关，原因未明。
+
+**提交**：分支 `feat/pvp-free-practice-room-20261008`（基于 `fix/portable-full-templates-amplify-cap-20261008`），
+协议细节见 `server/work/dfo-lan/docs/protocol/pvp-free-practice-room-20261008.md`。
+
 ## 2026-10-08 便携强化器/增幅器/锻造炉全量模板识别 + 增幅上限保护 + cap31
 
 **现象**：GM 发放的 115 原版便携强化器/增幅器无法使用（强化器报"既不是强化券也不是强化材料"、增幅器报"不是矛盾结晶体"），仅锻造炉生效。

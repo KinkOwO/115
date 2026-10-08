@@ -56,6 +56,9 @@ var commandDispatch = [...]clientDispatchStage{
 	(*gameConnection).dispatchEnhancementAndConsumables,
 	(*gameConnection).dispatchEquipmentTransactions,
 	(*gameConnection).dispatchCharacterNotice,
+	// dispatchPvp 排在 dispatchDungeon 之前：决斗场频道的 cmd 50-59 与副本内命令
+	// 共用同一套 cmd 表，但频道类型互斥（只有 type 13 才进这里），先判频道更清晰。
+	(*gameConnection).dispatchPvp,
 	(*gameConnection).dispatchDungeon,
 	(*gameConnection).dispatchWorldAndQuests,
 	(*gameConnection).dispatchCharacterEntry,
