@@ -211,7 +211,9 @@ func boostTrainingRestore(c *boostup.Catalog, role database.Character) ([]byte, 
 		v.Step = st.Training.Step
 		v.Phase = st.Training.Phase
 		if !st.Training.Finished {
-			v.Mode = 0
+			// 客户端把这一字节当轨道号（`mode == 1` = 奶系轨）用来选训练副本路线，
+			// 恒发 0 会让奶系角色精确匹配失败并回落到普通轨 `[dungeon index]`。
+			v.Mode = byte(st.Variant)
 		}
 	}
 	return protocol.BoostTrainingStatus115(v)

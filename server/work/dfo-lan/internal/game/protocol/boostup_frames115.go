@@ -124,8 +124,11 @@ func EventGiftReply115(gift uint16, result uint16) []byte {
 }
 
 // BoostTrainingState115 是 NOTI2638（BOOST_UP_MODE_CHARAC_INFO）的语义视图。
+//
+// Mode 是**轨道号**，不是完成标志（客户端三处消费者闭环，见下方函数注释）：
+// 0 = 普通轨，1 = 奶系轨，2 = 未参与 / 已结束。
 type BoostTrainingState115 struct {
-	Mode   byte // 0 = 未完成（引导轨道生效），2 = 未激活或已结束
+	Mode   byte
 	Step   byte
 	Phase  byte // 0 引导, 1 可领, 2 已领/待任务
 	Active bool
@@ -150,8 +153,22 @@ type BoostTrainingState115 struct {
 // 该守卫零测试覆盖，编码器也只有一个调用方（`boostTrainingRestore`），
 // 但那个函数被 6 处调用（含进城恢复 client_entry.go）⇒ 毕业之后每条路径都编码失败。
 // 真正的不变量只有「未激活不得携带进度」（见上一段），mode/active 的取值不另设限制。
+//
+// **2026-10-07 Mode 取值域从 {0,2} 扩到 {0,1,2}（奶系轨第二关无法进副本）**：客户端把
+// 这一个字节当轨道号用，三处消费者都只认 `mode == 1`（Dump：
+// `analysis/dumps/boost-buffer-route/`）——
+//   - `sub_14074C6B0`（训练副本路线）：内层 `map<(grow, variant) → dungeon>` 是**精确匹配、
+//     不回绕**，`variant = (mode == 1)`；恒发 0 时奶系步骤的 `(grow,1)` 行永远查不到，
+//     回落到 `record+4` = `[dungeon index]`（普通轨那张），服务端按真实路线拒绝。
+//   - `sub_140C13440`（奖励取回）：`mode == 1` 读 `[buffer reward]`，否则读 `[reward]`。
+//   - `sub_14074A990`（双职业判定）：`group == 4 && grow == 1 && mode == 1`，
+//     与 PVF `[dual job and grow] 4 1` 同一编号系。
+//   - `sub_14074DEF0`：`active = mode != 2` ⇒ 2 = 未参与/已结束，0/1 都算进行中。
+//
+// 服务端一侧 `boostup.State.Variant`（胶囊 `[capsule]` 行的轨道号，0 普通 / 1 奶系）就是
+// 同一个量，已在 `internal/loot/boostup_training.go` 用作 `[buffer reward]` 判据。
 func BoostTrainingStatus115(v BoostTrainingState115) ([]byte, error) {
-	if v.Mode != 0 && v.Mode != 2 {
+	if v.Mode > 2 {
 		return nil, fmt.Errorf("unsupported boost training mode %d", v.Mode)
 	}
 	if !v.Active && (v.Step != 0 || v.Phase != 0) {

@@ -30,7 +30,11 @@ type OmenState struct {
 	// 归零（官方「结算征兆并重置」），而隐藏 BOSS 的机会要到**通关确认之后**才
 	// 兑现 —— 掉线或退出不该吞掉已经攒到的那一次奥尔泰尔（与 oath_progress.go
 	// 同一条教训）。
-	OrthaierPending bool
+	OrthaierPending bool
+	// Misses 是**连续没有触发征兆**的通关次数（0..）。累计到 30 就保底补 1 阶
+	// 征兆并归零（官方设定，见 internal/loot/omen.go 的 OmenPityMisses）。
+	// 只有小深渊（100005014）会推进它。
+	Misses int
 }
 
 // MigrateOmenState 建征兆的角色存档表。
@@ -53,7 +57,7 @@ func (s *Store) OmenState(ctx context.Context, characterID, dungeonID int64) (Om
 	if err != nil {
 		return OmenState{}, err
 	}
-	return OmenState{Held: int(row.Held), OrthaierPending: row.OrthairePending}, nil
+	return OmenState{Held: int(row.Held), OrthaierPending: row.OrthairePending, Misses: int(row.Misses)}, nil
 }
 
 // SaveOmenHeld 只写持有档数，不动隐藏 BOSS 标记。
@@ -66,6 +70,15 @@ func (s *Store) SaveOmenHeld(ctx context.Context, characterID, dungeonID int64, 
 		return errors.New("invalid omen held")
 	}
 	return s.queries.SaveOmenHeld(ctx, sqlcgen.SaveOmenHeldParams{CharacterID: characterID, DungeonID: dungeonID, Held: int64(held)})
+}
+
+// SaveOmenMisses 只写「连续未触发」计数器，理由与 SaveOmenHeld 相同：这几列由
+// 不同时刻推进，整行回写会盖掉对方刚写的内容。
+func (s *Store) SaveOmenMisses(ctx context.Context, characterID, dungeonID int64, misses int) error {
+	if characterID <= 0 || dungeonID <= 0 || misses < 0 {
+		return errors.New("invalid omen misses")
+	}
+	return s.queries.SaveOmenMisses(ctx, sqlcgen.SaveOmenMissesParams{CharacterID: characterID, DungeonID: dungeonID, Misses: int64(misses)})
 }
 
 // SetOmenOrthaierPending 置 / 清「下一场该出隐藏 BOSS」。同样只动这一列。

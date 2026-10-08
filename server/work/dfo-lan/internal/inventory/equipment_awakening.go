@@ -301,7 +301,7 @@ const awakeningStageOffset = 170
 // 这一步：行的模板停在旧值、`Template` 已是新值，此后 `ValidateRecord` 的
 // `equipment instance template mismatch` 会挡住该装备的**每一次**操作（现象："升品没有
 // 成功"，且之后点都点不动、重启也一样）。这里做最小自愈：只改行内 `+2`，其余实例字节
-//（强化/增幅/附魔/品级/融合…）原样保留。长度不对时原样返回，交给 `ValidateRecord` 报错。
+// （强化/增幅/附魔/品级/融合…）原样保留。长度不对时原样返回，交给 `ValidateRecord` 报错。
 func healAwakeningRecord(gear BagEquipment) (BagEquipment, bool) {
 	if len(gear.Record) != protocol.CurrentItemRecordSize {
 		return gear, false

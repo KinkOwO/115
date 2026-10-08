@@ -29,10 +29,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 type gatewayRuntime struct {
+	// Wire team sequences are unique across connections in this runtime.
+	bakalTeamSequence     atomic.Uint32
 	config                Config
 	accountOptionsPayload []byte
 	apocalypseCatalog     *catalog.ApocalypseCatalog
@@ -45,23 +48,33 @@ type gatewayRuntime struct {
 	channelTowns          map[uint32]catalog.TownArea
 	channelGuides         map[uint32]uint32
 	channelInfo           *catalog.ChannelInfo
-	developmentAccount    int64
-	dungeonCatalog        *catalog.DungeonCatalog
-	fatigueService        *character.FatigueService
-	gameHost              string
-	gameStore             *database.Store
-	hub                   *lanHub
-	itemService           *inventory.ItemService
-	journalRules          *catalog.EquipmentJournalRules
-	lootService           *loot.Service
+	// raidEntrances 是 PVF 解析的入口规则；巴卡尔状态由本地 legion 实现管理。
+	raidEntrances map[uint32]catalog.RaidEntrance
+	// channelSpawns 是各内容频道的专属城镇落点（见 prepareRuntime 的投影）。
+	channelSpawns      map[uint32]database.WorldPosition
+	developmentAccount int64
+	dungeonCatalog     *catalog.DungeonCatalog
+	fatigueService     *character.FatigueService
+	gameHost           string
+	gameStore          *database.Store
+	hub                *lanHub
+	itemService        *inventory.ItemService
+	journalRules       *catalog.EquipmentJournalRules
+	lootService        *loot.Service
+	// bakalRaidRules / bakalRewardService：巴卡尔攻坚战（contents/2022/
+	// bakalraid）的规则直读与奖励账本；nil = 该内容未装载。
+	bakalRaidRules        *catalog.BakalRaidRules
+	bakalRewardService    *workflow.BakalRewardService
 	lotteryPools          *lotteryItemCatalog
 	moonConfig            *moonSoloConfig
 	oathGradePair         [2]uint16
 	oathGradeTable        *inventory.OathGradeTable
 	oathInjectSpecs       []oathInjectSpec
 	oathProgressSet       map[uint32]bool
+	deferredClearSet      map[uint32]bool
 	odysseyChoices        odysseyWeaponChoices
 	omenInfoBytes         []byte
+	attunementRewardSpec  string
 	omenState             bool
 	progressionService    *character.ProgressionService
 	questService          *quest.Service
@@ -330,13 +343,24 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if oathProgressErr != nil {
 		return nil, nil, fmt.Errorf("bad -oath-progress-dungeons: %v", oathProgressErr)
 	}
+	deferredClearSet, deferredClearErr := parseDungeonIDSet(startup.DeferredClearDungeons)
+	if deferredClearErr != nil {
+		return nil, nil, fmt.Errorf("bad -deferred-clear-dungeons: %v", deferredClearErr)
+	}
+	if len(deferredClearSet) > 0 {
+		log.Printf("dungeon clear banner deferred to leaving the run on %s"+
+			"（领主死亡只发掉落，不推 NOTI31；见 next171 的实机取证）", startup.DeferredClearDungeons)
+	}
 	switch {
 	case len(oathGradePair) == 2 && (oathGradePair[0] != 0 || oathGradePair[1] != 0):
 		log.Printf("oath grades: overridden to primer=%d oath=%d (diagnostic)", oathGradePair[0], oathGradePair[1])
 	case startup.OathGradesFromGear:
 		log.Printf("oath grades: derived from worn oath/primer gear (%d known items, diagnostic)", oathGradeTable.Len())
 	case omenState:
-		log.Printf("oath grades: hidden boss driven by an omen full settlement on %s", startup.OathProgressDungeons)
+		// 2026-10-07 起隐藏 BOSS 由**两条线的档位**决定（客户端 nox_index_checker：
+		// oath_max==45 → 奥尔特尔；oath_max<45 && primer_max==45 → 监视者），
+		// 不再由征兆满档保底驱动。征兆那套 orthaire_pending 已惰性化（见 omen_state.go）。
+		log.Printf("oath grades: primer/oath rolled per run (hidden boss is tier-driven on %s)", startup.OathProgressDungeons)
 	case startup.OathProgressClears > 0:
 		log.Printf("oath grades: hidden-boss pity every %d clear(s) of %s", startup.OathProgressClears, startup.OathProgressDungeons)
 	default:
@@ -359,6 +383,13 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if len(omenInfoBytes) > 0 {
 		log.Printf("omen info (noti 2836): injecting %d bytes: %s", len(omenInfoBytes), hex.EncodeToString(omenInfoBytes))
 	}
+	// 调律之边界的奖励通知（noti 2859）诊断注入。同样在启动期校验：
+	// 长度写错必须在这里就失败，而不是等到玩家进本那一刻。
+	attunementRewardBytes, attunementRewardErr := attunementRewardSpec(startup.AttunementReward)
+	if attunementRewardErr != nil {
+		return nil, nil, fmt.Errorf("bad -attunement-reward: %v", attunementRewardErr)
+	}
+	logAttunementRewardInjection(startup.AttunementReward, attunementRewardBytes)
 	// 掉落调参（与官服的显式差异）。这里是**保留入口**的数值差异：关掉时表保持官方原值。
 	attunementRebalance := loot.Rebalance{}
 	if startup.AttunementRebalance {
@@ -948,6 +979,13 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		} else {
 			log.Printf("warning: full equipment catalog is not enabled; mod reward scripts can only mail equipment that is already in the drop catalog")
 		}
+		// [FIX-20261007 时装孔显示] 运行时角色服务注入完整装备目录：
+		// 此前 character.New 只给 Service{Store,Catalog,Rules}，Equipment 恒为 nil，
+		// 导致背包/穿戴下发路径的 DefaultAvatarSockets 补孔参数拿到 nil 直接跳过
+		//（下发包 options 全 0，客户端不显示孔）。gear 已含 Full 目录，挂上即可。
+		if characters != nil && gear != nil {
+			characters.Equipment = gear
+		}
 		dropCatalog := c
 		if pvfCatalogs.Items != nil {
 			if err := pvfCatalogs.SupplementStackables(&c, ""); err != nil {
@@ -1263,6 +1301,11 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			vaultService.BagRules = lootService.BagRules
 			if shopPilot != nil {
 				shopPilot.SetItemCatalog(lootService.Catalog.Items)
+				// [FIX-20261007 时装孔] 商城散件入包按 PVF 默认孔补孔，
+				// 与礼包/抽奖/邮件发放路径保持一致（存档即带孔）。
+				if characters != nil && characters.Equipment != nil {
+					shopPilot.SetAvatarSockets(characters.Equipment.DefaultAvatarSockets)
+				}
 				vaultService.Catalog, e = shopPilot.StorageCatalog(vaultService.Catalog)
 				if e != nil {
 					return nil, nil, e
@@ -1482,6 +1525,9 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, errors.New("attunement rewards need -booster-catalog: the table pays wrappers, and without the box catalog they cannot be opened at drop time")
 		}
 		boxes := boosterBoxSource{catalog: boosterCatalog}
+		// 调律之边界专用：按「客户端是否有开箱入口」决定拆不拆。
+		// 与上面的 boxes 同源同目录，只是多一条判据 —— 所以两者不会互相漂移。
+		instantlyOpenBoxes := boosterBoxSource{catalog: boosterCatalog, serverUnwrap: true}
 		empties, unopenable, e := attunement.ValidateBoxes(boxes)
 		if e != nil {
 			return nil, nil, e
@@ -1491,6 +1537,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		lootService.Attunement = attunement
 		lootService.RewardBoxes = boxes
+		lootService.InstantlyOpenBoxes = instantlyOpenBoxes
 		// 征兆系统（omen）：**默认生效**，无开关 —— 它是玩法本身。
 		// 与上面的固定玩法行为保持一致。
 		if omenRewards {
@@ -1669,6 +1716,9 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		accountOptionsPayload: accountOptionsPayload,
 		apocalypseCatalog:     apocalypseCatalog,
 		apocalypseClock:       apocalypseClock,
+		// 巴卡尔：规则与奖励服务仅在内容装载时注入（nil = 待机区不绑定拒绝）。
+		bakalRaidRules:        pvfCatalogs.Bakal,
+		bakalRewardService:    newBakalRewardService(gameStore, lootService, pvfCatalogs.Bakal),
 		boosterCatalog:        boosterCatalog,
 		boostCatalog:          boostCatalog,
 		boostEventInfo:        boostEventInfo,
@@ -1692,8 +1742,10 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		oathGradeTable:        oathGradeTable,
 		oathInjectSpecs:       oathInjectSpecs,
 		oathProgressSet:       oathProgressSet,
+		deferredClearSet:      deferredClearSet,
 		odysseyChoices:        odysseyChoices,
 		omenInfoBytes:         omenInfoBytes,
+		attunementRewardSpec:  startup.AttunementReward,
 		omenState:             omenState,
 		progressionService:    progressionService,
 		questService:          questService,

@@ -75,7 +75,7 @@ func TestSecondAwakeningLateGrantFollowsLevel(t *testing.T) {
 	}
 	for _, g := range samples {
 		role := Character{Profession: g.job, ConfigVersion: c.Source.SaveIdentity()}
-		early := State{Level: 75, Advancement: g.adv, Awakening: 2, SourceSHA256: g.prof.RawSHA256, InitialSkills: g.prof.InitialSkills}
+		early := State{Level: 75, Advancement: g.adv, Awakening: 2, SourcePath: g.prof.Path, SourceSHA256: g.prof.RawSHA256, InitialSkills: g.prof.InitialSkills}
 		granted, e := s.awakeningSkills(role, early)
 		if e != nil {
 			t.Fatal(e)
@@ -121,7 +121,7 @@ func TestSecondAwakeningLateGrantReachesKnownSkills(t *testing.T) {
 	}
 	g := samples[0]
 	role := Character{Profession: g.job, ConfigVersion: c.Source.SaveIdentity()}
-	st := State{Level: 75, Advancement: g.adv, Awakening: 2, SourceSHA256: g.prof.RawSHA256, InitialSkills: g.prof.InitialSkills}
+	st := State{Level: 75, Advancement: g.adv, Awakening: 2, SourcePath: g.prof.Path, SourceSHA256: g.prof.RawSHA256, InitialSkills: g.prof.InitialSkills}
 	known, e := s.knownSkills(role, st, 0)
 	if e != nil {
 		t.Fatal(e)
@@ -146,7 +146,7 @@ func TestAwakeningGrantsCoverTheWholeSource(t *testing.T) {
 	checked := 0
 	for job, prof := range c.Professions {
 		role := Character{Profession: job, ConfigVersion: c.Source.SaveIdentity()}
-		st := State{Level: 115, Awakening: 3, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills}
+		st := State{Level: 115, Awakening: 3, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills}
 		for adv, stages := range prof.AwakeningSkills {
 			if len(stages[1]) == 0 || len(stages[2]) == 0 || len(stages[3]) == 0 {
 				continue
@@ -191,6 +191,7 @@ func TestAwakeningGrantStaysOnReset(t *testing.T) {
 		Level:         byte(g.level),
 		Advancement:   g.adv,
 		Awakening:     2,
+		SourcePath:    g.prof.Path,
 		SourceSHA256:  g.prof.RawSHA256,
 		InitialSkills: g.prof.InitialSkills,
 		LearnedSkills: [2]map[uint16]byte{{g.id: g.rank}, {}},

@@ -100,7 +100,7 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 	client.legionState.clock = client.apocalypseClock
 	client.legionState.channelType = client.channelTypes[client.channel]
 	if client.worldService != nil {
-		client.worldState = &worldSession{characters: client.characters, service: client.worldService, store: client.gameStore, account: client.developmentAccount, flags: client.townPolicy.Flags, dungeons: client.dungeonCatalog, townArrivalScenes: client.townArrivalScenes, tutorials: client.tutorialRoutes, tutorialDungeons: client.tutorialDungeons, professions: client.characters.Catalog, fatigue: client.fatigueService, quests: client.questService, progression: client.progressionService, rewards: client.rewards, loot: client.lootService, items: client.itemService, shop: client.shopService, selectionBoxes: client.selectionBoxes, vault: client.vaultService, skinCatalog: client.skinCatalog, soloPartyBootstrap: client.config.SoloPartyBootstrap, hub: client.hub, scaleDeathFromHP: client.config.ScaleDeathFromHP, oathGrades: client.oathGradePair, oathTable: client.oathGradeTable, oathFromGear: client.config.OathGradesFromGear, oathProgressClears: client.config.OathProgressClears, oathProgressDungeons: client.oathProgressSet, oathInject: client.oathInjectSpecs, omenHold: client.config.OmenHold, omenState: client.omenState, omenInfo: client.omenInfoBytes}
+		client.worldState = &worldSession{characters: client.characters, service: client.worldService, store: client.gameStore, account: client.developmentAccount, flags: client.townPolicy.Flags, dungeons: client.dungeonCatalog, townArrivalScenes: client.townArrivalScenes, tutorials: client.tutorialRoutes, tutorialDungeons: client.tutorialDungeons, professions: client.characters.Catalog, fatigue: client.fatigueService, quests: client.questService, progression: client.progressionService, rewards: client.rewards, loot: client.lootService, items: client.itemService, shop: client.shopService, selectionBoxes: client.selectionBoxes, vault: client.vaultService, skinCatalog: client.skinCatalog, soloPartyBootstrap: client.config.SoloPartyBootstrap, hub: client.hub, scaleDeathFromHP: client.config.ScaleDeathFromHP, oathGrades: client.oathGradePair, oathTable: client.oathGradeTable, oathFromGear: client.config.OathGradesFromGear, oathProgressClears: client.config.OathProgressClears, oathProgressDungeons: client.oathProgressSet, deferredClearSet: client.deferredClearSet, oathInject: client.oathInjectSpecs, omenHold: client.config.OmenHold, omenState: client.omenState, omenInfo: client.omenInfoBytes, attunementReward: client.attunementRewardSpec}
 		// 启动器自动拾取只对本机回环连接生效，避免把本地便利开关扩散给局域网玩家。
 		if addr, ok := c.RemoteAddr().(*net.TCPAddr); ok {
 			client.worldState.autoPickup = addr.IP.IsLoopback() && os.Getenv("DFO_AUTO_PICKUP") == "1"
@@ -110,6 +110,8 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 		client.worldState.eliteChannelDirectory = client.gatewayRuntime.channelDirectory
 		client.worldState.eliteChannelInfo = client.gatewayRuntime.channelInfo
 		client.worldState.eliteChannelID = client.channel
+		client.worldState.bakalRules = client.bakalRaidRules
+		client.worldState.bakalRewards = client.bakalRewardService
 		// 特殊征讨频道（SemiRaid/Legion，towns 表里有专属城镇的）的位置隔离：
 		// 会话内位置不覆盖普通频道的共享行（黑鸦 73 / 矿区 106 既有模式的全频道推广）。
 		if _, isolated := client.gatewayRuntime.channelTowns[client.channelTypes[client.channel]]; isolated {
@@ -202,6 +204,11 @@ func (client *gameConnection) serve() {
 				// 维纳斯难度选择窗倒计时归 0：推原生 close ACK 自动关窗。
 				packets = client.worldState.venusOperationClose(now, client.event)
 				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
+					return
+				}
+				// 巴卡尔开战时钟：开战 burst、血量发布与结算串（2285→N13→588→574）
+				// 都从这一秒 tick 驱动（settle 前一瞬注入奖励冻结与全量背包）。
+				if client.tickBakalOpening(now) != nil {
 					return
 				}
 			}

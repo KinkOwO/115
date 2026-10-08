@@ -107,15 +107,18 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 			return fail(RefusalItems, "材料不在所属角色背包")
 		}
 	}
-	if !IsGoldMaterial(materialTemplate) && !IsSafeMaterial(materialTemplate) {
+	// 便携强化器（[portable upgrade]）也是合法来源：只耗道具本身、不耗金币与无色/安全材料。
+	portable := IsPortableUpgradeTemplate(materialTemplate)
+	if !IsGoldMaterial(materialTemplate) && !IsSafeMaterial(materialTemplate) && !portable {
 		return fail(RefusalGeneric, "窗口里的物品不是强化的消耗材料")
 	}
 	// 实机判据：左侧普通强化 tail[4]=0 + @9=367（无色小晶块）；右侧安全强化 tail[4]=1 + @9=136（安全材料）。
-	safe := r.Multiple == 1
+	// 便携强化器恒走普通强化路径（safe=false），不受 Multiple 影响。
+	safe := r.Multiple == 1 && !portable
 	if safe && !IsSafeMaterial(materialTemplate) {
 		return fail(RefusalGeneric, "安全强化需要安全强化材料（10327281 / 10327284）")
 	}
-	if !safe && !IsGoldMaterial(materialTemplate) {
+	if !safe && !portable && !IsGoldMaterial(materialTemplate) {
 		return fail(RefusalGeneric, "普通强化只收无色小晶块；安全强化材料请放到另一侧")
 	}
 
@@ -167,7 +170,13 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 	// 需求：普通强化的材料数量只看强化等级、金币吃装备等级/品质/部位；
 	// 安全强化两条都来自 [safe upgrade] 段（与普通强化是独立曲线），且只覆盖 0..11 级。
 	var needed, gold uint32
-	if safe {
+	if portable {
+		// 便携强化器固定消耗 1 个、不耗金币；等级上限与普通强化一致（客户端回包上限）。
+		if int(old) >= GoldMaxUpgradeLevel() {
+			return fail(RefusalLimit, "强化已达到客户端上限 +"+fmt.Sprint(GoldMaxUpgradeLevel())+"：更高的结果等级会让客户端判定异常并锁死强化面板")
+		}
+		needed, gold = 1, 0
+	} else if safe {
 		if int(old) >= SafePathMaxLevel() {
 			return fail(RefusalLimit, "安全强化最高到 +"+fmt.Sprint(SafePathMaxLevel()-1)+"：请改用无色小晶块")
 		}
@@ -211,6 +220,7 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 	if safe {
 		rate, ok = SafeSuccessPercent(int(old), streaks[streakKey])
 	} else {
+		// 便携强化器沿用普通强化成功率表（与无色小晶块同一张表）。
 		rate, ok = GoldSuccessPercent(int(old))
 	}
 	if !ok {
@@ -311,7 +321,9 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 	}
 
 	mode := "normal"
-	if safe {
+	if portable {
+		mode = "portable_upgrade"
+	} else if safe {
 		mode = "safe"
 	}
 	// 回包等级：成功写新等级（客户端上限 15）；失败必须写 old，否则客户端判定异常。

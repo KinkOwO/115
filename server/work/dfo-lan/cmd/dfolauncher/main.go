@@ -6,14 +6,18 @@ package main
 
 import (
 	"context"
+	"encoding/csv"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"dfolan/internal/launcher"
+	"dfolan/internal/toolcmd/bakalreset"
 )
 
 func main() {
@@ -34,6 +38,8 @@ func main() {
 		os.Exit(runPrepareInnerPVF(os.Args[2:]))
 	case "storage-sync":
 		os.Exit(runStorageSync(os.Args[2:]))
+	case "bakal-reset":
+		os.Exit(runBakalReset(os.Args[2:]))
 	case hostClientSubcommand:
 		os.Exit(runHostClient(os.Args[1:]))
 	case "-h", "--help", "help":
@@ -90,6 +96,7 @@ Usage:
   dfolauncher prepare-inner-pvf [--root <path>] [--client <dir>] [--force] [--dry-run]
   dfolauncher storage-sync [--root <path>] [--list] [--backup]
                            [--restore <备份目录名>] [--dry-run]
+  dfolauncher bakal-reset [--root <path>] [--account <name>] [--apply] [--dry-run]
   dfolauncher check [--root <path>] [--server-only|--client-only] [--source-build] [--json-mode]
   dfolauncher launch --check|--dry-run [--root <path>]
                     [--server-only|--client-only|--storage-only]
@@ -189,7 +196,6 @@ func runStop(args []string) int {
 	return 1
 }
 
-
 // runCheck verifies the dependencies the selected mode needs and starts nothing, which
 // is what makes it safe to run before a session.
 func runCheck(args []string) int {
@@ -209,9 +215,9 @@ func runCheck(args []string) int {
 		return 1
 	}
 	report, err := launcher.Check(absolute, launcher.CheckOptions{
-		ServerOnly:  *serverOnly,
-		ClientOnly:  *clientOnly,
-		SourceBuild: *sourceBuild,
+		ServerOnly:    *serverOnly,
+		ClientOnly:    *clientOnly,
+		SourceBuild:   *sourceBuild,
 		JSONMode:      *jsonMode,
 		RepairProfile: *repairProfile,
 	})
@@ -438,4 +444,86 @@ func filepathAbs(path string) (string, error) {
 		path = "."
 	}
 	return filepath.Abs(path)
+}
+
+// runBakalReset restores quota through the shared tool after checking all gateway images.
+func runBakalReset(args []string) int {
+	flags := flag.NewFlagSet("bakal-reset", flag.ContinueOnError)
+	root := flags.String("root", ".", "repository root")
+	account := flags.String("account", "probe", "account whose Bakal quota is restored (wireprobe defaults to probe)")
+	apply := flags.Bool("apply", false, "restore the counters; without it only preview which characters change")
+	dryRun := flags.Bool("dry-run", false, "print every action without performing it")
+	if err := flags.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			return 0
+		}
+		return 2
+	}
+	absolute, err := filepathAbs(*root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
+		return 1
+	}
+
+	if !*dryRun {
+		busy, err := sessionProcessesRunning()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "bakal-reset: check running processes: %v\n", err)
+			return 1
+		}
+		if busy {
+			fmt.Fprintln(os.Stderr, "请先停止游戏/网关再恢复次数，避免在线存档覆盖（检测到 DFO.exe 或 wireprobe 在运行）。")
+			return 1
+		}
+	}
+
+	configPath := filepath.Join(absolute, "server", "work", "dfo-lan", "runtime", "storage", "local.json")
+	if *dryRun {
+		fmt.Printf("Account: %s (preview)\n", *account)
+		fmt.Printf("Storage config: %s\n", configPath)
+		fmt.Println("Dry run: would open " + configPath + " and preview counters.")
+		return 0
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	fmt.Printf("Restoring Bakal weekly quota for account %q ...\n", *account)
+	if err := bakalreset.RunFromConfig(ctx, configPath, *account, *apply); err != nil {
+		fmt.Fprintf(os.Stderr, "bakal-reset: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+// sessionProcessesRunning detects the client and every wireprobe*.exe gateway,
+// including source-build and candidates, without stopping any process.
+func sessionProcessesRunning() (bool, error) {
+	out, err := exec.Command("tasklist", "/FO", "CSV", "/NH").Output()
+	if err != nil {
+		return false, err
+	}
+	return bakalSessionProcessList(string(out))
+}
+
+// tasklist's first CSV column is the image name. Include source-build and
+// candidate gateways; a match in a session label/PID column is not an image.
+func bakalSessionProcessList(out string) (bool, error) {
+	reader := csv.NewReader(strings.NewReader(out))
+	reader.FieldsPerRecord = -1
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			return false, nil
+		}
+		if err != nil {
+			return false, fmt.Errorf("parse tasklist: %w", err)
+		}
+		if len(row) == 0 {
+			continue
+		}
+		image := strings.ToLower(strings.TrimSpace(row[0]))
+		if image == "dfo.exe" || strings.HasPrefix(image, "wireprobe") && strings.HasSuffix(image, ".exe") {
+			return true, nil
+		}
+	}
 }

@@ -37,6 +37,12 @@ type ItemBasics struct {
 	Skins       *SkinStorageCatalog
 	Boosters    map[uint32]BoosterDefinition
 	ScriptsRead uint64
+	// MissingScripts/缺失样本：LIST 行引用的源脚本在基线 PVF 里不存在（devpack
+	// 基线差异，2026-10-05 实测 2,190 条 = 对方历史整合的 native_clone/creature/
+	// title 等物品）。这些行保留索引、跳过脚本级投影，与「未知物品保留」的存档
+	// 口径一致；样本随启动日志上报。
+	MissingScripts       uint64
+	MissingScriptSamples []string
 }
 
 // ImportItemBasics visits native LIST bindings once. It keeps typed projections,
@@ -99,6 +105,14 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 			}
 			if needRead {
 				r := reads[i]
+				if r.missingScript {
+					out.MissingScripts++
+					if len(out.MissingScriptSamples) < 8 {
+						out.MissingScriptSamples = append(out.MissingScriptSamples, r.err.Error())
+					}
+					out.Index.Items[row.ID] = entry
+					continue
+				}
 				if r.err != nil {
 					return ItemBasics{}, r.err
 				}
@@ -182,15 +196,20 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 	if boosterImport != nil {
 		out.Boosters = boosterImport.finish()
 	}
+	if out.MissingScripts > 0 {
+		log.Printf("PVF item scripts missing (devpack baseline gap): %d rows skipped; samples: %v",
+			out.MissingScripts, out.MissingScriptSamples)
+	}
 	return out, nil
 }
 
 // itemScriptRead is the prefetched native script for one LIST row.
 type itemScriptRead struct {
-	cells []pvf.Token
-	raw   []byte
-	exact bool
-	err   error
+	cells         []pvf.Token
+	raw           []byte
+	exact         bool
+	missingScript bool
+	err           error
 }
 
 // prefetchItemScripts reads and tokenizes LIST rows in bounded parallel batches.
@@ -238,7 +257,7 @@ func readItemScript(a *pvf.Archive, row IndexEntry, kind string) itemScriptRead 
 	resolved := ResolveScriptPath(a, p)
 	file, found := a.FindFile(resolved)
 	if !found || file.DataType != 1 {
-		return itemScriptRead{err: fmt.Errorf("item %d: missing source script %s", row.ID, resolved)}
+		return itemScriptRead{missingScript: true, err: fmt.Errorf("item %d: missing source script %s", row.ID, resolved)}
 	}
 	raw, err := a.ReadRaw(resolved)
 	if err != nil {

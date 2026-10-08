@@ -117,7 +117,7 @@ func TestOmenStagesPayTheirOwnTier(t *testing.T) {
 	for stage := 1; stage < len(stages); stage++ {
 		paid, empty := 0, 0
 		for i := 0; i < runs; i++ {
-			out, err := a.AdvanceOmen(uint32(i)*2246822519+1, endkeeperDungeon, uint32(stage))
+			out, err := a.AdvanceOmen(uint32(i)*2246822519+1, endkeeperDungeon, uint32(stage), 0)
 			if err != nil {
 				t.Fatalf("stage %d advance: %v", stage, err)
 			}

@@ -84,6 +84,11 @@ func reinforcementBranch(role database.Character, r protocol.ReinforcementReques
 		if inventory.IsReinforcementTicket(item.Template) {
 			return reinforcementTicketBranch, nil
 		}
+		if inventory.IsPortableUpgradeTemplate(item.Template) {
+			// 便携强化器（[portable upgrade]）：走材料强化路径，
+			// ApplyGoldReinforcement 内部识别并只耗道具本身（不耗金币/无色）。
+			return reinforcementGoldBranch, nil
+		}
 		if inventory.IsGoldMaterial(item.Template) || inventory.IsSafeMaterial(item.Template) {
 			return reinforcementGoldBranch, nil
 		}
@@ -245,7 +250,17 @@ func (s *equipmentSession) amplifyUpgrade(ctx context.Context, service *workflow
 		return nil, err
 	}
 	w.role = saved
-	ack, err := protocol.AmplifyUpgradeReply(r, out.MaterialRemaining, out.LevelBefore, out.LevelAfter, out.Result)
+	// ★ 方案 B：客户端 CMD80 **成功回包**不接受新等级 > 15
+	// （服主 2026-10-07 实机：+1..+15 成功都正常，只有 +16 成功会 ADD_HACKTYPE_CNT 并锁死窗口）。
+	// 落库与随后的装备行刷新**仍然写真实等级**（装备行 reader 认 0..31），
+	// 这里只把 ACK 降级成 result=1（= 失败、等级不变，客户端自洽要求 new==old）过检。
+	ackResult, ackNewLevel := out.Result, out.LevelAfter
+	ackDowngraded := false
+	if out.Result == 0 && int(out.LevelAfter) > protocol.AmplifyUpgradeResultCap {
+		ackResult, ackNewLevel = 1, out.LevelBefore
+		ackDowngraded = true
+	}
+	ack, err := protocol.AmplifyUpgradeReply(r, out.MaterialRemaining, out.LevelBefore, ackNewLevel, ackResult)
 	if err != nil {
 		return nil, err
 	}
@@ -290,6 +305,9 @@ func (s *equipmentSession) amplifyUpgrade(ctx context.Context, service *workflow
 		"amplify_type": out.AmplifyType, "before": out.LevelBefore, "after": out.LevelAfter,
 		"result": out.Result, "penalty": out.Penalty, "destroyed": out.Destroyed,
 		"safe": out.Safe, "rate": out.SuccessPercent,
+		// ACK 是否因「客户端成功回包上限 15」被降级成 result=1 + new=old。
+		// before/after 始终是**落库的真实等级**，ack_* 是实际发给客户端的值。
+		"ack_downgraded": ackDowngraded, "ack_result": ackResult, "ack_new_level": ackNewLevel,
 		"protected": out.Protected, "protection_slot": out.ProtectionSlot,
 		"request_protection_slot": r.ProtectionSlot})
 	return w.appendFameUpdate(plan, event), nil

@@ -235,6 +235,19 @@ func (c *EquipmentCatalog) RewardType(id uint32) (int32, error) {
 	return kind[1].Value, nil
 }
 
+// IsAvatarBagItem 报告模板是不是**时装栏物品**（`[equipment type]` 以 " avatar]"
+// 结尾，容器 space 1）。跟随 [import script] 链，薄壳时装也能认出来。
+//
+// 判据与 AddMailItem 的时装分支、avatar_option.go 的规则装载用的是同一条
+// （EquipmentBagSpace == 1），不另立一套分类。
+func (c *EquipmentCatalog) IsAvatarBagItem(id uint32) bool {
+	if c == nil {
+		return false
+	}
+	kind, err := c.EquipmentKind(id)
+	return err == nil && EquipmentBagSpace(kind) == 1
+}
+
 func (c *EquipmentCatalog) EquipmentKind(id uint32) (string, error) {
 	r, err := c.definitionResolved(id, 0)
 	if err != nil {

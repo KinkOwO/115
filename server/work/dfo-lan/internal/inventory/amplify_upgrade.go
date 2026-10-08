@@ -160,6 +160,15 @@ func AmplifySafeMaxLevel() int {
 	return 9
 }
 
+// AmplifyMaxLevelCap 是普通/便携增幅的当前上限（过渡保护）。
+//
+// 客户端未打补丁时，CMD80 成功回包只接受 ≤+15；服务端直接在此拒绝
+// +15 之后的增幅（+14→+15 是最后一次），与客户端行为对齐，并保证
+// AmplifyUpgradeResultCap（=31）的降级逻辑永远不会被触发，无需客户端
+// 补丁也安全。后续统一打客户端补丁（上限 10→30）后，把这里放宽到 31
+// 即可让 +16 及更高播放成功动画。
+const AmplifyMaxLevelCap = 15
+
 // AmplifySafeCost 返回该等级安全增幅的材料数量与金币。
 // [safe upgrade] 每级两行：enabled=1 是武器行、enabled=0 是非武器行（官方：武器与非武器消耗不同）。
 func AmplifySafeCost(level int, weapon bool) (uint32, uint32, bool) {
@@ -279,16 +288,34 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 	level := amplifyLevel(row[:])
 
 	// 安全增幅按「券槽」位放的材料模板区分（与强化用材料区分 ticket/gold/safe 同套路）。
+	// 便携增幅器（[portable amplify]）恒走普通材料增幅路径（safe=false），只耗道具本身。
 	safe := false
+	portable := false
 	for _, item := range bag.Items {
 		if item.Slot == r.TicketSlot {
 			safe = IsAmplifySafeMaterial(item.Template)
+			portable = IsPortableAmplifyTemplate(item.Template)
 			break
 		}
 	}
+	if portable {
+		safe = false
+	}
 
 	var count, gold uint32
-	if safe {
+	// 增幅上限保护（过渡方案）：客户端未打客户端补丁前，CMD80 成功回包只认
+	// ≤+15（更高的成功回包会触发 ADD_HACKTYPE_CNT 锁死窗口，见
+	// internal/game/protocol/reinforcement.go 的 AmplifyUpgradeResultCap 注释）。
+	// 因此这里把普通/便携增幅直接限到 +15（+14→+15 是最后一次），
+	// 与客户端行为对齐；安全增幅另有 AmplifySafeMaxLevel()=9 的上限。
+	// 后续统一给客户端打补丁（放开 31）后，把 AmplifyMaxLevelCap 放宽到 31 即可。
+	if !safe && level >= AmplifyMaxLevelCap {
+		return nil, out, Refuse(RefusalLimit, "增幅已达上限 +%d，无法继续增幅", AmplifyMaxLevelCap)
+	}
+	if portable {
+		// 便携增幅器固定消耗 1 个、不耗金币。
+		count, gold = 1, 0
+	} else if safe {
 		// ★ 官方条件原文（dfoneople「Safe Amplification」）："+9 or lower Amplified"。
 		// 也就是**当前 +9 时仍然可以用安全增幅打到 +10**，可行区间是「当前等级 <= +9」。
 		// 早期写成 level >= 9 就拒绝，正好把官方表最后一档 +9→+10（x320 / 5,084,870 Gold）挡掉了 ——
@@ -333,6 +360,11 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 				return nil, out, Refuse(RefusalMaterials, "增幅材料槽位放的不是安全增幅材料（槽 %d 里是模板 %d，需要 10327282）",
 					r.TicketSlot, item.Template)
 			}
+		} else if portable {
+			if !IsPortableAmplifyTemplate(item.Template) {
+				return nil, out, Refuse(RefusalMaterials, "增幅材料槽位放的不是便携增幅器（槽 %d 里是模板 %d）",
+					r.TicketSlot, item.Template)
+			}
 		} else if !IsAmplifyMaterial(item.Template) {
 			return nil, out, Refuse(RefusalMaterials, "增幅材料槽位放的不是矛盾结晶体（槽 %d 里是模板 %d，需要 3242）",
 				r.TicketSlot, item.Template)
@@ -354,7 +386,7 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 	}
 	bag.Gold -= gold
 
-	// 判定成功率（官方页数据）。
+	// 判定成功率（官方页数据；便携增幅器沿用普通增幅成功率表）。
 	percent := AmplifySuccessPercent(level)
 	roll, err := amplifyUpgradeRandomInt(100)
 	if err != nil {

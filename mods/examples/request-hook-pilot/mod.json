@@ -1,0 +1,28 @@
+{
+  "schema": 2,
+  "id": "demo.request-hook-pilot",
+  "version": "1.0.0",
+  "name": "请求侧钩子样板（protocol.request + reply.send）",
+  "author": "DFO 115us",
+  "description": "演示 server 层**请求侧**钩子：在内置分发之前拿到每一帧客户端报文，只对带魔数标记的帧接手并自己应答，其余一律放行。正常客户端永远不会发那个标记，所以装上它对真实游戏零影响——它的用途是给'把新玩法写成 mod'提供一个可编译、可安装、可验证的骨架。",
+  "permissions": [
+    "server.hook"
+  ],
+  "layers": {
+    "server": {
+      "package": ".",
+      "hooks": [
+        {
+          "name": "protocol.request",
+          "since": "1.7.8",
+          "note": "每帧客户端报文（已解密、已判校验和）在内置分发之前问一次；返回 handled 即整条接手"
+        },
+        {
+          "name": "console.command",
+          "since": "dev",
+          "note": "一次性诊断命令 status / reset（DFO_SERVERMOD_CONSOLE）"
+        }
+      ]
+    }
+  }
+}

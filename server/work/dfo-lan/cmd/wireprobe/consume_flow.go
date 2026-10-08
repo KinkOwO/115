@@ -44,7 +44,32 @@ func (w *worldSession) useStackable(p []byte, event func(map[string]any)) ([]out
 	if e != nil {
 		return nil, e
 	}
-	saved, receipt, _, e := (&workflow.ItemService{Store: w.store, Items: w.items}).Consume(ctx, w.role, r)
+	var check func() error
+	limited := false
+	if w.bakal != nil && w.activeDungeon != nil && w.activeDungeon.RaidManaged && r.List == 0 {
+		script, err := w.items.Catalog.ItemScript(r.Template)
+		if err != nil {
+			return nil, err
+		}
+		for _, token := range script.Cells {
+			if token.Type == 3 && token.Text == "[stackable dungeon limit]" {
+				limited = true
+				break
+			}
+		}
+		if limited {
+			check = w.bakal.CheckPotionBudget
+		}
+	}
+	var committed func()
+	if limited {
+		committed = func() {
+			w.bakal.SpendPotionBudget()
+			coins, potions := w.bakal.Budget()
+			event(map[string]any{"kind": "bakal_consumable_budget", "raid": w.bakalRun, "coins": coins, "potions": potions})
+		}
+	}
+	saved, receipt, _, e := (&workflow.ItemService{Store: w.store, Items: w.items}).ConsumeChecked(ctx, w.role, r, check, committed)
 	if e != nil {
 		return nil, e
 	}

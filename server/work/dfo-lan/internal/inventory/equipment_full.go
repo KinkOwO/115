@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"sort"
 	"sync"
@@ -116,6 +117,8 @@ func ProjectPVFEquipment(a *pvf.Archive, index catalog.ItemIndex) (PVFEquipmentP
 	if len(p.IndexSHA256) != 64 {
 		return p, fmt.Errorf("missing equipment source index hash")
 	}
+	missing := 0
+	var missingSamples []string
 	for id, entry := range index.Items {
 		if entry.Kind != "equipment" && entry.Kind != "avatar" {
 			continue
@@ -123,9 +126,18 @@ func ProjectPVFEquipment(a *pvf.Archive, index catalog.ItemIndex) (PVFEquipmentP
 		path := catalog.ResolveScriptPath(a, entry.Path)
 		f, ok := a.FindFile(path)
 		if !ok || f.DataType != 1 {
-			return p, fmt.Errorf("equipment %d source script missing: %s", id, path)
+			// devpack 基线差异：缺失源脚本的物品不进懒加载绑定；运行期对它的
+			// 脚本读取按物品报缺失，与合并前“物品不存在”等价。
+			missing++
+			if len(missingSamples) < 8 {
+				missingSamples = append(missingSamples, fmt.Sprintf("%d %s", id, path))
+			}
+			continue
 		}
 		p.Bindings = append(p.Bindings, PVFEquipmentBinding{id, uint32(f.Index)})
+	}
+	if missing > 0 {
+		log.Printf("PVF full equipment projection: %d source scripts missing (devpack baseline gap); samples: %v", missing, missingSamples)
 	}
 	sort.Slice(p.Bindings, func(i, j int) bool { return p.Bindings[i].ID < p.Bindings[j].ID })
 	return p, nil

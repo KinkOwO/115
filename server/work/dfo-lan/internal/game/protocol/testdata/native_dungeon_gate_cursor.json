@@ -1,5 +1,5 @@
 {
-  "payload_hex": "000000000000000000000000000000000000000000000000000000000000000000000000",
+  "payload_hex": "000000010000000000000000000000000000000000000000000000000000000000000000",
   "consumed": 36,
   "reads": [
     {
@@ -24,7 +24,7 @@
       "site": "0x145303871",
       "offset": 3,
       "size": 4,
-      "hex": "00000000"
+      "hex": "01000000"
     },
     {
       "site": "0x1453038ec",
@@ -112,5 +112,6 @@
     }
   ],
   "scope": "original NOTI27 non-relay solo parser; all game and UI calls stubbed",
-  "truncation_failure": "overrun 1453041b9: 35+1>35"
+  "truncation_failure": "overrun 1453041b9: 35+1>35",
+  "note": "payload_hex 按 2026-10-08 的官服抓包对齐过：offset 3 那个 u32 官方两种模式都写 1（next178 §18）。reads 里的 offset/size 是原生读点，与取值无关。"
 }

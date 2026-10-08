@@ -1,0 +1,66 @@
+CTRL 14A79ADC0  CMDFUNC_ENUM_CMDPACKET_DUNGEON_DIRECT_MOVE
+   loaded=True bytes=b'\x00T\x7f*\xb7L<\x9a\x0b\xf0dO\xe0#`j\xa3\xc9\x02E&\xae\x1d\xdc\xf7\xea\x05\xe7l\xbe\xa3\xd5'
+   <- 14524445A type=1 code=False sub_145243AF0 | lea     rcx, unk_14A79ADC0
+
+CTRL 14A37C938  [ENTRY] state : %s
+   loaded=True bytes=b'\x00TG*\xafL4\x9a)\xf0NO\xf5)\x05h6@\x8e\xd8\xc1\xda\x18\x93 \xd2\x9b"\x05\xbe\x99k'
+   <- 1446469B1 type=1 code=False sub_1446468D0 | lea     rcx, unk_14A37C938
+   <- 144649D87 type=1 code=False sub_144649CC0 | lea     rcx, unk_14A37C938
+   <- 144649E64 type=1 code=False sub_144649CC0 | lea     rcx, unk_14A37C938
+   <- 14464A568 type=1 code=False sub_14464A0D0 | lea     rcx, unk_14A37C938
+   <- 14464A7B6 type=1 code=False sub_14464A680 | lea     rcx, unk_14A37C938
+   <- 14464B393 type=1 code=False sub_14464AEB0 | lea     rcx, unk_14A37C938
+   <- 14464B4CA type=1 code=False sub_14464B430 | lea     rcx, unk_14A37C938
+   <- 14464BF56 type=1 code=False sub_14464BE70 | lea     rcx, unk_14A37C938
+
+TGT 1499D30A0  [SEAMLESS LOADING] PREPARE_LEGION_ENTER_DUNGEON start type/delay/passive
+   loaded=True bytes=b'\x00T\x01*\xafL"\x9a"\xf0iO\xd3)\xf7kj>\xaa\xac\x85M\xf8\xcf\xb1\'~t\xce\xd7 \xc0'
+   <- 1424FE1AB type=1 code=False sub_1424FE000 | lea     rcx, unk_1499D30A0
+
+TGT 14B169000  CNSelectDungeonModule::Proc_SeamlessLoading
+   loaded=True bytes=b"\x00Tx*\xb7L?\x9a\x1c\xf0FO\xa8#\xe9j\xcb\xcd\xd1\\\xff\x9c\x9c\x9a'\x92\xca\xbc\x00\x00\x08\x01"
+   <- 146D1AE39 type=1 code=False sub_146D1AC90 | lea     rcx, unk_14B169000
+   <- 146D1AEF5 type=1 code=False sub_146D1AC90 | lea     rcx, unk_14B169000
+   <- 146D1B041 type=1 code=False sub_146D1AC90 | lea     rcx, unk_14B169000
+   <- 146D1B1B9 type=1 code=False sub_146D1AC90 | lea     rcx, unk_14B169000
+   <- 146D1B533 type=1 code=False sub_146D1AC90 | lea     rcx, unk_14B169000
+   <- 146D1B66D type=1 code=False sub_146D1AC90 | lea     rcx, unk_14B169000
+   <- 146D1B73E type=1 code=False sub_146D1AC90 | lea     rcx, unk_14B169000
+   <- 146D1B82A type=1 code=False sub_146D1AC90 | lea     rcx, unk_14B169000
+   <- 146D1BAE6 type=1 code=False sub_146D1AC90 | lea     rcx, unk_14B169000
+
+TGT 14B169C70  CNSelectDungeonModule::onEnterModule_SeamlessLoading
+   loaded=True bytes=b"\x00Ta*\xb7L?\x9a\x1c\xf0FO\xa8#\xe9j\xcb\xcd\xd1\\\xff\x9c\x9c\x9a'\x92\xca\xbc\x00\x00\x08\x01"
+   <- 146D3C65C type=1 code=False sub_146D3C640 | lea     rcx, unk_14B169C70
+   <- 146D3C67A type=1 code=False sub_146D3C640 | lea     rcx, unk_14B169C70
+
+TGT 14B169DD0  CNSelectDungeonModule::onExitModule_SeamlessLoading
+   loaded=True bytes=b"\x00T`*\xb7L?\x9a\x1c\xf0FO\xa8#\xe9j\xcb\xcd\xd1\\\xff\x9c\x9c\x9a'\x92\xca\xbc\x00\x00\x08\x01"
+   <- 146D3DBFC type=1 code=False sub_146D3DBA0 | lea     rcx, unk_14B169DD0
+   <- 146D3DC1A type=1 code=False sub_146D3DBA0 | lea     rcx, unk_14B169DD0
+
+TGT 14B165980  CNTownModule::onStartSeamlessLoading
+   loaded=True bytes=b'\x00Tq*\xb7L?\x9a\x1b\xf0LO\xb2#\xf8j\xbf\xcdJ_\xbf\xae\xdb8%\x08(\xa2Y\n\x99\xf9'
+   <- 146D0D325 type=1 code=False sub_146D0D2A0 | lea     rcx, unk_14B165980
+   <- 146D0D676 type=1 code=False sub_146D0D2A0 | lea     rcx, unk_14B165980
+
+TGT 14B2852D0  [direct eplp on clear dungeon]
+   loaded=True bytes=b'\x00TK*\xafL\x15\x9a\x0e\xf0KO\xa7)xpWG\xf4\xc0t\x82\xf0\xbb\xf8\x02Q\xa7\xf8\xa2L$'
+   <- 14744D8E6 type=1 code=False sub_147444B30 | lea     rcx, unk_14B2852D0
+
+TGT 14B2D6FC0  is direct move area
+   loaded=True bytes=b'\x00T@*\x9dL\x02\x9aU\xf0,O\x82,\xbes[\x0e\xff\xac\xd3\x81(\x89\xe0\xe8\xb1:V;\xb2e'
+   <- 1476E2E7E type=1 code=False sub_1476E0120 | lea     rcx, unk_14B2D6FC0
+
+TGT 14B2D7170  direct move next phase guarantee delay time
+   loaded=True bytes=b'\x00Tx*\x90L\x18\x9a\x02\xf0[Oa,&q\xc1\xd4\xc3\x0f\x10c"\xb1\xd5|\x99\x07\xdb\xaf\x10c'
+   <- 1476E345F type=1 code=False sub_1476E0120 | lea     rcx, unk_14B2D7170
+
+TGT 14B27B1E0  [direct move keep state]
+   loaded=True bytes=b'\x00TM*\xafL\x15\x9a\x0e\xf0KO\xa7)xpWG\xf4\xc0|\x82\xef\xbb\xea\x02E\xa7\xfa\xa4\x8a#'
+   <- 14744BE46 type=1 code=False sub_147444B30 | lea     rcx, unk_14B27B1E0
+
+TGT 14B27B258  [keep buff and summons]
+   loaded=True bytes=b'\x00TL*\xafL\x1a\x9a\x02\xf0%O\xce)\xe7qPF\x94)\xd6Fq\x95\x96e\xb1\xf7\x84\x07\x04b'
+   <- 1474566A2 type=1 code=False sub_147444B30 | lea     rcx, unk_14B27B258
+

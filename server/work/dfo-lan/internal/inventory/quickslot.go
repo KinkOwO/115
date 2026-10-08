@@ -54,7 +54,6 @@ func (b Bag) MoveStackable(rules BagRules, from, to uint16, template uint32) (Ba
 	return b, nil
 }
 
-
 // returnsHome reports whether a move that is not onto the belt stays inside
 // the type range the stack already sits in - or, for a stack coming back off
 // the belt, lands in one of the type ranges at all. The belt is outside every

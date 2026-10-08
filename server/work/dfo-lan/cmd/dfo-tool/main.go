@@ -26,6 +26,8 @@ import (
 	"dfolan/internal/toolcmd/questchain"
 	"dfolan/internal/toolcmd/questrepair"
 	"dfolan/internal/toolcmd/setlevel"
+	"dfolan/internal/toolcmd/setpointdiag"
+	"dfolan/internal/toolcmd/setpointscan"
 	"dfolan/internal/toolcmd/shieldaudit"
 	"dfolan/internal/toolcmd/skillaudit"
 	"dfolan/internal/toolcmd/storagecheck"
@@ -60,6 +62,8 @@ var commands = []command{
 	{"questchain", "catalog", "[options]", true, 0, questchain.Run},
 	{"questrepair", "maintenance", "[options]", true, 0, questrepair.Run},
 	{"setlevel", "maintenance", "[options]", true, 0, setlevel.Run},
+	{"setpointdiag", "audit", "[options]", true, 0, setpointdiag.Run},
+	{"setpointscan", "audit", "[options]", true, 0, setpointscan.Run},
 	{"shieldaudit", "audit", "[options]", true, 0, shieldaudit.Run},
 	{"skillaudit", "audit", "[options]", true, 0, skillaudit.Run},
 	{"storagecheck", "maintenance", "[options]", true, 0, storagecheck.Run},

@@ -16,13 +16,18 @@
 | `check-bot-phase-log.ps1` | 只读共享读取阶段探针日志；退出 0 只代表观察完整，2 表示缺证据，1 表示格式/检查错误；不授予执行或退役权限 | 用户完成阶段观察及恢复后检查 |
 | `check-commit-hygiene.ps1` | **提交前门禁**：检出「本地缓存/构建产物入库」与目录规范违规；退出码 2 = 需业主二次确认（根 `AGENTS.md` §0.3.1） | 任何提交前手动跑：`pwsh -NoProfile -File scripts/check-commit-hygiene.ps1` |
 | `storage-route.ps1` / `storage-route.cmd` | **双库双路线切换器 + Go 启动链调用**：`show` 看当前路线、`use sqlite`/`use postgres` 切换、`stop-postgres` 停 PG、`preflight-postgres` 只做起库预检、`clear-guard` 清过期 SQLite 管理租约、`chain-info` 报告 Go 启动器与强制开关、`selftest` 自检，以及四个入口实际调用的 `game-*`/`server-*`（逻辑见 `server/work/dfo-lan/docs/sqlite-operations.md` §1.2） | 四个路线启动入口内部调用；也可手动 `scripts\storage-route.cmd show` |
-| `configure_env.py` | **已删除（2026-10-05，去 Python）**：环境配置改由启动链自己写 `runtime/storage/local.json`（`storage-route.ps1 use …` + `dfolauncher init-storage`） | — |
+| `检查环境.cmd` | **只读环境体检（2026-10-07 重写）**：优先 `bin\dfolauncher.exe check`，没有启动器但有 `tools\go` 时用 `go run ./cmd/dfolauncher check` 跑源码版，两个都没有就打印取法；**没有 Python 回退**（`launch_local.py` 已于 2026-10-05 删除）。退出码 = 体检结论（旧版恒为 0） | 人手动 `scripts\检查环境.cmd`；也可用 `scripts\storage-route.cmd chain-info` |
+| `配置环境.cmd` / `configure-env.ps1` | **环境自举（2026-10-07 重写，纯 PowerShell，不需要 Python）**：按 `tools\manifest.json` 把仓库自带的 zip 解到各自的 `target`（`go`→`tools\go`、`gopath-mod`→`tools\gopath`、`server-src`/`server-configs`→`server\work\dfo-lan`、`server-bin`→`server`），解包前按清单核对 `size`+`sha256`；**幂等**（清单条目的 `check` 路径在位就跳过），`-Check` 只读体检、`-Package go,gopath-mod` 选包、`-Force` 才重解 —— git 工作区里目标落在服务端源码树（`server`、`server\work\dfo-lan`）的包（`server-src`/`server-configs`/`server-bin`）**默认一律不解**，另有「包内文件与跟踪文件同名且内容不同就跳过」的机械校验（实测 server-bin 的 testdata 比工作区旧），只有 `-Force` 才会按包覆盖。退出码：0 就绪 / 2 缺包 / 3 校验或解包失败 / 1 脚本自身错误。它替代的是 2026-10-05 删掉的 `configure_env.py` | 人手动 `scripts\配置环境.cmd`（双击）；启动器 / 发布包走同一份 `tools\manifest.json` |
 | `build_publish_zip.py` | 打发布包 | 根 `build-publish.ps1:59` |
+| `启动modkit.cmd` / `start-modkit.ps1` | **一键启动 modkit 简易页面**（本地小服务 + 单页 UI，浏览器里管 mods 目录：分页列表 / 批量启停删 / 导入导出 zip）。默认管仓库根的 `mods\`（`--scan-depth 2`，认得 `client-mods\*.zip` 与 `examples\<mod>\`）；`-ServerMods` 改管 `server\work\dfo-lan\mods`；`-Open`（**默认不自动打开浏览器**，业主 2026-10-06 要求）`/ -Port / -ModsDir / -Rebuild` 可选；端口已被占用时只把地址打出来，不起第二个实例。**运行 exe 不需要 Go**（`mods\modkit-web\modkit-web.exe`；缺了才去找 Go 编译，本机 Go 在包外 `..\tools\go\bin\go.exe`） | 人手动 `scripts\启动modkit.cmd`；工具本体与说明见 `mods/modkit-web/README.md` |
 
 > **2026-10-05：本目录的 Python 运行脚本已全部移除**（`configure_env.py`、`storage_profile.py`、
 > `stop_environment.py`、`test_environment_storage.py`）。启动/停止/存储判定全部由仓库内 Go 启动器
-> （`server\work\dfo-lan\bin\dfolauncher.exe`）承担；仍保留的 Python 只有 `gm.py`（GM 命令行，
-> 它的 `set`/`history` 子命令尚无 Go 等价物）与 `build_publish_zip.py`（打包，属另一条工作）。
+> （`server\work\dfo-lan\bin\dfolauncher.exe`）承担；**唯一的命令行 GM（`GM.cmd` + `gm.py`）也已移除**
+> —— 它依赖的 `storage_profile.py` 在去 Python 那一轮被删掉之后就一直跑不起来，而 GM 现在只有
+> **启动器内嵌的那一个**（`gm/` → `gmbridge.exe`，Go，见启动器仓库 README「GM 与存储档」）。
+> 本目录仍保留的 Python 只剩 `build_publish_zip.py`（打包，属另一条工作）；包外那份便携 Python
+> （`..\gm-tool\python`）仍被仓库根的 `build-publish.ps1` 用来打 zip，所以继续保留。
 
 ### 写 `.cmd` 的硬要求（2026-10-05 实机踩坑后定）
 
@@ -33,9 +38,13 @@
    中文**文件名**没问题（Explorer / PowerShell 调用时按 UTF-16 处理）——有问题的是文件**内容**里的中文执行行。
 2. **CRLF + 不带 BOM**：裸 LF 会让 cmd 按行解析错位、把相邻行粘成一条（同一坑的另一半）；
    BOM 会污染首行 `@echo off`。两者门禁都会报 `[环境不匹配]`。
-3. 所以四个路线入口 `启动游戏-{SQLite,PostgreSQL}.cmd`、`启动服务端-{SQLite,PostgreSQL}.cmd`
-   只有 8 行 ASCII，路线切换、中文提示、调用中文名统一入口（`启动游戏.cmd` / `启动服务端.cmd`）
-   全部在 `storage-route.ps1` 里（UTF-8 带 BOM）。
+3. 所以各入口都只有几十行 ASCII 调度，路线切换、中文提示、提权全部在 `storage-route.ps1`
+   里（UTF-8 带 BOM）。2026-10-07 落定的入口与委托关系（PostgreSQL 已于 2026-10-05 随引擎移除，
+   `启动游戏-PostgreSQL.cmd` / `启动服务端-PostgreSQL.cmd` 不再存在）：
+   - `启动游戏-SQLite.cmd` / `启动服务端-SQLite.cmd` → `storage-route.ps1 game-sqlite` / `server-sqlite`（显式路线）
+   - `启动游戏.cmd`（剧情默认）→ `storage-route.ps1 game-current`（不换路线）
+   - `启动游戏-奥德赛.cmd`（强制奥德赛档）→ 同一 `game-current`，只是多设 `DFO_ODYSSEY_MODE=1`
+   - `启动服务端.cmd`（仅服务端）→ `storage-route.ps1 server-sqlite`
 
 ### 各入口原本写在 `.cmd` 里的中文说明（现集中在此）
 
@@ -48,6 +57,10 @@
   与客户端自己读的 per-character 标记一致。
 - 需要整档强制时才用 `启动游戏-奥德赛.cmd`（`DFO_ODYSSEY_MODE=1`），或在启动器设置里选强制档。
 - 默认使用 `configs/pvf-default.json`；分别保留剧情 / 奥德赛模式，`--json-mode` 是显式回退。
+- **2026-10-07 重写（去 Python 收尾）**：两个入口都只做 ASCII 调度 + `bin\dfolauncher.exe` 在位检查，
+  然后调 `storage-route.ps1 game-current`（**不换路线**，路线只由 `*-SQLite.cmd` 这类路线入口决定）。
+  奥德赛入口是两者唯一的差别：它多设 `DFO_ODYSSEY_MODE=1`（整档强制），并在窗口标题里标明。
+  旧版那条 `..\115us-dfolauncher\bin\dfolauncher-cli.exe` / `launch_local.py`（Python）回退已删除。
 
 #### 精锐资格候选 `DFO_ADVENTURE_ELITE`
 
@@ -65,18 +78,61 @@
 - `DFO_EQUIPMENT_CRAFT_GENERATE_VARIANT`：生成应答的子分支字节（`payload[5]`）。**默认 1** = 只落成功标志、
   不动窗口状态；设 0 = 强制 `setState` 到状态 3 —— 那个状态客户端自己不会进也没有出口，进去后
   「切换材料」按钮会失灵（实机 2026-09-29 14:36）。一般不用动。
+- **2026-10-07 重写（去 Python 收尾）**：本入口改调 `storage-route.ps1 server-sqlite`（显式 SQLite 路线，
+  SQLite 是唯一引擎）；删掉了指向 `launch_local.py`（Python）与仓库外 `..\115us-dfolauncher\` 的两条回退。
+  同样是 ASCII 调度 + `bin\dfolauncher.exe` 在位检查，提权仍在 `storage-route.ps1` 里做。
+  与 `启动服务端-SQLite.cmd` 等价，保留这个通用名只是为了老习惯与新手的直觉。
 
-#### `GM.cmd`
+#### `GM.cmd`（**已删除**，2026-10-05）
 
-- 中文用法横幅由 `scripts\gm.py help` 打印（Python 按 UTF-8 正确解码）；`GM.cmd` 只保留 ASCII 调度。
-- 引擎按 `runtime\storage\local.json` 的 `driver` 自动判定；读取走 `dfo-tool accountlist`（只读、引擎中立），
-  写操作走 `cmd/admin` 与 `dfo-tool setlevel`（单事务 + 幂等键 + 审计）；改等级按 PVF 累计经验阈值写
-  `experience = Thresholds[level-2]`，不改技能点。
+- 原来的链路是 `GM.cmd`（纯 ASCII 调度）→ `scripts\gm.py`（Python）→ `dfo-tool accountlist` /
+  `cmd/admin` / `dfo-tool setlevel`。它依赖的 `scripts\storage_profile.py` 在「去 Python」那一轮被删除，
+  于是 `gm.py` 一跑就 `ModuleNotFoundError`，整条链路已经不可用。
+- 现在**只有启动器内嵌的 GM**（`gm/` → `gmbridge.exe`，Go 实现，两条存储档都能用，见启动器仓库
+  README「GM 与存储档」）：命令行 GM 不再维护，也没有 Go 等价物的计划（需要命令行时用
+  `dfo-tool accountlist` / `cmd/admin` / `dfo-tool setlevel` 本身）。
 
 #### `配置环境.cmd`
 
 - 该文件此前是 **GBK 编码**（非 UTF-8，违反 §0.4.2），已重建为 UTF-8 无 BOM 的纯 ASCII 调度；
   中文报告与提示由 `scripts\configure_env.py` 输出。
+- **2026-10-07 重写**：`configure_env.py` 在 2026-10-05「去 Python」那一轮被删除后，这个入口一直调它 ——
+  别人 clone 下来双击必挂（`python: can't open file ... configure_env.py`）。现在它只调
+  **`scripts\configure-env.ps1`（纯 PowerShell，UTF-8 带 BOM）**，数据源是仓库自带的 `tools\manifest.json`：
+  - 按清单把 zip 解到各自 `target`：`go`→`tools`、`gopath-mod`→`tools`（整包不在时先调
+    `assemble-gopath-mod.ps1` 拼分片）、`server-src`/`server-configs`→`server\work\dfo-lan`、`server-bin`→`server`；
+  - 解包前核对清单的 `size` + `sha256`，不一致直接报错，绝不解半个包；
+  - **幂等**：清单条目的 `check` 路径在位就跳过；`-Check` 只读体检（不写盘）、`-Package go,gopath-mod` 选包、
+    `-Force` 才重解；
+  - **git 工作区保护（2026-10-07 沙箱实测后加，别去掉）**：包里是**发布快照**，工作区里是**源码**，
+    两边不一致时解包就是给跟踪文件降级。实测 `tools\tools-server-bin.zip` 里那份
+    `cmd\wireprobe\testdata\config_help.json` 比工作区旧（还留着上游已删掉的 `-boostup-challenge`），
+    解包后 `cmd/wireprobe` 的 `TestWireprobeConfigHelpAndCLIRejection` 直接 FAIL。因此：
+    git 工作区里，目标落在服务端源码树（`server`、`server\work\dfo-lan`）的包**默认一律不解**
+    （`server-src` / `server-configs` / `server-bin` 都属此类）；其余包解包前再做一道机械校验 ——
+    包内文件与工作区里的**跟踪文件**同名且内容不一致，同样跳过并点名。解包目录（没有 `.git`，
+    如玩家整合包）不受限制，照解；
+  - 只想编译服务端的人，装好 `go` + `gopath-mod` 就够（`bin\dfolauncher.exe` 自己 `go build` 出来）；
+    确实要按包内快照覆盖跟踪文件时才加 `-Force`（脚本会打出将被覆盖的文件数）；
+  - 退出码：`0` 全部就绪 / `2` 有包既没就绪也没有可用 zip（要人工取包）/ `3` 校验或解包失败 / `1` 脚本自身错误
+    （按保护规则跳过不算错误，会在输出里点名）；
+  - 全程不需要 Python、不需要联网；跑完会打印「下一步」（离线编译命令、产启动器、看路线、启动游戏）。
+- 例：`scripts\配置环境.cmd -Check`、`scripts\配置环境.cmd -Package go,gopath-mod`、`scripts\配置环境.cmd -Force`。
+
+#### `检查环境.cmd`
+
+- **只读体检**：看依赖、看配置，不启动也不停止任何东西。
+- **2026-10-07 重写（去 Python 收尾，同类第 4 个残留）**：旧版在「`bin\dfolauncher.exe` 不在、
+  `tools\go` 也不在」时会回退到 `python ... launch_local.py --check` —— 那个文件在 2026-10-05
+  已经删掉，所以这条分支一跑就是「找不到文件」。现在只有三条路，**没有 Python 回退**：
+  1. `server\work\dfo-lan\bin\dfolauncher.exe check --root <仓库根>`（首选，预编译或本机编好的都走这条）；
+  2. 没有启动器但有 `tools\go` 时，用源码跑一次：`tools\go\bin\go.exe run ./cmd/dfolauncher check …`
+     （脚本会把 `GOPATH`/`GOMODCACHE` 指到 `tools\gopath`，全新 clone 也能离线体检）；
+  3. 两个都没有 → 直接打印两条取法（`configure-env.ps1`，或自己 `go build` 出启动器）。
+- **退出码 = 体检自己的结论**（0 = 没问题，非 0 = 报出的问题数对应的码）。旧版无论查出什么都 `exit /b 0`，
+  脚本化调用时看不出结果 —— 这次一并改掉。
+- 入口里**没有 `if ( … )` 块**：cmd 在块内按解析期展开 `%RC%`，退出码必须在普通行上读（旧版为此专门
+  写了 `call :go_check`）。写法照这条来，别再包块。
 
 #### `移除tools.cmd`
 
@@ -154,8 +210,10 @@
 **两条路线的存档互相独立**，切换路线不会带着角色走；搬运存档用 `dfo-tool sqliteconvert`
 （只支持 PostgreSQL → SQLite 单向）。
 
-其余入口：`启动游戏.cmd`、`停止游戏环境.cmd`、`GM.cmd`、`storage-route.cmd`，
-以及提交门禁 `check-commit-hygiene.ps1`（其余入口正被并行工作整理，按其落定为准）。
+其余入口：`启动游戏.cmd`、`启动游戏-奥德赛.cmd`、`启动服务端.cmd`、`配置环境.cmd`、`检查环境.cmd`、
+`停止游戏环境.cmd`、`storage-route.cmd`，以及提交门禁 `check-commit-hygiene.ps1`
+（2026-10-07 已落定 **奥德赛 / 启动服务端 / 配置环境** 三个入口的 Go 链重写；其余入口仍由并行工作整理，
+按其落定为准）。
 
 > 这些 `.cmd` 一律先 `cd /d "%~dp0.."` 回到仓库根，因此内部路径仍按仓库根书写（根 `AGENTS.md` §0.4.2）。
 > 构建脚本 `build-publish.ps1` 仍在**仓库根**（被 `一键打包.cmd` 以 `%~dp0..\build-publish.ps1` 调用）。
