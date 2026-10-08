@@ -26,6 +26,121 @@
 
 ---
 
+## 2026-10-08 决斗场 PKC：exit 回城序列 + 街机模式 + **type 8/13 实测校正**（第二轮）
+
+**现象**：
+1. 上一版修完 exit 语义后，点 exit **仍然闪退**（崩溃报告 `<LOADINGFAILED>`）。
+2. 只留 `type 8`（Arena）时业主**进不去**；只留 `type 13`（Free PvP）时**能进**。
+
+**根因 / 结论**：
+1. **exit 闪退的根因是 Relay Server 缺失**：`DFO.trc` 里 `Relay Server Startup Failed.` 紧接
+   `createReport()`。90 级退出流程含 `relay.ClosePvpRoom(room.ID)`，而 115 从未连上中继
+   ⇒ 状态不一致 ⇒ 崩。**补发回城包序列无法解决它**（已验证）。
+2. ★ **实机校正了频道类型分工**：90 级称 `type 8 = CHANNEL_INTEGRATED_PVP`（无双/练习/街机，单人 APC）、
+   `type 13 = CHANNEL_INTEGRATED_FREEPVP`（自由房间）；**但 115 实测 type 8 进不去、type 13 进得去**。
+   ⇒ **保留 `ID 21 / type 13`，移除 `ID 8 / type 8`**（业主决定"回到只有一个 PKC 频道"）。
+
+**修复（服务端，全部可回退）**：
+- `cmd/wireprobe/pvp_flow.go`：
+  - cmd52 玩家离开房间时**补发回城序列**（照搬已有的「离开副本回城」实现
+    `cmd/wireprobe/dungeon_flow.go:1084`）：`noti23 user_area` + `noti24 area_users` + `noti3 user_state`
+    （角色位置全程留在 town 10，`userAreaPayload()` 直接给出正确落点，无需另算坐标）。
+  - `inFreePvpChannel()` 接受 `type 8/13`；cmd50 按 `SpecialMode` 分派 `0→Create` / `1→CreatePractice` / `3→CreateArcade`。
+- `internal/pvp/room.go`：`SetSeat` 允许「关闭**已占用**的座位」（115 的 exit 发 `state=254`，
+  90 级只认 `255`，实测对照：关空座位时 254/255 都放行）；新增 `ArcadeDifficulty` 与 `CreateArcade`
+  （街机单人打 APC，`Flag 1..3` = 难度档，`Map` 必须 0）。
+- `internal/pvp/wire.go`：`RoomList` **恢复 90 级结构** —— 曾按官方抓包的「8 字节空列表」改写，
+  实机导致**建房直接失败**（业主："不能创建房间了"），已回退并保留完整说明。
+  见 `docs/protocol/pvp-free-practice-room-20261008.md` §7/§8。
+- `configs/channel.local35.json`：**52 → 51 行**（移除 `ID 8`），保留 `ID 21`。
+
+**验证**：`go build` / `go vet`（在 `115-upstream/` 内）通过；`go test ./internal/pvp/ -count=1`
+**15 个用例全过**（新增 `TestCreateArcadeRoom` / `TestSinglePlayerRoomsCloseOtherSeats` 等）。
+实机（业主）：type 13 频道可进入、角色落在 town 10；建过练习房（`mode=6`, `special_mode=1`）并在房内停留 2 分 45 秒未崩；
+**exit 仍崩**；`Arena`(type 8) 进不去。
+
+**未闭环项与风险**：
+- ★ **Relay Server（中继服务器）未实现** —— 决斗场的硬前提，无论单人练习还是真人对战。
+  **协议已完整提取**（`DFO.exe` 内嵌 `RelayPackets.proto`：`LOGIN`/`REG_USER_INFO`/`EXIT`/`PING`/`RELAY`/
+  `RELAY_ACK`/`RELAY_LAST_SEQ`/`RELAY_PEER_PING`/`RELAY_ROOM_STATE` + `ConnectedType{kUdp,kRelay,kMax}`）。
+  **地址字段已定位**在 `[网络对象+0x10a468]+0x13a4`（UTF-16 字符串）/ `+0x15a4`（u32 端口），
+  设置函数 `0x14707f630`（全 exe 仅 2 个调用点，都在 `0x14665c930` 内）。
+  **但"地址的值"取不到**：内存扫描需管理员且受 NGS/`BlackCipher` 限制；官方抓包里无明文端口。
+- **客户端补丁点已定位**（`0x14707ef10` 一字节 getter；`RelayModule::startup` = `0x1470898a0`），
+  但 `AGENTS.md` §0 条款 1 规定**须业主明确授权**才能动客户端 —— **本轮尚未获得授权**。
+- `type 8` 进不去的具体原因未查；部分频道端口连接超时（客户端 `try to connect` 超时后回城，
+  而服务端 `gateway.err` 内**无任何 bind 报错**）—— 本地三次尝试复现"跑到监听阶段"均失败
+  （PVF 投影缓存首次生成 > 200 秒），需业主提供现场 `gateway.err` 才能定性。
+
+**门禁**：`scripts/check-commit-hygiene.ps1 -All` 退出码 **0**。
+
+## 2026-10-08 决斗场 PKC：exit 闪退修复 + 中继服务器(Relay)取证 —— **本阶段搁置**
+
+**现象**：
+1. 业主反馈决斗场房间内「退出」按钮无响应（`events.jsonl`：`pvp_command_refused opcode=52 reason="SetSeat(seat=0,state=254)"`）。
+2. 按 (1) 修复后，点 exit **客户端闪退**（崩溃报告 `<LOADINGFAILED>`）。
+
+**根因**：
+1. 115 客户端的退出发 `cmd52 seat=0 state=254(ClosedSeat)`，而 90 级只把 `255(EmptySeat)` 当离开、
+   254 落进 `state > 4` 被拒。实测对照：关**空**座位时 254/255 都被接受（`05fe`/`05ff` 均放行），
+   只有关自己坐的座位会命中，故两者在此同义。
+2. **（我方引入）** 房间被 `leaveLocked` 删除（`State=0`）后，cmd52 分支**仍广播了 `noti43 Seats`**。
+   90 级 `pvpPublishDeparture` 专门有 `if room.State != 0` 才发 Seats —— 移植时漏了这道 guard，
+   对已删除房间发空座位表导致客户端状态机错乱闪退。
+
+**修复（服务端）**：
+- `internal/pvp/room.go` `SetSeat`：已占用座位收到 `254/255` 一律视为「离开房间」（对齐 115 实测语义）。
+- `cmd/wireprobe/pvp_flow.go` cmd52 分支：`room.State == 0`（玩家已离开）时**只发 `noti42 RoomState`，
+  绝不发 `noti43 Seats`**；并记 `pvp_room_left` 事件。
+- 取证日志收窄到只记 PvP opcode（此前把 `op=2127` 进程扫描也记了，一次会话刷 77KB）。
+
+**验证**：go build / go vet / `go test ./internal/pvp/ -count=1` 通过（13 个用例，
+新增 `TestLeavingOccupiedSeatAcceptsClosedSeat` / `TestSetSeatNormalStatesStillApply`）。
+⚠️ **exit 修复已部署但业主未实机复验**（业主决定搁置），不得视为已确认。
+
+**取证新发现（重大，指向下一阶段）**：建房成功瞬间客户端即要求连「中继服务器」——
+`[DNFPB RELAY][STATE][addPeer] IsConnectedWithRelayServer: FALSE`，
+随后 `RelayModule::startup() → TcpEvSocket2::connect Err:10049 → Relay Server Startup Failed`
+**无限重试（一次会话 88382 次 / 1.19MB 日志）**。`DFO.exe` 内嵌 `RelayPackets.proto`
+（`DNFPB.relay.LOGIN` / `RELAY_ACK`，protobuf over TCP，`ConnectedType: kUdp|kRelay`），
+**与 90 级的 UDP 定向中继不是一回事**；服务端目前**没有任何 PvP 中继设施**。
+详见 `server/work/dfo-lan/docs/protocol/pvp-free-practice-room-20261008.md` §6。
+
+**搁置原因与状态**：业主要求真人对战需两名玩家同场，当前无第二客户端可测，
+**本阶段（PKC 自由练习场）就此搁置**。已交付：频道可见/可进、城镇落点、建房/进房/座位/
+队伍模式/选地图/准备状态、exit 退出。**未交付**：中继服务器、准备后开打、战斗期命令、
+街机模式、多客户端广播。
+
+## 2026-10-08 决斗场（PKC）自由练习场频道接入 + 建房/座位/准备（服务端首批）
+
+**现象**：游戏内无决斗场入口。客户端内置的「自由练习场」频道在服务端不存在，玩家无法进入；
+即便手工加频道，角色也落不到决斗场城镇。
+
+**根因**：两处都缺。(1) 决斗场频道类型 `CHANNEL_INTEGRATED_FREEPVP`（**channelType=13**）**不在**
+内层 PVF 的 `etc/clientchannelinfo.etc`（该表只有 41 个团本/特殊类型），频道目录自然发布不出来；
+(2) `ChannelTowns` 只从 `clientchannelinfo.etc` 的 `[seriaRoomTown]` 构建，同样补不到 type 13，
+进该频道会沿用普通频道城镇。服务端侧对 cmd 50-59 系列**没有任何 handler**。
+
+**修复（服务端）**：
+- `configs/channel.local35.json` 走 `channelrefresh.Config.Resolve` 的**本地 Type 覆盖**分支
+  （PVF 里没有该 `[channelType]` 时，配置写了 Type 即放行），新增 `{ID:21, Name:"Free PvP", Type:13}`，频道数 50 → 51。
+- `internal/gamedata/catalogs_channel.go` 本地补 type 8/13 → `Town/Fair_PVP.twn`（town 10）落点，
+  候选探测与既有逻辑同口径（读不出可行走区域就不补）。
+- 新增 `internal/pvp/`（`wire.go` 解析/构造 + `room.go` 房间管理器）与
+  `cmd/wireprobe/pvp_flow.go`（`dispatchPvp`），接 cmd **50 建房 / 51 进房 / 52 座位 / 53 准备 /
+  54 队伍模式 / 59 选地图 / 298 加载完成**；在 `client_dispatch.go` 的 `commandDispatch` 注册。
+- **应答走同号（kind=1），广播走 noti 表（kind=0）**；建房成功只广播 noti41+noti3，进房才回 `EnterSuccess`。
+
+**验证**：go build / go vet 通过；`go test ./internal/pvp/` **11 个用例全过**（3 个直接跑在实机采样字节上）。
+实机（业主操作）：进频道 21 后角色落在 town 10（`channel_town_spawn`），客户端 `MODULE_TYPE_TOWN` +
+`POPUP_WINDOW_TYPE_PVP_TOWN`；点「创建房间」服务端产出 `pvp_room_created room=1 mode=2`（业主确认"进去了"）。
+
+**未闭环**：战斗期命令（55/56/57/58/110/112/195/299/1285）只记录不响应；街机（`SpecialMode=3`）显式拒绝；
+多客户端广播未接（当前只发发起者自己）；进城镇后客户端每 0.5 秒 `Open Fail IRDPopupWindow Type : 13`，与本批包无关，原因未明。
+
+**提交**：分支 `feat/pvp-free-practice-room-20261008`（基于 `fix/portable-full-templates-amplify-cap-20261008`），
+协议细节见 `server/work/dfo-lan/docs/protocol/pvp-free-practice-room-20261008.md`。
+
 ## 2026-10-08 便携强化器/增幅器/锻造炉全量模板识别 + 增幅上限保护 + cap31
 
 **现象**：GM 发放的 115 原版便携强化器/增幅器无法使用（强化器报"既不是强化券也不是强化材料"、增幅器报"不是矛盾结晶体"），仅锻造炉生效。

@@ -14,6 +14,21 @@ import (
 //
 // 三份投影在启动期准备好，供 main 里 channelrefresh.Config.Resolve 补全
 // configs 中声明的 {ID, Name}，并让"切到特殊频道"能把角色投到该频道的专属城镇。
+// 决斗场（PKC）频道：客户端 clientchannelinfo/channeluiinfo 里的
+// CHANNEL_INTEGRATED_PVP（8，无双/排位）与 CHANNEL_INTEGRATED_FREEPVP（13，自由练习场），
+// 城镇都是 Town/Fair_PVP.twn（town 10）。这两条 [channelType] **不在**内层 PVF 的
+// clientchannelinfo.etc 里（源表只有 41 个团本/特殊类型），所以上面的 dir.Types() 循环
+// 补不到它们。城镇与地图本身随客户端一起发布（list/town.lst + map/fair_pvp/*.map），
+// 这里按同一套候选探测补落点；否则切进决斗场频道会沿用普通频道的共享城镇，
+// 而 channelWorldIsolated 又会把位置隔离，玩家会落在没有对应地图的坐标上。
+const (
+	pvpCourtChannelTypeIntegrated = 8
+	pvpCourtChannelTypeFreePvp    = 13
+	pvpCourtTownID                = 10
+)
+
+var pvpCourtChannelTypes = [...]uint32{pvpCourtChannelTypeIntegrated, pvpCourtChannelTypeFreePvp}
+
 func preparePVFChannels(c *Catalogs, s *Source) error {
 	dir, err := s.ChannelDirectory()
 	if err != nil {
@@ -79,6 +94,37 @@ func preparePVFChannels(c *Catalogs, s *Source) error {
 			continue
 		}
 		towns[channelType] = picked
+	}
+	// 决斗场频道（type 8/13）的城镇本地补充：源表没有它们的 [channelType]，
+	// 城镇固定是 Town/Fair_PVP.twn（town 10）。候选探测与上面同口径 —— 取第一个
+	// 能读出可行走区域的 area，读不出就不补（切进该频道会沿用普通城镇，不静默猜坐标）。
+	for _, courtType := range pvpCourtChannelTypes {
+		if _, exists := towns[courtType]; exists {
+			continue
+		}
+		var (
+			courtTown catalog.TownArea
+			courtErr  error
+		)
+		for _, areaID := range []uint32{0, 1, 2} {
+			got, e := s.TownArea(pvpCourtTownID, areaID)
+			if e != nil {
+				courtErr = e
+				continue
+			}
+			if len(got.Walkable) == 0 {
+				continue
+			}
+			courtTown = *got
+			break
+		}
+		if len(courtTown.Walkable) == 0 {
+			log.Printf("PVF channel %d: Fair_PVP town %d 没有可用的可行走区域（最后错误：%v）", courtType, pvpCourtTownID, courtErr)
+			continue
+		}
+		towns[courtType] = courtTown
+		courtX, courtY := courtTown.Spawn()
+		log.Printf("  channel %d -> town %d/%d %s (spawn %d,%d, walkable=%d) [决斗场本地补充]", courtType, courtTown.TownID, courtTown.AreaID, courtTown.MapPath, courtX, courtY, len(courtTown.Walkable))
 	}
 	c.ChannelTowns = towns
 
