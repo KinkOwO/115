@@ -372,5 +372,10 @@ func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, err
 	// （`seamlessSelectionHead`），客户端再次 0xC0000005。
 	// ⇒ **NOTI27 是必需的加载握手**：切模块那一步（屏幕上那一帧 map select）就是客户端
 	// 建立加载状态的过程，`START_MAP` 必须有它在前。`seamlessSelectionHead` 只作取证，不要接线。
-	return s, append(dungeonSelectionHead(), entry...), nil
+	// 无缝续刷（选项 5）要用 NOTI27 的「继续挑战」形态：头字节 `relay` = 1。
+	// 官服抓包里同一个副本冷进场是 0x00、两次继续都是 0x01（next178 §3），
+	// 而本仓此前恒为 0（客户端因此一直走「新副本」那条加载路径）。
+	// 选项 0（普通重开）保持 relay = 0。
+	return s, append(dungeonSelectionHeadFor(copy.dungeonRelayFlag() != 0), entry...), nil
 }
+

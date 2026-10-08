@@ -120,6 +120,7 @@ type Config struct {
 	DeferredClearDungeons         string `koanf:"deferred-clear-dungeons" env:"DFO_DEFERRED_CLEAR_DUNGEONS" help:"诊断：把这些副本号的通关结算横幅（NOTI31）延后到「离开副本」再发，逗号分隔。默认空 = 不延后（与国服一致：国服同样弹结算面板并保留右侧前进箭头）"`
 	OathInject                    string `koanf:"oath-inject" env:"DFO_OATH_INJECT" help:"诊断用：向客户端注入任意 noti 的候选列表，形式 id:size:fill;off:val,...（见 oath_probe.go）；默认空 = 关闭"`
 	OmenHold                      int    `koanf:"omen-hold" default:"-1" env:"DFO_OMEN_HOLD" help:"诊断：把玩家直接放到指定征兆阶段(0-4)，-1 = 不动；会写回角色存档"`
+	OmenMisses                    int    `koanf:"omen-misses" default:"-1" env:"DFO_OMEN_MISSES" help:"诊断：把小深渊征兆的「连续未触发」计数直接设到指定值(0-29)，-1 = 不动；会写回角色存档，用来一轮验证 30 次保底"`
 	OmenInfo                      string `koanf:"omen-info" env:"DFO_OMEN_INFO" help:"诊断：直接指定 noti 2836「征兆队伍状态」的 69 字节载荷，用来点亮征兆 UI 并实测字段语义。写法见 cmd/wireprobe/omen_info.go；留空 = 按角色存档里的真实档数生成"`
 	AttunementReward              string `koanf:"attunement-reward" env:"DFO_ATTUNEMENT_REWARD" help:"诊断：直接指定 noti 2859「调律之边界奖励」的 12 字节载荷（3 × u32 小端），用来实测它的三个字段各是什么。三种写法：24 位十六进制 / 3 个十进制 u32 / @文件路径（每次进本重读，试值不必重启服务端）。留空 = 不发（默认，客户端会保留模块里的 72/72/-1）"`
 	ScaleDeathFromHP              bool   `koanf:"scale-death-from-hp" default:"false" env:"DFO_SCALE_DEATH_FROM_HP" help:"诊断：定盘机关血量触底时由服务端兜底宣布死亡（默认关；noti 2838 修好后天平会自己死）"`

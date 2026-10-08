@@ -49,7 +49,7 @@ func (w *worldSession) ensureDropSession() {
 		// 本场开始时的持有数：-omen-state 时来自角色存档
 		// （loadOmenRunState），否则来自 -omen-hold 诊断。账本本身是内存的，
 		// 所以新的一场必须重新预载，否则会沿用上一场结算后的值。
-		w.loot.Omen.Set(w.role.ID, w.omenHeldRun)
+		w.loot.Omen.SetState(w.role.ID, w.omenHeldRun, w.omenMissesRun)
 	} else if w.loot.Omen != nil && !w.omenHoldApplied && w.omenHold >= 0 {
 		// 诊断入口，每个会话只应用一次：放到指定阶段后就交回正常的
 		// 累积/结算路径，免得每进一次副本都被拽回同一格。

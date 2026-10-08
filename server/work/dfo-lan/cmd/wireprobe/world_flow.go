@@ -205,6 +205,14 @@ type worldSession struct {
 	// 它只在会话里生效一次，之后仍按通关正常累积/结算；-omen-state 打开时会写回存档。
 	omenHold        int
 	omenHoldApplied bool
+	// omenMisses 是 -omen-misses 的诊断值：把小深渊征兆的「连续未触发」计数直接摆到
+	// 某一格（30 就保底补一阶），省掉刷场次。与 omenHold 同一套：每个会话只应用一次，
+	// 但**写回存档**，否则重启后这次摆放就白摆了。
+	omenMisses        int
+	omenMissesApplied bool
+	// omenMissesRun 是本场开始时的「连续未触发」计数（进本时从存档读出，见
+	// loadOmenRunState）。它就是官方那条「累计 30 次不触发就保底补 1 阶」的账。
+	omenMissesRun uint32
 	// omenState 打开「征兆 = 角色存档级状态」这条线（-omen-state，见 omen_state.go）：
 	// 进本读存档、结算写回、noti 2836 按真实档数下发，并让隐藏 BOSS 由「满档结算」
 	// 驱动，而不是按通关场次。关闭时征兆只活在内存账本里。
