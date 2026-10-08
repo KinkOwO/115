@@ -13,6 +13,42 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-08：深渊两条线的征兆档位与掉落演出对齐（小深渊征兆锁档 / 大深渊恒定太初动画）—— **候选，待业主实机验收**
+
+依据 `analysis/tasks/next167`~`next176`、`analysis/dumps/ida-attunement/`，以及 2026-10-08 业主四轮实机。
+
+### 已修复 / 已完成
+
+- **小深渊（终末之边界）征兆不再被锁在 1 阶**：结算链（`omen_state` / `omen_info` /
+  `oath_progress` / 会话结算）原先把征兆固定在首档；同时 noti 2838 在「没有活动表」时改发
+  `normal(40)`，不再发 `0`（0 不在客户端 8 档阶梯 40..45/70/71 里，而 2838 是常驻状态）。
+- **大深渊（调律之边界）动画与掉落不再脱钩**：掉落演出那一帧的 12 字节载荷（noti 2756/2859
+  共用的 handler `0x1406b18d0`）改为**三格填同一个演出格**。旧的 `[-1][max][40]` 里 `-1` 是
+  构造初值、在四格演出表（Unique/Legendary/Epic/Primeval，索引 = 值 − 40）里越界 ⇒ 整帧兜底成
+  最后一格，这就是「每次必播太初」的成因（业主两次实机复现）。刻度换算 `AnimationGrade = tier − 2`。
+- **档位来源**：保底档由**砝码那张表的最低档**推出（100005067→传说 / 100005068→史诗），
+  保底之上按权重随机；`RollPlanned` 让「珠子/天平显示的那一档」与发出去的装备同档。
+- **奖励池两处根因**：`parseBoosterInfo` 丢掉池正文里的 `-1`（源里表示「本次没有」）导致三元组
+  错位一格（`drawCount` 被当模板，实机地上出现 template 1/6）；拆不拆包装的判据从硬编名单改为
+  **源标记** `[instantly open]`（先只在大深渊启用）。
+- **合并上游新主干**：`border_plan.go` / `PrepareBorderRewards` 与 noti 2756 一并接入；自动发送
+  收敛到 2756 一条（2859 只留诊断 `-attunement-reward`），会话创建收敛到 `ensureDropSession` 一处。
+
+### 未修复 / 未闭环
+
+- 三格里**只有第 1 格**有正向证据是驱动格（`40,43,43` 播最低那格）；另两格语义仍未静态取证，
+  当前「三格同值」是实测下最安全的写法。
+- 小深渊「累计 30 次未触发征兆 ⇒ 保底 +1 阶」的**角色维度计数器尚未实现**（需要存档新字段）。
+- 上游 `borderRarityGrade` 的 rarity→档位映射（6→传说 / 4→史诗 / 8→太初）沿用本仓 10417545 /
+  10417552 / 10417571 的实测展开，本轮未逐条重证。
+
+### bug 测试取证
+
+- `internal/game/protocol/border_reward_test.go`：载荷三格同值；`-1`/72/44/45 一律拒绝。
+- `cmd/wireprobe/attunement_reward_test.go`：2859 只剩诊断通道；43→LegendaryDrop(41) /
+  44→EpicDrop(42) / 45→PrimevalDrop(43) 的换算链。
+- `internal/loot/attunement_floor_test.go`、`attunement_plan_test.go`：保底 = 砝码表最低档。
+
 ## 2026-10-07：奶系职业直升活动第二关无法进副本（NOTI2638 `Mode` = 轨道号）—— **候选，待业主实机验收**
 
 依据 `analysis/dumps/boost-buffer-route/`（IDA `probe.json`~`probe13.json`）：客户端把 NOTI2638

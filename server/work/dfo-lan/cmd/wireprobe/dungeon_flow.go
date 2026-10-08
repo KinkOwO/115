@@ -325,7 +325,14 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 		return nil, e
 	}
 	plan := []outboundPacket{{ackName, 1, ackID, []byte{1}}}
-	if w.characters != nil {
+	// 无缝续刷（CMD72 选项 5）**不重建角色对象**：这两帧是「进图/登录帧」，
+	// 客户端收到它们会重新读一遍角色最小信息（trace：`<read minimum Information>`），
+	// 临时 buff 与召唤物随之被重上；国服的无缝续刷是延续的（见 next173 §7）。
+	// 标志只在这里消费一次。
+	// 只读、不清零：同一个标志后面还要让 finishDungeonLoading 跳过 1361（增益强化注册），
+	// 那一步发生在客户端 CMD37 时，晚于这里。消费与清零都在 finishDungeonLoading。
+	seamless := w.seamlessRetry
+	if w.characters != nil && !seamless {
 		channel := [2]byte{}
 		if channelCtx != nil {
 			channel = *channelCtx
@@ -420,6 +427,9 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 	} else if w.venus != nil && legion.IsVenusStageDungeon(sel.ID) {
 		stackableLimit = []outboundPacket{{"venus_stackable_dungeon_limit", 0, 1584, protocol.StackableDungeonLimit(8, seed)}}
 	}
+	// ⚠️ 2026-10-07 19:48 实机**证伪**：无缝续刷一度试过不发 NOTI28（进入副本信息），
+	// 客户端在 `ENUM_NOTIPACKET_START_MAP` 之后立刻 0xC0000005。
+	// ⇒ 入场帧序列是**刚性**的：NOTI27 / **28** / 29 / CMD37 链一帧都不能少。
 	plan = append(plan, []outboundPacket{
 		{"dungeon_info_sent", 0, 28, dungeonInfo},
 		{"dungeon_start_map_sent", 0, 29, start},
@@ -568,6 +578,28 @@ func dungeonSelectionHead() []outboundPacket {
 	}
 }
 
+// ⚠️ seamlessSelectionHead 已实机证伪：2026-10-07 19:14 把它接到无缝续刷上，
+// 客户端 0xC0000005（与 seamlessRoomReset 同族症状）。**NOTI27 必须保留**。
+// 下方为当时的实现原文（供以后复验时对照）：
+//
+// seamlessSelectionHead 是「无缝续刷」（CMD72 选项 5）用的头：**只留门应答，去掉 NOTI27**。
+//
+// 为什么切 NOTI27：客户端 trace（会话 `_190748_` 的 11:08:53 重开窗口）里，NOTI27 触发的正是
+//
+//	change module : [MAIN_GAME(3)] -> [SELECT_DUNGEON(2)]
+//	[ENTRY] state : NONE
+//
+// 即「进入一个新副本」的语义 —— 业主看到的 map select 闪屏，以及角色状态被重建
+// （buff / 召唤物被重上）都挂在这一步上。国服的无缝续刷是「把新中段房间接在天平房间后面」，
+// 客户端不该走「新副本」这条语义。
+//
+// 与 `seamlessRoomReset`（已实机 0xC0000005 证伪）的关键差别：这里**保留 NOTI15 门应答与
+// NOTI16/28/29 整套加载握手**，只是不切模块；那一次是连门应答都没有，房间包直接砸在
+// 没有建立的加载状态上。
+func seamlessSelectionHead() []outboundPacket {
+	return []outboundPacket{{"dungeon_gate_ack", 1, 15, []byte{1}}}
+}
+
 // directMoveEntryPlan is the CMD 2062 form of dungeonEntryPlan: the client
 // starts this run from its own direct-move request, and the town selection
 // sequence is what its dungeon context expects.
@@ -587,6 +619,97 @@ func dungeonSelectionHead() []outboundPacket {
 // it is dropped here: the direct move replays the town selection entry exactly.
 func (w *worldSession) directMoveEntryPlan(sel protocol.DungeonSelection, s *dungeon.Session) ([]outboundPacket, error) {
 	return w.dungeonEntryPlan(context.Background(), "dungeon_select_ack", 16, sel, s)
+}
+
+// ⚠️ seamlessRoomReset 已实机证伪：2026-10-07 18:44 把它接到 CMD72 选项 5 上，
+// 客户端收到 `ENUM_NOTIPACKET_START_MAP` 后立刻 0xC0000005（exit=0xC0000005）。
+// 结论：**不切模块、不重喂角色状态的「原地推 NOTI29」这条路走不通** —— 客户端要先把
+// 加载状态建起来（NOTI27 那一段）才吃得下 START_MAP。此处只作取证，**不要接线**。
+//
+// 以下为当时的实现原文（供以后要复验时对照）：
+//
+// seamlessRoomReset 是「小深渊无缝续刷」的入场形态：**原地重置房间**。
+//
+// 与 restartDungeon（ACK15 + NOTI27 + 整套进场序列）的差别，正是这条线要修的两件事：
+//
+//	① 不切模块 —— NOTI27 会把客户端从 MAIN_GAME 切到 SELECT_DUNGEON，业主实机看到
+//	   「一帧很短的 map select 界面」（客户端 trace：`change module : [MAIN_GAME(3)] ->
+//	   [SELECT_DUNGEON(2)]` 紧跟 `[ENTRY] state : NONE`）。原地重置只发 NOTI29，
+//	   客户端按平常换房的路径在 MAIN_GAME 里把房间重建出来；
+//	② 不重做角色状态 —— 整套进场序列会把外观 / 装备 / 宠物 / 皮肤 / 誓约 / 增益强化
+//	   再喂一遍，buff 与召唤物于是被重上。原地重置只发新房间 + 两条线档位 + 疲劳，
+//	   玩家状态按 `.dgn` 的 `[direct move keep state]`（`[keep buff and summons] 2`）
+//	   延续 —— 与业主向玩家核实的官服表现一致（「带着上一轮的状态直接进入下一次挑战」）。
+//
+// 掉落不受影响：它挂在源领主死亡那一刻，而档位在这里**重新预掷**，
+// 所以「复位 + 重新掷骰」是同一次动作完成的。
+func (w *worldSession) seamlessRoomReset() (*dungeon.Session, []outboundPacket, error) {
+	if w == nil || w.dungeons == nil || w.activeDungeon == nil || w.role.ID == 0 {
+		return nil, nil, fmt.Errorf("seamless reset without an owned run")
+	}
+	old := w.activeDungeon
+	if !old.Completed() {
+		return nil, nil, fmt.Errorf("seamless reset before a committed clear")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	// 准入与 restartDungeon 同源：给不出入口就别把玩家留在半截状态里。
+	if w.fatigue != nil && !old.Definition.NoFatigue && w.fatigue.EnterCostFor(old.Definition.ID) > 0 {
+		fp, err := w.fatigue.State(ctx, w.account, w.role.ID, time.Now())
+		if err != nil {
+			return nil, nil, err
+		}
+		if fp.Used >= fp.Limit {
+			return nil, nil, database.ErrFatigueExhausted
+		}
+	}
+	accepted, err := w.acceptedQuestIDs(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	sel := protocol.DungeonSelection{ID: old.Definition.ID, Party: 65535, Quest: uint32(old.Maze.Quest)}
+	s, err := dungeon.Select(*w.dungeons, sel, w.level, accepted)
+	if err != nil {
+		return nil, nil, err
+	}
+	noteMazeEntry(s)
+	var seed uint32
+	if err := binary.Read(rand.Reader, binary.LittleEndian, &seed); err != nil {
+		return nil, nil, err
+	}
+	start, err := protocol.StartMap(protocol.StartMapState{
+		Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters,
+		HellPartyMode: s.HellPartyMode(), EncodeCreateTrigger: monsterCreateTriggerEnabled(),
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	// 两条线在这一步重新预掷（oathInfoPackets 内部就调 planAttunementRunTiers 并念档位）。
+	grades, err := w.oathInfoPackets()
+	if err != nil {
+		return nil, nil, err
+	}
+	omen, err := w.omenInfoPackets()
+	if err != nil {
+		return nil, nil, err
+	}
+	plan := []outboundPacket{
+		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition})},
+		{"dungeon_start_map_sent", 0, 29, start},
+	}
+	plan = append(plan, grades...)
+	plan = append(plan, omen...)
+	if w.fatigue != nil {
+		fp, _, e := w.fatigue.EnterRoomForDungeon(ctx, w.account, w.role.ID, s.RunID, s.Room.Map, s.Definition.ID, s.Definition.NoFatigue, time.Now())
+		if e != nil {
+			// 记费失败只记日志：此时客户端已经收到新房间，回绝会把玩家留在半截状态。
+			log.Printf("seamless reset 记费失败（%v）：本次不计费仍放行", e)
+		} else if p, e2 := protocol.Fatigue(fp.Used, fp.Limit, fp.UsedMax); e2 == nil {
+			plan = append(plan, outboundPacket{"dungeon_fatigue_updated", 0, 36, p})
+		}
+	}
+	log.Printf("seamless reset: dungeon=%d map=%d monsters=%d（原地重开：不切模块、不重做角色状态）", old.Definition.ID, s.Room.Map, len(s.Monsters))
+	return s, plan, nil
 }
 
 func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) {
@@ -782,6 +905,25 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		if e != nil {
 			return nil, e
 		}
+	}
+	// ⚠️ 「增益强化注册」（NOTI1361）**无缝续刷不发**。
+	//
+	// 这一帧的唯一作用是「把注册的 buff 绑到刚重建出来的角色上」—— 本仓测试的原话就是
+	// `buff registration must bind the new actor`（见 dungeon_clone_reattach_test.go /
+	// oath_direct_entry_test.go / worn_random_option_restore_test.go 三处断言）。
+	// 也就是说：它就是玩家看到的「自动上 buff」。
+	//
+	// 实测取证（会话 `_190748_` 的 events.jsonl）：
+	//
+	//	11:08:42  dungeon_buff_enhancement_restored   ← 首次进本
+	//	11:08:54  dungeon_buff_enhancement_restored   ← **无缝重开又发了一次**（载荷 28 00 00 = 40）
+	//
+	// 而 `.dgn` 的 `[direct move keep state]` / `[keep buff and summons] 2` 要求无缝续刷
+	// **延续** buff 与召唤物，不是重绑。⇒ 这里跳过；标志在本次消费并清零。
+	if w.seamlessRetry {
+		w.seamlessRetry = false
+		log.Printf("seamless retry: skip buff registration (NOTI1361) — 延续而不是重绑")
+		return plan, nil
 	}
 	return appendBuffEnhancementRestore(plan, w.characters, w.role, "dungeon_buff_enhancement_restored")
 }
@@ -1176,48 +1318,9 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 		// 界面给奖励，地面金币/装备掉落是普通副本机制。在此入口整体排除，
 		// 避免 w.drops.Death 为军团 BOSS roll 出地面掉落。
 		if w.loot != nil && (!unowned || blackBoss) && w.venus == nil && w.ispins == nil && w.forest == nil {
-			if w.drops == nil || w.drops.Run != w.activeDungeon.RunID {
-				// Drops span every job's gear at every level by design; that
-				// breadth is a feature, not a bug, so the pool is not narrowed
-				// to what this character can wear.
-				dropCatalog := w.loot.Catalog
-				if len(w.loot.DropCatalog.Items) > 0 {
-					dropCatalog = w.loot.DropCatalog
-				}
-				w.drops = loot.NewSession(dropCatalog, w.loot.Tables, w.loot.Rules, w.loot.Equipment, w.activeDungeon.RunID, w.account, w.role.ID, w.role.WireID)
-				if w.activeDungeon.Definition.Odyssey {
-					w.drops.Currency = w.loot.Currency
-					w.drops.ChapterDrop = w.loot.ChapterDrop
-				}
-				w.drops.Attunement = w.loot.Attunement
-				w.drops.RewardBoxes = w.loot.RewardBoxes
-				w.drops.Omen = w.loot.Omen
-				// 天平档位：本场进本时由 oathInfoPackets 算好（见 oath_info.go 的
-				// oathTierRun）。它与征兆是两条平行线，各自发放互不抑制。
-				w.drops.OathTier = w.oathTierRun
-				if w.loot.Omen != nil && w.omenHeldReady {
-					// 本场开始时的持有数：-omen-state 时来自角色存档
-					// （loadOmenRunState），否则来自 -omen-hold 诊断。账本本身是内存的，
-					// 所以新的一场必须重新预载，否则会沿用上一场结算后的值。
-					w.loot.Omen.Set(w.role.ID, w.omenHeldRun)
-				} else if w.loot.Omen != nil && !w.omenHoldApplied && w.omenHold >= 0 {
-					// 诊断入口，每个会话只应用一次：放到指定阶段后就交回正常的
-					// 累积/结算路径，免得每进一次副本都被拽回同一格。
-					w.loot.Omen.Set(w.role.ID, uint32(w.omenHold))
-					w.omenHoldApplied = true
-				}
-				store := w.store
-				if store == nil && w.characters != nil {
-					store = w.store
-				}
-				if store != nil {
-					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-					if hasGrowth, _ := store.HasActivePremium(ctx, w.account, database.PremiumGrowth, time.Now()); hasGrowth {
-						w.drops.QuestDropBonusPercent = 20
-					}
-					cancel()
-				}
-			}
+			// 掉落会话的创建只有一处（ensureDropSession，见 border_reward_flow.go）：
+			// 调律之边界在**加载应答阶段**就要用它冻结奖单，所以这里通常是取回同一实例。
+			w.ensureDropSession()
 			w.drops.BlackPurgatory = w.loot.BlackPurgatory
 			w.drops.BlackPurgatoryPlan = w.cardPlan
 			rows, err := w.drops.Death(w.activeDungeon, uint16(r.Entity))
@@ -1556,7 +1659,41 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 		}
 		plan = append(plan, outboundPacket{"boss_check_confirmed", 0, 115, body})
 	}
-	plan = append(plan, outboundPacket{"dungeon_clear_enabled", 0, 31, protocol.DungeonClearEnabled()})
+	// 通关时客户端要的是三条帧，必须分开看（实机 170534 全会话取证 + 内层 PVF 源码）：
+	//
+	// ⚠️ 勘误：`analysis/tasks/next171` 的第一版把 NOTI31 当成了「结算副本帧」，据此延后它。
+	// 延后这个动作留着（要的就是别让结算面板出来），但前提描述是错的 —— NOTI31 不是结算。
+	//
+	//	NOTI31  「清关横幅」ENUM_NOTIPACKET_CLEAR_DUNGEON_ENABLED —— 只报「已清」，
+	//	        它**不是**结算面板，别把两者混为一谈；
+	//	NOTI35  结算面板 ENUM_NOTIPACKET_CLEAR_DUNGEON_REWARD —— 客户端收到 NOTI31
+	//	        后自己发 CMD46 索取结算，我们回 34/37/35/261，面板是**这一步**才出现的；
+	//	NOTI261 ENUM_NOTIPACKET_EPLP_RECHALLENGE —— 「继续挑战」入口与右侧无缝续刷的
+	//	        使能，9=可用、1=置灰。客户端的 isRetryDungeonEnable() 只在 261==9 时为真。
+	//
+	// 小深渊的 `.dgn` 自己声明了 `[direct eplp on clear dungeon]`（《通关后直接进
+	// EPLP 状态》），领主房地图 `100016614_Normal.map` 又写了
+	// `[arcade scroll check type]` = `not exist enemy`，以及
+	// `[retry dungeon area] [area] 3700 -50 300 1000`，而屏幕箭头
+	// `screen_arrow_maker/action/arrow_on.act` 的第二个分支正是
+	// `dungeonIndex()==100005014 && isRetryDungeonEnable()==1`
+	// ⇒ 这个副本设计上就是「通关后直接进 EPLP 续刷态」，箭头与右侧重开由
+	// **NOTI261==9** 点亮，跟结算面板无关。
+	//
+	// 所以这一组副本：**不发 NOTI31**（免得客户端去索取结算面板），改发 **NOTI261**。
+	// 掉落在源领主死亡那一刻就落库（internal/loot/session.go），与这两帧都无关。
+	if w.deferredClear(w.activeDungeon.Definition.ID) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		state := protocol.EplpRechallengeBlocked
+		if w.canRechallenge(ctx) {
+			state = protocol.EplpRechallengeReady
+		}
+		cancel()
+		log.Printf("eplp rechallenge on clear: dungeon=%d state=%d banner=deferred", w.activeDungeon.Definition.ID, state)
+		plan = append(plan, outboundPacket{"eplp_rechallenge", 0, 261, protocol.EplpRechallenge(state)})
+	} else {
+		plan = append(plan, outboundPacket{"dungeon_clear_enabled", 0, 31, protocol.DungeonClearEnabled()})
+	}
 	if w.activeDungeon.Tournament != nil {
 		reward, e := w.tournamentClear()
 		if e != nil {

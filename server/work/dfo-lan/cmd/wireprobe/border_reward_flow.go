@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/catalog"
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/loot"
+	"encoding/hex"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -28,7 +31,17 @@ func (w *worldSession) ensureDropSession() {
 	}
 	w.drops.Attunement = w.loot.Attunement
 	w.drops.RewardBoxes = w.loot.RewardBoxes
+	// 调律之边界：改用「只拆 [instantly open]」的包装源（源标记判据）。
+	// 其它玩法（含小深渊/终末之边界）**保持旧行为** —— 这条规则先在一个玩法上验证，
+	// 见 next176 §19.3。
+	if w.loot.InstantlyOpenBoxes != nil &&
+		catalog.DungeonType(w.activeDungeon.Definition) == attunementPlayType {
+		w.drops.RewardBoxes = w.loot.InstantlyOpenBoxes
+	}
 	w.drops.Omen = w.loot.Omen
+	// 两条线的档位：本场进本时由 oathInfoPackets 预掷并随 2838 下发（见 oath_info.go）。
+	// 掉落按同一档选池，保证颜色与奖励一致。
+	w.drops.Tiers = w.attunementRunTiers
 	// 天平档位：本场进本时由 oathInfoPackets 算好（见 oath_info.go 的
 	// oathTierRun）。它与征兆是两条平行线，各自发放互不抑制。
 	w.drops.OathTier = w.oathTierRun
@@ -74,10 +87,21 @@ func (w *worldSession) borderRewardPackets() ([]outboundPacket, error) {
 	if err != nil {
 		return nil, err
 	}
-	payload, err := protocol.BorderRewardInfo(grade)
+	// 本仓的档位阶梯是 40..45 = normal..primeval，客户端**四格掉落演出表**比它早两格
+	// （换算与实测依据见 loot.AnimationGrade）。没有对应格就不发这一帧：拿最近一格顶上
+	// 会让演出说谎，而**不发**同样不对 —— 客户端此时会保留模块构造初值 -1，那也是越界
+	// （这才是「每次必定播太初」的旧现象）。所以下面把「没有可演出档位」与「本场根本没
+	// 有装备奖励」一并当作不发，两者都只发生在池子给不出东西的时候。
+	slot, ok := loot.AnimationGrade(grade)
+	if !ok {
+		return nil, nil
+	}
+	payload, err := protocol.BorderRewardInfo(slot)
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("border reward (noti 2756): grade=%s(%d) -> %s(%d); payload %s",
+		loot.TierForGradeValue(grade), grade, loot.AnimationSlot(slot), slot, hex.EncodeToString(payload))
 	return []outboundPacket{{"border_frozen_reward_grade", 0, 2756, payload}}, nil
 }
 

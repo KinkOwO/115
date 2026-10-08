@@ -71,8 +71,10 @@ type gatewayRuntime struct {
 	oathGradeTable        *inventory.OathGradeTable
 	oathInjectSpecs       []oathInjectSpec
 	oathProgressSet       map[uint32]bool
+	deferredClearSet      map[uint32]bool
 	odysseyChoices        odysseyWeaponChoices
 	omenInfoBytes         []byte
+	attunementRewardSpec  string
 	omenState             bool
 	progressionService    *character.ProgressionService
 	questService          *quest.Service
@@ -341,13 +343,24 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if oathProgressErr != nil {
 		return nil, nil, fmt.Errorf("bad -oath-progress-dungeons: %v", oathProgressErr)
 	}
+	deferredClearSet, deferredClearErr := parseDungeonIDSet(startup.DeferredClearDungeons)
+	if deferredClearErr != nil {
+		return nil, nil, fmt.Errorf("bad -deferred-clear-dungeons: %v", deferredClearErr)
+	}
+	if len(deferredClearSet) > 0 {
+		log.Printf("dungeon clear banner deferred to leaving the run on %s"+
+			"（领主死亡只发掉落，不推 NOTI31；见 next171 的实机取证）", startup.DeferredClearDungeons)
+	}
 	switch {
 	case len(oathGradePair) == 2 && (oathGradePair[0] != 0 || oathGradePair[1] != 0):
 		log.Printf("oath grades: overridden to primer=%d oath=%d (diagnostic)", oathGradePair[0], oathGradePair[1])
 	case startup.OathGradesFromGear:
 		log.Printf("oath grades: derived from worn oath/primer gear (%d known items, diagnostic)", oathGradeTable.Len())
 	case omenState:
-		log.Printf("oath grades: hidden boss driven by an omen full settlement on %s", startup.OathProgressDungeons)
+		// 2026-10-07 起隐藏 BOSS 由**两条线的档位**决定（客户端 nox_index_checker：
+		// oath_max==45 → 奥尔特尔；oath_max<45 && primer_max==45 → 监视者），
+		// 不再由征兆满档保底驱动。征兆那套 orthaire_pending 已惰性化（见 omen_state.go）。
+		log.Printf("oath grades: primer/oath rolled per run (hidden boss is tier-driven on %s)", startup.OathProgressDungeons)
 	case startup.OathProgressClears > 0:
 		log.Printf("oath grades: hidden-boss pity every %d clear(s) of %s", startup.OathProgressClears, startup.OathProgressDungeons)
 	default:
@@ -370,6 +383,13 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if len(omenInfoBytes) > 0 {
 		log.Printf("omen info (noti 2836): injecting %d bytes: %s", len(omenInfoBytes), hex.EncodeToString(omenInfoBytes))
 	}
+	// 调律之边界的奖励通知（noti 2859）诊断注入。同样在启动期校验：
+	// 长度写错必须在这里就失败，而不是等到玩家进本那一刻。
+	attunementRewardBytes, attunementRewardErr := attunementRewardSpec(startup.AttunementReward)
+	if attunementRewardErr != nil {
+		return nil, nil, fmt.Errorf("bad -attunement-reward: %v", attunementRewardErr)
+	}
+	logAttunementRewardInjection(startup.AttunementReward, attunementRewardBytes)
 	// 掉落调参（与官服的显式差异）。这里是**保留入口**的数值差异：关掉时表保持官方原值。
 	attunementRebalance := loot.Rebalance{}
 	if startup.AttunementRebalance {
@@ -1505,6 +1525,9 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, errors.New("attunement rewards need -booster-catalog: the table pays wrappers, and without the box catalog they cannot be opened at drop time")
 		}
 		boxes := boosterBoxSource{catalog: boosterCatalog}
+		// 调律之边界专用：按源标记（[instantly open]）决定拆不拆。
+		// 与上面的 boxes 同源同目录，只是多一条判据 —— 所以两者不会互相漂移。
+		instantlyOpenBoxes := boosterBoxSource{catalog: boosterCatalog, instantlyOpenOnly: true}
 		empties, unopenable, e := attunement.ValidateBoxes(boxes)
 		if e != nil {
 			return nil, nil, e
@@ -1514,6 +1537,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		lootService.Attunement = attunement
 		lootService.RewardBoxes = boxes
+		lootService.InstantlyOpenBoxes = instantlyOpenBoxes
 		// 征兆系统（omen）：**默认生效**，无开关 —— 它是玩法本身。
 		// 与上面的固定玩法行为保持一致。
 		if omenRewards {
@@ -1718,8 +1742,10 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		oathGradeTable:        oathGradeTable,
 		oathInjectSpecs:       oathInjectSpecs,
 		oathProgressSet:       oathProgressSet,
+		deferredClearSet:      deferredClearSet,
 		odysseyChoices:        odysseyChoices,
 		omenInfoBytes:         omenInfoBytes,
+		attunementRewardSpec:  startup.AttunementReward,
 		omenState:             omenState,
 		progressionService:    progressionService,
 		questService:          questService,

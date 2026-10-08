@@ -28,6 +28,21 @@ const (
 	oathDefaultProgressClears = 5
 	// oathDefaultProgressDungeons 是计入保底的副本，默认只有小深渊「调律之边界」。
 	oathDefaultProgressDungeons = "100005014"
+	// deferredClearDefaultDungeons 是「通关结算延后到离开副本」的副本，**默认空**。
+//
+// ⚠️ 2026-10-07 晚：它一度只有小深渊（100005014），当时以为「原样发 NOTI31 会把客户端
+// 推进结算 UI、玩家于是失去右侧重开的机会」。业主对照国服视频后确认**那是错的**：
+// 国服同样会弹「是否继续? / 再次挑战 / 选择其它地下城 / 返回城镇」结算面板，
+// 右侧照样有「前进」箭头，两条路都能续刷。所以小深渊的延后已撤销，本开关退化为
+// 纯诊断（默认空 = 不延后）。取证与结论见 analysis/tasks/next173-*.md §7。
+	//
+	// 为什么延后（业主 2026-10-07 定调 A）：官方在本副本的循环是
+	// **领主（天平）→ 右侧移动 → 中段重新开始**，循环途中不该出现通关面板；
+	// 而服务端在领主死亡时立刻发 NOTI31（通关横幅）会把客户端推进结算 UI，
+	// 玩家于是失去向右滚的机会 —— 实机 2026-10-07 17:0x 逐帧确认（见
+	// analysis/tasks/next171-*.md：全场 CMD45/CMD36 均为 0，客户端根本没机会发）。
+	// 掉落在领主死亡时就已结算，与通关横幅无关，所以延后不影响掉落。
+	deferredClearDefaultDungeons = ""
 )
 
 // oathProgressDungeon 返回本次进本的副本号；没有活跃副本时是 0（不参与保底）。
@@ -80,7 +95,11 @@ func (w *worldSession) noteOathProgressClear(dungeonID uint32) (int, int, error)
 }
 
 // parseOathProgressDungeons 解析逗号分隔的副本号；空串 = 一个都不计入。
-func parseOathProgressDungeons(spec string) (map[uint32]bool, error) {
+// parseDungeonIDSet 解析逗号分隔的副本号集合；空串 = 空集。
+//
+// 「保底场次」与「通关结算延后」两张名单共用它 —— 两者都只是「一组副本号」，
+// 语义由调用方决定，解析规则没必要各写一份。
+func parseDungeonIDSet(spec string) (map[uint32]bool, error) {
 	out := map[uint32]bool{}
 	for _, part := range strings.Split(spec, ",") {
 		part = strings.TrimSpace(part)
@@ -89,9 +108,25 @@ func parseOathProgressDungeons(spec string) (map[uint32]bool, error) {
 		}
 		v, err := strconv.ParseUint(part, 10, 32)
 		if err != nil || v == 0 {
-			return nil, fmt.Errorf("bad oath progress dungeon %q: want a non-zero dungeon id", part)
+			return nil, fmt.Errorf("bad dungeon id %q: want a non-zero dungeon id", part)
 		}
 		out[uint32(v)] = true
 	}
 	return out, nil
+}
+
+func parseOathProgressDungeons(spec string) (map[uint32]bool, error) {
+	out, err := parseDungeonIDSet(spec)
+	if err != nil {
+		return nil, fmt.Errorf("bad oath progress dungeon: %w", err)
+	}
+	return out, nil
+}
+
+// deferredClear 说明这次通关的横幅（NOTI31）要不要延后到「离开副本」再发。
+func (w *worldSession) deferredClear(dungeonID uint32) bool {
+	if w == nil || w.deferredClearSet == nil {
+		return false
+	}
+	return w.deferredClearSet[dungeonID]
 }

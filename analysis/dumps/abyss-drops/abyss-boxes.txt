@@ -1,0 +1,1886 @@
+=== 10416103  kind=stackable  stackable_type=[booster]
+    path=stackable/10416001/10416103.stk
+    cells=85
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=480223593    resolved=<13::name_10416103>
+                           reference=<13::name_10416103>
+    [   1] type=8 value=480223593    <13::name_10416103>
+    [   2] type=3 value=157680133    [explain]
+    [   3] type=8 value=480223633    <13::explain_10416103>
+    [   4] type=3 value=157673483    [grade]
+    [   5] type=0 value=1            
+    [   6] type=3 value=86949813     [rarity]
+    [   7] type=0 value=3            
+    [   8] type=3 value=157673543    [usable job]
+    [   9] type=6 value=147067661    [all]
+    [  10] type=3 value=157673569    [/usable job]
+    [  11] type=3 value=157673499    [attach type]
+    [  12] type=6 value=157673527    [trade]
+    [  13] type=3 value=157673597    [minimum level]
+    [  14] type=0 value=1            
+    [  15] type=3 value=157673629    [icon]
+    [  16] type=6 value=137129317    Item/stackable/consumption.img
+    [  17] type=0 value=1589         
+    [  18] type=3 value=157888771    [field image]
+    [  19] type=6 value=59600159     Item/FieldImage.img
+    [  20] type=0 value=24           
+    [  21] type=3 value=209147603    [stackable type]
+    [stackable type]       value=442783027    resolved=[booster]
+    [  22] type=6 value=442783027    [booster]
+    [  23] type=0 value=0            
+    [  24] type=3 value=157673993    [move wav]
+    [  25] type=6 value=207363195    JEWEL_TOUCH
+    [  26] type=3 value=157882879    [usable period]
+    [  27] type=0 value=7            
+    [  28] type=3 value=298584943    [stack limit]
+    [  29] type=0 value=1            
+    [  30] type=3 value=442782279    [booster info]
+    [  31] type=3 value=149531251    [etc]
+    [  32] type=0 value=1            
+    [  33] type=0 value=10362432     
+    [  34] type=0 value=10000        
+    [  35] type=0 value=2            
+    [  36] type=3 value=218227229    [/etc]
+    [  37] type=3 value=149531251    [etc]
+    [  38] type=0 value=1            
+    [  39] type=0 value=-1           
+    [  40] type=0 value=474500       
+    [  41] type=0 value=1            
+    [  42] type=0 value=10362480     
+    [  43] type=0 value=41846        
+    [  44] type=0 value=1            
+    [  45] type=0 value=10362481     
+    [  46] type=0 value=230154       
+    [  47] type=0 value=1            
+    [  48] type=0 value=10362482     
+    [  49] type=0 value=30769        
+    [  50] type=0 value=1            
+    [  51] type=0 value=10362483     
+    [  52] type=0 value=169231       
+    [  53] type=0 value=1            
+    [  54] type=0 value=10362484     
+    [  55] type=0 value=2769         
+    [  56] type=0 value=1            
+    [  57] type=0 value=10355161     
+    [  58] type=0 value=2769         
+    [  59] type=0 value=1            
+    [  60] type=0 value=10362485     
+    [  61] type=0 value=30462        
+    [  62] type=0 value=1            
+    [  63] type=0 value=10362486     
+    [  64] type=0 value=1231         
+    [  65] type=0 value=1            
+    [  66] type=0 value=10355162     
+    [  67] type=0 value=1231         
+    [  68] type=0 value=1            
+    [  69] type=0 value=10362487     
+    [  70] type=0 value=13538        
+    [  71] type=0 value=1            
+    [  72] type=0 value=10362488     
+    [  73] type=0 value=115          
+    [  74] type=0 value=1            
+    [  75] type=0 value=10355163     
+    [  76] type=0 value=115          
+    [  77] type=0 value=1            
+    [  78] type=0 value=10362489     
+    [  79] type=0 value=1270         
+    [  80] type=0 value=1            
+    [  81] type=3 value=218227229    [/etc]
+    [  82] type=3 value=442782339    [/booster info]
+    [  83] type=3 value=446821807    [hide booster info]
+    [  84] type=0 value=1            
+
+=== 10416104  kind=stackable  stackable_type=[booster]
+    path=stackable/10416001/10416104.stk
+    cells=121
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=480223959    resolved=<13::name_10416104>
+                           reference=<13::name_10416104>
+    [   1] type=8 value=480223959    <13::name_10416104>
+    [   2] type=3 value=157680133    [explain]
+    [   3] type=8 value=480223999    <13::explain_10416104>
+    [   4] type=3 value=157673483    [grade]
+    [   5] type=0 value=1            
+    [   6] type=3 value=86949813     [rarity]
+    [   7] type=0 value=3            
+    [   8] type=3 value=157673543    [usable job]
+    [   9] type=6 value=147067661    [all]
+    [  10] type=3 value=157673569    [/usable job]
+    [  11] type=3 value=157673499    [attach type]
+    [  12] type=6 value=157673527    [trade]
+    [  13] type=3 value=157673597    [minimum level]
+    [  14] type=0 value=1            
+    [  15] type=3 value=157673629    [icon]
+    [  16] type=6 value=137129317    Item/stackable/consumption.img
+    [  17] type=0 value=1589         
+    [  18] type=3 value=157888771    [field image]
+    [  19] type=6 value=59600159     Item/FieldImage.img
+    [  20] type=0 value=24           
+    [  21] type=3 value=209147603    [stackable type]
+    [stackable type]       value=442783027    resolved=[booster]
+    [  22] type=6 value=442783027    [booster]
+    [  23] type=0 value=0            
+    [  24] type=3 value=157673993    [move wav]
+    [  25] type=6 value=207363195    JEWEL_TOUCH
+    [  26] type=3 value=157882879    [usable period]
+    [  27] type=0 value=7            
+    [  28] type=3 value=298584943    [stack limit]
+    [  29] type=0 value=1            
+    [  30] type=3 value=442782279    [booster info]
+    [  31] type=3 value=149531251    [etc]
+    [  32] type=0 value=1            
+    [  33] type=0 value=10362432     
+    [  34] type=0 value=333333       
+    [  35] type=0 value=2            
+    [  36] type=0 value=10362432     
+    [  37] type=0 value=333333       
+    [  38] type=0 value=3            
+    [  39] type=3 value=218227229    [/etc]
+    [  40] type=3 value=149531251    [etc]
+    [  41] type=0 value=1            
+    [  42] type=0 value=10362432     
+    [  43] type=0 value=333333       
+    [  44] type=0 value=2            
+    [  45] type=0 value=10362432     
+    [  46] type=0 value=333333       
+    [  47] type=0 value=3            
+    [  48] type=3 value=218227229    [/etc]
+    [  49] type=3 value=149531251    [etc]
+    [  50] type=0 value=1            
+    [  51] type=0 value=10362432     
+    [  52] type=0 value=333333       
+    [  53] type=0 value=2            
+    [  54] type=0 value=10362432     
+    [  55] type=0 value=333333       
+    [  56] type=0 value=3            
+    [  57] type=3 value=218227229    [/etc]
+    [  58] type=3 value=149531251    [etc]
+    [  59] type=0 value=1            
+    [  60] type=0 value=10362432     
+    [  61] type=0 value=333333       
+    [  62] type=0 value=2            
+    [  63] type=0 value=10362432     
+    [  64] type=0 value=333333       
+    [  65] type=0 value=3            
+    [  66] type=3 value=218227229    [/etc]
+    [  67] type=3 value=149531251    [etc]
+    [  68] type=0 value=1            
+    [  69] type=0 value=10362432     
+    [  70] type=0 value=10000        
+    [  71] type=0 value=2            
+    [  72] type=3 value=218227229    [/etc]
+    [  73] type=3 value=149531251    [etc]
+    [  74] type=0 value=1            
+    [  75] type=0 value=-1           
+    [  76] type=0 value=474500       
+    [  77] type=0 value=1            
+    [  78] type=0 value=10362480     
+    [  79] type=0 value=41846        
+    [  80] type=0 value=1            
+    [  81] type=0 value=10362481     
+    [  82] type=0 value=230154       
+    [  83] type=0 value=1            
+    [  84] type=0 value=10362482     
+    [  85] type=0 value=30769        
+    [  86] type=0 value=1            
+    [  87] type=0 value=10362483     
+    [  88] type=0 value=169231       
+    [  89] type=0 value=1            
+    [  90] type=0 value=10362484     
+    [  91] type=0 value=2769         
+    [  92] type=0 value=1            
+    [  93] type=0 value=10355161     
+    [  94] type=0 value=2769         
+    [  95] type=0 value=1            
+    [  96] type=0 value=10362485     
+    [  97] type=0 value=30462        
+    [  98] type=0 value=1            
+    [  99] type=0 value=10362486     
+    [ 100] type=0 value=1231         
+    [ 101] type=0 value=1            
+    [ 102] type=0 value=10355162     
+    [ 103] type=0 value=1231         
+    [ 104] type=0 value=1            
+    [ 105] type=0 value=10362487     
+    [ 106] type=0 value=13538        
+    [ 107] type=0 value=1            
+    [ 108] type=0 value=10362488     
+    [ 109] type=0 value=115          
+    [ 110] type=0 value=1            
+    [ 111] type=0 value=10355163     
+    [ 112] type=0 value=115          
+    [ 113] type=0 value=1            
+    [ 114] type=0 value=10362489     
+    [ 115] type=0 value=1270         
+    [ 116] type=0 value=1            
+    [ 117] type=3 value=218227229    [/etc]
+    [ 118] type=3 value=442782339    [/booster info]
+    [ 119] type=3 value=446821807    [hide booster info]
+    [ 120] type=0 value=1            
+
+=== 10416105  kind=stackable  stackable_type=[booster]
+    path=stackable/10416001/10416105.stk
+    cells=91
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=480224223    resolved=<13::name_10416105>
+                           reference=<13::name_10416105>
+    [   1] type=8 value=480224223    <13::name_10416105>
+    [   2] type=3 value=157680133    [explain]
+    [   3] type=8 value=480224263    <13::explain_10416105>
+    [   4] type=3 value=157673483    [grade]
+    [   5] type=0 value=1            
+    [   6] type=3 value=86949813     [rarity]
+    [   7] type=0 value=3            
+    [   8] type=3 value=157673543    [usable job]
+    [   9] type=6 value=147067661    [all]
+    [  10] type=3 value=157673569    [/usable job]
+    [  11] type=3 value=157673499    [attach type]
+    [  12] type=6 value=157673527    [trade]
+    [  13] type=3 value=157673597    [minimum level]
+    [  14] type=0 value=1            
+    [  15] type=3 value=157673629    [icon]
+    [  16] type=6 value=137129317    Item/stackable/consumption.img
+    [  17] type=0 value=1589         
+    [  18] type=3 value=157888771    [field image]
+    [  19] type=6 value=59600159     Item/FieldImage.img
+    [  20] type=0 value=24           
+    [  21] type=3 value=209147603    [stackable type]
+    [stackable type]       value=442783027    resolved=[booster]
+    [  22] type=6 value=442783027    [booster]
+    [  23] type=0 value=0            
+    [  24] type=3 value=157673993    [move wav]
+    [  25] type=6 value=207363195    JEWEL_TOUCH
+    [  26] type=3 value=157882879    [usable period]
+    [  27] type=0 value=7            
+    [  28] type=3 value=298584943    [stack limit]
+    [  29] type=0 value=1            
+    [  30] type=3 value=442782279    [booster info]
+    [  31] type=3 value=149531251    [etc]
+    [  32] type=0 value=1            
+    [  33] type=0 value=10362432     
+    [  34] type=0 value=10000        
+    [  35] type=0 value=2            
+    [  36] type=3 value=218227229    [/etc]
+    [  37] type=3 value=149531251    [etc]
+    [  38] type=0 value=1            
+    [  39] type=0 value=10418293     
+    [  40] type=0 value=1000         
+    [  41] type=0 value=1            
+    [  42] type=3 value=218227229    [/etc]
+    [  43] type=3 value=149531251    [etc]
+    [  44] type=0 value=1            
+    [  45] type=0 value=-1           
+    [  46] type=0 value=474500       
+    [  47] type=0 value=1            
+    [  48] type=0 value=10362480     
+    [  49] type=0 value=41846        
+    [  50] type=0 value=1            
+    [  51] type=0 value=10362481     
+    [  52] type=0 value=230154       
+    [  53] type=0 value=1            
+    [  54] type=0 value=10362482     
+    [  55] type=0 value=30769        
+    [  56] type=0 value=1            
+    [  57] type=0 value=10362483     
+    [  58] type=0 value=169231       
+    [  59] type=0 value=1            
+    [  60] type=0 value=10362484     
+    [  61] type=0 value=2769         
+    [  62] type=0 value=1            
+    [  63] type=0 value=10355161     
+    [  64] type=0 value=2769         
+    [  65] type=0 value=1            
+    [  66] type=0 value=10362485     
+    [  67] type=0 value=30462        
+    [  68] type=0 value=1            
+    [  69] type=0 value=10362486     
+    [  70] type=0 value=1231         
+    [  71] type=0 value=1            
+    [  72] type=0 value=10355162     
+    [  73] type=0 value=1231         
+    [  74] type=0 value=1            
+    [  75] type=0 value=10362487     
+    [  76] type=0 value=13538        
+    [  77] type=0 value=1            
+    [  78] type=0 value=10362488     
+    [  79] type=0 value=115          
+    [  80] type=0 value=1            
+    [  81] type=0 value=10355163     
+    [  82] type=0 value=115          
+    [  83] type=0 value=1            
+    [  84] type=0 value=10362489     
+    [  85] type=0 value=1270         
+    [  86] type=0 value=1            
+    [  87] type=3 value=218227229    [/etc]
+    [  88] type=3 value=442782339    [/booster info]
+    [  89] type=3 value=446821807    [hide booster info]
+    [  90] type=0 value=1            
+
+=== 10416106  kind=stackable  stackable_type=[booster]
+    path=stackable/10416001/10416106.stk
+    cells=91
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=480224507    resolved=<13::name_10416106>
+                           reference=<13::name_10416106>
+    [   1] type=8 value=480224507    <13::name_10416106>
+    [   2] type=3 value=157680133    [explain]
+    [   3] type=8 value=480224547    <13::explain_10416106>
+    [   4] type=3 value=157673483    [grade]
+    [   5] type=0 value=1            
+    [   6] type=3 value=86949813     [rarity]
+    [   7] type=0 value=3            
+    [   8] type=3 value=157673543    [usable job]
+    [   9] type=6 value=147067661    [all]
+    [  10] type=3 value=157673569    [/usable job]
+    [  11] type=3 value=157673499    [attach type]
+    [  12] type=6 value=157673527    [trade]
+    [  13] type=3 value=157673597    [minimum level]
+    [  14] type=0 value=1            
+    [  15] type=3 value=157673629    [icon]
+    [  16] type=6 value=137129317    Item/stackable/consumption.img
+    [  17] type=0 value=1589         
+    [  18] type=3 value=157888771    [field image]
+    [  19] type=6 value=59600159     Item/FieldImage.img
+    [  20] type=0 value=24           
+    [  21] type=3 value=209147603    [stackable type]
+    [stackable type]       value=442783027    resolved=[booster]
+    [  22] type=6 value=442783027    [booster]
+    [  23] type=0 value=0            
+    [  24] type=3 value=157673993    [move wav]
+    [  25] type=6 value=207363195    JEWEL_TOUCH
+    [  26] type=3 value=157882879    [usable period]
+    [  27] type=0 value=7            
+    [  28] type=3 value=298584943    [stack limit]
+    [  29] type=0 value=1            
+    [  30] type=3 value=442782279    [booster info]
+    [  31] type=3 value=149531251    [etc]
+    [  32] type=0 value=1            
+    [  33] type=0 value=10362432     
+    [  34] type=0 value=10000        
+    [  35] type=0 value=2            
+    [  36] type=3 value=218227229    [/etc]
+    [  37] type=3 value=149531251    [etc]
+    [  38] type=0 value=1            
+    [  39] type=0 value=100401592    
+    [  40] type=0 value=10000        
+    [  41] type=0 value=1            
+    [  42] type=3 value=218227229    [/etc]
+    [  43] type=3 value=149531251    [etc]
+    [  44] type=0 value=1            
+    [  45] type=0 value=-1           
+    [  46] type=0 value=474500       
+    [  47] type=0 value=1            
+    [  48] type=0 value=10362480     
+    [  49] type=0 value=41846        
+    [  50] type=0 value=1            
+    [  51] type=0 value=10362481     
+    [  52] type=0 value=230154       
+    [  53] type=0 value=1            
+    [  54] type=0 value=10362482     
+    [  55] type=0 value=30769        
+    [  56] type=0 value=1            
+    [  57] type=0 value=10362483     
+    [  58] type=0 value=169231       
+    [  59] type=0 value=1            
+    [  60] type=0 value=10362484     
+    [  61] type=0 value=2769         
+    [  62] type=0 value=1            
+    [  63] type=0 value=10355161     
+    [  64] type=0 value=2769         
+    [  65] type=0 value=1            
+    [  66] type=0 value=10362485     
+    [  67] type=0 value=30462        
+    [  68] type=0 value=1            
+    [  69] type=0 value=10362486     
+    [  70] type=0 value=1231         
+    [  71] type=0 value=1            
+    [  72] type=0 value=10355162     
+    [  73] type=0 value=1231         
+    [  74] type=0 value=1            
+    [  75] type=0 value=10362487     
+    [  76] type=0 value=13538        
+    [  77] type=0 value=1            
+    [  78] type=0 value=10362488     
+    [  79] type=0 value=115          
+    [  80] type=0 value=1            
+    [  81] type=0 value=10355163     
+    [  82] type=0 value=115          
+    [  83] type=0 value=1            
+    [  84] type=0 value=10362489     
+    [  85] type=0 value=1270         
+    [  86] type=0 value=1            
+    [  87] type=3 value=218227229    [/etc]
+    [  88] type=3 value=442782339    [/booster info]
+    [  89] type=3 value=446821807    [hide booster info]
+    [  90] type=0 value=1            
+
+=== 10416107  kind=stackable  stackable_type=[booster]
+    path=stackable/10416001/10416107.stk
+    cells=124
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=480224619    resolved=<13::name_10416107>
+                           reference=<13::name_10416107>
+    [   1] type=8 value=480224619    <13::name_10416107>
+    [   2] type=3 value=157680133    [explain]
+    [   3] type=8 value=480224659    <13::explain_10416107>
+    [   4] type=3 value=157673483    [grade]
+    [   5] type=0 value=1            
+    [   6] type=3 value=86949813     [rarity]
+    [   7] type=0 value=3            
+    [   8] type=3 value=157673543    [usable job]
+    [   9] type=6 value=147067661    [all]
+    [  10] type=3 value=157673569    [/usable job]
+    [  11] type=3 value=157673499    [attach type]
+    [  12] type=6 value=157673527    [trade]
+    [  13] type=3 value=157673597    [minimum level]
+    [  14] type=0 value=1            
+    [  15] type=3 value=157673629    [icon]
+    [  16] type=6 value=137129317    Item/stackable/consumption.img
+    [  17] type=0 value=1589         
+    [  18] type=3 value=157888771    [field image]
+    [  19] type=6 value=59600159     Item/FieldImage.img
+    [  20] type=0 value=24           
+    [  21] type=3 value=209147603    [stackable type]
+    [stackable type]       value=442783027    resolved=[booster]
+    [  22] type=6 value=442783027    [booster]
+    [  23] type=0 value=0            
+    [  24] type=3 value=157673993    [move wav]
+    [  25] type=6 value=207363195    JEWEL_TOUCH
+    [  26] type=3 value=157882879    [usable period]
+    [  27] type=0 value=7            
+    [  28] type=3 value=298584943    [stack limit]
+    [  29] type=0 value=1            
+    [  30] type=3 value=442782279    [booster info]
+    [  31] type=3 value=149531251    [etc]
+    [  32] type=0 value=1            
+    [  33] type=0 value=10362432     
+    [  34] type=0 value=10000        
+    [  35] type=0 value=2            
+    [  36] type=3 value=218227229    [/etc]
+    [  37] type=3 value=149531251    [etc]
+    [  38] type=0 value=1            
+    [  39] type=0 value=100401596    
+    [  40] type=0 value=10000        
+    [  41] type=0 value=1            
+    [  42] type=0 value=100401600    
+    [  43] type=0 value=10000        
+    [  44] type=0 value=1            
+    [  45] type=0 value=100401604    
+    [  46] type=0 value=10000        
+    [  47] type=0 value=1            
+    [  48] type=0 value=100401608    
+    [  49] type=0 value=10000        
+    [  50] type=0 value=1            
+    [  51] type=0 value=100401612    
+    [  52] type=0 value=10000        
+    [  53] type=0 value=1            
+    [  54] type=0 value=100401616    
+    [  55] type=0 value=10000        
+    [  56] type=0 value=1            
+    [  57] type=0 value=100401620    
+    [  58] type=0 value=10000        
+    [  59] type=0 value=1            
+    [  60] type=0 value=100401624    
+    [  61] type=0 value=10000        
+    [  62] type=0 value=1            
+    [  63] type=0 value=100401628    
+    [  64] type=0 value=10000        
+    [  65] type=0 value=1            
+    [  66] type=0 value=100401632    
+    [  67] type=0 value=10000        
+    [  68] type=0 value=1            
+    [  69] type=0 value=100401636    
+    [  70] type=0 value=10000        
+    [  71] type=0 value=1            
+    [  72] type=0 value=100401640    
+    [  73] type=0 value=10000        
+    [  74] type=0 value=1            
+    [  75] type=3 value=218227229    [/etc]
+    [  76] type=3 value=149531251    [etc]
+    [  77] type=0 value=1            
+    [  78] type=0 value=-1           
+    [  79] type=0 value=474500       
+    [  80] type=0 value=1            
+    [  81] type=0 value=10362480     
+    [  82] type=0 value=41846        
+    [  83] type=0 value=1            
+    [  84] type=0 value=10362481     
+    [  85] type=0 value=230154       
+    [  86] type=0 value=1            
+    [  87] type=0 value=10362482     
+    [  88] type=0 value=30769        
+    [  89] type=0 value=1            
+    [  90] type=0 value=10362483     
+    [  91] type=0 value=169231       
+    [  92] type=0 value=1            
+    [  93] type=0 value=10362484     
+    [  94] type=0 value=2769         
+    [  95] type=0 value=1            
+    [  96] type=0 value=10355161     
+    [  97] type=0 value=2769         
+    [  98] type=0 value=1            
+    [  99] type=0 value=10362485     
+    [ 100] type=0 value=30462        
+    [ 101] type=0 value=1            
+    [ 102] type=0 value=10362486     
+    [ 103] type=0 value=1231         
+    [ 104] type=0 value=1            
+    [ 105] type=0 value=10355162     
+    [ 106] type=0 value=1231         
+    [ 107] type=0 value=1            
+    [ 108] type=0 value=10362487     
+    [ 109] type=0 value=13538        
+    [ 110] type=0 value=1            
+    [ 111] type=0 value=10362488     
+    [ 112] type=0 value=115          
+    [ 113] type=0 value=1            
+    [ 114] type=0 value=10355163     
+    [ 115] type=0 value=115          
+    [ 116] type=0 value=1            
+    [ 117] type=0 value=10362489     
+    [ 118] type=0 value=1270         
+    [ 119] type=0 value=1            
+    [ 120] type=3 value=218227229    [/etc]
+    [ 121] type=3 value=442782339    [/booster info]
+    [ 122] type=3 value=446821807    [hide booster info]
+    [ 123] type=0 value=1            
+
+=== 10416108  kind=stackable  stackable_type=[booster]
+    path=stackable/10416001/10416108.stk
+    cells=124
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=480224731    resolved=<13::name_10416108>
+                           reference=<13::name_10416108>
+    [   1] type=8 value=480224731    <13::name_10416108>
+    [   2] type=3 value=157680133    [explain]
+    [   3] type=8 value=480224771    <13::explain_10416108>
+    [   4] type=3 value=157673483    [grade]
+    [   5] type=0 value=1            
+    [   6] type=3 value=86949813     [rarity]
+    [   7] type=0 value=3            
+    [   8] type=3 value=157673543    [usable job]
+    [   9] type=6 value=147067661    [all]
+    [  10] type=3 value=157673569    [/usable job]
+    [  11] type=3 value=157673499    [attach type]
+    [  12] type=6 value=157673527    [trade]
+    [  13] type=3 value=157673597    [minimum level]
+    [  14] type=0 value=1            
+    [  15] type=3 value=157673629    [icon]
+    [  16] type=6 value=137129317    Item/stackable/consumption.img
+    [  17] type=0 value=1589         
+    [  18] type=3 value=157888771    [field image]
+    [  19] type=6 value=59600159     Item/FieldImage.img
+    [  20] type=0 value=24           
+    [  21] type=3 value=209147603    [stackable type]
+    [stackable type]       value=442783027    resolved=[booster]
+    [  22] type=6 value=442783027    [booster]
+    [  23] type=0 value=0            
+    [  24] type=3 value=157673993    [move wav]
+    [  25] type=6 value=207363195    JEWEL_TOUCH
+    [  26] type=3 value=157882879    [usable period]
+    [  27] type=0 value=7            
+    [  28] type=3 value=298584943    [stack limit]
+    [  29] type=0 value=1            
+    [  30] type=3 value=442782279    [booster info]
+    [  31] type=3 value=149531251    [etc]
+    [  32] type=0 value=1            
+    [  33] type=0 value=10362432     
+    [  34] type=0 value=10000        
+    [  35] type=0 value=2            
+    [  36] type=3 value=218227229    [/etc]
+    [  37] type=3 value=149531251    [etc]
+    [  38] type=0 value=1            
+    [  39] type=0 value=100401597    
+    [  40] type=0 value=10000        
+    [  41] type=0 value=1            
+    [  42] type=0 value=100401601    
+    [  43] type=0 value=10000        
+    [  44] type=0 value=1            
+    [  45] type=0 value=100401605    
+    [  46] type=0 value=10000        
+    [  47] type=0 value=1            
+    [  48] type=0 value=100401609    
+    [  49] type=0 value=10000        
+    [  50] type=0 value=1            
+    [  51] type=0 value=100401613    
+    [  52] type=0 value=10000        
+    [  53] type=0 value=1            
+    [  54] type=0 value=100401617    
+    [  55] type=0 value=10000        
+    [  56] type=0 value=1            
+    [  57] type=0 value=100401621    
+    [  58] type=0 value=10000        
+    [  59] type=0 value=1            
+    [  60] type=0 value=100401625    
+    [  61] type=0 value=10000        
+    [  62] type=0 value=1            
+    [  63] type=0 value=100401629    
+    [  64] type=0 value=10000        
+    [  65] type=0 value=1            
+    [  66] type=0 value=100401633    
+    [  67] type=0 value=10000        
+    [  68] type=0 value=1            
+    [  69] type=0 value=100401637    
+    [  70] type=0 value=10000        
+    [  71] type=0 value=1            
+    [  72] type=0 value=100401641    
+    [  73] type=0 value=10000        
+    [  74] type=0 value=1            
+    [  75] type=3 value=218227229    [/etc]
+    [  76] type=3 value=149531251    [etc]
+    [  77] type=0 value=1            
+    [  78] type=0 value=-1           
+    [  79] type=0 value=474500       
+    [  80] type=0 value=1            
+    [  81] type=0 value=10362480     
+    [  82] type=0 value=41846        
+    [  83] type=0 value=1            
+    [  84] type=0 value=10362481     
+    [  85] type=0 value=230154       
+    [  86] type=0 value=1            
+    [  87] type=0 value=10362482     
+    [  88] type=0 value=30769        
+    [  89] type=0 value=1            
+    [  90] type=0 value=10362483     
+    [  91] type=0 value=169231       
+    [  92] type=0 value=1            
+    [  93] type=0 value=10362484     
+    [  94] type=0 value=2769         
+    [  95] type=0 value=1            
+    [  96] type=0 value=10355161     
+    [  97] type=0 value=2769         
+    [  98] type=0 value=1            
+    [  99] type=0 value=10362485     
+    [ 100] type=0 value=30462        
+    [ 101] type=0 value=1            
+    [ 102] type=0 value=10362486     
+    [ 103] type=0 value=1231         
+    [ 104] type=0 value=1            
+    [ 105] type=0 value=10355162     
+    [ 106] type=0 value=1231         
+    [ 107] type=0 value=1            
+    [ 108] type=0 value=10362487     
+    [ 109] type=0 value=13538        
+    [ 110] type=0 value=1            
+    [ 111] type=0 value=10362488     
+    [ 112] type=0 value=115          
+    [ 113] type=0 value=1            
+    [ 114] type=0 value=10355163     
+    [ 115] type=0 value=115          
+    [ 116] type=0 value=1            
+    [ 117] type=0 value=10362489     
+    [ 118] type=0 value=1270         
+    [ 119] type=0 value=1            
+    [ 120] type=3 value=218227229    [/etc]
+    [ 121] type=3 value=442782339    [/booster info]
+    [ 122] type=3 value=446821807    [hide booster info]
+    [ 123] type=0 value=1            
+
+=== 10416109  kind=stackable  stackable_type=[booster]
+    path=stackable/10416001/10416109.stk
+    cells=124
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=480224843    resolved=<13::name_10416109>
+                           reference=<13::name_10416109>
+    [   1] type=8 value=480224843    <13::name_10416109>
+    [   2] type=3 value=157680133    [explain]
+    [   3] type=8 value=480224883    <13::explain_10416109>
+    [   4] type=3 value=157673483    [grade]
+    [   5] type=0 value=1            
+    [   6] type=3 value=86949813     [rarity]
+    [   7] type=0 value=3            
+    [   8] type=3 value=157673543    [usable job]
+    [   9] type=6 value=147067661    [all]
+    [  10] type=3 value=157673569    [/usable job]
+    [  11] type=3 value=157673499    [attach type]
+    [  12] type=6 value=157673527    [trade]
+    [  13] type=3 value=157673597    [minimum level]
+    [  14] type=0 value=1            
+    [  15] type=3 value=157673629    [icon]
+    [  16] type=6 value=137129317    Item/stackable/consumption.img
+    [  17] type=0 value=1589         
+    [  18] type=3 value=157888771    [field image]
+    [  19] type=6 value=59600159     Item/FieldImage.img
+    [  20] type=0 value=24           
+    [  21] type=3 value=209147603    [stackable type]
+    [stackable type]       value=442783027    resolved=[booster]
+    [  22] type=6 value=442783027    [booster]
+    [  23] type=0 value=0            
+    [  24] type=3 value=157673993    [move wav]
+    [  25] type=6 value=207363195    JEWEL_TOUCH
+    [  26] type=3 value=157882879    [usable period]
+    [  27] type=0 value=7            
+    [  28] type=3 value=298584943    [stack limit]
+    [  29] type=0 value=1            
+    [  30] type=3 value=442782279    [booster info]
+    [  31] type=3 value=149531251    [etc]
+    [  32] type=0 value=1            
+    [  33] type=0 value=10362432     
+    [  34] type=0 value=10000        
+    [  35] type=0 value=2            
+    [  36] type=3 value=218227229    [/etc]
+    [  37] type=3 value=149531251    [etc]
+    [  38] type=0 value=1            
+    [  39] type=0 value=100401598    
+    [  40] type=0 value=10000        
+    [  41] type=0 value=1            
+    [  42] type=0 value=100401602    
+    [  43] type=0 value=10000        
+    [  44] type=0 value=1            
+    [  45] type=0 value=100401606    
+    [  46] type=0 value=10000        
+    [  47] type=0 value=1            
+    [  48] type=0 value=100401610    
+    [  49] type=0 value=10000        
+    [  50] type=0 value=1            
+    [  51] type=0 value=100401614    
+    [  52] type=0 value=10000        
+    [  53] type=0 value=1            
+    [  54] type=0 value=100401618    
+    [  55] type=0 value=10000        
+    [  56] type=0 value=1            
+    [  57] type=0 value=100401622    
+    [  58] type=0 value=10000        
+    [  59] type=0 value=1            
+    [  60] type=0 value=100401626    
+    [  61] type=0 value=10000        
+    [  62] type=0 value=1            
+    [  63] type=0 value=100401630    
+    [  64] type=0 value=10000        
+    [  65] type=0 value=1            
+    [  66] type=0 value=100401634    
+    [  67] type=0 value=10000        
+    [  68] type=0 value=1            
+    [  69] type=0 value=100401638    
+    [  70] type=0 value=10000        
+    [  71] type=0 value=1            
+    [  72] type=0 value=100401642    
+    [  73] type=0 value=10000        
+    [  74] type=0 value=1            
+    [  75] type=3 value=218227229    [/etc]
+    [  76] type=3 value=149531251    [etc]
+    [  77] type=0 value=1            
+    [  78] type=0 value=-1           
+    [  79] type=0 value=474500       
+    [  80] type=0 value=1            
+    [  81] type=0 value=10362480     
+    [  82] type=0 value=41846        
+    [  83] type=0 value=1            
+    [  84] type=0 value=10362481     
+    [  85] type=0 value=230154       
+    [  86] type=0 value=1            
+    [  87] type=0 value=10362482     
+    [  88] type=0 value=30769        
+    [  89] type=0 value=1            
+    [  90] type=0 value=10362483     
+    [  91] type=0 value=169231       
+    [  92] type=0 value=1            
+    [  93] type=0 value=10362484     
+    [  94] type=0 value=2769         
+    [  95] type=0 value=1            
+    [  96] type=0 value=10355161     
+    [  97] type=0 value=2769         
+    [  98] type=0 value=1            
+    [  99] type=0 value=10362485     
+    [ 100] type=0 value=30462        
+    [ 101] type=0 value=1            
+    [ 102] type=0 value=10362486     
+    [ 103] type=0 value=1231         
+    [ 104] type=0 value=1            
+    [ 105] type=0 value=10355162     
+    [ 106] type=0 value=1231         
+    [ 107] type=0 value=1            
+    [ 108] type=0 value=10362487     
+    [ 109] type=0 value=13538        
+    [ 110] type=0 value=1            
+    [ 111] type=0 value=10362488     
+    [ 112] type=0 value=115          
+    [ 113] type=0 value=1            
+    [ 114] type=0 value=10355163     
+    [ 115] type=0 value=115          
+    [ 116] type=0 value=1            
+    [ 117] type=0 value=10362489     
+    [ 118] type=0 value=1270         
+    [ 119] type=0 value=1            
+    [ 120] type=3 value=218227229    [/etc]
+    [ 121] type=3 value=442782339    [/booster info]
+    [ 122] type=3 value=446821807    [hide booster info]
+    [ 123] type=0 value=1            
+
+=== 10416110  kind=stackable  stackable_type=[booster]
+    path=stackable/10416001/10416110.stk
+    cells=124
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=480224955    resolved=<13::name_10416110>
+                           reference=<13::name_10416110>
+    [   1] type=8 value=480224955    <13::name_10416110>
+    [   2] type=3 value=157680133    [explain]
+    [   3] type=8 value=480224995    <13::explain_10416110>
+    [   4] type=3 value=157673483    [grade]
+    [   5] type=0 value=1            
+    [   6] type=3 value=86949813     [rarity]
+    [   7] type=0 value=3            
+    [   8] type=3 value=157673543    [usable job]
+    [   9] type=6 value=147067661    [all]
+    [  10] type=3 value=157673569    [/usable job]
+    [  11] type=3 value=157673499    [attach type]
+    [  12] type=6 value=157673527    [trade]
+    [  13] type=3 value=157673597    [minimum level]
+    [  14] type=0 value=1            
+    [  15] type=3 value=157673629    [icon]
+    [  16] type=6 value=137129317    Item/stackable/consumption.img
+    [  17] type=0 value=1589         
+    [  18] type=3 value=157888771    [field image]
+    [  19] type=6 value=59600159     Item/FieldImage.img
+    [  20] type=0 value=24           
+    [  21] type=3 value=209147603    [stackable type]
+    [stackable type]       value=442783027    resolved=[booster]
+    [  22] type=6 value=442783027    [booster]
+    [  23] type=0 value=0            
+    [  24] type=3 value=157673993    [move wav]
+    [  25] type=6 value=207363195    JEWEL_TOUCH
+    [  26] type=3 value=157882879    [usable period]
+    [  27] type=0 value=7            
+    [  28] type=3 value=298584943    [stack limit]
+    [  29] type=0 value=1            
+    [  30] type=3 value=442782279    [booster info]
+    [  31] type=3 value=149531251    [etc]
+    [  32] type=0 value=1            
+    [  33] type=0 value=10362432     
+    [  34] type=0 value=10000        
+    [  35] type=0 value=2            
+    [  36] type=3 value=218227229    [/etc]
+    [  37] type=3 value=149531251    [etc]
+    [  38] type=0 value=1            
+    [  39] type=0 value=100401599    
+    [  40] type=0 value=10000        
+    [  41] type=0 value=1            
+    [  42] type=0 value=100401603    
+    [  43] type=0 value=10000        
+    [  44] type=0 value=1            
+    [  45] type=0 value=100401607    
+    [  46] type=0 value=10000        
+    [  47] type=0 value=1            
+    [  48] type=0 value=100401611    
+    [  49] type=0 value=10000        
+    [  50] type=0 value=1            
+    [  51] type=0 value=100401615    
+    [  52] type=0 value=10000        
+    [  53] type=0 value=1            
+    [  54] type=0 value=100401619    
+    [  55] type=0 value=10000        
+    [  56] type=0 value=1            
+    [  57] type=0 value=100401623    
+    [  58] type=0 value=10000        
+    [  59] type=0 value=1            
+    [  60] type=0 value=100401627    
+    [  61] type=0 value=10000        
+    [  62] type=0 value=1            
+    [  63] type=0 value=100401631    
+    [  64] type=0 value=10000        
+    [  65] type=0 value=1            
+    [  66] type=0 value=100401635    
+    [  67] type=0 value=10000        
+    [  68] type=0 value=1            
+    [  69] type=0 value=100401639    
+    [  70] type=0 value=10000        
+    [  71] type=0 value=1            
+    [  72] type=0 value=100401643    
+    [  73] type=0 value=10000        
+    [  74] type=0 value=1            
+    [  75] type=3 value=218227229    [/etc]
+    [  76] type=3 value=149531251    [etc]
+    [  77] type=0 value=1            
+    [  78] type=0 value=-1           
+    [  79] type=0 value=474500       
+    [  80] type=0 value=1            
+    [  81] type=0 value=10362480     
+    [  82] type=0 value=41846        
+    [  83] type=0 value=1            
+    [  84] type=0 value=10362481     
+    [  85] type=0 value=230154       
+    [  86] type=0 value=1            
+    [  87] type=0 value=10362482     
+    [  88] type=0 value=30769        
+    [  89] type=0 value=1            
+    [  90] type=0 value=10362483     
+    [  91] type=0 value=169231       
+    [  92] type=0 value=1            
+    [  93] type=0 value=10362484     
+    [  94] type=0 value=2769         
+    [  95] type=0 value=1            
+    [  96] type=0 value=10355161     
+    [  97] type=0 value=2769         
+    [  98] type=0 value=1            
+    [  99] type=0 value=10362485     
+    [ 100] type=0 value=30462        
+    [ 101] type=0 value=1            
+    [ 102] type=0 value=10362486     
+    [ 103] type=0 value=1231         
+    [ 104] type=0 value=1            
+    [ 105] type=0 value=10355162     
+    [ 106] type=0 value=1231         
+    [ 107] type=0 value=1            
+    [ 108] type=0 value=10362487     
+    [ 109] type=0 value=13538        
+    [ 110] type=0 value=1            
+    [ 111] type=0 value=10362488     
+    [ 112] type=0 value=115          
+    [ 113] type=0 value=1            
+    [ 114] type=0 value=10355163     
+    [ 115] type=0 value=115          
+    [ 116] type=0 value=1            
+    [ 117] type=0 value=10362489     
+    [ 118] type=0 value=1270         
+    [ 119] type=0 value=1            
+    [ 120] type=3 value=218227229    [/etc]
+    [ 121] type=3 value=442782339    [/booster info]
+    [ 122] type=3 value=446821807    [hide booster info]
+    [ 123] type=0 value=1            
+
+=== 10416119  kind=stackable  stackable_type=[booster]
+    path=stackable/10416001/10416119.stk
+    cells=271
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=480226327    resolved=<13::name_10416119>
+                           reference=<13::name_10416119>
+    [   1] type=8 value=480226327    <13::name_10416119>
+    [   2] type=3 value=157680133    [explain]
+    [   3] type=8 value=480226367    <13::explain_10416119>
+    [   4] type=3 value=157673483    [grade]
+    [   5] type=0 value=1            
+    [   6] type=3 value=86949813     [rarity]
+    [   7] type=0 value=3            
+    [   8] type=3 value=157673543    [usable job]
+    [   9] type=6 value=147067661    [all]
+    [  10] type=3 value=157673569    [/usable job]
+    [  11] type=3 value=157673499    [attach type]
+    [  12] type=6 value=157673527    [trade]
+    [  13] type=3 value=157673597    [minimum level]
+    [  14] type=0 value=1            
+    [  15] type=3 value=157673629    [icon]
+    [  16] type=6 value=137129317    Item/stackable/consumption.img
+    [  17] type=0 value=1589         
+    [  18] type=3 value=157888771    [field image]
+    [  19] type=6 value=59600159     Item/FieldImage.img
+    [  20] type=0 value=24           
+    [  21] type=3 value=209147603    [stackable type]
+    [stackable type]       value=442783027    resolved=[booster]
+    [  22] type=6 value=442783027    [booster]
+    [  23] type=0 value=0            
+    [  24] type=3 value=157673993    [move wav]
+    [  25] type=6 value=207363195    JEWEL_TOUCH
+    [  26] type=3 value=157882879    [usable period]
+    [  27] type=0 value=7            
+    [  28] type=3 value=298584943    [stack limit]
+    [  29] type=0 value=1            
+    [  30] type=3 value=442782279    [booster info]
+    [  31] type=3 value=149531251    [etc]
+    [  32] type=0 value=1            
+    [  33] type=0 value=100401597    
+    [  34] type=0 value=1000         
+    [  35] type=0 value=1            
+    [  36] type=0 value=100401601    
+    [  37] type=0 value=1000         
+    [  38] type=0 value=1            
+    [  39] type=0 value=100401605    
+    [  40] type=0 value=1000         
+    [  41] type=0 value=1            
+    [  42] type=0 value=100401609    
+    [  43] type=0 value=1000         
+    [  44] type=0 value=1            
+    [  45] type=0 value=100401613    
+    [  46] type=0 value=1000         
+    [  47] type=0 value=1            
+    [  48] type=0 value=100401617    
+    [  49] type=0 value=1000         
+    [  50] type=0 value=1            
+    [  51] type=0 value=100401621    
+    [  52] type=0 value=1000         
+    [  53] type=0 value=1            
+    [  54] type=0 value=100401625    
+    [  55] type=0 value=1000         
+    [  56] type=0 value=1            
+    [  57] type=0 value=100401629    
+    [  58] type=0 value=1000         
+    [  59] type=0 value=1            
+    [  60] type=0 value=100401633    
+    [  61] type=0 value=1000         
+    [  62] type=0 value=1            
+    [  63] type=0 value=100401637    
+    [  64] type=0 value=1000         
+    [  65] type=0 value=1            
+    [  66] type=0 value=100401641    
+    [  67] type=0 value=1000         
+    [  68] type=0 value=1            
+    [  69] type=3 value=218227229    [/etc]
+    [  70] type=3 value=149531251    [etc]
+    [  71] type=0 value=14           
+    [  72] type=0 value=10362432     
+    [  73] type=0 value=474500       
+    [  74] type=0 value=2            
+    [  75] type=0 value=100401592    
+    [  76] type=0 value=272000       
+    [  77] type=0 value=1            
+    [  78] type=0 value=100401596    
+    [  79] type=0 value=16667        
+    [  80] type=0 value=1            
+    [  81] type=0 value=100401600    
+    [  82] type=0 value=16667        
+    [  83] type=0 value=1            
+    [  84] type=0 value=100401604    
+    [  85] type=0 value=16667        
+    [  86] type=0 value=1            
+    [  87] type=0 value=100401608    
+    [  88] type=0 value=16667        
+    [  89] type=0 value=1            
+    [  90] type=0 value=100401612    
+    [  91] type=0 value=16667        
+    [  92] type=0 value=1            
+    [  93] type=0 value=100401616    
+    [  94] type=0 value=16667        
+    [  95] type=0 value=1            
+    [  96] type=0 value=100401620    
+    [  97] type=0 value=16667        
+    [  98] type=0 value=1            
+    [  99] type=0 value=100401624    
+    [ 100] type=0 value=16667        
+    [ 101] type=0 value=1            
+    [ 102] type=0 value=100401628    
+    [ 103] type=0 value=16667        
+    [ 104] type=0 value=1            
+    [ 105] type=0 value=100401632    
+    [ 106] type=0 value=16667        
+    [ 107] type=0 value=1            
+    [ 108] type=0 value=100401636    
+    [ 109] type=0 value=16667        
+    [ 110] type=0 value=1            
+    [ 111] type=0 value=100401640    
+    [ 112] type=0 value=16667        
+    [ 113] type=0 value=1            
+    [ 114] type=0 value=100401597    
+    [ 115] type=0 value=3000         
+    [ 116] type=0 value=1            
+    [ 117] type=0 value=100401601    
+    [ 118] type=0 value=3000         
+    [ 119] type=0 value=1            
+    [ 120] type=0 value=100401605    
+    [ 121] type=0 value=3000         
+    [ 122] type=0 value=1            
+    [ 123] type=0 value=100401609    
+    [ 124] type=0 value=3000         
+    [ 125] type=0 value=1            
+    [ 126] type=0 value=100401613    
+    [ 127] type=0 value=3000         
+    [ 128] type=0 value=1            
+    [ 129] type=0 value=100401617    
+    [ 130] type=0 value=3000         
+    [ 131] type=0 value=1            
+    [ 132] type=0 value=100401621    
+    [ 133] type=0 value=3000         
+    [ 134] type=0 value=1            
+    [ 135] type=0 value=100401625    
+    [ 136] type=0 value=3000         
+    [ 137] type=0 value=1            
+    [ 138] type=0 value=100401629    
+    [ 139] type=0 value=3000         
+    [ 140] type=0 value=1            
+    [ 141] type=0 value=100401633    
+    [ 142] type=0 value=3000         
+    [ 143] type=0 value=1            
+    [ 144] type=0 value=100401637    
+    [ 145] type=0 value=3000         
+    [ 146] type=0 value=1            
+    [ 147] type=0 value=100401641    
+    [ 148] type=0 value=3000         
+    [ 149] type=0 value=1            
+    [ 150] type=0 value=100401598    
+    [ 151] type=0 value=1333         
+    [ 152] type=0 value=1            
+    [ 153] type=0 value=100401602    
+    [ 154] type=0 value=1333         
+    [ 155] type=0 value=1            
+    [ 156] type=0 value=100401606    
+    [ 157] type=0 value=1333         
+    [ 158] type=0 value=1            
+    [ 159] type=0 value=100401610    
+    [ 160] type=0 value=1333         
+    [ 161] type=0 value=1            
+    [ 162] type=0 value=100401614    
+    [ 163] type=0 value=1333         
+    [ 164] type=0 value=1            
+    [ 165] type=0 value=100401618    
+    [ 166] type=0 value=1333         
+    [ 167] type=0 value=1            
+    [ 168] type=0 value=100401622    
+    [ 169] type=0 value=1333         
+    [ 170] type=0 value=1            
+    [ 171] type=0 value=100401626    
+    [ 172] type=0 value=1333         
+    [ 173] type=0 value=1            
+    [ 174] type=0 value=100401630    
+    [ 175] type=0 value=1333         
+    [ 176] type=0 value=1            
+    [ 177] type=0 value=100401634    
+    [ 178] type=0 value=1333         
+    [ 179] type=0 value=1            
+    [ 180] type=0 value=100401638    
+    [ 181] type=0 value=1333         
+    [ 182] type=0 value=1            
+    [ 183] type=0 value=100401642    
+    [ 184] type=0 value=1333         
+    [ 185] type=0 value=1            
+    [ 186] type=0 value=100401599    
+    [ 187] type=0 value=125          
+    [ 188] type=0 value=1            
+    [ 189] type=0 value=100401603    
+    [ 190] type=0 value=125          
+    [ 191] type=0 value=1            
+    [ 192] type=0 value=100401607    
+    [ 193] type=0 value=125          
+    [ 194] type=0 value=1            
+    [ 195] type=0 value=100401611    
+    [ 196] type=0 value=125          
+    [ 197] type=0 value=1            
+    [ 198] type=0 value=100401615    
+    [ 199] type=0 value=125          
+    [ 200] type=0 value=1            
+    [ 201] type=0 value=100401619    
+    [ 202] type=0 value=125          
+    [ 203] type=0 value=1            
+    [ 204] type=0 value=100401623    
+    [ 205] type=0 value=125          
+    [ 206] type=0 value=1            
+    [ 207] type=0 value=100401627    
+    [ 208] type=0 value=125          
+    [ 209] type=0 value=1            
+    [ 210] type=0 value=100401631    
+    [ 211] type=0 value=125          
+    [ 212] type=0 value=1            
+    [ 213] type=0 value=100401635    
+    [ 214] type=0 value=125          
+    [ 215] type=0 value=1            
+    [ 216] type=0 value=100401639    
+    [ 217] type=0 value=125          
+    [ 218] type=0 value=1            
+    [ 219] type=0 value=100401643    
+    [ 220] type=0 value=125          
+    [ 221] type=0 value=1            
+    [ 222] type=3 value=218227229    [/etc]
+    [ 223] type=3 value=149531251    [etc]
+    [ 224] type=0 value=1            
+    [ 225] type=0 value=-1           
+    [ 226] type=0 value=474500       
+    [ 227] type=0 value=1            
+    [ 228] type=0 value=10362480     
+    [ 229] type=0 value=41846        
+    [ 230] type=0 value=1            
+    [ 231] type=0 value=10362481     
+    [ 232] type=0 value=230154       
+    [ 233] type=0 value=1            
+    [ 234] type=0 value=10362482     
+    [ 235] type=0 value=30769        
+    [ 236] type=0 value=1            
+    [ 237] type=0 value=10362483     
+    [ 238] type=0 value=169231       
+    [ 239] type=0 value=1            
+    [ 240] type=0 value=10362484     
+    [ 241] type=0 value=2769         
+    [ 242] type=0 value=1            
+    [ 243] type=0 value=10355161     
+    [ 244] type=0 value=2769         
+    [ 245] type=0 value=1            
+    [ 246] type=0 value=10362485     
+    [ 247] type=0 value=30462        
+    [ 248] type=0 value=1            
+    [ 249] type=0 value=10362486     
+    [ 250] type=0 value=1231         
+    [ 251] type=0 value=1            
+    [ 252] type=0 value=10355162     
+    [ 253] type=0 value=1231         
+    [ 254] type=0 value=1            
+    [ 255] type=0 value=10362487     
+    [ 256] type=0 value=13538        
+    [ 257] type=0 value=1            
+    [ 258] type=0 value=10362488     
+    [ 259] type=0 value=115          
+    [ 260] type=0 value=1            
+    [ 261] type=0 value=10355163     
+    [ 262] type=0 value=115          
+    [ 263] type=0 value=1            
+    [ 264] type=0 value=10362489     
+    [ 265] type=0 value=1270         
+    [ 266] type=0 value=1            
+    [ 267] type=3 value=218227229    [/etc]
+    [ 268] type=3 value=442782339    [/booster info]
+    [ 269] type=3 value=446821807    [hide booster info]
+    [ 270] type=0 value=1            
+
+=== 10416120  kind=stackable  stackable_type=[booster]
+    path=stackable/10416001/10416120.stk
+    cells=271
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=480226709    resolved=<13::name_10416120>
+                           reference=<13::name_10416120>
+    [   1] type=8 value=480226709    <13::name_10416120>
+    [   2] type=3 value=157680133    [explain]
+    [   3] type=8 value=480226749    <13::explain_10416120>
+    [   4] type=3 value=157673483    [grade]
+    [   5] type=0 value=1            
+    [   6] type=3 value=86949813     [rarity]
+    [   7] type=0 value=3            
+    [   8] type=3 value=157673543    [usable job]
+    [   9] type=6 value=147067661    [all]
+    [  10] type=3 value=157673569    [/usable job]
+    [  11] type=3 value=157673499    [attach type]
+    [  12] type=6 value=157673527    [trade]
+    [  13] type=3 value=157673597    [minimum level]
+    [  14] type=0 value=1            
+    [  15] type=3 value=157673629    [icon]
+    [  16] type=6 value=137129317    Item/stackable/consumption.img
+    [  17] type=0 value=1589         
+    [  18] type=3 value=157888771    [field image]
+    [  19] type=6 value=59600159     Item/FieldImage.img
+    [  20] type=0 value=24           
+    [  21] type=3 value=209147603    [stackable type]
+    [stackable type]       value=442783027    resolved=[booster]
+    [  22] type=6 value=442783027    [booster]
+    [  23] type=0 value=0            
+    [  24] type=3 value=157673993    [move wav]
+    [  25] type=6 value=207363195    JEWEL_TOUCH
+    [  26] type=3 value=157882879    [usable period]
+    [  27] type=0 value=7            
+    [  28] type=3 value=298584943    [stack limit]
+    [  29] type=0 value=1            
+    [  30] type=3 value=442782279    [booster info]
+    [  31] type=3 value=149531251    [etc]
+    [  32] type=0 value=1            
+    [  33] type=0 value=100401598    
+    [  34] type=0 value=1000         
+    [  35] type=0 value=1            
+    [  36] type=0 value=100401602    
+    [  37] type=0 value=1000         
+    [  38] type=0 value=1            
+    [  39] type=0 value=100401606    
+    [  40] type=0 value=1000         
+    [  41] type=0 value=1            
+    [  42] type=0 value=100401610    
+    [  43] type=0 value=1000         
+    [  44] type=0 value=1            
+    [  45] type=0 value=100401614    
+    [  46] type=0 value=1000         
+    [  47] type=0 value=1            
+    [  48] type=0 value=100401618    
+    [  49] type=0 value=1000         
+    [  50] type=0 value=1            
+    [  51] type=0 value=100401622    
+    [  52] type=0 value=1000         
+    [  53] type=0 value=1            
+    [  54] type=0 value=100401626    
+    [  55] type=0 value=1000         
+    [  56] type=0 value=1            
+    [  57] type=0 value=100401630    
+    [  58] type=0 value=1000         
+    [  59] type=0 value=1            
+    [  60] type=0 value=100401634    
+    [  61] type=0 value=1000         
+    [  62] type=0 value=1            
+    [  63] type=0 value=100401638    
+    [  64] type=0 value=1000         
+    [  65] type=0 value=1            
+    [  66] type=0 value=100401642    
+    [  67] type=0 value=1000         
+    [  68] type=0 value=1            
+    [  69] type=3 value=218227229    [/etc]
+    [  70] type=3 value=149531251    [etc]
+    [  71] type=0 value=29           
+    [  72] type=0 value=10362432     
+    [  73] type=0 value=474500       
+    [  74] type=0 value=2            
+    [  75] type=0 value=100401592    
+    [  76] type=0 value=272000       
+    [  77] type=0 value=1            
+    [  78] type=0 value=100401596    
+    [  79] type=0 value=16667        
+    [  80] type=0 value=1            
+    [  81] type=0 value=100401600    
+    [  82] type=0 value=16667        
+    [  83] type=0 value=1            
+    [  84] type=0 value=100401604    
+    [  85] type=0 value=16667        
+    [  86] type=0 value=1            
+    [  87] type=0 value=100401608    
+    [  88] type=0 value=16667        
+    [  89] type=0 value=1            
+    [  90] type=0 value=100401612    
+    [  91] type=0 value=16667        
+    [  92] type=0 value=1            
+    [  93] type=0 value=100401616    
+    [  94] type=0 value=16667        
+    [  95] type=0 value=1            
+    [  96] type=0 value=100401620    
+    [  97] type=0 value=16667        
+    [  98] type=0 value=1            
+    [  99] type=0 value=100401624    
+    [ 100] type=0 value=16667        
+    [ 101] type=0 value=1            
+    [ 102] type=0 value=100401628    
+    [ 103] type=0 value=16667        
+    [ 104] type=0 value=1            
+    [ 105] type=0 value=100401632    
+    [ 106] type=0 value=16667        
+    [ 107] type=0 value=1            
+    [ 108] type=0 value=100401636    
+    [ 109] type=0 value=16667        
+    [ 110] type=0 value=1            
+    [ 111] type=0 value=100401640    
+    [ 112] type=0 value=16667        
+    [ 113] type=0 value=1            
+    [ 114] type=0 value=100401597    
+    [ 115] type=0 value=3000         
+    [ 116] type=0 value=1            
+    [ 117] type=0 value=100401601    
+    [ 118] type=0 value=3000         
+    [ 119] type=0 value=1            
+    [ 120] type=0 value=100401605    
+    [ 121] type=0 value=3000         
+    [ 122] type=0 value=1            
+    [ 123] type=0 value=100401609    
+    [ 124] type=0 value=3000         
+    [ 125] type=0 value=1            
+    [ 126] type=0 value=100401613    
+    [ 127] type=0 value=3000         
+    [ 128] type=0 value=1            
+    [ 129] type=0 value=100401617    
+    [ 130] type=0 value=3000         
+    [ 131] type=0 value=1            
+    [ 132] type=0 value=100401621    
+    [ 133] type=0 value=3000         
+    [ 134] type=0 value=1            
+    [ 135] type=0 value=100401625    
+    [ 136] type=0 value=3000         
+    [ 137] type=0 value=1            
+    [ 138] type=0 value=100401629    
+    [ 139] type=0 value=3000         
+    [ 140] type=0 value=1            
+    [ 141] type=0 value=100401633    
+    [ 142] type=0 value=3000         
+    [ 143] type=0 value=1            
+    [ 144] type=0 value=100401637    
+    [ 145] type=0 value=3000         
+    [ 146] type=0 value=1            
+    [ 147] type=0 value=100401641    
+    [ 148] type=0 value=3000         
+    [ 149] type=0 value=1            
+    [ 150] type=0 value=100401598    
+    [ 151] type=0 value=1333         
+    [ 152] type=0 value=1            
+    [ 153] type=0 value=100401602    
+    [ 154] type=0 value=1333         
+    [ 155] type=0 value=1            
+    [ 156] type=0 value=100401606    
+    [ 157] type=0 value=1333         
+    [ 158] type=0 value=1            
+    [ 159] type=0 value=100401610    
+    [ 160] type=0 value=1333         
+    [ 161] type=0 value=1            
+    [ 162] type=0 value=100401614    
+    [ 163] type=0 value=1333         
+    [ 164] type=0 value=1            
+    [ 165] type=0 value=100401618    
+    [ 166] type=0 value=1333         
+    [ 167] type=0 value=1            
+    [ 168] type=0 value=100401622    
+    [ 169] type=0 value=1333         
+    [ 170] type=0 value=1            
+    [ 171] type=0 value=100401626    
+    [ 172] type=0 value=1333         
+    [ 173] type=0 value=1            
+    [ 174] type=0 value=100401630    
+    [ 175] type=0 value=1333         
+    [ 176] type=0 value=1            
+    [ 177] type=0 value=100401634    
+    [ 178] type=0 value=1333         
+    [ 179] type=0 value=1            
+    [ 180] type=0 value=100401638    
+    [ 181] type=0 value=1333         
+    [ 182] type=0 value=1            
+    [ 183] type=0 value=100401642    
+    [ 184] type=0 value=1333         
+    [ 185] type=0 value=1            
+    [ 186] type=0 value=100401599    
+    [ 187] type=0 value=125          
+    [ 188] type=0 value=1            
+    [ 189] type=0 value=100401603    
+    [ 190] type=0 value=125          
+    [ 191] type=0 value=1            
+    [ 192] type=0 value=100401607    
+    [ 193] type=0 value=125          
+    [ 194] type=0 value=1            
+    [ 195] type=0 value=100401611    
+    [ 196] type=0 value=125          
+    [ 197] type=0 value=1            
+    [ 198] type=0 value=100401615    
+    [ 199] type=0 value=125          
+    [ 200] type=0 value=1            
+    [ 201] type=0 value=100401619    
+    [ 202] type=0 value=125          
+    [ 203] type=0 value=1            
+    [ 204] type=0 value=100401623    
+    [ 205] type=0 value=125          
+    [ 206] type=0 value=1            
+    [ 207] type=0 value=100401627    
+    [ 208] type=0 value=125          
+    [ 209] type=0 value=1            
+    [ 210] type=0 value=100401631    
+    [ 211] type=0 value=125          
+    [ 212] type=0 value=1            
+    [ 213] type=0 value=100401635    
+    [ 214] type=0 value=125          
+    [ 215] type=0 value=1            
+    [ 216] type=0 value=100401639    
+    [ 217] type=0 value=125          
+    [ 218] type=0 value=1            
+    [ 219] type=0 value=100401643    
+    [ 220] type=0 value=125          
+    [ 221] type=0 value=1            
+    [ 222] type=3 value=218227229    [/etc]
+    [ 223] type=3 value=149531251    [etc]
+    [ 224] type=0 value=1            
+    [ 225] type=0 value=-1           
+    [ 226] type=0 value=474500       
+    [ 227] type=0 value=1            
+    [ 228] type=0 value=10362480     
+    [ 229] type=0 value=41846        
+    [ 230] type=0 value=1            
+    [ 231] type=0 value=10362481     
+    [ 232] type=0 value=230154       
+    [ 233] type=0 value=1            
+    [ 234] type=0 value=10362482     
+    [ 235] type=0 value=30769        
+    [ 236] type=0 value=1            
+    [ 237] type=0 value=10362483     
+    [ 238] type=0 value=169231       
+    [ 239] type=0 value=1            
+    [ 240] type=0 value=10362484     
+    [ 241] type=0 value=2769         
+    [ 242] type=0 value=1            
+    [ 243] type=0 value=10355161     
+    [ 244] type=0 value=2769         
+    [ 245] type=0 value=1            
+    [ 246] type=0 value=10362485     
+    [ 247] type=0 value=30462        
+    [ 248] type=0 value=1            
+    [ 249] type=0 value=10362486     
+    [ 250] type=0 value=1231         
+    [ 251] type=0 value=1            
+    [ 252] type=0 value=10355162     
+    [ 253] type=0 value=1231         
+    [ 254] type=0 value=1            
+    [ 255] type=0 value=10362487     
+    [ 256] type=0 value=13538        
+    [ 257] type=0 value=1            
+    [ 258] type=0 value=10362488     
+    [ 259] type=0 value=115          
+    [ 260] type=0 value=1            
+    [ 261] type=0 value=10355163     
+    [ 262] type=0 value=115          
+    [ 263] type=0 value=1            
+    [ 264] type=0 value=10362489     
+    [ 265] type=0 value=1270         
+    [ 266] type=0 value=1            
+    [ 267] type=3 value=218227229    [/etc]
+    [ 268] type=3 value=442782339    [/booster info]
+    [ 269] type=3 value=446821807    [hide booster info]
+    [ 270] type=0 value=1            
+
+=== 10416141  kind=stackable  stackable_type=[booster]
+    path=stackable/10416001/10416141.stk
+    cells=80
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=480230023    resolved=<13::name_10416141>
+                           reference=<13::name_10416141>
+    [   1] type=8 value=480230023    <13::name_10416141>
+    [   2] type=3 value=157680133    [explain]
+    [   3] type=8 value=480230063    <13::explain_10416141>
+    [   4] type=3 value=157673483    [grade]
+    [   5] type=0 value=1            
+    [   6] type=3 value=86949813     [rarity]
+    [   7] type=0 value=3            
+    [   8] type=3 value=157673543    [usable job]
+    [   9] type=6 value=147067661    [all]
+    [  10] type=3 value=157673569    [/usable job]
+    [  11] type=3 value=157673499    [attach type]
+    [  12] type=6 value=157673527    [trade]
+    [  13] type=3 value=157673597    [minimum level]
+    [  14] type=0 value=1            
+    [  15] type=3 value=157673629    [icon]
+    [  16] type=6 value=137129317    Item/stackable/consumption.img
+    [  17] type=0 value=1589         
+    [  18] type=3 value=157888771    [field image]
+    [  19] type=6 value=59600159     Item/FieldImage.img
+    [  20] type=0 value=24           
+    [  21] type=3 value=209147603    [stackable type]
+    [stackable type]       value=442783027    resolved=[booster]
+    [  22] type=6 value=442783027    [booster]
+    [  23] type=0 value=0            
+    [  24] type=3 value=157673993    [move wav]
+    [  25] type=6 value=207363195    JEWEL_TOUCH
+    [  26] type=3 value=157882879    [usable period]
+    [  27] type=0 value=7            
+    [  28] type=3 value=298584943    [stack limit]
+    [  29] type=0 value=1            
+    [  30] type=3 value=442782279    [booster info]
+    [  31] type=3 value=149531251    [etc]
+    [  32] type=0 value=1            
+    [  33] type=0 value=100313752    
+    [  34] type=0 value=10000        
+    [  35] type=0 value=1            
+    [  36] type=0 value=100313754    
+    [  37] type=0 value=10000        
+    [  38] type=0 value=1            
+    [  39] type=0 value=100313756    
+    [  40] type=0 value=10000        
+    [  41] type=0 value=1            
+    [  42] type=0 value=100313758    
+    [  43] type=0 value=10000        
+    [  44] type=0 value=1            
+    [  45] type=0 value=100610044    
+    [  46] type=0 value=10000        
+    [  47] type=0 value=1            
+    [  48] type=0 value=100610048    
+    [  49] type=0 value=10000        
+    [  50] type=0 value=1            
+    [  51] type=0 value=100610052    
+    [  52] type=0 value=10000        
+    [  53] type=0 value=1            
+    [  54] type=0 value=100610056    
+    [  55] type=0 value=10000        
+    [  56] type=0 value=1            
+    [  57] type=0 value=100610060    
+    [  58] type=0 value=10000        
+    [  59] type=0 value=1            
+    [  60] type=0 value=100610064    
+    [  61] type=0 value=10000        
+    [  62] type=0 value=1            
+    [  63] type=0 value=100610068    
+    [  64] type=0 value=10000        
+    [  65] type=0 value=1            
+    [  66] type=0 value=100610072    
+    [  67] type=0 value=10000        
+    [  68] type=0 value=1            
+    [  69] type=3 value=218227229    [/etc]
+    [  70] type=3 value=442782339    [/booster info]
+    [  71] type=3 value=480230109    [alternative booster info]
+    [  72] type=0 value=10419540     
+    [  73] type=0 value=1000         
+    [  74] type=0 value=1            
+    [  75] type=3 value=480230163    [/alternative booster info]
+    [  76] type=3 value=480230219    [oath item booster]
+    [  77] type=0 value=1            
+    [  78] type=3 value=446821807    [hide booster info]
+    [  79] type=0 value=1            
+
+=== 10416142  kind=stackable  stackable_type=[booster]
+    path=stackable/10416001/10416142.stk
+    cells=80
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=480230389    resolved=<13::name_10416142>
+                           reference=<13::name_10416142>
+    [   1] type=8 value=480230389    <13::name_10416142>
+    [   2] type=3 value=157680133    [explain]
+    [   3] type=8 value=480230429    <13::explain_10416142>
+    [   4] type=3 value=157673483    [grade]
+    [   5] type=0 value=1            
+    [   6] type=3 value=86949813     [rarity]
+    [   7] type=0 value=3            
+    [   8] type=3 value=157673543    [usable job]
+    [   9] type=6 value=147067661    [all]
+    [  10] type=3 value=157673569    [/usable job]
+    [  11] type=3 value=157673499    [attach type]
+    [  12] type=6 value=157673527    [trade]
+    [  13] type=3 value=157673597    [minimum level]
+    [  14] type=0 value=1            
+    [  15] type=3 value=157673629    [icon]
+    [  16] type=6 value=137129317    Item/stackable/consumption.img
+    [  17] type=0 value=1589         
+    [  18] type=3 value=157888771    [field image]
+    [  19] type=6 value=59600159     Item/FieldImage.img
+    [  20] type=0 value=24           
+    [  21] type=3 value=209147603    [stackable type]
+    [stackable type]       value=442783027    resolved=[booster]
+    [  22] type=6 value=442783027    [booster]
+    [  23] type=0 value=0            
+    [  24] type=3 value=157673993    [move wav]
+    [  25] type=6 value=207363195    JEWEL_TOUCH
+    [  26] type=3 value=157882879    [usable period]
+    [  27] type=0 value=7            
+    [  28] type=3 value=298584943    [stack limit]
+    [  29] type=0 value=1            
+    [  30] type=3 value=442782279    [booster info]
+    [  31] type=3 value=149531251    [etc]
+    [  32] type=0 value=1            
+    [  33] type=0 value=100610042    
+    [  34] type=0 value=10000        
+    [  35] type=0 value=1            
+    [  36] type=0 value=100610046    
+    [  37] type=0 value=10000        
+    [  38] type=0 value=1            
+    [  39] type=0 value=100610050    
+    [  40] type=0 value=10000        
+    [  41] type=0 value=1            
+    [  42] type=0 value=100610054    
+    [  43] type=0 value=10000        
+    [  44] type=0 value=1            
+    [  45] type=0 value=100610058    
+    [  46] type=0 value=10000        
+    [  47] type=0 value=1            
+    [  48] type=0 value=100610062    
+    [  49] type=0 value=10000        
+    [  50] type=0 value=1            
+    [  51] type=0 value=100610066    
+    [  52] type=0 value=10000        
+    [  53] type=0 value=1            
+    [  54] type=0 value=100610070    
+    [  55] type=0 value=10000        
+    [  56] type=0 value=1            
+    [  57] type=0 value=100610074    
+    [  58] type=0 value=10000        
+    [  59] type=0 value=1            
+    [  60] type=0 value=100610076    
+    [  61] type=0 value=10000        
+    [  62] type=0 value=1            
+    [  63] type=0 value=100610078    
+    [  64] type=0 value=10000        
+    [  65] type=0 value=1            
+    [  66] type=0 value=100610080    
+    [  67] type=0 value=10000        
+    [  68] type=0 value=1            
+    [  69] type=3 value=218227229    [/etc]
+    [  70] type=3 value=442782339    [/booster info]
+    [  71] type=3 value=480230109    [alternative booster info]
+    [  72] type=0 value=10419541     
+    [  73] type=0 value=1000         
+    [  74] type=0 value=1            
+    [  75] type=3 value=480230163    [/alternative booster info]
+    [  76] type=3 value=480230219    [oath item booster]
+    [  77] type=0 value=1            
+    [  78] type=3 value=446821807    [hide booster info]
+    [  79] type=0 value=1            
+
+=== 10416143  kind=stackable  stackable_type=[booster]
+    path=stackable/10416001/10416143.stk
+    cells=80
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=480230501    resolved=<13::name_10416143>
+                           reference=<13::name_10416143>
+    [   1] type=8 value=480230501    <13::name_10416143>
+    [   2] type=3 value=157680133    [explain]
+    [   3] type=8 value=480230541    <13::explain_10416143>
+    [   4] type=3 value=157673483    [grade]
+    [   5] type=0 value=1            
+    [   6] type=3 value=86949813     [rarity]
+    [   7] type=0 value=3            
+    [   8] type=3 value=157673543    [usable job]
+    [   9] type=6 value=147067661    [all]
+    [  10] type=3 value=157673569    [/usable job]
+    [  11] type=3 value=157673499    [attach type]
+    [  12] type=6 value=157673527    [trade]
+    [  13] type=3 value=157673597    [minimum level]
+    [  14] type=0 value=1            
+    [  15] type=3 value=157673629    [icon]
+    [  16] type=6 value=137129317    Item/stackable/consumption.img
+    [  17] type=0 value=1589         
+    [  18] type=3 value=157888771    [field image]
+    [  19] type=6 value=59600159     Item/FieldImage.img
+    [  20] type=0 value=24           
+    [  21] type=3 value=209147603    [stackable type]
+    [stackable type]       value=442783027    resolved=[booster]
+    [  22] type=6 value=442783027    [booster]
+    [  23] type=0 value=0            
+    [  24] type=3 value=157673993    [move wav]
+    [  25] type=6 value=207363195    JEWEL_TOUCH
+    [  26] type=3 value=157882879    [usable period]
+    [  27] type=0 value=7            
+    [  28] type=3 value=298584943    [stack limit]
+    [  29] type=0 value=1            
+    [  30] type=3 value=442782279    [booster info]
+    [  31] type=3 value=149531251    [etc]
+    [  32] type=0 value=1            
+    [  33] type=0 value=100313753    
+    [  34] type=0 value=10000        
+    [  35] type=0 value=1            
+    [  36] type=0 value=100313755    
+    [  37] type=0 value=10000        
+    [  38] type=0 value=1            
+    [  39] type=0 value=100313757    
+    [  40] type=0 value=10000        
+    [  41] type=0 value=1            
+    [  42] type=0 value=100313759    
+    [  43] type=0 value=10000        
+    [  44] type=0 value=1            
+    [  45] type=0 value=100610045    
+    [  46] type=0 value=10000        
+    [  47] type=0 value=1            
+    [  48] type=0 value=100610049    
+    [  49] type=0 value=10000        
+    [  50] type=0 value=1            
+    [  51] type=0 value=100610053    
+    [  52] type=0 value=10000        
+    [  53] type=0 value=1            
+    [  54] type=0 value=100610057    
+    [  55] type=0 value=10000        
+    [  56] type=0 value=1            
+    [  57] type=0 value=100610061    
+    [  58] type=0 value=10000        
+    [  59] type=0 value=1            
+    [  60] type=0 value=100610065    
+    [  61] type=0 value=10000        
+    [  62] type=0 value=1            
+    [  63] type=0 value=100610069    
+    [  64] type=0 value=10000        
+    [  65] type=0 value=1            
+    [  66] type=0 value=100610073    
+    [  67] type=0 value=10000        
+    [  68] type=0 value=1            
+    [  69] type=3 value=218227229    [/etc]
+    [  70] type=3 value=442782339    [/booster info]
+    [  71] type=3 value=480230109    [alternative booster info]
+    [  72] type=0 value=10419542     
+    [  73] type=0 value=1000         
+    [  74] type=0 value=1            
+    [  75] type=3 value=480230163    [/alternative booster info]
+    [  76] type=3 value=480230219    [oath item booster]
+    [  77] type=0 value=1            
+    [  78] type=3 value=446821807    [hide booster info]
+    [  79] type=0 value=1            
+
+=== 10416144  kind=stackable  stackable_type=[booster]
+    path=stackable/10416001/10416144.stk
+    cells=80
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=480230613    resolved=<13::name_10416144>
+                           reference=<13::name_10416144>
+    [   1] type=8 value=480230613    <13::name_10416144>
+    [   2] type=3 value=157680133    [explain]
+    [   3] type=8 value=480230653    <13::explain_10416144>
+    [   4] type=3 value=157673483    [grade]
+    [   5] type=0 value=1            
+    [   6] type=3 value=86949813     [rarity]
+    [   7] type=0 value=3            
+    [   8] type=3 value=157673543    [usable job]
+    [   9] type=6 value=147067661    [all]
+    [  10] type=3 value=157673569    [/usable job]
+    [  11] type=3 value=157673499    [attach type]
+    [  12] type=6 value=157673527    [trade]
+    [  13] type=3 value=157673597    [minimum level]
+    [  14] type=0 value=1            
+    [  15] type=3 value=157673629    [icon]
+    [  16] type=6 value=137129317    Item/stackable/consumption.img
+    [  17] type=0 value=1589         
+    [  18] type=3 value=157888771    [field image]
+    [  19] type=6 value=59600159     Item/FieldImage.img
+    [  20] type=0 value=24           
+    [  21] type=3 value=209147603    [stackable type]
+    [stackable type]       value=442783027    resolved=[booster]
+    [  22] type=6 value=442783027    [booster]
+    [  23] type=0 value=0            
+    [  24] type=3 value=157673993    [move wav]
+    [  25] type=6 value=207363195    JEWEL_TOUCH
+    [  26] type=3 value=157882879    [usable period]
+    [  27] type=0 value=7            
+    [  28] type=3 value=298584943    [stack limit]
+    [  29] type=0 value=1            
+    [  30] type=3 value=442782279    [booster info]
+    [  31] type=3 value=149531251    [etc]
+    [  32] type=0 value=1            
+    [  33] type=0 value=100610043    
+    [  34] type=0 value=10000        
+    [  35] type=0 value=1            
+    [  36] type=0 value=100610047    
+    [  37] type=0 value=10000        
+    [  38] type=0 value=1            
+    [  39] type=0 value=100610051    
+    [  40] type=0 value=10000        
+    [  41] type=0 value=1            
+    [  42] type=0 value=100610055    
+    [  43] type=0 value=10000        
+    [  44] type=0 value=1            
+    [  45] type=0 value=100610059    
+    [  46] type=0 value=10000        
+    [  47] type=0 value=1            
+    [  48] type=0 value=100610063    
+    [  49] type=0 value=10000        
+    [  50] type=0 value=1            
+    [  51] type=0 value=100610067    
+    [  52] type=0 value=10000        
+    [  53] type=0 value=1            
+    [  54] type=0 value=100610071    
+    [  55] type=0 value=10000        
+    [  56] type=0 value=1            
+    [  57] type=0 value=100610075    
+    [  58] type=0 value=10000        
+    [  59] type=0 value=1            
+    [  60] type=0 value=100610077    
+    [  61] type=0 value=10000        
+    [  62] type=0 value=1            
+    [  63] type=0 value=100610079    
+    [  64] type=0 value=10000        
+    [  65] type=0 value=1            
+    [  66] type=0 value=100610081    
+    [  67] type=0 value=10000        
+    [  68] type=0 value=1            
+    [  69] type=3 value=218227229    [/etc]
+    [  70] type=3 value=442782339    [/booster info]
+    [  71] type=3 value=480230109    [alternative booster info]
+    [  72] type=0 value=10419543     
+    [  73] type=0 value=1000         
+    [  74] type=0 value=1            
+    [  75] type=3 value=480230163    [/alternative booster info]
+    [  76] type=3 value=480230219    [oath item booster]
+    [  77] type=0 value=1            
+    [  78] type=3 value=446821807    [hide booster info]
+    [  79] type=0 value=1            
+
+=== 10416752  kind=stackable  stackable_type=[booster]
+    path=stackable/10416001/10416752.stk
+    cells=35
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=480333739    resolved=<13::name_10416752>
+                           reference=<13::name_10416752>
+    [   1] type=8 value=480333739    <13::name_10416752>
+    [   2] type=3 value=157673483    [grade]
+    [   3] type=0 value=1            
+    [   4] type=3 value=86949813     [rarity]
+    [   5] type=0 value=4            
+    [   6] type=3 value=157673543    [usable job]
+    [   7] type=6 value=147067661    [all]
+    [   8] type=3 value=157673569    [/usable job]
+    [   9] type=3 value=157673499    [attach type]
+    [  10] type=6 value=157673527    [trade]
+    [  11] type=3 value=157673597    [minimum level]
+    [  12] type=0 value=1            
+    [  13] type=3 value=157673629    [icon]
+    [  14] type=6 value=137129317    Item/stackable/consumption.img
+    [  15] type=0 value=1589         
+    [  16] type=3 value=209147603    [stackable type]
+    [stackable type]       value=442783027    resolved=[booster]
+    [  17] type=6 value=442783027    [booster]
+    [  18] type=0 value=0            
+    [  19] type=3 value=157673993    [move wav]
+    [  20] type=6 value=207363195    JEWEL_TOUCH
+    [  21] type=3 value=157882879    [usable period]
+    [  22] type=0 value=7            
+    [  23] type=3 value=298584943    [stack limit]
+    [  24] type=0 value=1            
+    [  25] type=3 value=442782279    [booster info]
+    [  26] type=3 value=149531251    [etc]
+    [  27] type=0 value=1            
+    [  28] type=0 value=-1           
+    [  29] type=0 value=1000         
+    [  30] type=0 value=1            
+    [  31] type=3 value=218227229    [/etc]
+    [  32] type=3 value=442782339    [/booster info]
+    [  33] type=3 value=446821807    [hide booster info]
+    [  34] type=0 value=1            
+

@@ -175,12 +175,28 @@ type worldSession struct {
 	// oathProgressClears 是保底阈值：oathProgressDungeons 里的副本通关这么多场后，
 	// 下一场下发 oath=45（必出一次隐藏 BOSS），并在通关时归零；<=0 = 关闭保底。
 	oathProgressClears int
+	// deferredClearSet 是「通关横幅延后到离开副本」的副本集合（默认只有小深渊 100005014）。
+	// 见 oath_progress.go 的 deferredClearDefaultDungeons 与 next171 的实机取证。
+	deferredClearSet map[uint32]bool
+	// seamlessRetry 标记「这一轮进场是 CMD72 选项 5 的无缝续刷」。置位时进图序列
+	// **不发 dungeon_actor_appearance_sent / dungeon_actor_addition_sent（NOTI2）**：
+	// 客户端收到它们会打 `<read minimum Information>` 重建角色对象，临时 buff 与
+	// 召唤物就是在那一步被重上的（国服的无缝续刷不清空，见 next173 §7）。
+	// 进图序列读完即清，避免影响后续任何一次普通进场。
+	seamlessRetry bool
 	// oathProgressDungeons 是计入保底的副本集合（默认只有小深渊 100005014）。
 	oathProgressDungeons map[uint32]bool
 	// omenInfo 是**显式注入**的 noti 2836 载荷（征兆队伍状态，69 字节）；空 = 按
 	// 角色存档里的真实档数生成（-omen-state）。它是征兆 UI 的唯一数据源，
 	// 几何与语义见 omen_info.go。
 	omenInfo []byte
+	// attunementReward 是**显式注入** noti 2859 的**规格串**（调律之边界奖励，
+	// 载荷 12 字节 = 3 × u32）；空 = 一个字节都不发（默认 —— 三个字段的语义尚未取证，
+	// 见 attunement_reward.go 文件头）。
+	//
+	// 存规格而不是解析结果：它可能是 `@文件`，那样**每次进本要重读**
+	// （试值时不重启服务端就能换值）。
+	attunementReward string
 	// oathInject 是本轮要注入给客户端的候选通知（诊断用，默认空），见 oath_probe.go。
 	oathInject []oathInjectSpec
 	// oathNext 是注入队列的游标：每进一次副本推进一格，见 oathInjectNext。
@@ -205,8 +221,15 @@ type worldSession struct {
 	// omenGradeForOathTier）—— 这是**我们一起补的映射**：源里星蕴石品质只由
 	// noti 2836 的 grade 决定，而 grade 原本只是征兆持有档数，与天平档位无关
 	// （2026-10-01 实机验证：固定 oath=45 仍掉 Unique 档箱子）。
-	// 0 = 本场还没算过，omenInfoPackets 会回落到 grade 1。
+	// 0 = 本场还没算过。
 	oathTierRun uint16
+	// attunementRunTiers 是本场**在进本时预掷**的两条线档位（primer=中央珠子/星蕴石，
+	// oath=天平/誓约；见 internal/loot/attunement_plan.go）。
+	//
+	// 由 oathInfoPackets 写入并随 noti 2838 下发；掉落阶段传给 loot.Session.Tiers，
+	// 于是「客户端显示的那一档」与「服务端发的这一件」永远是同一档。
+	// 零值 = 非调律副本或调用方没接线，掉落退回内部预掷。
+	attunementRunTiers loot.RunTiers
 	// omenReported 是本会话已经记过事件的征兆结算序号（见 noteOmenClear）。
 	omenReported uint64
 	// scaleRun 是上面两张表所归属的副本运行号。同一会话里重进副本会把 entity 从
