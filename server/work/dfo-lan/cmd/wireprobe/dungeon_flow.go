@@ -877,16 +877,23 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		// applying slot updates and the oath selection, as town entry does.
 		// 誓约进图直发命中时，这三项已在 NOTI29 之前发过 ⇒ 此处不再重复
 		// （否则穿戴效果会被应用两次 —— 正是施工图描述的"Buff 两次"来源）。
+		// relay = 无缝续刷（CMD72 选项 5）。下面这一整段是「角色对象被重建之后才需要」的
+		// 状态重喂；官方抓包里**冷进场与再次挑战都不发**它们（见 next178 §16 的四方对照），
+		// 而仓库自己的注释就写着后果是「穿戴效果被应用两次」「随机属性管理器应用两次」
+		// —— 正是玩家看到的「再次挑战时 buff 被重上」。
+		relay := w.seamlessRetry
 		directEntry, directErr = w.oathDirectEntryActive(context.Background())
 		if directErr != nil {
 			return nil, directErr
 		}
 		if !directEntry {
-			wornSnapshot, err := inventory.WornPayload(w.role.State)
-			if err != nil {
-				return nil, err
+			if !relay {
+				wornSnapshot, err := inventory.WornPayload(w.role.State)
+				if err != nil {
+					return nil, err
+				}
+				plan = append(plan, outboundPacket{"dungeon_worn_equipment_restored", 0, 13, wornSnapshot})
 			}
-			plan = append(plan, outboundPacket{"dungeon_worn_equipment_restored", 0, 13, wornSnapshot})
 			wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
 			if err == nil && len(wornUpdate) > 0 {
 				plan = append(plan, outboundPacket{"dungeon_worn_visuals_restored", 0, 14, wornUpdate})
@@ -896,7 +903,7 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		if err != nil {
 			return nil, err
 		}
-		if enabled && !directEntry {
+		if enabled && !directEntry && !relay {
 			sources, sourceErr := cloneAvatarSourcePackets(w.role.State)
 			if sourceErr != nil {
 				return nil, sourceErr
@@ -915,7 +922,7 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 				plan = append(plan, outboundPacket{"dungeon_nonavatar_worn_restored", 0, 14, restore})
 			}
 		}
-		if inventory.HasEquippedCreature(w.role.State) {
+		if inventory.HasEquippedCreature(w.role.State) && !relay {
 			clPayload, err := inventory.CreatureListPayload(w.role.State)
 			if err == nil {
 				plan = append(plan, outboundPacket{"dungeon_creature_list_restored", 0, 105, clPayload})
@@ -928,12 +935,14 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		// The damage font the player applied in town is state the rebuilt actor
 		// never asks the warehouse for, so the owned page and the selection go
 		// back here the way the worn visuals do.
-		plan = append(plan, w.damageFontRestore()...)
+		if !relay {
+			plan = append(plan, w.damageFontRestore()...)
+		}
 	}
 	if w.characters != nil && w.store != nil {
 		// Direct entry already restored the selection before NOTI29. The
 		// fallback must apply it after any Clone reconstruction cleared slot 47.
-		if !directEntry || cloneReattached {
+		if (!directEntry || cloneReattached) && !w.seamlessRetry {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			selection, err := w.dungeonOathSelectionPacket(ctx)
@@ -965,8 +974,9 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	// （WornPayload = list3 + restore=true）已经把实例行连同 record[60:76] 一起给过，
 	// 这里再发一次会让原生临时随机属性管理器**应用两次**。
 	// 回退路径（含 Clone 重建后）仍然要发 —— 那时克隆重建把普通装备的行冲掉了。
-	if !directEntry {
+	if !directEntry && !w.seamlessRetry {
 		plan, e = appendDungeonWornRandomOptions(plan, w)
+
 		if e != nil {
 			return nil, e
 		}
@@ -987,6 +997,9 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	// **延续** buff 与召唤物，不是重绑。⇒ 这里跳过；标志在本次消费并清零。
 	if w.seamlessRetry {
 		w.seamlessRetry = false
+		// 对齐记录：官方再次挑战的帧列里没有这些「重建后重喂」帧（next178 §16），
+		// 所以这条路径上它们都被跳过 —— 若后面还要动，先看那份四方对照。
+		log.Printf("seamless retry: 已跳过重建后重喂块（13/105/102/1545×2/2839/随机属性/克隆）—— 对齐官服再次挑战")
 		log.Printf("seamless retry: skip buff registration (NOTI1361) — 延续而不是重绑")
 		return plan, nil
 	}
