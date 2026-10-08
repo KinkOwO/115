@@ -316,3 +316,49 @@ func TestSetModeRejectedOnPracticeRoom(t *testing.T) {
 		t.Error("练习房间不应接受 CMD54 改模式")
 	}
 }
+
+// 实机 2026-10-08：客户端「退出」按钮发 `00 fe 00 00`（seat=0, state=254 ClosedSeat）。
+// 90 级只认 255(EmptySeat)，254 会被拒 ⇒ 业主反馈"exit 按钮失效"。两者必须同义。
+func TestLeavingOccupiedSeatAcceptsClosedSeat(t *testing.T) {
+	for _, state := range []byte{EmptySeat, ClosedSeat} {
+		var m Manager
+		host := testIdentity(6)
+		if _, err := m.Create(host, 21, MakeRequest{NameType: 8}); err != nil {
+			t.Fatal(err)
+		}
+		room, err := m.SetSeat(host, 0, state)
+		if err != nil {
+			t.Fatalf("关自己坐的座位 state=%d 应被接受（等同退出）：%v", state, err)
+		}
+		if _, found := m.Find(host); found {
+			t.Errorf("state=%d 后玩家应已离开房间", state)
+		}
+		if snap := m.Snapshot(21); len(snap) != 0 {
+			t.Errorf("state=%d 后空房间应被删除，剩 %d 个", state, len(snap))
+		}
+		if room.Seats[0].Owner.UserID != 0 {
+			t.Errorf("state=%d 后 0 号座位应清空，实际 owner=%d", state, room.Seats[0].Owner.UserID)
+		}
+	}
+}
+
+// 反向护栏：有人在的座位设 1..4（正常状态）仍然照常写回，不能误当成离开。
+func TestSetSeatNormalStatesStillApply(t *testing.T) {
+	var m Manager
+	host := testIdentity(7)
+	if _, err := m.Create(host, 21, MakeRequest{NameType: 8}); err != nil {
+		t.Fatal(err)
+	}
+	for _, state := range []byte{1, 2, 3, 4} {
+		room, err := m.SetSeat(host, 0, state)
+		if err != nil {
+			t.Fatalf("SetSeat(0,%d): %v", state, err)
+		}
+		if room.Seats[0].State != state {
+			t.Errorf("seat0 state = %d, want %d", room.Seats[0].State, state)
+		}
+		if _, found := m.Find(host); !found {
+			t.Fatalf("state=%d 不应导致离开房间", state)
+		}
+	}
+}

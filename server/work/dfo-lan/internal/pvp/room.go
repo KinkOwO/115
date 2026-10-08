@@ -271,7 +271,15 @@ func (m *Manager) SetSeat(who Identity, index, state byte) (Room, error) {
 	if r.State != Waiting && !(int(index) == actor && state == EmptySeat) {
 		return Room{}, ErrRoom
 	}
-	if target.Owner.UserID != 0 && state == EmptySeat {
+	// 关闭一个**已占用**的座位 = 该玩家离开房间。
+	//
+	// ⚠️ 与 90 级的关键差异（2026-10-08 实机取证）：115 客户端的「退出」按钮发的是
+	// `00 fe 00 00`（seat=0, state=254 ClosedSeat），而 90 级只认 255(EmptySeat)，
+	// 254 会落进下面的 `state > 4` 被拒 —— 照抄 90 级会让 exit 按钮完全失效
+	// （events.jsonl 两次 pvp_command_refused reason="SetSeat(seat=0,state=254)"）。
+	// 对照实测：关**空**座位时 254/255 都被接受（`05fe`/`05ff` 均放行），
+	// 只有关自己坐的那个座位才会命中这里，故 254 与 255 在此同义。
+	if target.Owner.UserID != 0 && (state == EmptySeat || state == ClosedSeat) {
 		next, _ := m.leaveLocked(target.Owner)
 		return next, nil
 	}

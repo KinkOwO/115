@@ -105,3 +105,51 @@ C→S（cmd 表）                      S→C（noti 表）
    type 可正常 Open）。属客户端自身 UI 窗口，**与本批包无关**（客户端全程未发 cmd195）。
    原因未查明，待后续取证。
 5. 客户端全程未发 cmd 51 / 53 / 298 / 299 —— 单人房主场景下可能是正常的，**未证实**。
+
+## 7. 「退出」按钮：两条真实报文的修正（2026-10-08 实测）
+
+**退出请求是什么**：客户端发 `cmd52` 且 `seat=0, state=254(ClosedSeat)`（关自己坐的 0 号位）。
+实测对照（同一会话）：
+```
+00 03 00 00   seat=0 state=3        正常写回
+01 fe 00 00   seat=1 state=254      关空座位 → 一直就是放行的
+05 ff 00 00   seat=5 state=255      同上
+00 fe 00 00   seat=0 state=254      ← 「退出」，90 级会落进 state>4 被拒
+```
+⇒ 已占用座位收到 `254|255` 一律按「离开房间」处理。
+
+**修复后又闪退了一次（我方引入）**：房间被删除（`State=0`）后仍广播了 `noti43 Seats`。
+90 级 `pvpPublishDeparture` 的 guard 是 `if room.State != 0 { broadcast(43, Seats) }`——
+移植时漏掉这道边界，对已删除房间发空座位表 ⇒ 客户端状态机错乱 ⇒ 闪退（崩溃报告 `<LOADINGFAILED>`）。
+**结论：`publish*/broadcast*` 这类函数必须连它的 early-return / guard 一起搬。**
+
+## 8. ★ 中继服务器（Relay Server）：决斗场的硬前提（下一阶段）
+
+建房成功的那一瞬间，客户端就要求连中继：
+```
+[SEND] ENUM_CMDPACKET_MAKE_PVP_ROOM (Size : 21)
+[RECV] ENUM_NOTIPACKET_PVP_ROOM_INFO (Size : 40)          ← 我方 noti41 到达
+change module : [MODULE_TYPE_TOWN(1)] -> [MODULE_TYPE_PVP(4)]
+CNRDUdpModule::start
+[DNFPB RELAY][STATE][addPeer] IsConnectedWithRelayServer: FALSE   ← 核心
+→ RelayModule::startup() / TcpEvSocket2::connect Err:10049 / Relay Server Startup Failed
+→ 无限重试：一次会话 88382 次、1.19MB 日志
+```
+
+- 协议在 `DFO.exe` 内嵌的 protobuf 描述符里：
+  `RelayPackets.proto`、`DNFPB.relay.LOGIN(.MemberInfo)`、`DNFPB.relay.RELAY_ACK(.AckInfo)`、
+  `ConnectedType: kUdp|kRelay|kMax`、`LOGIN/EXIT/REQ`、`RelayPacketStatus_kGood/_kQuarter/_kHalf/_kThreeQuarte`。
+- 传输是 **TCP + protobuf**，与 90 级的 `currentPartyUDPRelay`（UDP 定向中继）**不是一回事**。
+- `Err 10049` = WSAEADDRNOTAVAIL ⇒ 客户端手里的中继地址是空/无效的 ⇒
+  **服务端从未下发过中继地址**（本批 noti41 只拼了房间列表，不含 peer/relay 端点）。
+- 服务端侧 `grep -i relay` 没有任何 PvP 中继设施（上游同样没有）。
+
+⇒ 无论单人练习还是真人对战，**都要先有中继服务器**。这是独立的一大块工程，
+调 opcode 字段解决不了；下一步先取证「客户端从哪个包/配置取中继地址」。
+
+## 9. 当前状态：本阶段搁置
+
+业主要求真人对战需两名玩家同场，当前无第二客户端可测，**本阶段就此搁置**。
+已交付：频道可见可进、城镇落点（town 10）、建房/进房/座位/队伍模式/选地图/准备广播、exit 退出。
+未交付：中继服务器、准备后开打、战斗期命令、街机模式（`SpecialMode=3`）、多客户端广播。
+⚠️ exit 修复**已部署但未实机复验**，不得写成"已确认"。

@@ -2,6 +2,8 @@ package main
 
 import (
 	"dfolan/internal/pvp"
+	"encoding/hex"
+	"strconv"
 )
 
 // pvpRooms 是进程内所有决斗场房间。单机/局域网场景下所有连接共享同一份。
@@ -16,6 +18,15 @@ var pvpRooms pvp.Manager
 // [ CHANNEL_INTEGRATED_FREEPVP ]`），对应 clientchannelinfo/channeluiinfo 的
 // CHANNEL_INTEGRATED_FREEPVP 符号，城镇是 Town/Fair_PVP.twn（town 10）。
 const pvpFreePvpChannelType uint32 = 13
+
+// pvpLoggedOpcodes 是本 handler 真正接管的 C→S 命令集合，用于正文取证日志。
+// 进 dispatchPvp 只代表"人在 type 13 频道"，频道里还有大量非 PvP 流量
+// （2127 进程扫描等 400 字节包），全量记录会把 events.jsonl 刷爆。
+var pvpLoggedOpcodes = map[uint16]bool{
+	50: true, 51: true, 52: true, 53: true, 54: true,
+	55: true, 56: true, 57: true, 58: true, 59: true,
+	110: true, 112: true, 195: true, 298: true, 299: true, 1285: true,
+}
 
 func (client *gameConnection) pvpChannelType() uint32 {
 	if client.channelTypes == nil {
@@ -50,12 +61,29 @@ func (client *gameConnection) dispatchPvp(requestData *clientRequest) dispatchAc
 	id := client.pvpIdentity()
 	b := requestData.plaintext
 
+	// 取证：服务端的 client_frame 采样只覆盖**未实现**的包，已实现的 handler 不留正文。
+	// 决斗场命令的字段宽度与 90 级参考实现多处不同（cmd52 4B / cmd54 16B u32 mode），
+	// 所以这里主动把每条 PvP 命令的正文与决策记下来，便于对着实机样本收敛格式。
+	//
+	// ⚠️ 只在**本函数真正处理**的 opcode 上记 —— 进这个函数只说明"人在 type 13 频道"，
+	// 频道理还有大量非 PvP 流量（2127 进程扫描等），全记会把日志刷爆（实测一次会话 77KB）。
+	if pvpLoggedOpcodes[requestData.frame.ID] {
+		client.event(map[string]any{"kind": "pvp_command", "opcode": requestData.frame.ID,
+			"body_len": len(b), "plain_hex": hex.EncodeToString(b)})
+	}
+
 	// 错误应答：115 的 Refusal 形态 = 0 + u16 错误码；19 沿用 90US 的 pvp 拒绝码。
-	refuse := func() dispatchAction {
+	// 原因用变参，未传的地方保持原样；关键分支必须传，否则下次还得靠猜。
+	refuse := func(reasons ...string) dispatchAction {
+		reason := ""
+		if len(reasons) > 0 {
+			reason = reasons[0]
+		}
 		if err := client.output.send(1, requestData.frame.ID, pvp.RefusalBody(19)); err != nil {
 			return dispatchClose
 		}
-		client.event(map[string]any{"kind": "pvp_command_refused", "opcode": requestData.frame.ID, "body_len": len(b)})
+		client.event(map[string]any{"kind": "pvp_command_refused", "opcode": requestData.frame.ID,
+			"body_len": len(b), "plain_hex": hex.EncodeToString(b), "reason": reason})
 		return dispatchHandled
 	}
 	broadcast := func(noti uint16, body []byte) dispatchAction {
@@ -124,7 +152,19 @@ func (client *gameConnection) dispatchPvp(requestData *clientRequest) dispatchAc
 		}
 		room, err := pvpRooms.SetSeat(id, b[0], b[1])
 		if err != nil {
-			return refuse()
+			return refuse("SetSeat(seat=" + strconv.Itoa(int(b[0])) + ",state=" + strconv.Itoa(int(b[1])) + "): " + err.Error())
+		}
+		// 房间空了（最后一人离开，leaveLocked 把 State 置 0 并删除）：
+		// **只发 RoomState（State=0）告诉客户端"房间没了"，绝不发座位表**。
+		// 依据 90 级 pvpPublishDeparture：`if room.State != 0` 才发 Seats。
+		// 实机 2026-10-08：对已删除房间发空座位表会让客户端状态机错乱 —— 点 exit 直接闪退
+		// （崩溃报告 <LOADINGFAILED>，且崩溃前有 UDPPACKET_* 历史）。
+		if room.State == 0 {
+			client.event(map[string]any{"kind": "pvp_room_left", "room": room.ID})
+			if a := broadcast(42, pvp.RoomState(room)); a != dispatchHandled {
+				return a
+			}
+			return dispatchHandled
 		}
 		if a := broadcast(42, pvp.RoomState(room)); a != dispatchHandled {
 			return a
@@ -133,12 +173,14 @@ func (client *gameConnection) dispatchPvp(requestData *clientRequest) dispatchAc
 
 	case 53:
 		if len(b) < 1 || b[0] > 1 {
-			return refuse()
+			return refuse("READY 首字节非法: len=" + strconv.Itoa(len(b)))
 		}
 		room, started, err := pvpRooms.Ready(id, b[0] != 0)
 		if err != nil {
-			return refuse()
+			return refuse("Ready: " + err.Error())
 		}
+		client.event(map[string]any{"kind": "pvp_ready", "value": b[0], "started": started,
+			"seat": room.SeatOf(id), "room_state": room.State})
 		if err := client.output.send(0, 44, []byte{byte(room.SeatOf(id)), b[0]}); err != nil {
 			return dispatchClose
 		}
