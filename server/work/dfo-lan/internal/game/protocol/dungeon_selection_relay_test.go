@@ -21,18 +21,20 @@ func TestEnterDungeonSelectionRelayOnlyFlipsTheRelayByte(t *testing.T) {
 	if len(relay) != len(plain) {
 		t.Fatalf("relay 形态长度 %d != %d", len(relay), len(plain))
 	}
-	if plain[1] != 0 {
-		t.Fatalf("普通进本的 relay 字节 = %#x, want 0", plain[1])
+	// 头 4 字节必须与官服逐字节一致（next178 §18）：
+	//   冷进   = 00 00 00 01（u32@3 = 1）
+	//   继续   = 00 01 c3 01（relay=01、relay-extra=c3、u32@3 仍是 1）
+	plainHead := []byte{0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	relayHead := []byte{0x00, 0x01, 0xc3, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	if !bytes.Equal(plain[:12], plainHead) {
+		t.Fatalf("普通进本头 12 字节 = % x, want % x", plain[:12], plainHead)
 	}
-	if relay[1] != 1 {
-		t.Fatalf("继续挑战的 relay 字节 = %#x, want 1", relay[1])
+	if !bytes.Equal(relay[:12], relayHead) {
+		t.Fatalf("继续挑战头 12 字节 = % x, want % x", relay[:12], relayHead)
 	}
-	if bytes.Equal(plain, relay) {
-		t.Fatal("relay 形态与普通进本逐字节相同")
-	}
-	// 只有 relay 这一个字节变：其余位移都被客户端逐个读，顺手改动就是动别的字段。
+	// 只有 relay / relay-extra 这两个头字节变：其余位移都被客户端逐个读，顺手改动就是动别的字段。
 	for i := range plain {
-		if plain[i] != relay[i] && i != 1 {
+		if plain[i] != relay[i] && i != 1 && i != 2 {
 			t.Fatalf("offset %d 也被改了：%#x -> %#x", i, plain[i], relay[i])
 		}
 	}

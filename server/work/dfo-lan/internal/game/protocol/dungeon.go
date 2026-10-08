@@ -23,7 +23,9 @@ func DecodeDungeonGate(p []byte) (uint32, error) {
 // The full 36-byte reader sequence is checked with the original native code.
 func EnterDungeonSelection() []byte {
 	p := []byte{0, 0, 0}      // first/relay/relay-extra, 1453032f6/307/7c4
-	p = add32(add32(p, 0), 0) // 145303871/8ec
+	// 官服抓包（next178 §18）：offset 3 那个 u32 **两种模式都写 1**（本仓此前恒为 0）；
+	// 本仓客户端在 offset=3 处 size=4 读它（testdata/native_dungeon_gate_cursor.json）。
+	p = add32(add32(p, 1), 0) // 145303871/8ec
 	p = append(p, 0)          // u16 collection, 145303ac3
 	p = add32(p, 0)           // 145303b8f
 	p = append(p, 0, 0, 0)    // u16 collections, 145303bc6/c38/d58
@@ -35,18 +37,19 @@ func EnterDungeonSelection() []byte {
 	return append(p, 0, 0)    // u32/u16 collections, 145304140/1b9
 }
 
-// EnterDungeonSelectionRelay 是 NOTI27 的**接力/继续挑战**形态：只把头部第二个字节
-// `relay` 置 1，其余与 EnterDungeonSelection 逐字节相同。
+// EnterDungeonSelectionRelay 是 NOTI27 的**接力/继续挑战**形态。
 //
-// 依据官服抓包（analysis/tasks/next178 §3）：同一个副本冷进场的该字节是 0x00，
-// 两次「继续挑战」（CMD72 选项 5）都是 0x01，而两次之间的其余字段逐帧相同。
-// 本仓客户端在 0x145303307 单独读这一个字节（见 EnterDungeonSelection 的字段表），
-// 而我们此前**恒为 0** —— 也就是一直告诉客户端「这是新副本」，而客户端在这条路径上
-// 会 `change module : MAIN_GAME(3) -> SELECT_DUNGEON(2)` 并重跑 SelectDungeon 加载，
-// 那正是 buff/召唤物被重上的地方（会话 client_trace 实证，next178 §12）。
+// 官服抓包（next178 §18）里这一段的头 4 字节是 `00 01 c3 01`（冷进场是 `00 00 00 01`，
+// 而 offset 3 那个 u32 两种模式都是 1）—— 也就是**两个头字节一起变**：
+// `relay`（offset 1，客户端读点 0x145303307）= 1，`relay-extra`（offset 2，0x1453037c4）= 0xc3。
+//
+// A2 只写了 offset 1，实测无效；本轮按官服把这两个字节一起对齐（连同 EnterDungeonSelection
+// 里那个恒为 1 的 u32@3）。`relay-extra` 的**语义仍未取证** —— 这里只做「照官方那段字节写」的
+// 对齐，不解释它是什么。
 func EnterDungeonSelectionRelay() []byte {
 	p := EnterDungeonSelection()
 	p[1] = 1
+	p[2] = 0xc3
 	return p
 }
 
