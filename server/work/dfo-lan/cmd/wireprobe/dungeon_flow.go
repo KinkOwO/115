@@ -1257,6 +1257,8 @@ func (w *worldSession) noteOmenClear(event func(map[string]any)) error {
 		"gained":  outcome.Gained,
 		"paid":    outcome.Paid,
 		"stage":   outcome.Stage,
+		"misses":  outcome.MissesAfter,
+		"pity":    outcome.Pity,
 	}
 	if len(outcome.Awards) > 0 {
 		ids := make([]uint32, 0, len(outcome.Awards))

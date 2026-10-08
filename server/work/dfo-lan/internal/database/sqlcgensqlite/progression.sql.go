@@ -596,7 +596,7 @@ func (q *Queries) OdysseyGraduationAlreadyPaid(ctx context.Context, characterID 
 }
 
 const omenState = `-- name: OmenState :one
-SELECT held,orthaire_pending FROM character_omen_state WHERE character_id=?1 AND dungeon_id=?2
+SELECT held,orthaire_pending,misses FROM character_omen_state WHERE character_id=?1 AND dungeon_id=?2
 `
 
 type OmenStateParams struct {
@@ -607,12 +607,13 @@ type OmenStateParams struct {
 type OmenStateRow struct {
 	Held            int32
 	OrthairePending bool
+	Misses          int32
 }
 
 func (q *Queries) OmenState(ctx context.Context, arg OmenStateParams) (OmenStateRow, error) {
 	row := q.db.QueryRowContext(ctx, omenState, arg.CharacterID, arg.DungeonID)
 	var i OmenStateRow
-	err := row.Scan(&i.Held, &i.OrthairePending)
+	err := row.Scan(&i.Held, &i.OrthairePending, &i.Misses)
 	return i, err
 }
 
@@ -917,6 +918,26 @@ type SaveOmenHeldParams struct {
 // ignores the yaml width overrides and always yields int64).
 func (q *Queries) SaveOmenHeld(ctx context.Context, arg SaveOmenHeldParams) error {
 	_, err := q.db.ExecContext(ctx, saveOmenHeld, arg.CharacterID, arg.DungeonID, arg.Held)
+	return err
+}
+
+const saveOmenMisses = `-- name: SaveOmenMisses :exec
+INSERT INTO character_omen_state(character_id,dungeon_id,misses,updated_at)
+VALUES(?1,?2,CAST(?3 AS INTEGER),
+(CAST((julianday('now') - 2440587.5) * 86400000000 AS INTEGER)))
+ON CONFLICT(character_id,dungeon_id) DO UPDATE SET misses=EXCLUDED.misses,
+updated_at=(CAST((julianday('now') - 2440587.5) * 86400000000 AS INTEGER))
+`
+
+type SaveOmenMissesParams struct {
+	CharacterID int64
+	DungeonID   int64
+	Misses      int64
+}
+
+// 宽度与 SaveOmenHeld 一致：CAST(?3 AS INTEGER) 在 SQLite 上始终是 int64。
+func (q *Queries) SaveOmenMisses(ctx context.Context, arg SaveOmenMissesParams) error {
+	_, err := q.db.ExecContext(ctx, saveOmenMisses, arg.CharacterID, arg.DungeonID, arg.Misses)
 	return err
 }
 
