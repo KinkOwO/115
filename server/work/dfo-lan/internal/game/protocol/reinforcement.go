@@ -283,11 +283,14 @@ const GoldReinforcementResultCap = 15
 // 真实等级靠随后的装备行刷新下发 —— 与仓库处理「降级 8→7 写进回包会
 // ADD_HACKTYPE_CNT」的既有解法同一套路。
 //
-// 上游默认取 15（方案 B 兜底）：无需客户端补丁即可安全运行，+16 播失败
-// 动画但实际成功、装备行刷新真实等级。若已用 tools/patch_client_amplify.py
-// 给客户端 DFO.exe 打过补丁（上限 10→30，与官方 31 上限对齐），可改为 31
-// 让成功回包直接带真实等级、播放成功动画。
-const AmplifyUpgradeResultCap = 15
+// 本服当前取 31（最终形态，客户端等级字节上限）：配合服务端增幅上限保护
+// （internal/inventory/amplify_upgrade.go 的 AmplifyMaxLevelCap=15），
+// +15 之后服务端直接拒绝增幅，因此永远不会产生 >15 的成功回包，
+// 本条 cap 降级逻辑实际上不会触发 —— 无需客户端补丁也安全。
+// 后续统一给客户端 DFO.exe 打补丁（tools/patch_client_amplify.py，
+// 上限 10→30）后，只需把 AmplifyMaxLevelCap 放宽到 31（或去掉保护），
+// 成功回包即可直接带真实等级、播放成功动画，无需再改这里。
+const AmplifyUpgradeResultCap = 31
 
 // ClientAmplifyPatch 记录 115 客户端 DFO.exe 的本地补丁位置，便于回滚与复查。
 //
