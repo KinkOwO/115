@@ -329,14 +329,24 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 	if w.dungeonRelayFlag() == 0 {
 		plan = append(plan, outboundPacket{ackName, 1, ackID, []byte{1}})
 	}
-	// 无缝续刷（CMD72 选项 5）**不重建角色对象**：这两帧是「进图/登录帧」，
-	// 客户端收到它们会重新读一遍角色最小信息（trace：`<read minimum Information>`），
-	// 临时 buff 与召唤物随之被重上；国服的无缝续刷是延续的（见 next173 §7）。
+	// 角色对象（NOTI2）**无缝续刷也发**（2026-10-08 反转，见 next178 §15）。
+	//
+	// 旧注释推测「发 NOTI2 会让客户端重读角色最小信息（`<read minimum Information>`）、
+	// 把 buff/召唤物重上」，所以无缝续刷整段跳过。实测**两次否定这个推测**：
+	// A1（NOTI28 body[30]=5）与 A2（NOTI27 relay=1）都确认代码跑上了，而 buff 仍被重上
+	// —— 也就是说「不发 NOTI2」并没有换来状态延续。
+	//
+	// 官服抓包的帧列里，再次挑战**有 3 个 NOTI2**（1008B zlib / 768 / 784，§14），
+	// 本仓却一条都不发 ⇒ 客户端拿不到服务端的角色状态快照，只能按「新副本」从 ACT
+	// 重新推导一遍状态，那一步正是把 buff / 召唤物重上的地方（业主 2026-10-08 判断）。
+	//
+	// 仍然跳过 14（穿戴外观）/105（宠物列表）/102（宠物成长）：它们在 CMD37 那一步由
+	// *_restored 那几帧补发（会话日志里 N14/N105/N102 都在），不会少。
 	// 标志只在这里消费一次。
 	// 只读、不清零：同一个标志后面还要让 finishDungeonLoading 跳过 1361（增益强化注册），
 	// 那一步发生在客户端 CMD37 时，晚于这里。消费与清零都在 finishDungeonLoading。
 	seamless := w.seamlessRetry
-	if w.characters != nil && !seamless {
+	if w.characters != nil {
 		channel := [2]byte{}
 		if channelCtx != nil {
 			channel = *channelCtx
@@ -351,17 +361,21 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 		if err == nil {
 			plan = append(plan, outboundPacket{"dungeon_actor_addition_sent", 0, 2, addition})
 		}
-		wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
-		if err == nil && len(wornUpdate) > 0 {
-			plan = append(plan, outboundPacket{"dungeon_worn_visuals_sent", 0, 14, wornUpdate})
-		}
-		if inventory.HasEquippedCreature(w.role.State) {
-			clPayload, err := inventory.CreatureListPayload(w.role.State)
-			if err == nil {
-				plan = append(plan, outboundPacket{"dungeon_creature_list_sent", 0, 105, clPayload})
-				growth, err := inventory.CreatureGrowthPayload(w.role.State)
+		// 实机验收要看得出「这一轮到底发没发 NOTI2」：无缝续刷以前是不发的。
+		log.Printf("dungeon entry: NOTI2（角色对象 appearance+addition）已发；seamless=%v", seamless)
+		if !seamless {
+			wornUpdate, err := inventory.WornSpaceUpdate(w.role.State)
+			if err == nil && len(wornUpdate) > 0 {
+				plan = append(plan, outboundPacket{"dungeon_worn_visuals_sent", 0, 14, wornUpdate})
+			}
+			if inventory.HasEquippedCreature(w.role.State) {
+				clPayload, err := inventory.CreatureListPayload(w.role.State)
 				if err == nil {
-					plan = append(plan, outboundPacket{"dungeon_creature_growth_sent", 0, 102, growth})
+					plan = append(plan, outboundPacket{"dungeon_creature_list_sent", 0, 105, clPayload})
+					growth, err := inventory.CreatureGrowthPayload(w.role.State)
+					if err == nil {
+						plan = append(plan, outboundPacket{"dungeon_creature_growth_sent", 0, 102, growth})
+					}
 				}
 			}
 		}
