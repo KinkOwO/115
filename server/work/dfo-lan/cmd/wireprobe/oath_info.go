@@ -46,7 +46,9 @@ package main
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -54,7 +56,9 @@ import (
 	"strings"
 	"time"
 
+	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
+	"dfolan/internal/loot"
 )
 
 // oathGradeTiers 是脚本真正接受的八个档位（其它值一律让 `max-40` 越界）。
@@ -154,22 +158,182 @@ func loadOathGradeTable(path string) (*inventory.OathGradeTable, error) {
 		strings.Join(candidates, ", "))
 }
 
+// oathInfoPackets 返回进本时应随加载应答下发的档位通知（noti 2838），
+// 外加**诊断注入**的 noti 2859（默认为空 = 不发）。
+//
+// 2859 与 2838 放在同一时刻下发是有意的：两者写的是同一套「档位」语义的两个入口
+// （2859 的第一个 u32 与 2838 的第一个数落在模块的同一个位移），进本时珠子/天平
+// 的开场演出就在这之后。见 attunement_reward.go 文件头。
 func (w *worldSession) oathInfoPackets() ([]outboundPacket, error) {
-	primer, oath := w.oathGrades[0], w.oathGrades[1]
-	if primer == 0 && oath == 0 {
-		var err error
-		if primer, oath, err = w.derivedOathGrades(); err != nil {
-			return nil, err
-		}
+	plan, err := w.oathInfoPacketsCore()
+	if err != nil {
+		return nil, err
 	}
-	// 记下本场**实际下发**的 oath 档位：omenInfoPackets 紧接着要用它把「天平颜色」
-	// 映射成星蕴石档位（见 omen_info.go 的 omenGradeForOathTier 与 oathTierRun 注释）。
-	// 下发顺序由 dungeon_flow.go 保证：先 oathInfoPackets，再 omenInfoPackets。
-	w.oathTierRun = oath
-	return []outboundPacket{{"oath_system_grades", 0, 2838, oathInfoPayload(primer, oath)}}, nil
+	return append(plan, w.attunementRewardPackets()...), nil
 }
 
-// derivedOathGrades 是正常路径：按「这一场该不该召唤隐藏 BOSS」算档位。
+// attunementRewardPackets 生成 noti 2859「调律之边界奖励档位」，默认空 = 一个字节都不发。
+//
+// ## 语义（业主 2026-10-08 定调）
+//
+//	入场砝码给出**保底档**；进本掷骰若更高就用更高那一档；**动画与掉落绑定在同一档上**。
+//
+// 本仓的档位（primer / oath）本来就是「保底 + 向上随机」掷出来的
+// （见 internal/loot/attunement_plan.go 的 PlanRun / pickTierAbove），
+// 所以这里只做一件事：**把这一档按客户端演出表的刻度发出去**。
+// 刻度换算与实测依据见 loot.AnimationGrade（我们的 40..45 比演出表晚两格）。
+//
+// ## ⚠️ 三个位移**都必须落在这张表的值域里**（实测 2026-10-08）
+//
+// 客户端读的是**同一个三元素组**，任何一格越界就整体走「最后一格兜底」：
+//
+//	42,42,42 -> EpicDrop（业主实测）
+//	40,43,43 -> 最低那格（业主实测）
+//	42,72,72 -> **PrimevalDrop**（业主实测：本仓 50e223b8 那版把后两格填成模块初值 72）
+//	不发（模块 init = -1/72/72）-> PrimevalDrop（这就是「每次必定播放太初动画」的成因）
+//
+// ⇒ 三格**填同一个演出格**。这也让「三格 = 同一档」与业主口径（动画与掉落绑定）同义；
+// 而且无论客户端最终取哪一格，结果都一致 —— 我们还没能静态确认它取的是 `+88` 还是别的，
+// 填成同一个值就不需要先知道这一点。**不要再往这两格填 72**：那会让整帧退化成兜底。
+//
+// 档位落在演出表没有格的位置（normal / rare，值域从「独有」起）时**不发**。
+//
+// ⚠️ **每次进本重新计算**：档位是这一场掷的。诊断覆盖（`-attunement-reward`）优先，
+// 用于继续试值；它对 `@文件` 形式同样是每次进本重读。
+func (w *worldSession) attunementRewardPackets() []outboundPacket {
+	if w == nil {
+		return nil
+	}
+	if strings.TrimSpace(w.attunementReward) != "" {
+		payload, err := attunementRewardSpec(w.attunementReward)
+		if err != nil {
+			log.Printf("attunement reward (noti 2859): skipped this entry, %v", err)
+			return nil
+		}
+		if len(payload) == 0 {
+			return nil
+		}
+		log.Printf("attunement reward (noti 2859): sending %s (diagnostic override)", describeAttunementReward(payload))
+		return []outboundPacket{{"attunement_reward", 0, attunementRewardPacketID, payload}}
+	}
+
+	// 门禁：这条包只属于「调律之边界」玩法（包名就是它）。小深渊是**另一套玩法**
+	// （`[dungeon type] endkeeper of order`），它的演出未必读这个字段，而它 74% 的场次
+	// 档位落在演出表之外（normal/rare）—— 不越过门禁就不会互相影响（业主 2026-10-08 决定）。
+	if w.activeDungeon == nil || catalog.DungeonType(w.activeDungeon.Definition) != attunementPlayType {
+		return nil
+	}
+
+	// 档位取**珠子（primer / 固定池）**：官方口径是「珠子颜色代表对应品质的**装备**」，
+	// 誓约线（oath / 附加池）是另一条线的承诺，不参与这一格（业主 2026-10-08 确认）。
+	tiers := w.attunementRunTiers
+	grade := tiers.Primer
+	slot, ok := loot.AnimationGrade(grade)
+	if !ok {
+		return nil
+	}
+	payload := make([]byte, attunementRewardPayloadSize)
+	for i := 0; i < 3; i++ {
+		binary.LittleEndian.PutUint32(payload[i*4:], slot)
+	}
+	log.Printf("attunement reward (noti 2859): grade=%s(%d) (primer=%s oath=%s) -> %s(%d); payload %s",
+		loot.TierForGradeValue(grade), grade,
+		loot.TierForGradeValue(tiers.Primer), loot.TierForGradeValue(tiers.Oath),
+		loot.AnimationSlot(slot), slot, hex.EncodeToString(payload))
+	return []outboundPacket{{"attunement_reward", 0, attunementRewardPacketID, payload}}
+}
+
+// attunementPlayType 是「调律之边界」的 [dungeon type] 源值：noti 2859 的发送门禁。
+const attunementPlayType = "boundary of attunement"
+
+// attunementRewardPacketID 是 noti 2859 的 id，单列出来给上面那处注入与日志引用。
+const attunementRewardPacketID = 2859
+
+func (w *worldSession) oathInfoPacketsCore() ([]outboundPacket, error) {
+	// 诊断注入（-oath-grades "primer,oath"）整对覆盖，不参与两条线的预掷。
+	// 穿戴装备那条诊断同理。两条诊断都只在启动时显式打开，正常档里 w.oathGrades 是零值。
+	if p, o := w.oathGrades[0], w.oathGrades[1]; p != 0 || o != 0 {
+		w.attunementRunTiers = loot.RunTiers{Primer: uint32(p), Oath: uint32(o)}
+		w.oathTierRun = o
+		return []outboundPacket{{"oath_system_grades", 0, 2838, oathInfoPayload(p, o)}}, nil
+	}
+	if w.oathFromGear {
+		p, o := w.wornOathGrades()
+		w.attunementRunTiers = loot.RunTiers{Primer: uint32(p), Oath: uint32(o)}
+		w.oathTierRun = o
+		return []outboundPacket{{"oath_system_grades", 0, 2838, oathInfoPayload(p, o)}}, nil
+	}
+	// 正常路径：**两条线各自预掷**（见 internal/loot/attunement_plan.go）。
+	// 这一步必须在掉落之前完成 —— 掉落发生在这之后（天平死亡），两边必须是同一档。
+	tiers, err := w.planAttunementRunTiers()
+	if err != nil {
+		return nil, err
+	}
+	// ⚠️ 2026-10-07 撤除「征兆满档 ⇒ 强推 oath=45」：那是把**征兆系统**与
+	// **天平的掉落档位**耦合在一起，官方口径里没有这条（业主 2026-10-07 指出）。
+	//
+	// 两个隐藏 BOSS 的选路**完全在客户端脚本里，只看这两个档位**
+	// （`primer_proc.act` 的 `nox_index_checker`，实机/反编译已确认）：
+	//
+	//	oath_max == 45                  -> 奥尔特尔（OrderChroniclerOrthaire, 109019264）
+	//	oath_max < 45 && primer_max == 45 -> 监视者（Watcher）
+	//
+	// 与官方文案逐字吻合：「消灭奥尔特尔 → 太初级**誓约**，按几率还可获得太初星蕴石」
+	//（oath 线）、「消灭监视者 → 太初级**星蕴石**」（primer 线）。所以两条线掷到
+	// primeval 时 BOSS 自然登场，**不需要**任何保底，也没有 40.25% 之类的白拿。
+	// 概率上也都是官方说的「低几率」：oath=45 ≈ 1.48% × 2.03% ≈ 0.03%，
+	// primer=45 ≈ 0.15%。
+	w.attunementRunTiers = tiers
+	// ⚠️ 档位 0 必须折成 normal(40) 再下发：0 不在客户端那 8 档阶梯（`40..45 / 70 / 71`）里，
+	// 而 2838 是**常驻状态**（客户端只在收到它时才覆盖构造器里的兜底）。
+	// 没有活动表（非调律副本 / 表未装载 / 本场两条线都没掷到）就走这条路径 ——
+	// 代码注释一直写的是「下发 normal/normal」，但实现漏了这一步，
+	// `TestOathInfoPacketsFallsBackToNormalWithoutPity` 正是钉它的。
+	primer, oath := uint16(tiers.Primer), uint16(tiers.Oath)
+	if primer == 0 {
+		primer = inventory.OathGradeNormal
+	}
+	if oath == 0 {
+		oath = inventory.OathGradeNormal
+	}
+	w.oathTierRun = oath
+	return []outboundPacket{{"oath_system_grades", 0, 2838,
+		oathInfoPayload(primer, oath)}}, nil
+}
+
+// planAttunementRunTiers 在**进本时**预掷两条线的档位。
+//
+// 种子按时间取：这两条线与掉落的 RNG 链无关（掉落另有一条从进本种子开始的链），
+// 唯一的要求是「先于掉落定下来」，所以不需要与掉落共种子。
+// 没有活动表（非调律副本、或表没装载）时返回零值 ⇒ 2838 下发 normal/normal，
+// 与 2026-10-07 之前对非调律副本的行为一致。
+func (w *worldSession) planAttunementRunTiers() (loot.RunTiers, error) {
+	var tiers loot.RunTiers
+	if w == nil || w.loot == nil || w.loot.Attunement == nil || !w.loot.Attunement.Enabled() {
+		return tiers, nil
+	}
+	var dungeon, maze uint32
+	if w.activeDungeon != nil {
+		dungeon = w.activeDungeon.Definition.ID
+		maze = uint32(w.activeDungeon.Maze.Index)
+	}
+	tiers, _, err := w.loot.Attunement.PlanRun(uint32(time.Now().UnixNano()), dungeon, maze)
+	if err != nil {
+		return tiers, err
+	}
+	// 念出来：档位是我们按表掷的，不念出来以后对不上账（与调参层同一条纪律）。
+	// `floor=…` 是本场的**保底档**（入场砝码决定的那个下界，业主 2026-10-08 口径：
+	// 保底只是下界，掷出来可以更高）。它由副本自己的 fixed 池推出来 ——
+	// 实机验收时看这一行就能确认「珠子档位 ≥ 砝码保底」。
+	log.Printf("attunement run tiers: dungeon %d maze %d -> floor=%s(%d) primer=%s(%d) oath=%s(%d)",
+		dungeon, maze, loot.TierForGradeValue(tiers.Floor), tiers.Floor,
+		loot.TierForGradeValue(tiers.Primer), tiers.Primer,
+		loot.TierForGradeValue(tiers.Oath), tiers.Oath)
+	return tiers, nil
+}
+
+// derivedOathGrades 是**没有活动掉落表**时的兜底：只按「这一场该不该召唤隐藏 BOSS」
+// 决定，primer 恒 normal。有表时走 planAttunementRunTiers（表就是分布本身）。
 func (w *worldSession) derivedOathGrades() (uint16, uint16, error) {
 	if w.oathFromGear {
 		primer, oath := w.wornOathGrades()
@@ -200,7 +364,12 @@ func (w *worldSession) orthaireDue() (bool, error) {
 	return w.oathProgressDue(w.oathProgressDungeon())
 }
 
-// oathGradesForPity 是保底档位的纯决策：到期给 oath=45（唯一召唤奥尔泰尔的档），
+// ⚠️ 2026-10-07 起**不再是正常路径**：星蕴石/珠子的档位改由 CTP 表掷
+// （internal/loot/attunement_plan.go 的 PlanRun，分布就是 fixed 表本身）。
+// 下面这张权重表保留给诊断与单测，**不要**再拿它当正常档。
+// 它记录的是旧模型的六档权重（业主提供的国服 1710 场实测，来源其实是**星蕴石**）。
+//
+// oathGradesForPity 是旧模型的保底档位纯决策：到期给 oath=45（唯一召唤奥尔泰尔的档），
 // 否则两边都是 normal。primer 恒 normal 也意味着第二个隐藏 BOSS「守望者」
 // （`oath_max < 45 && primer_max == 45`）暂时不会出现 —— 它要另有一条保底。
 // oathGradeWeights 是六档的抽取权重（业主 2026-10-01 拍板：采用国服 1710 场实测爆率）。

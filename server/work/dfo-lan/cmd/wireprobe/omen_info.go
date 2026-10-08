@@ -87,6 +87,9 @@ func omenInfoPayload(seats [omenInfoSeats][4]uint32, states [omenInfoSeats]uint8
 	return append(out, flag)
 }
 
+// ⚠️ 2026-10-07 起**不再被生产路径调用**：官方口径是「中央珠子→星蕴石、天平→誓约」，
+// 两条线独立，所以不再把誓约档映射进 2836 的档位。函数保留给单测与诊断。
+//
 // omenGradeForOathTier 把天平档位（40..45）映射成星蕴石档位（1..4）。
 //
 // 名字逐档对齐（§6 取证）：109137366 Unique / 367 Legendary / 368 Epic / 369 Primeval，
@@ -262,20 +265,18 @@ func (w *worldSession) omenInfoPackets() ([]outboundPacket, error) {
 	if held > stages-1 {
 		held = stages - 1
 	}
-	// 「天平颜色」给的下限（业主 2026-10-01 拍板）：档位高时即使一颗征兆都没带，
-	// 也出对应品质的星蕴石；带着征兆时仍按持有档数出更多颗。
-	// 两条保底由此**叠加**（max）而不是互相覆盖 —— 客户端的 make_omen_gem.act 按
-	// `getEOOPartyOmenGrade >= N` 逐级判定，档位（=非零 u32 个数）就是它唯一的输入。
+	// ⚠️ 2026-10-07 撤除「天平档位压进本轮档位」那层：官方口径是
+	// **中央珠子 → 星蕴石的稀有度**、**天平 → 誓约的稀有度**（业主 2026-10-07 提供），
+	// 两条线各自独立（客户端 `primer_00_normal_loop.act` 里 `PRIMER_UP_*` 与
+	// `OATH_UP_TO_*` 是两组动作）。原来的 `grade = max(held, omenGradeForOathTier(oath))`
+	// 把**誓约档**灌进了星蕴石/征兆这一格 —— 副作用正是业主实机反馈的
+	// 「每次进入必定保底一阶征兆」（任何非 0 的天平档都会把 grade 抬到 ≥1）。
+	// 现在 2836 的档位是**纯粹的征兆持有数**；珠子那条线走 2838 的 primer。
 	grade := held
-	floor := omenGradeForOathTier(w.oathTierRun)
-	if floor > grade {
-		grade = floor
-	}
-	// 诊断：把「持有档数 / 天平档位 / 最终 grade」打出来。这一行是 2026-10-01 排查
-	// 「固定 oath=45 却掉 Unique 档箱子」时加的判据 —— 星蕴石品质只由这个 grade 决定，
-	// 而它是客户端本地消费的（服务端不发掉落），除了这里没有别处能看到它。
-	log.Printf("omen party info: held=%d oathTier=%d floor=%d grade=%d preview=%v",
-		held, w.oathTierRun, floor, grade, omenActiveIDs(ids, grade))
+	// 诊断：档位 = 征兆持有数本身（2026-10-07 撤除天平档下限后不再有 floor）。
+	// 珠子那条线（primer）走 2838，不再进这里。
+	log.Printf("omen party info: held=%d oathTier=%d primerTier=%d preview=%v",
+		held, w.oathTierRun, w.attunementRunTiers.Primer, omenActiveIDs(ids, grade))
 	return []outboundPacket{{"omen_of_order_party_info", 0, omenInfoPacketID,
 		omenInfoPayloadForHeld(omenActiveIDs(ids, grade))}}, nil
 }

@@ -69,7 +69,14 @@ var payAsIsWrappers = map[uint32]string{
 
 // boosterBoxSource 把已加载的礼包目录接到奖励展开上：奖励表发的是外层包装，
 // 这里回答两个问题 —— 开一层会出什么，以及某个模板到底是不是真物品。
-type boosterBoxSource struct{ catalog *BoosterCatalog }
+type boosterBoxSource struct {
+	catalog *BoosterCatalog
+	// instantlyOpenOnly 打开「只拆 [instantly open] 的包装」这条源标记规则：
+	// 带标记的由服务端代开（内容物落地）；**没带标记的原样落地**，玩家自己开。
+	// 零值 = 旧行为（拆掉所有能拆的 booster），所以旧调用点不受影响。
+	// 规则与依据见 next176 §19.3 / catalog.BoosterDefinition.InstantlyOpen。
+	instantlyOpenOnly bool
+}
 
 func (s boosterBoxSource) RewardBox(template uint32) (loot.RewardBox, bool) {
 	if s.catalog == nil {
@@ -80,6 +87,12 @@ func (s boosterBoxSource) RewardBox(template uint32) (loot.RewardBox, bool) {
 	}
 	def, ok := s.catalog.Definitions[template]
 	if !ok || len(def.Pools) == 0 {
+		return loot.RewardBox{}, false
+	}
+	// 源标记规则：没有 `[instantly open]` 的 booster 不是「即开」，**不该由服务端代开** ——
+	// 原样落地给玩家自己开（Container 也必须同时说「不是本 build 打不开的盒子」，
+	// 否则会被当成 unopenable 直接丢掉）。
+	if s.instantlyOpenOnly && !def.InstantlyOpen {
 		return loot.RewardBox{}, false
 	}
 	out := loot.RewardBox{Pools: make([]loot.RewardBoxPool, 0, len(def.Pools))}
@@ -127,7 +140,12 @@ func (s boosterBoxSource) Container(template uint32) bool {
 	if _, exempt := payAsIsWrappers[template]; exempt {
 		return false
 	}
-	if _, ok := s.catalog.Definitions[template]; ok {
+	if def, ok := s.catalog.Definitions[template]; ok {
+		// 源标记规则下，没有 `[instantly open]` 的 booster 是**玩家自己开**的那种：
+		// 它既不是「服务端代开」，也不是「本 build 打不开」，所以两边都不认，正常落地。
+		if s.instantlyOpenOnly && !def.InstantlyOpen {
+			return false
+		}
 		return true
 	}
 	item, ok := s.catalog.Items[template]
@@ -453,6 +471,12 @@ func (w *worldSession) openBoosterItem(
 				picks := pool.Pick(r)
 				for _, p := range picks {
 					tpl := p.Template
+					// 源里的 `-1` 是「本次没有」：抽中它不发东西（见
+					// catalog.boosterNumber 的注释 —— 过滤掉它会让整池错位，
+					// 实机表现为地上出现复活币/金库升级道具）。
+					if catalog.IsBoosterNoDrop(tpl) {
+						continue
+					}
 					if tpl == 42 {
 						tpl = 1
 					}

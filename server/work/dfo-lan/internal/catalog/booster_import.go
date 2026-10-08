@@ -68,6 +68,14 @@ type BoosterDefinition struct {
 	Template uint32              `json:"template"`
 	Type     string              `json:"type"` // "[booster]" or "[booster selection]" or package type
 	Pools    []BoosterRewardPool `json:"pools,omitempty"`
+	// InstantlyOpen 是源自己的 `[instantly open]` 段：**服务端代开**的标记。
+	//
+	// 它把 booster 分成两类，判据完全来自源：
+	//   有标记  ⇒ 即开：玩家拿到的应当是内容物，所以掉落时由服务端展开（OpenRewardBoxes）
+	//   没有    ⇒ 玩家自己开：应当**原样落地**，玩家在客户端打开（还能看到它自己的抽奖演出，
+	//            这类模板常伴 `[oath item booster]` / `[lottery ani info]` / `[mulit open limit]`）
+	// 见 next176 §19.3。零值 = 没有标记，与「目录由旧 JSON 生成」的情形一致。
+	InstantlyOpen bool `json:"instantly_open,omitempty"`
 }
 
 func parseBoosterInfo(cells []pvf.Token) []BoosterRewardPool {
@@ -87,8 +95,8 @@ func parseBoosterInfo(cells []pvf.Token) []BoosterRewardPool {
 					k := j + 1
 					var nums []uint32
 					for k < len(cells) && !(cells[k].Type == 3 && cells[k].Text == endTag) {
-						if cells[k].Type == 0 && cells[k].Value > 0 {
-							nums = append(nums, uint32(cells[k].Value))
+						if cells[k].Type == 0 && cells[k].Value != 0 {
+							nums = append(nums, boosterNumber(cells[k].Value))
 						}
 						k++
 					}
@@ -166,6 +174,41 @@ func parsePackageData(cells []pvf.Token) []BoosterRewardPool {
 		}
 	}
 	return pools
+}
+
+// BoosterNoDropTemplate 是 [booster info] 池里 `-1` 那一项在服务端的表示：
+// 这次抽取**什么也不给**。
+//
+// 源里它的权重往往是主流（例：大深渊固定盒 10419725/10419728 的
+// `[etc] 1 -1 911200 1 10420672 60000 1 …` 就是 91.12% 空），
+// 所以它必须留在候选表里参与掷骰 —— 它占的正是「本次没有」那份概率。
+//
+// ⚠️ 这个值**必须是物品目录解析不出来的**：付费侧靠「目录不认识它」把它当空面丢掉
+// （见 internal/loot/reward_box.go 的 Item 分支，以及 cmd/wireprobe 的开箱路径）。
+const BoosterNoDropTemplate = uint32(0xFFFFFFFF)
+
+// IsBoosterNoDrop 判断一次抽中的是不是源里的「本次没有」。
+func IsBoosterNoDrop(t uint32) bool { return t == BoosterNoDropTemplate }
+
+// boosterNumber 把 [booster info] 里的一个数值读成候选表用的 uint32。
+//
+// ⚠️ `-1` 必须**保留**，不能像以前那样被 `> 0` 过滤掉。池的正文是
+//
+//	<drawCount> [ <template> <weight> <count> ] …
+//
+// 丢掉 -1 会让三元组整体错位一格 ⇒ `drawCount` 被当成**模板**、权重被当成**数量**，
+// 于是候选表里凭空长出 `1` / `6` / `12` 这类**根本不是奖励**的 id，而且它们拿的是
+// 「本次没有」那份最高权重。实机表现：每次通关地上都多出
+// 复活币(template 1 = stackable/coin.stk) 与 金库升级道具(template 6 =
+// stackable/cash/store_silver.stk)，而且真正的 `[draw count]`（6/12 次）被静默降成 1 次，
+// 誓约那条线大面积少发。2026-10-07 定位。
+//
+// 0 仍然过滤：源码只在段与段之间的分隔位置写 0，不属于池正文。
+func boosterNumber(v int32) uint32 {
+	if v < 0 {
+		return BoosterNoDropTemplate
+	}
+	return uint32(v)
 }
 
 // declaresSection reports whether the script declares a section header verbatim.
@@ -308,7 +351,12 @@ func ImportBoosters(a *pvf.Archive, index ItemIndex) (map[uint32]BoosterDefiniti
 			}
 			if len(pools) > 0 {
 				pools = resolveSmartDrop(pools, sectionNumber(cells, "[smart drop group id]"), groups, &substituted)
-				result[id] = BoosterDefinition{Template: id, Type: item.StackableType, Pools: pools}
+				result[id] = BoosterDefinition{
+					Template:      id,
+					Type:          item.StackableType,
+					Pools:         pools,
+					InstantlyOpen: declaresSection(cells, "[instantly open]"),
+				}
 			} else if hasInfo && !isBooster {
 				result[id] = BoosterDefinition{Template: id, Type: item.StackableType}
 				sealed++
