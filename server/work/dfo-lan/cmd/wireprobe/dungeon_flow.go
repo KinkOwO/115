@@ -324,7 +324,11 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 	if e != nil {
 		return nil, e
 	}
-	plan := []outboundPacket{{ackName, 1, ackID, []byte{1}}}
+	plan := []outboundPacket{}
+	// 官服的无缝再次挑战**不**回这条选图 ack（那一轮客户端也没发 CMD16）⇒ 只有 relay = 0 才发。
+	if w.dungeonRelayFlag() == 0 {
+		plan = append(plan, outboundPacket{ackName, 1, ackID, []byte{1}})
+	}
 	// 无缝续刷（CMD72 选项 5）**不重建角色对象**：这两帧是「进图/登录帧」，
 	// 客户端收到它们会重新读一遍角色最小信息（trace：`<read minimum Information>`），
 	// 临时 buff 与召唤物随之被重上；国服的无缝续刷是延续的（见 next173 §7）。
@@ -421,6 +425,9 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 	// 不必去 events.jsonl 里数第 31 个字节。
 	log.Printf("dungeon entry: dungeon=%d map=%d NOTI28 body[30]=%d relay=%d（0/0=普通进本，5/1=无缝再次挑战）",
 		sel.ID, s.Room.Map, w.dungeonEntryKind(), w.dungeonRelayFlag())
+	if w.dungeonRelayFlag() != 0 {
+		log.Printf("dungeon entry: relay —— 只发 NOTI27（无 15 门应答、无 16 选图 ack），对齐官服再次挑战")
+	}
 	var stackableLimit []outboundPacket
 	// N1584 STACKABLE_DUNGEON_LIMIT：副本消耗品许可（@0 = 每关上限 8）。
 	// 森林与维纳斯军团本都需要：没有这一帧客户端把副本消耗品全部本地禁用
@@ -579,16 +586,20 @@ func dungeonSelectionHead() []outboundPacket {
 	return dungeonSelectionHeadFor(false)
 }
 
-// dungeonSelectionHeadFor 组装这一对握手；relay 为真时 NOTI27 走「继续挑战」形态
-//（头字节 1）。只有 CMD72 选项 5 的无缝续刷用真值 —— 见 card_flow.go 的 restartDungeon。
+// dungeonSelectionHeadFor 组装这次进本的「选图 UI 层」；relay 为真 = 无缝再次挑战
+//（CMD72 选项 5，见 card_flow.go 的 restartDungeon）。
+//
+// ⚠️ relay 时**只发 NOTI27**：连门应答（NOTI15）也不发 —— 对齐官服。那一轮服务端的帧列里
+// 既没有 15 也没有 16（analysis/tasks/next178 §14），客户端那一轮也没发 CMD15/CMD16；
+// 本仓此前把 15/27/16 整套当「合成握手」主动发出去，客户端因此走 `change module :
+// MAIN_GAME -> SELECT_DUNGEON` 的「新副本」路径（buff / 召唤物在那一步被重上）。
 func dungeonSelectionHeadFor(relay bool) []outboundPacket {
-	selection := protocol.EnterDungeonSelection()
 	if relay {
-		selection = protocol.EnterDungeonSelectionRelay()
+		return []outboundPacket{{"dungeon_selection_sent", 0, 27, protocol.EnterDungeonSelectionRelay()}}
 	}
 	return []outboundPacket{
 		{"dungeon_gate_ack", 1, 15, []byte{1}},
-		{"dungeon_selection_sent", 0, 27, selection},
+		{"dungeon_selection_sent", 0, 27, protocol.EnterDungeonSelection()},
 	}
 }
 

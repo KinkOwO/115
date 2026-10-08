@@ -48,28 +48,41 @@ func TestDungeonRelayFlagFollowsTheSeamlessFlag(t *testing.T) {
 	}
 }
 
-// TestDungeonSelectionHeadRelayFollowsTheMode 钉住「继续挑战」那一对握手：
-// 门应答（NOTI15）不变，NOTI27 换成 relay=1 的形态；普通进本仍是 relay=0。
-func TestDungeonSelectionHeadRelayFollowsTheMode(t *testing.T) {
+// TestDungeonSelectionHeadFollowsTheOfficialRechallengeShape 钉住「继续挑战」的头帧形状：
+//
+//	普通进本 = 门应答 NOTI15 + NOTI27（relay 0）—— 逐字节与以前相同；
+//	无缝续刷 = **只发 NOTI27**（relay 1）。
+//
+// 后者的依据是官服抓包（next178 §14）：那一轮服务端的帧列里**既没有 15 也没有 16**，
+// 客户端那一轮也没发 CMD15/CMD16；本仓此前把 15/27/16 当「合成握手」主动发出去，
+// 客户端因此走 `change module : MAIN_GAME -> SELECT_DUNGEON` 的「新副本」路径。
+func TestDungeonSelectionHeadFollowsTheOfficialRechallengeShape(t *testing.T) {
 	plain := dungeonSelectionHeadFor(false)
 	relay := dungeonSelectionHeadFor(true)
-	if len(plain) != 2 || len(relay) != 2 {
-		t.Fatalf("握手帧数 %d/%d, want 2/2", len(plain), len(relay))
+
+	if len(plain) != 2 || plain[0].ID != 15 || plain[1].ID != 27 {
+		t.Fatalf("普通进本的头应是 15+27，得到 %+v", plain)
 	}
-	if plain[0].ID != 15 || relay[0].ID != 15 || plain[0].Payload[0] != 1 || relay[0].Payload[0] != 1 {
-		t.Fatal("门应答（NOTI15）不该被入口形态影响")
-	}
-	if plain[1].ID != 27 || relay[1].ID != 27 {
-		t.Fatalf("第二帧应是 NOTI27，得到 %d/%d", plain[1].ID, relay[1].ID)
+	if plain[0].Payload[0] != 1 {
+		t.Fatal("门应答载荷变了")
 	}
 	if plain[1].Payload[1] != 0 {
 		t.Fatalf("普通进本的 relay 字节 = %#x, want 0", plain[1].Payload[1])
 	}
-	if relay[1].Payload[1] != 1 {
-		t.Fatalf("继续挑战的 relay 字节 = %#x, want 1", relay[1].Payload[1])
+
+	if len(relay) != 1 {
+		t.Fatalf("无缝续刷的头应**只有** NOTI27，得到 %d 帧", len(relay))
 	}
+	if relay[0].ID != 27 {
+		t.Fatalf("无缝续刷的第一帧应是 NOTI27，得到 %d", relay[0].ID)
+	}
+	if relay[0].Payload[1] != 1 {
+		t.Fatalf("继续挑战的 relay 字节 = %#x, want 1", relay[0].Payload[1])
+	}
+
 	// dungeonSelectionHead() 必须仍是「普通进本」那一份（城镇选图那条路一直用它）。
-	if !bytes.Equal(dungeonSelectionHead()[1].Payload, plain[1].Payload) {
+	if !bytes.Equal(dungeonSelectionHead()[0].Payload, plain[0].Payload) ||
+		!bytes.Equal(dungeonSelectionHead()[1].Payload, plain[1].Payload) {
 		t.Fatal("dungeonSelectionHead() 不再是普通进本形态")
 	}
 }

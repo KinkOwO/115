@@ -13,6 +13,33 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-08：无缝再次挑战（三）—— 对齐官服帧项之一：不发合成的 NOTI15/NOTI16 —— **候选，待业主实机验收**
+
+依据 `analysis/tasks/next178 §14`。
+
+### 已修复 / 已完成
+
+- **A2（NOTI27 relay=1）实机结论：不够**。那一轮确认 relay 字节真的写进去了
+  （`dungeon_selection_sent` 的 byte1 = `00`/`01`，日志 `relay=0`/`relay=1`），buff 仍被刷新。
+- **做出两边的逐帧对齐表**（`runtime/seamless/align_frames.py`）：官方再次挑战的 s2c 帧列里
+  **没有 15 也没有 16**，客户端那一轮也没发 CMD15/CMD16；官方有而我们没有的 id 共 21 个，
+  我们多发而官方没有的 8 个（13/15/16/39/102/105/1545/2839）。
+- **A3 落地**：`dungeonSelectionHeadFor(true)` 只返回 NOTI27（去掉合成的 NOTI15）；
+  `dungeonEntryPlanImpl` 在 relay 时不再发 `dungeon_select_ack`(16)。普通进本逐字节不变；
+  日志在 relay 时多打一行说明只发了 NOTI27。
+
+### 未修复 / 未闭环
+
+- 若 A3 仍不够：优先单独验「恢复 NOTI2」（官方发 3 次；但 trace 显示它会触发角色最小信息重读，
+  旧记录把 buff 重上归在这一步，所以要单独验而不是与 A3 合并）。
+- 官方那 21 个 id 里 14 个语义未取证 —— 按 §0 铁律**不猜**，需要时先查客户端读点。
+- 我们多发的 13/102/105/1545/2839 尚未逐条判定。
+
+### bug 测试取证
+
+- `cmd/wireprobe/dungeon_entry_kind_test.go`：继续挑战的头**只有 NOTI27**（relay=1），
+  普通进本仍是 15+27（relay=0）且逐字节不变。
+
 ## 2026-10-08：无缝再次挑战（二）—— NOTI27 `relay` = 1 —— **候选，待业主实机验收**
 
 依据 `analysis/tasks/next178 §12/§13`。
