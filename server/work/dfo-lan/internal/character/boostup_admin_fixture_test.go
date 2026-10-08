@@ -45,7 +45,7 @@ func adminFixture(t *testing.T) (*Service, *ProgressionService, State, json.RawM
 		t.Fatal(e)
 	}
 	prof := c.Professions[0]
-	st := State{Level: 1, Advancement: 1, AllJobsPilot: true, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SourceSHA256: prof.RawSHA256}
+	st := State{Level: 1, Advancement: 1, AllJobsPilot: true, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256}
 	raw, e := boostAdminStateJSON(st)
 	if e != nil {
 		t.Fatal(e)
@@ -62,6 +62,6 @@ func adminFixture(t *testing.T) (*Service, *ProgressionService, State, json.RawM
 // level-115 character before any capsule-driven awakening grants.
 func (s *Service) InitialState115(req protocol.CreateRequest) (json.RawMessage, error) {
 	prof := s.Catalog.Professions[req.Profession]
-	st := State{Level: 115, Advancement: 0, AllJobsPilot: true, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SourceSHA256: prof.RawSHA256, CreationOptions: req.Options}
+	st := State{Level: 115, Advancement: 0, AllJobsPilot: true, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, CreationOptions: req.Options}
 	return boostAdminStateJSON(st)
 }

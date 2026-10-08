@@ -387,12 +387,27 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	if cards := sectionCells(s.Cells, "[reward card]"); len(cards) == 1 && cards[0].Type == 0 && cards[0].Value >= 0 {
 		d.RewardCard = uint32(cards[0].Value)
 	}
-	minimum := sectionCells(s.Cells, "[minimum required level]")
+	// Raid scripts include maze-local copies of level fields. Read the
+	// dungeon header separately so those copies cannot replace its gate.
+	header := s.Cells
+	for i, c := range s.Cells {
+		if c.Type == 3 && c.Text == "[maze info]" {
+			header = s.Cells[:i]
+			break
+		}
+	}
+	minimum := consistentHellPartySection(header, "[minimum required level]")
+	if len(minimum) == 0 && len(sectionCells(header, "[minimum required level]")) == 0 {
+		minimum = consistentHellPartySection(s.Cells, "[minimum required level]")
+	}
 	if len(minimum) != 1 || minimum[0].Type != 0 || minimum[0].Value < 1 {
 		return d, fmt.Errorf("invalid [minimum required level]")
 	}
 	d.MinimumLevel = uint32(minimum[0].Value)
-	basis := sectionCells(s.Cells, "[basis level]")
+	basis := consistentHellPartySection(header, "[basis level]")
+	if len(basis) == 0 && len(sectionCells(header, "[basis level]")) == 0 {
+		basis = consistentHellPartySection(s.Cells, "[basis level]")
+	}
 	hasBasis := false
 	for _, c := range s.Cells {
 		hasBasis = hasBasis || c.Type == 3 && c.Text == "[basis level]"

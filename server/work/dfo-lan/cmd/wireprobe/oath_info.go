@@ -46,7 +46,6 @@ package main
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"log"
 	"math/rand"
@@ -56,7 +55,6 @@ import (
 	"strings"
 	"time"
 
-	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 )
@@ -172,7 +170,22 @@ func (w *worldSession) oathInfoPackets() ([]outboundPacket, error) {
 	return append(plan, w.attunementRewardPackets()...), nil
 }
 
-// attunementRewardPackets 生成 noti 2859「调律之边界奖励档位」，默认空 = 一个字节都不发。
+// attunementRewardPackets 生成 noti 2859「调律之边界奖励档位」的**诊断注入**帧，
+// 默认一个字节都不发。
+//
+// ## 为什么默认不发（2026-10-08 合并上游新主干之后）
+//
+// 2859 与上游使用的 **noti 2756 注册的是同一个 handler**（`0x1406b18d0`），两条通知
+// 写的是调律模块里**同一组三个位移**（+0x58 / +0x50 / +0x54）。上游已经把这条线接上了：
+// 进本加载时先冻结奖单，再把「实际发出去的那一档」按客户端四格演出表的刻度发出来
+// （见 cmd/wireprobe/border_reward_flow.go 的 borderRewardPackets 与
+// internal/game/protocol/border_reward.go）。两个发送者写同一组字段 = 谁后到谁生效，
+// 而两者的取档口径并不相同（2756 取「发出去的装备里最高那一档」，2859 取预算的珠子档），
+// 于是「动画和掉落不匹配」会从这条缝里漏回来 —— 所以只留一个发送者：
+// 2756 负责自动发送，这里只保留**诊断注入**。需要实机试值时用 `-attunement-reward`
+// （或 `DFO_ATTUNEMENT_REWARD`）显式打开；`@文件` 形式仍是**每次进本重读**。
+//
+// 下面这一段记录的是自动发送时期的语义，保留为诊断通道的历史与口径出处：
 //
 // ## 语义（业主 2026-10-08 定调）
 //
@@ -204,42 +217,18 @@ func (w *worldSession) attunementRewardPackets() []outboundPacket {
 	if w == nil {
 		return nil
 	}
-	if strings.TrimSpace(w.attunementReward) != "" {
-		payload, err := attunementRewardSpec(w.attunementReward)
-		if err != nil {
-			log.Printf("attunement reward (noti 2859): skipped this entry, %v", err)
-			return nil
-		}
-		if len(payload) == 0 {
-			return nil
-		}
-		log.Printf("attunement reward (noti 2859): sending %s (diagnostic override)", describeAttunementReward(payload))
-		return []outboundPacket{{"attunement_reward", 0, attunementRewardPacketID, payload}}
-	}
-
-	// 门禁：这条包只属于「调律之边界」玩法（包名就是它）。小深渊是**另一套玩法**
-	// （`[dungeon type] endkeeper of order`），它的演出未必读这个字段，而它 74% 的场次
-	// 档位落在演出表之外（normal/rare）—— 不越过门禁就不会互相影响（业主 2026-10-08 决定）。
-	if w.activeDungeon == nil || catalog.DungeonType(w.activeDungeon.Definition) != attunementPlayType {
+	if strings.TrimSpace(w.attunementReward) == "" {
 		return nil
 	}
-
-	// 档位取**珠子（primer / 固定池）**：官方口径是「珠子颜色代表对应品质的**装备**」，
-	// 誓约线（oath / 附加池）是另一条线的承诺，不参与这一格（业主 2026-10-08 确认）。
-	tiers := w.attunementRunTiers
-	grade := tiers.Primer
-	slot, ok := loot.AnimationGrade(grade)
-	if !ok {
+	payload, err := attunementRewardSpec(w.attunementReward)
+	if err != nil {
+		log.Printf("attunement reward (noti 2859): skipped this entry, %v", err)
 		return nil
 	}
-	payload := make([]byte, attunementRewardPayloadSize)
-	for i := 0; i < 3; i++ {
-		binary.LittleEndian.PutUint32(payload[i*4:], slot)
+	if len(payload) == 0 {
+		return nil
 	}
-	log.Printf("attunement reward (noti 2859): grade=%s(%d) (primer=%s oath=%s) -> %s(%d); payload %s",
-		loot.TierForGradeValue(grade), grade,
-		loot.TierForGradeValue(tiers.Primer), loot.TierForGradeValue(tiers.Oath),
-		loot.AnimationSlot(slot), slot, hex.EncodeToString(payload))
+	log.Printf("attunement reward (noti 2859): sending %s (diagnostic override)", describeAttunementReward(payload))
 	return []outboundPacket{{"attunement_reward", 0, attunementRewardPacketID, payload}}
 }
 

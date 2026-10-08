@@ -77,7 +77,8 @@ type Session struct {
 	// BossCheck/完成判定的「房间归属」守卫，目标仍必须是房内真实存在的源领主
 	// （rank3 / APC，team≠0），不会把任意小怪当 boss 放行。只由军团阶段入场
 	// 路径（cmd/wireprobe ispins_flow）置位，普通副本恒为零值。
-	ArenaBoss bool
+	ArenaBoss   bool
+	RaidManaged bool // source raid script owns phase completion and rewards
 	// sceneDiagnostic 记录最近一次场景换图走了哪条判定分支，仅供排查（见 SceneDiagnostic）。
 	sceneDiagnostic string
 	// layerRecord 是客户端主动进当前层图时带来的换图记录（见 SceneEntryRecord）。

@@ -83,12 +83,24 @@ func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 			bySlot[byte(inventory.WeaponSlot)] = state.Inventory.WeaponSkin
 		}
 	}
+	// 强化/增幅等级投影（强化特效逻辑说明.md §4）：从穿戴装备实例的 record[10]
+	// 低 5 位读取等级，随外观行一并送到客户端，供其按 packed>>1 重建武器/增幅光效。
+	// 幻化（clone/look/weapon_skin）只换外观模板，等级取自该槽真实穿戴装备的 record，
+	// 因此按 bag.Worn 的槽位读取，而不是 bySlot 里已被覆盖的模板。
+	levelBySlot := map[byte]byte{}
+	for _, item := range bag.Worn {
+		if item.Slot >= 48 || len(item.Record) <= 10 {
+			continue
+		}
+		levelBySlot[byte(item.Slot)] = item.Record[10] & 0x1f
+	}
 	var rows []protocol.Equipment
 	for slot, itemID := range bySlot {
 		row := protocol.Equipment{Slot: slot, Item: itemID}
 		if slot == skinSlot {
 			row.Model = skinModel
 		}
+		row.UpgradeLevel = levelBySlot[slot]
 		rows = append(rows, row)
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Slot < rows[j].Slot })

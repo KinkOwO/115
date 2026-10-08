@@ -37,6 +37,61 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (database.Wo
 			return entry, nil
 		}
 	}
+	if w.channelType == 101 && w.moonConfig != nil &&
+		old.Town == 215 && r.Town == 215 && r.PreviousTown == old.Town && uint32(r.PreviousArea) == old.Area &&
+		(old.Area == 1 && r.Area == 2 || old.Area == 2 && r.Area == 1) {
+		// 月湖红门等候区往返（2026-10-04 实测：PVF 直读世界目录的 215/1 门矩形
+		// 与客户端红门落点不一致，area_refused「no authorized source portal」挡死
+		// 整条月湖流程）。按黑鸦 85/1↔85/2 同款先例：Moon 频道上 215/1↔215/2
+		// 直接接受，落点优先用客户端坐标，不可走时回退 moonlake.cos 官方坐标
+		//（等候区红门 217,212 / 招募区 1264,325，见修复记录-20261001 §3.1）。
+		next := database.WorldPosition{Town: 215, Area: r.Area, X: r.X, Y: r.Y}
+		if err := w.service.ValidatePosition(w.level, w.odyssey, next); err != nil {
+			if r.Area == 2 {
+				next = database.WorldPosition{Town: 215, Area: 2, X: 217, Y: 212}
+			} else {
+				next = database.WorldPosition{Town: 215, Area: 1, X: 1264, Y: 325}
+			}
+			if err := w.service.ValidatePosition(w.level, w.odyssey, next); err != nil {
+				return old, err
+			}
+		}
+		return next, nil
+	}
+	if _, isContent := w.channelSpawns[w.channelType]; isContent &&
+		old.Town == r.Town && r.PreviousTown == old.Town && uint32(r.PreviousArea) == old.Area && uint32(r.Area) != old.Area {
+		// 内容频道的城镇门（2026-10-04 幽暗岛实测：178/1→178/2 被拒
+		//「no authorized source portal」——PVF 直读的门矩形与客户端实际门位置
+		// 不一致，同月湖红门问题）。客户端自己知道门在哪：同城镇相邻区域的
+		// 走门请求直接接受。
+		//
+		// 落点（2026-10-04 第二轮实测）：不能用客户端在**旧图**的坐标当新图落点
+		// ——幽暗岛把角色放进了对方阵营起始区，客户端弹「You cannot enter to
+		// the Opposing Faction's starting point」。正确落点 = 目的区域里指向
+		// 来路的门的矩形中心（门的另一侧，天然合法站位）。目的区域不存在或
+		// 没有回程门、或落点不可走时维持拒绝。
+		dest, exists := w.service.Catalog.Areas[catalog.AreaKey(r.Town, r.Area)]
+		if !exists {
+			return old, errors.New("unknown destination area")
+		}
+		lx, ly, have := 0, 0, false
+		for _, p := range dest.Portals {
+			if p.Town == old.Town && p.Area == uint32(old.Area) {
+				lx = int((p.Bounds[0] + p.Bounds[2]) / 2)
+				ly = int((p.Bounds[1] + p.Bounds[3]) / 2)
+				have = true
+				break
+			}
+		}
+		if !have {
+			return old, errors.New("destination area has no return portal")
+		}
+		next := database.WorldPosition{Town: r.Town, Area: r.Area, X: uint16(lx), Y: uint16(ly)}
+		if err := w.service.ValidatePosition(w.level, w.odyssey, next); err != nil {
+			return old, err
+		}
+		return next, nil
+	}
 	if w.activeDungeon == nil && w.progression != nil && r.PreviousTown == old.Town && uint32(r.PreviousArea) == old.Area && w.progression.OdysseyJournalTeleport(w.role, r) {
 		// The journal route is the source's own progression ladder, but the
 		// destination still has to pass the gate the client applies: Storm Pass

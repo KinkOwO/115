@@ -34,6 +34,11 @@
    **mod 自带的范围规则放 `<客户端>\.115us-mods\rules.d\*.json`**：插件按**文件名升序**先读
    `rules.d\*.json`、最后读玩家自己的 `rules.json`，所以 mod 自带规则优先于玩家通用规则；
    `rules.d` 里单个文件解析失败**只跳过它自己**（日志一行 `[跳过]`），不影响其它文件。
+   实现依据（`client-patchs/difficulty/src/difficulty-rules.c`）：先 `rules.d` 再 `rules.json`
+   的合并顺序见 `:270-277,1784`，升序枚举见 `:1616-1663`，坏文件只跳过自己见 `:1699-1705`；
+   单条规则的 `dungeonIds` 上限是 **256**（`MAX_RULE_IDS`，`:234`），规则**总条数**上限 32
+   （`MAX_RULES`，`:220`）、来源文件数上限 32（`MAX_RULE_FILES`，`:252`）—— 越界都是
+   **整份配置判不可用、不"用一半"**，不是逐条截断。
 7. **构建产物不入库**：每个子目录的 `dist/` 由 `.gitignore` 覆盖（`*.dll` / `*.zip` /
    `*.obj` / `*.exp` / `client-patchs/*/dist/`）。中间产物放 `dist/`，不要放在子目录根。
 8. **提交前跑门禁**：`powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\check-commit-hygiene.ps1 -All`

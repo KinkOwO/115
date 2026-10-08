@@ -174,20 +174,6 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "odyssey_honor_mail_committed", "character_id": role.ID})
 			}
 		}
-		// 源 `etc/titlebook.etc` `[maxlevel reward]`：满级礼盒属于任何模式的满级角色，
-		// 不在奥德赛分支内。收据是事件键，所以已到 115 的老角色在这里补发一次，
-		// 之后每次登录都是 no-op。
-		if client.progressionService != nil && client.progressionService.MaxLevelReward != nil {
-			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-			updated, rewardApplied, rewardErr := client.progressionService.MaxLevelRewardMail(ctx, role)
-			cancel()
-			role = updated
-			if rewardErr != nil {
-				client.event(map[string]any{"kind": "max_level_reward_pending", "character_id": role.ID, "reason": rewardErr.Error()})
-			} else if rewardApplied {
-				client.event(map[string]any{"kind": "max_level_reward_mail_committed", "character_id": role.ID, "template": client.progressionService.MaxLevelReward.Template})
-			}
-		}
 		profile := *client.selectProbe
 		if client.itemService != nil && client.itemService.Boxes != nil {
 			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
@@ -250,17 +236,6 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				return dispatchHandled
 			}
 			client.event(map[string]any{"kind": "fatigue_restored", "character_id": role.ID, "state": fp})
-		}
-		// 662 直升后的主线修复钩子：在这个版本之前吃过胶囊的角色没有
-		// boost-story-skip-v2 收据，任务手册里会留一条永远做不完的 Act 主线
-		// （业主 2026-10-06「直升过后的角色 主线没有清除」「还剩 115 级的任务」）；
-		// 只带 v1 收据的存档由提交层补跑一次。必须排在 Active()
-		// 之前，否则本次进城拿到的还是旧名单。失败只由该函数记事件：收据幂等，
-		// 下一次进城重试，进城不被它卡住。
-		if client.worldState != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			_, _, _ = client.worldState.boostStorySkipApply(ctx, role, client.event)
-			cancel()
 		}
 		if client.questService != nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -353,6 +328,7 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "world_entry_error", "error": e.Error()})
 				return dispatchHandled
 			}
+			role = client.worldState.role
 			// Publish this actor before the area list is serialized, so the list already
 			// carries the other players standing in the same place.
 			if client.hub != nil && len(basic) > 0 {
@@ -438,6 +414,9 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			}
 		}
 		plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
+		// NOTI108: 上游 19 条官方门禁记录静态表（event_info_generated.go）随登录
+		// 下发,开启所有 raid 页签门禁位。静态表恒定,不再走运行时动态组装。
+		plan.ChannelEventInfo = eventInfoTable
 		// Starter Boost 662 进城恢复：可领礼物集合（2265）与训练进度（2638）都按
 		// 本角色状态现算。读失败只丢这一帧并记事件——进城不该被活动状态卡住。
 		if client.worldState != nil && client.worldState.boostup != nil {
@@ -451,20 +430,6 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "boost_training_restore_error", "character_id": role.ID, "error": boostErr.Error()})
 			} else {
 				plan.BoostTraining = status
-			}
-			// 665 毕业后挑战（NOTI2722）：面板只认这一帧，客户端不会自己向服务端查挑战
-			// 进度（官服登录即推，实机全程 CMD681 = 0 次）。这里**先按「已毕业」事实对账登记**
-			// （ReconcileBoostChallenge，幂等），再出帧 ⇒ 毕业角色进城即接线，不必再靠穿脱装备
-			// 之类的副作用触发（实机 2026-10-07：不穿脱就看不到面板）。
-			// 未毕业角色在里面对账时早退 ⇒ 仍不出帧，进城序列逐字节不变。
-			challengeCtx, challengeCancel := context.WithTimeout(context.Background(), 5*time.Second)
-			updatedRole, challenge, boostErr := client.boostChallengeEntrySync(challengeCtx, role)
-			challengeCancel()
-			role = updatedRole
-			if boostErr != nil {
-				client.event(map[string]any{"kind": "boost_challenge_restore_error", "character_id": role.ID, "error": boostErr.Error()})
-			} else {
-				plan.BoostChallenge = challenge
 			}
 		}
 		if client.characters != nil {
@@ -880,6 +845,17 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		}
 		if client.lootService != nil {
 			rewardCtx, rewardCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			var raidRecovered database.Character
+			var raidErr error
+			if client.bakalRewardService != nil {
+				raidRecovered, raidErr = client.bakalRewardService.Recover(rewardCtx, role, time.Now())
+			}
+			if raidRecovered.ID != 0 {
+				role = raidRecovered
+			}
+			if raidErr != nil {
+				client.event(map[string]any{"kind": "bakal_reward_recovery_pending", "character_id": role.ID, "reason": raidErr.Error()})
+			}
 			recovered, rewardErr := (&workflow.LootService{Store: client.gameStore, Loot: client.lootService}).RecoverBlackPurgatoryCards(rewardCtx, role)
 			rewardCancel()
 			role = recovered
@@ -1032,6 +1008,10 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		// next79 挂接（ispins_wiring.go）：N1719 保活 goroutine 与登录期
 		// N2254 分支（伊斯频道挂 pending、普通频道 1.1s 后推 N2254+781+782）。
 		client.ispinsPostSelection(role.ID)
+		if client.worldState != nil {
+			// The newly selected character owns a fresh client quota cache.
+			client.worldState.bakalQuotaBody = nil
+		}
 		// 进城镇好感度全量同步：NOTI733(NPC_FAVOR_POINT_INFO) 是客户端
 		// 唯一的无弹窗全量装载入口（handler 0x1452db190：先清空 favor
 		// map 再逐条装入并刷新，不派发任何 UI 事件）；806 ack 虽也写

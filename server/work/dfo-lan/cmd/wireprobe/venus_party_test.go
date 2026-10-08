@@ -3,9 +3,9 @@ package main
 import (
 	"bytes"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/legion"
-	"dfolan/internal/database"
 	"encoding/binary"
 	"encoding/hex"
 	"testing"

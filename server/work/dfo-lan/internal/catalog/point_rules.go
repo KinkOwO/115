@@ -88,6 +88,9 @@ type PointRules struct {
 	OathPointBytes int
 	SetPointSHA256 string
 	OathSHA256     string
+	// AbilityGroups 是套装积分的第一层映射（模板 -> 能力组号），来自
+	// etc/equipmentgrouping.etc 的 `[ability group]`。没有它 SetPoints 算不出来。
+	AbilityGroups map[uint32][]uint32
 }
 
 // ImportPointRules 从内层归档直读两张积分表。缺任何一个都报错（不做 JSON 回落）。
@@ -120,6 +123,11 @@ func ImportPointRules(a *pvf.Archive) (PointRules, error) {
 	}
 	if out.Oath, e = ParseOathPointInfo(text); e != nil {
 		return out, fmt.Errorf("%s: %w", OathPointInfoPath, e)
+	}
+	// 套装积分的第一层映射（模板 -> 能力组）。缺了它 SetPoints 只能返回"算不出"，
+	// 而 NOTI2634 会把 Set Point 记 0 —— 所以这里和两张表一样，读不到就显式报错。
+	if out.AbilityGroups, e = abilityGroupMembership(a); e != nil {
+		return out, e
 	}
 	out.Source = a.Snapshot()
 	return out, nil
@@ -303,6 +311,59 @@ func (p PointRules) GradeFor(points uint32) (SetPointGrade, bool) {
 	return best, found
 }
 
+// pointGroupingPath 是「能力组」成员表：`[ability group] [index] <组号> [list] <模板…>`。
+//
+// 这是套装积分的第一层映射：`setpointinfo.cos` 的 `[info] [group] <g>` **不是装备分组**，
+// 而是这里的组号。第二层是 `[group] g + [awakening] a`（`[part set index]` 为 -1 的行用
+// 该件 `.equ` 自己的 `[part set index]` 补上）。
+//
+// 为什么在这里读而不是复用名望侧的解析器：积分规则住在本包，跨包注入一个只为拼
+// 字符串的 map 不值得；`character.FameRules.Groups` 由 fame 侧从同一文件解析给
+// `[equip grouping]` 用，两边读同一个源、同一口径，都不维护手工清单（§0.2）。
+const pointGroupingPath = "etc/equipmentgrouping.etc"
+
+// abilityGroupMembership 把 `etc/equipmentgrouping.etc` 的 `[ability group]` 块解析成
+// 模板 -> 组号。字段布局与名望侧解析器一致：`[index] <组号>` 后跟 `[list] <模板…> [/list]`。
+func abilityGroupMembership(a *pvf.Archive) (map[uint32][]uint32, error) {
+	script, err := ResolveScript(a, pointGroupingPath)
+	if err != nil {
+		return nil, err
+	}
+	out := map[uint32][]uint32{}
+	var group int64 = -1
+	pendingIndex, inList := false, false
+	for _, tok := range script.Cells {
+		if tok.Type == 3 {
+			switch tok.Text {
+			case "[ability group]", "[/ability group]":
+				group, pendingIndex, inList = -1, false, false
+			case "[index]":
+				pendingIndex, inList = true, false
+			case "[list]":
+				inList = true
+			case "[/list]":
+				inList = false
+			}
+			continue
+		}
+		if tok.Type != 0 {
+			continue
+		}
+		if pendingIndex {
+			group, pendingIndex = int64(tok.Value), false
+			continue
+		}
+		if inList && group >= 0 && tok.Value > 0 {
+			id := uint32(tok.Value)
+			out[id] = append(out[id], uint32(group))
+		}
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("%s has no [ability group] membership", pointGroupingPath)
+	}
+	return out, nil
+}
+
 // PointItem 是参与算分的一件装备：模板 + 调适档位 + 套装号（`.equ` 的 `[part set index]`，没有则 -1）。
 type PointItem struct {
 	Template     uint32
@@ -378,14 +439,57 @@ func (p PointRules) oathPointForItem(it PointItem) (uint32, bool) {
 	return 0, false
 }
 
-// SetPoints 求套装积分合计。
+// SetPoints 求套装积分合计：每件按 (能力组, 档位) 查 `setpointinfo.cos`，逐行加总。
 //
-// ⚠️ 未实现：`setpointinfo.cos` 的行键是**客户端的物品类别号**（group 51…306，其中 190/238 是
-// 晶体/誓约核心两支），而 `.equ` 里没有可用的数值 group 字段 —— 这个"模板 → group"的映射
-// 仍在取证（见 docs/protocol/oath-set-points-20261004.md §7.2/§7.3）。返回值恒 (0, 0)，
-// 调用方必须把它当"未知"而不是"该角色积分为 0"。
+// 两层映射（2026-10-07 取证）：
+//
+//	模板 --(AbilityGroups：equipmentgrouping.etc 的 [ability group])--> 能力组号
+//	能力组号 + 档位 --(setpointinfo.cos 的 [info])--> 每件积分
+//
+// 行归属：`[part set index]` 为 -1 的行用该件自己的 `[part set index]` 补上
+// （与名望侧 `character.fame` 同一口径：`if id == -1 { id = set }`）。补完仍 <= 0
+// （该件没有套装号可归属，例如没有 `[part set index]` 的耳环命中 group 306 的 -1 行）
+// **不累加**——归属不确定就不瞎算。
+//
+// 档位只做精确匹配：不能像誓约那样回退 0 档。实机与源都证明「能力组在表里没有该档位
+// 的行 ⇒ 该件 0 分」（例：`group 52` 只有 `[awakening] 0`，写调适 3 反而归 0），
+// 回退 0 档会把 0 分算成有分。
+//
+// 返回 (合计, 命中件数)。未装载 AbilityGroups 时返回 (0, 0)：调用方必须把它当
+// "算不出"，不得拿 0 冒充"该角色积分为 0"。
 func (p PointRules) SetPoints(items []PointItem) (uint32, int) {
-	return 0, 0
+	if len(p.AbilityGroups) == 0 {
+		return 0, 0
+	}
+	var total uint32
+	hits := 0
+	for _, it := range items {
+		groups := p.AbilityGroups[it.Template]
+		if len(groups) == 0 {
+			continue
+		}
+		got := false
+		for _, g := range groups {
+			for _, r := range p.Set.Rules {
+				if r.Group != g || r.Awakening != it.Awakening {
+					continue
+				}
+				owner := r.PartSetIndex
+				if owner == -1 {
+					owner = it.PartSetIndex
+				}
+				if owner <= 0 {
+					continue
+				}
+				total += r.Value
+				got = true
+			}
+		}
+		if got {
+			hits++
+		}
+	}
+	return total, hits
 }
 
 // parseIntField 取 "[tag] 123" 形式的数值（裸标签视为错误，由调用方决定是否容忍）。

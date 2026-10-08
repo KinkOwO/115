@@ -1,0 +1,249 @@
+{
+  "version": 1,
+  "source_sha256": "cec18accd718808fe576b6412d4e36f6068fb83ec1e1eb36a3d3783a2ab0739a",
+  "output_sha256": "05799f7ee4b6e4d906f0c65a869e645c9d12d75ab353ac6f7aea754766247f6f",
+  "policy": "只改文本表；优先逐条校对或同原文且数字、格式一致的唯一中文；缺可靠译文恢复原文；原文本身缺失不猜译",
+  "statistics": {
+    "乱码或占位": 17297,
+    "中文或校对译名": 6966,
+    "已引用名称为空": 35531,
+    "恢复原文": 46666,
+    "逐条校对中文": 20,
+    "残留韩文": 659,
+    "格式参数不一致": 125
+  },
+  "entries": {
+    "string/equipment.uv.str": {
+      "before_sha256": "4018003e565e626c87d1c32d19f28050ac1e6643b407af8f1d6ed9c2d78c6aae",
+      "after_sha256": "9d40cac93ec027ac61475b86570130e4668cba1c56b28fa1fc3e73164ffaedef",
+      "changed_keys": 6237,
+      "reviewed": {
+        "name_100331289": {
+          "old": "命运/Zero[세이버]",
+          "new": "Fate/Zero [Archer]",
+          "original": "Fate/Zero [아처]",
+          "reason": "逐条校对中文"
+        },
+        "name_100331294": {
+          "old": "命运/Zero[세이버]",
+          "new": "Fate/Zero [Archer]",
+          "original": "Fate/Zero [아처]",
+          "reason": "逐条校对中文"
+        },
+        "chn_appendage_hide_aura": {
+          "old": "许德拉光环 \\n光环范围: %dpx \\n攻击力: %d \\n移动速度: %d",
+          "new": "隐匿光环\\n光环范围：%dpx\\n移动速度减少：%d",
+          "original": "하이드 오라 \\n오라 범위: %dpx \\n이동 속도 감소: %d",
+          "reason": "逐条校对中文"
+        }
+      }
+    },
+    "string/etc.uv.str": {
+      "before_sha256": "2408aec448578248160047ac5306038a85e444521d22dfbeb70ff43f36d6c29d",
+      "after_sha256": "c72aa31dcc1f460212c83b3cc4d36e124f91cd9f5c5458a1432c2566f5fd7ccf",
+      "changed_keys": 135,
+      "reviewed": {}
+    },
+    "string/itemshop.uv.str": {
+      "before_sha256": "99656a1109f7e4c7aab8f477ef5de694fe9cfff39d6bf67db2673677ba931db7",
+      "after_sha256": "4de7af6148a0a98f725e4d0ee9e9ae2a6f9c7804894947e76156f6c85539b969",
+      "changed_keys": 1,
+      "reviewed": {}
+    },
+    "string/monster.uv.str": {
+      "before_sha256": "f3d0f79c1066c84678babcdcf0e38506c10fc032b93239b258b17cb443953cdc",
+      "after_sha256": "ade67d5f51b35bc0261fe3f3d7223d82a6a392cf08d2dcbfa98c89ad091b27b4",
+      "changed_keys": 2,
+      "reviewed": {}
+    },
+    "string/npc.uv.str": {
+      "before_sha256": "1ef9803d50dd2c7a011da2a24949989674a4bf52920e35c93d1159738c0fe4b7",
+      "after_sha256": "93e707eaa6c71d8b84f0d03e3103d52b30052adb5ef5a74afb68808f224774e8",
+      "changed_keys": 1,
+      "reviewed": {}
+    },
+    "string/passiveobject.uv.str": {
+      "before_sha256": "d72c9f8ce204a5b38f9bdc84e01cf1355be5979a550a7bfd712984895c524982",
+      "after_sha256": "575cacd6623e1e56eeacb258eb539e682679b79e07ea7caa2493966a139005ba",
+      "changed_keys": 5,
+      "reviewed": {}
+    },
+    "string/quest.uv.str": {
+      "before_sha256": "96629e4cbf8ec0d3b817ed10a05195034b5bff59fc5f7cb5bd3b086083ecd5b2",
+      "after_sha256": "fa0b53e100beac55f8929b9407bdadf97cd11b687527c2352857d41c6eaa30c4",
+      "changed_keys": 975,
+      "reviewed": {}
+    },
+    "string/skill.uv.str": {
+      "before_sha256": "1c34d37d58ae20fa7e0706aafc1a3d19b5df403b4295ed3046020d672725649d",
+      "after_sha256": "29cf9be336ea9eed66ba0959b290f8e7cf9f66d4af7b88e57afaa289eccb8504",
+      "changed_keys": 20,
+      "reviewed": {}
+    },
+    "string/stackable.uv.str": {
+      "before_sha256": "13d5dd4f5e533cd81099dbdcfc4d6ea9e6d366be626dd4e19e4b5249bd46b6e1",
+      "after_sha256": "ee4ee2a705ef12faf7589f8296184c8ed5494c125c66ba0059c63d694eb400d3",
+      "changed_keys": 45151,
+      "reviewed": {
+        "explain_8055": {
+          "old": "((",
+          "new": "<德莉拉的服务> 免费将1件装备完全修复。不能用于非装备道具或不消耗耐久度的装备。",
+          "original": "<데릴라의 서비스> 장비 1개를 무료로 완벽하게 수리 할 수 있습니다. 장비 외의 아이템 또는 내구도 소모가 없는 장비 아이템에는 사용되지 않습니다.",
+          "reason": "逐条校对中文"
+        },
+        "explain_8307": {
+          "old": "测试",
+          "new": "使用装备强化券时，不论装备当前强化等级，以90%%的概率将所选装备强化至+12。",
+          "original": "장비 강화권 사용시 선택한 장비를 90%%의 확률로 현재 등급에 상관없이 +12 로 강화 시켜 줍니다.",
+          "reason": "逐条校对中文"
+        },
+        "explain_8455": {
+          "old": "测试",
+          "new": "使用装备增幅券时，不论装备当前增幅等级，以90%%的概率将所选装备增幅至+12。\\n只能用于带有异界气息的装备。",
+          "original": "장비 증폭권 사용시 선택한 장비를 90%%의 확률로 현재 등급에 상관없이 +12 로 증폭 시켜 줍니다.\\n이계의 기운이 붙어있는 장비에만 사용이 가능합니다.",
+          "reason": "逐条校对中文"
+        },
+        "name_10000575": {
+          "old": "",
+          "new": "神灵的庇佑",
+          "original": "신의 가호",
+          "reason": "逐条校对中文"
+        },
+        "name_10000605": {
+          "old": "",
+          "new": "纯净的增幅书",
+          "original": "순수한 증폭서",
+          "reason": "逐条校对中文"
+        },
+        "explain_10403427": {
+          "old": "[困难攻坚战]\\n通关攻坚战后， 可以获得160个[深渊入场 : 终末之启示]。",
+          "new": "可以按基础奖励的%d%%%%获取效率获得装备道具。",
+          "original": "기본 보상의 %d%%%% 효율로 장비 아이템을 획득할 수 있습니다.",
+          "reason": "逐条校对中文"
+        },
+        "explain_10421415": {
+          "old": "[3阶段难度]\\n以基础奖励的%d%%%%的效率获得誓约/星蕴石道具。\\n\\n[2阶段难度]\\n以基础奖励的%d%%%%的效率获得誓约/星蕴石道具。\\n\\n[1阶段难度]\\n以基础奖励的%d%%%%的效率获得誓约/星蕴石道具。",
+          "new": "[2阶段难度]\\n可以按基础奖励的%d%%%%获取效率获得誓约/誓约结晶道具。\\n\\n[1阶段难度]\\n可以按基础奖励的%d%%%%获取效率获得誓约/誓约结晶道具。",
+          "original": "[2단계 난이도]\\n기본 보상의 %d%%%% 효율로 서약/서약결정 아이템을 획득할 수 있습니다.\\n\\n[1단계 난이도]\\n기본 보상의 %d%%%% 효율로 서약/서약결정 아이템을 획득할 수 있습니다.",
+          "reason": "逐条校对中文"
+        },
+        "explain_10421417": {
+          "old": "[3阶段难度]\\n以基础奖励的%d%%%%的效率获得装备道具。\\n\\n[2阶段难度]\\n以基础奖励的%d%%%%的效率获得装备道具。\\n\\n[1阶段难度]\\n以基础奖励的%d%%%%的效率获得装备道具。",
+          "new": "[2阶段难度]\\n可以按基础奖励的%d%%%%获取效率获得装备道具。\\n\\n[1阶段难度]\\n可以按基础奖励的%d%%%%获取效率获得装备道具。",
+          "original": "[2단계 난이도]\\n기본 보상의 %d%%%% 효율로 장비 아이템을 획득할 수 있습니다.\\n\\n[1단계 난이도]\\n기본 보상의 %d%%%% 효율로 장비 아이템을 획득할 수 있습니다.",
+          "reason": "逐条校对中文"
+        },
+        "explain_10421477": {
+          "old": "[3阶段难度]\\n以基础奖励的%d%%%%的效率获得誓约/星蕴石道具。\\n\\n[2阶段难度]\\n以基础奖励的%d%%%%的效率获得誓约/星蕴石道具。\\n\\n[1阶段难度]\\n以基础奖励的%d%%%%的效率获得誓约/星蕴石道具。\\n\\n[匹配难度]\\n以基础奖励的%d%%%%的效率获得誓约/星蕴石道具。",
+          "new": "[2阶段难度]\\n可以按基础奖励的%d%%%%获取效率获得誓约/誓约结晶道具。\\n\\n[1阶段难度]\\n可以按基础奖励的%d%%%%获取效率获得誓约/誓约结晶道具。\\n\\n[匹配难度]\\n可以按基础奖励的%d%%%%获取效率获得誓约/誓约结晶道具。",
+          "original": "[2단계 난이도]\\n기본 보상의 %d%%%% 효율로 서약/서약결정 아이템을 획득할 수 있습니다.\\n\\n[1단계 난이도]\\n기본 보상의 %d%%%% 효율로 서약/서약결정 아이템을 획득할 수 있습니다.\\n\\n[매칭 난이도]\\n기본 보상의 %d%%%% 효율로 서약/서약결정 아이템을 획득할 수 있습니다.",
+          "reason": "逐条校对中文"
+        },
+        "explain_10421478": {
+          "old": "[3阶段难度]\\n以基础奖励的%d%%%%的效率获得装备道具。\\n\\n[2阶段难度]\\n以基础奖励的%d%%%%的效率获得装备道具。\\n\\n[1阶段难度]\\n以基础奖励的%d%%%%的效率获得装备道具。\\n\\n[匹配难度]\\n以基础奖励的%d%%%%的效率获得装备道具。",
+          "new": "[2阶段难度]\\n可以按基础奖励的%d%%%%获取效率获得装备道具。\\n\\n[1阶段难度]\\n可以按基础奖励的%d%%%%获取效率获得装备道具。\\n\\n[匹配难度]\\n可以按基础奖励的%d%%%%获取效率获得装备道具。",
+          "original": "[2단계 난이도]\\n기본 보상의 %d%%%% 효율로 장비 아이템을 획득할 수 있습니다.\\n\\n[1단계 난이도]\\n기본 보상의 %d%%%% 효율로 장비 아이템을 획득할 수 있습니다.\\n\\n[매칭 난이도]\\n기본 보상의 %d%%%% 효율로 장비 아이템을 획득할 수 있습니다.",
+          "reason": "逐条校对中文"
+        }
+      }
+    },
+    "string/creature.uv.str": {
+      "before_sha256": "ff5a3112ddba8bfb73692f45dcafc3b938be4ca54a248ffe4b412c17549b88af",
+      "after_sha256": "ab4dde19ff848a7bb32d5bbe455f9198bfe44d2e58cdeca3d63a9ce092f8d48f",
+      "changed_keys": 114,
+      "reviewed": {}
+    },
+    "string/aicharacter.uv.str": {
+      "before_sha256": "a959ee7884bd877c0f003719929363818b55db0a0f150da5c39100208db1475c",
+      "after_sha256": "a99f3e95dcce2e64729008a113c3fe45423d54f9c5a31c66410e33e1e19609e2",
+      "changed_keys": 29,
+      "reviewed": {}
+    },
+    "string/ui.uv.str": {
+      "before_sha256": "6494d1270aa8c084c2590e73a867daba06e42c57d4af2d2b5e0af5b404c282fd",
+      "after_sha256": "252c08d364862f82d4295520c4f21b926f6f39c42ebf9bb1072208cf9516d1ea",
+      "changed_keys": 41,
+      "reviewed": {
+        "inventory_main_bottom04": {
+          "old": "%d胜点",
+          "new": "%s 胜点",
+          "original": "%s 점",
+          "reason": "逐条校对中文"
+        },
+        "inventory_main_bottom05": {
+          "old": "%d点券",
+          "new": "%s 点券",
+          "original": "%s 세라",
+          "reason": "逐条校对中文"
+        },
+        "inventory_main_bottom06": {
+          "old": "%d金币",
+          "new": "%s 金币",
+          "original": "%s 골드",
+          "reason": "逐条校对中文"
+        },
+        "skin_storage_window_01": {
+          "old": "选择随机插图 (最多10个)",
+          "new": "随机插图（%d/10张）",
+          "original": "랜덤 컷신(%d/10개)",
+          "reason": "逐条校对中文"
+        },
+        "ROD_UI_14": {
+          "old": "%s\\n证明匹配模式获胜 (%d/%d)",
+          "new": "证明匹配地下城累计胜利（%d/%d）",
+          "original": "증명 매칭 던전 누적 승리(%d/%d)",
+          "reason": "逐条校对中文"
+        }
+      }
+    },
+    "string/mission.uv.str": {
+      "before_sha256": "8eb27453c7538c0f55cf583502637af7416c0fd34777041fa8f22034f89b5c81",
+      "after_sha256": "8d42d27405781a6726061cce5c5fe6bf5f2547be5f0fda2196bd541c5407b490",
+      "changed_keys": 2,
+      "reviewed": {}
+    },
+    "string/event.uv.str": {
+      "before_sha256": "9cb3b7bf583311f822c12da655309721f5d88fec5677c4daa351a23194a06c9b",
+      "after_sha256": "92a9a08a119ee1b759b4cb47c431bf94efdeb623c989859239d14cefb73bcba5",
+      "changed_keys": 907,
+      "reviewed": {}
+    },
+    "string/chatemoticon.uv.str": {
+      "before_sha256": "4107c6defc81528f9d122fe972bfc43aae25e7161d15e2f8da1b672aa6238d8a",
+      "after_sha256": "7727943b466c591e9000d932255709c5e436c2f5ab32d5646d16a16c700f51fb",
+      "changed_keys": 6,
+      "reviewed": {}
+    },
+    "string/cinematic.uv.str": {
+      "before_sha256": "bc2500f1a19423082196cf6c457c9bcb2c3552141f7875076ceef6f1352dc8a2",
+      "after_sha256": "6993d87c18f3af90c93e8a81330997898ad43a723f1560e6817fb25cb78ec189",
+      "changed_keys": 2,
+      "reviewed": {}
+    },
+    "string/skin.uv.str": {
+      "before_sha256": "6dc6293226bce2e867b283906586b7dd8d5a4864dade96f3afdb502d963b8ff5",
+      "after_sha256": "2b4198facdc467b79d27435b96e2d55a328765807e228245dd605c09ab9913e6",
+      "changed_keys": 2,
+      "reviewed": {}
+    },
+    "string/newrandomoption.uv.str": {
+      "before_sha256": "2fccdf157e9ba1ed8e8296bea7069460172f72e5944bf205ee7f57d468007680",
+      "after_sha256": "a52f1b3be13bfd5cd40fd2338bdabb98ac6f355300f9c349d14bb5d7bb884dec",
+      "changed_keys": 2,
+      "reviewed": {
+        "P_578_basic_explain": {
+          "old": "用指令施放技能时， 被击时所受伤害减少12%%， 攻击力#+%d#， 效果持续20秒。 (最多叠加1次)",
+          "new": "用指令施放技能时，20秒内所受伤害减少12%%，攻击力增加#+%.1f%%#。（最多叠加1次）",
+          "original": "커맨드로 스킬 시전 시 20초 동안 피격 시 받는 데미지 12%% 감소, 공격력 증가 #+%.1f%%# (최대 1중첩)",
+          "reason": "逐条校对中文"
+        },
+        "P_578_detail_explain": {
+          "old": "用指令施放技能时， 被击时所受伤害减少12%%， 攻击力#+%d#， 效果持续20秒。 (最多叠加1次)",
+          "new": "用指令施放技能时，20秒内所受伤害减少12%%，攻击力增加#+%.1f%%#。（最多叠加1次）",
+          "original": "커맨드로 스킬 시전 시 20초 동안 피격 시 받는 데미지 12%% 감소, 공격력 증가 #+%.1f%%# (최대 1중첩)",
+          "reason": "逐条校对中文"
+        }
+      }
+    }
+  }
+}

@@ -34,8 +34,8 @@ const (
 	// EquipmentAwakeningPayloadSize 是客户端固定发送的负载长度（sub_140B8AD40 的 25）。
 	EquipmentAwakeningPayloadSize = 25
 
-	equipmentAwakeningFields  = 13 // 字段区起点（相对负载）
-	equipmentAwakeningMinBody = 25 // 负载最短长度（信封 13 + 字段 12）
+	equipmentAwakeningFields   = 13 // 字段区起点（相对负载）
+	equipmentAwakeningMinBody  = 25 // 负载最短长度（信封 13 + 字段 12）
 	equipmentAwakeningEnvelope = 13
 )
 

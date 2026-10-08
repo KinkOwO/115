@@ -11,10 +11,10 @@ import (
 
 // RunNetSelfTest 复刻 probe.cpp 的 net_check()（L64-L73）：
 //
-//	1. 在 127.0.0.1 上 bind + listen + connect —— 隔离若把回环也拦了，这里就失败
-//	   （对启动链是致命的：客户端连不上本机网关）；
-//	2. 非阻塞 connect 到 192.0.2.1:9（TEST-NET-1，永远不可达），等 2 秒，期望
-//	   WSAEACCES —— 那正是 probe 认的"被 WFP 拦掉"的错误码。
+//  1. 在 127.0.0.1 上 bind + listen + connect —— 隔离若把回环也拦了，这里就失败
+//     （对启动链是致命的：客户端连不上本机网关）；
+//  2. 非阻塞 connect 到 192.0.2.1:9（TEST-NET-1，永远不可达），等 2 秒，期望
+//     WSAEACCES —— 那正是 probe 认的"被 WFP 拦掉"的错误码。
 //
 // probe 的返回值语义（L72）：WSAEACCES -> 0；其它错误 -> 该错误码；连接居然成功 -> 24。
 // 这里改成结构体，但 Errno 保留同一个错误码，日志文案也照抄。

@@ -19,7 +19,8 @@ func (s *ProgressionService) ApplyGain(current Character, gain uint64) (Characte
 		return fail(e)
 	}
 	prof, ok := s.Professions.Professions[current.Profession]
-	if !ok || prof.RawSHA256 != state.SourceSHA256 || state.Attributes == nil {
+	// 源身份按 SourcePath 引用判断（原始 .chr 哈希随字符串池漂移，见 automatic_skills.go）。
+	if !ok || prof.Path != state.SourcePath || state.Attributes == nil {
 		return fail(fmt.Errorf("missing source character attributes"))
 	}
 	growth := prof.BaseGrowth

@@ -33,6 +33,12 @@ type Session struct {
 	// Omen 是征兆系统的按角色累积账（见 omen.go）。为 nil 时这条线完全不推进。
 	Omen                  *OmenLedger
 	QuestDropBonusPercent int
+	// OathTier 是本场天平下发的 oath 档位（40..45；0 = 未知/非深渊）。
+	//
+	// 天平档位与征兆是**两条平行的线**（业主 2026-10-01 定调）：这里按档位发对应的
+	// 「星蕴石自选套装罐子」，而 omen.go 的结算各发各的 —— 同一场里两条都触发就各自
+	// 发自己那份，互不覆盖、也不互相抑制。
+	OathTier uint16
 	// Tiers 是本场**在天平开场之前**就预掷好的两条线档位（见 attunement_plan.go）。
 	//
 	// 为什么由外部灌进来而不是这里掷：noti 2838 必须在副本加载应答里就把 primer/oath
@@ -43,8 +49,11 @@ type Session struct {
 	// attunementRolled 保证一轮只抽一次专属奖励：同一只源领主再被确认死亡
 	// （或同模板的第二只 rank3）都不会重复发奖。
 	attunementRolled bool
+	borderPlan       *borderRewardPlan
 	// omenRolled 与 attunementRolled 同理：同一场只推进一次征兆。
 	omenRolled bool
+	// oathTierRolled 与上面两个同理：同一场只按天平档位发一次罐子。
+	oathTierRolled     bool
 	mu                 sync.Mutex
 	Catalog            catalog.LootCatalog
 	Tables             Tables
@@ -104,6 +113,10 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	if p, ok := s.deaths[entity]; ok {
 		return append([]protocol.SceneDrop(nil), p...), nil
 	}
+	if d.Definition.ItemDropsDisabled() {
+		s.deaths[entity] = nil
+		return nil, nil
+	}
 	blackBoss := s.BlackPurgatory != nil && s.BlackPurgatoryPlan != nil && BlackPurgatoryBossDeath(d, entity)
 	hellActor, hellOwned := d.HellPartyReward(entity)
 	hellKey := [2]uint16{hellActor.Order, hellActor.Group}
@@ -121,6 +134,8 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		}
 	}
 	result := Outcome{NextSeed: seed}
+	attunementPending, oathPending := false, false
+	var omenPending *OmenOutcome
 	excludeGold, excludeRandom := dungeonDropExclusions(d.Definition)
 	if hellOwned && !excludeRandom {
 		var err error
@@ -228,6 +243,9 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		_ = groupTaken
 	}
 	result.Awards = filterDungeonAwards(d.Definition, result.Awards)
+	// 宠物蛋不走怪掉：本服设计为蛋只来自商城/魔盒/礼包，官方掉落表里的蛋在这里拦下
+	// （见 egg_drop_filter.go；商城/魔盒/任务等其它路径不受影响）。
+	result.Awards = dropCreatureEggs(s.Equipment, result.Awards)
 	// Append this independent pool after map awards; it cannot replace gear.
 	// Deferred/special modes do not consume its RNG or runtime policy.
 	// 开关用**取用处**的实际速率（目录值 × mod 倍率），不是构造时的旧值：
@@ -293,40 +311,53 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	// 所以把触发器放宽到「任何声明了源领主的副本」不会给别的副本发奖。
 	if s.Attunement.Enabled() && d.Definition.SourceBoss != 0 &&
 		monster.Rank == 3 && monster.Template == d.Definition.SourceBoss && !s.attunementRolled {
-		// 档位已预掷（进本时已随 2838 下发）⇒ 按档位选池：掉落的这一档与客户端
-		// 珠子/天平显示的那一档必然是同一个数字；没预掷则退回内部预掷。
-		var awards []Award
-		var next uint32
-		var err error
-		if s.Tiers != (RunTiers{}) {
-			awards, next, err = s.Attunement.RollPlanned(result.NextSeed, d.Definition.ID, uint32(d.Maze.Index), s.Tiers)
+		if s.borderPlan != nil {
+			if !s.borderPlanMatches(d) {
+				return nil, fmt.Errorf("border reward plan identity changed")
+			}
+			p := s.borderPlan
+			result.Awards = append(result.Awards, p.awards...)
+			result.SkippedKinds = append(result.SkippedKinds, p.skipped...)
+			result.NextSeed = p.next
+			omenPending, oathPending, attunementPending = p.omen, p.oath, true
 		} else {
-			awards, next, err = s.Attunement.Roll(result.NextSeed, d.Definition.ID, uint32(d.Maze.Index))
-		}
-		if err != nil {
-			return nil, err
-		}
-		// 征兆（omen）：本副本的通关判定与源领主的死亡是同一个事实（见上），所以
-		// 征兆也在这里推进。它和固定奖励走**同一条**开箱路径（见下面的统一展开），
-		// 分两条路就等于同一件东西有两个分布。
-		if s.Omen != nil && !s.omenRolled {
-			outcome, omenAwards, err := s.Omen.Advance(s.Character, d.Definition.ID, next)
+			// 档位已预掷（进本时随 2838 下发）⇒ 按档位选池：掉落的这一档与客户端
+			// 珠子/天平显示的那一档必然是同一个数字；没预掷则退回内部预掷。
+			var awards []Award
+			var next uint32
+			var err error
+			if s.Tiers != (RunTiers{}) {
+				awards, next, err = s.Attunement.RollPlanned(result.NextSeed, d.Definition.ID, uint32(d.Maze.Index), s.Tiers)
+			} else {
+				awards, next, err = s.Attunement.Roll(result.NextSeed, d.Definition.ID, uint32(d.Maze.Index))
+			}
 			if err != nil {
 				return nil, err
 			}
-			awards = append(awards, omenAwards...)
-			next = outcome.Seed
-			s.omenRolled = true
+			// 征兆（omen）：本副本的通关判定与源领主的死亡是同一个事实（见上），所以
+			// 征兆也在这里推进。它和固定奖励走**同一条**开箱路径（见下面的统一展开），
+			// 分两条路就等于同一件东西有两个分布。
+			if s.Omen != nil && !s.omenRolled {
+				outcome, omenAwards, err := s.Omen.preview(s.Character, d.Definition.ID, next)
+				if err != nil {
+					return nil, err
+				}
+				awards = append(awards, omenAwards...)
+				next = outcome.Seed
+				omenPending = &outcome
+			}
+			// 天平档位（业主 2026-10-01 定调）：与征兆**平行**的一条线 —— 变色就发对应的
+			// 「星蕴石自选套装罐子」，与上面那条各发各的，同一场都触发就拿两份。
+			// 罐子同样交给下面统一的 OpenRewardBoxes 展开（源写着「以开封状态发放」），
+			// 所以玩家拿到的是里面的装备而不是盒子。
+			if coffer := oathTierCoffer(s.OathTier); coffer != 0 && !s.oathTierRolled {
+				awards = append(awards, Award{Template: coffer, Amount: 1})
+				oathPending = true
+			}
+			attunementPending = true
+			result.Awards = append(result.Awards, awards...)
+			result.NextSeed = next
 		}
-		// ⚠️ 2026-10-07 撤除：这里曾按天平档位**额外**发一个「星蕴石自选套装罐子」，
-		// 而它用的四个模板（10416150/10417545/10417552/10417571）**就是征兆阶段表
-		// 行 1..4 的主盒** —— 天平那一下把星蕴石那条线的产物发了出来（串线），
-		// 且只要档位 ≥42 就发（按天平档位分布约 40.25% 的场次），与誓约是否触发无关。
-		// 官方口径是「天平暗示**誓约**的稀有度」，誓约由 additional 表那四档给
-		// （10416141..10416144），已在上面的 RollPlanned 里按预掷档位选池。
-		s.attunementRolled = true
-		result.Awards = append(result.Awards, awards...)
-		result.NextSeed = next
 	}
 	// 包装展开：**所有来源统一在这里做一次** —— 通用掉落池、章节盒、调律专属奖励、征兆。
 	//
@@ -389,6 +420,12 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	if d.NextEntity == 0 || uint64(d.NextEntity)+uint64(len(result.Awards)) >= 65535 || uint64(s.next)+uint64(len(result.Awards)) >= 65535 {
 		return nil, fmt.Errorf("drop identity exhausted")
 	}
+	// Commit once all fallible award validation and capacity checks passed.
+	if omenPending != nil {
+		if err := s.Omen.commit(s.Character, *omenPending); err != nil {
+			return nil, err
+		}
+	}
 	var rows []protocol.SceneDrop
 	for awardIndex, a := range result.Awards {
 		// Scene drops and monsters share the native object namespace. Consume
@@ -416,6 +453,9 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		}
 		rows = append(rows, protocol.SceneDrop{Object: object, Item: item, Sentinel: 65535, Owner: s.Actor})
 	}
+	s.attunementRolled = s.attunementRolled || attunementPending
+	s.omenRolled = s.omenRolled || omenPending != nil
+	s.oathTierRolled = s.oathTierRolled || oathPending
 	s.seeds[d.Room.Map] = result.NextSeed
 	s.deaths[entity] = rows
 	s.blackPurgatoryRolled = s.blackPurgatoryRolled || blackBoss
@@ -492,3 +532,32 @@ func (s *Session) Owned(d *dungeon.Session, account, character int64, actor uint
 	return v, nil
 }
 
+// oathTierCoffer 把天平档位（40..45）映射成「星蕴石自选套装罐子」。
+//
+// 四档对四个罐子，内容是**实测展开**的（见 docs/protocol/endkeeper-of-order-primer-20260926.md
+// §38.2，与业主提供的官方奖励表逐位吻合）：
+//
+//	unique(42)    → 10416150 → 12 × rarity 3（神器）
+//	legendary(43) → 10417545 → 12 × rarity 6（传说）
+//	epic(44)      → 10417552 → 12 × rarity 4（史诗）
+//	primeval(45)  → 10417571 → 12 × rarity 8（太初）
+//
+// normal(40) / rare(41) **不发**：官方奖励表里没有 rarity 2 的罐子（行 0 的条目数就是 0），
+// 而国服 1710 场实测里 32.05% 正是「不变色、不出东西」。
+//
+// 这条线与征兆（omen.go 的 [coupon drop table] 结算）**平行**：各发各的，同一场都触发
+// 就各自兑现一份（业主 2026-10-01 定调）。
+func oathTierCoffer(tier uint16) uint32 {
+	switch {
+	case tier >= 45:
+		return 10417571
+	case tier >= 44:
+		return 10417552
+	case tier >= 43:
+		return 10417545
+	case tier >= 42:
+		return 10416150
+	default:
+		return 0
+	}
+}

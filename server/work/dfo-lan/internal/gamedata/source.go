@@ -694,6 +694,15 @@ func (s *Source) Apocalypse() (*catalog.ApocalypseCatalog, error) {
 	return catalog.ImportApocalypse(s.archive)
 }
 
+// BakalRaid reads contents/2022/bakalraid/etc/bakal.etc: the raid's rules truth
+// source (waiting room, anger engine, settlement timers, bidding weights).
+func (s *Source) BakalRaid() (*catalog.BakalRaidRules, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("bakal raid import requires PVF")
+	}
+	return catalog.ImportBakalRaid(s.archive)
+}
+
 // Attunement 的副本范围由源决定：etc/rewardboostinfo/**.ctp 各自声明 [dungeon index]。
 // 不再接受外部清单（单一内容真源铁律，server/AGENTS.md §0）。
 func (s *Source) Attunement() (*loot.AttunementRewards, error) {

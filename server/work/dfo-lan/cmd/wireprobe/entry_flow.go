@@ -19,6 +19,7 @@ type preparedPacket struct {
 	Raw []byte
 }
 type entryPayloads struct {
+	ChannelEventInfo                                                                       []byte
 	Select, Basic, Addition, Skills, SkillPreset, Vault, UserArea, Area, Fatigue, Complete []byte
 	Experience, CompletedQuests, Inventory                                                 []byte
 	// AccountMaterials is the NOTI13 list35 account material storage

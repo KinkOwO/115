@@ -12,6 +12,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/dungeon"
+	"dfolan/internal/game/protocol"
 	"dfolan/internal/loot"
 )
 
@@ -221,76 +222,83 @@ func TestAttunementRewardSpecRejectsAMissingTrialFile(t *testing.T) {
 	}
 }
 
-// 正常接线（没有诊断覆盖）时，2859 必须按**本场掷出的档位**发，
-// 而且**动画与掉落同档**：payload[0] = 该档在客户端演出表的格。
+// 正常接线（有活动副本、档位已预掷、**没有**任何诊断开关）时，一个字节都不发。
 //
-// 档位取两条线的**高**者（业主口径：保底之上掷到更高就用更高那档，
-// 「至少出对应动画」对两条线都要成立），并记进日志便于对着掉落验收。
-//
-// ⚠️ 直接测 attunementRewardPackets：oathInfoPacketsCore 会用**真实奖励表**
-// 重掷档位并覆盖 w.attunementRunTiers（见 oath_info.go），零值世界下会把这里
-// 注入的档位抹成 0。生产路径的顺序是 core 先算、这里后发，所以这条单测对准的是后者。
-func TestAttunementRewardFollowsTheRunGrade(t *testing.T) {
-	cases := []struct {
-		name         string
-		primer, oath uint32
-		wantSlot     uint32
-		wantNone     bool
-	}{
-		{"传说砝码掷到传说", 43, 40, 41, false},        // LegendaryDrop
-		{"誓约更高也不改演出（只按珠子）", 43, 44, 41, false}, // 珠子=传说 → LegendaryDrop
-		{"史诗砝码掷到史诗", 44, 40, 42, false},        // EpicDrop
-		{"掷到太初", 45, 45, 43, false},            // PrimevalDrop
-		{"小深渊掷到普通", 40, 40, 0, true},           // 演出表没有 normal 的格 ⇒ 不发
-		{"没有档位（非调律副本）", 0, 0, 0, true},
+// 2026-10-08 起这条自动发送**已移交 noti 2756**（见 border_reward_flow.go 的
+// borderRewardPackets）：2859 与 2756 注册的是同一个 handler、写同一组三个位移，
+// 两个发送者并存 = 谁后到谁生效，而两者的取档口径还不相同 —— 那正是「动画和掉落
+// 不匹配」会从缝里漏回来的地方。所以这里只保留诊断通道。
+func TestAttunementRewardIsDiagnosticOnly(t *testing.T) {
+	// 大深渊：即便档位已经预掷好，也不自动发。
+	big := &worldSession{activeDungeon: boundaryDungeon(), attunementRunTiers: loot.RunTiers{Primer: 43, Oath: 43}}
+	if plan := big.attunementRewardPackets(); len(plan) != 0 {
+		t.Fatalf("自动发送已移交 2756，这里不该再发：%+v", plan)
 	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			w := &worldSession{activeDungeon: boundaryDungeon(), attunementRunTiers: loot.RunTiers{Primer: c.primer, Oath: c.oath}}
-			plan := w.attunementRewardPackets()
-			if c.wantNone {
-				if len(plan) != 0 {
-					t.Fatalf("应当不发：%+v", plan)
-				}
-				return
-			}
-			if len(plan) != 1 || plan[0].ID != attunementRewardPacketID {
-				t.Fatalf("应当发一帧 2859：%+v", plan)
-			}
-			p := plan[0].Payload
-			if len(p) != attunementRewardPayloadSize {
-				t.Fatalf("载荷长度 = %d，want %d", len(p), attunementRewardPayloadSize)
-			}
-			if got := binary.LittleEndian.Uint32(p[0:4]); got != c.wantSlot {
-				t.Fatalf("演出格 = %d(%s)，want %d", got, loot.AnimationSlot(got), c.wantSlot)
-			}
-			// 三格必须**同值且都在演出表的域内**：实测任何一格越界（例如填模块初值 72）
-			// 都会让整帧退化成「最后一格兜底」（业主看到太初）。
-			// 填同一个值也让「取哪一格」这个问题不再重要。
-			for i := 1; i < 3; i++ {
-				if got := binary.LittleEndian.Uint32(p[i*4:]); got != c.wantSlot {
-					t.Fatalf("位移 %d = %d，want 与第 1 格同值 %d（越界会让整帧兜底）", i, got, c.wantSlot)
-				}
-			}
-		})
+	// 小深渊（另一套玩法）同样不发 —— 现在它的保障来自 2756 自己的副本门禁
+	// （internal/loot/border_plan.go 的 IsBorderDungeon）。
+	small := &worldSession{activeDungeon: smallAbyssDungeon(), attunementRunTiers: loot.RunTiers{Primer: 43, Oath: 43}}
+	if plan := small.attunementRewardPackets(); len(plan) != 0 {
+		t.Fatalf("小深渊不该收到 2859：%+v", plan)
+	}
+	// 不在副本上下文里更不该发。
+	none := &worldSession{attunementRunTiers: loot.RunTiers{Primer: 43, Oath: 43}}
+	if plan := none.attunementRewardPackets(); len(plan) != 0 {
+		t.Fatalf("没有活动副本时不该发：%+v", plan)
+	}
+	// 诊断覆盖**不受门禁限制**（试值要在任何副本里都能做），且载荷逐字节原样。
+	probe := &worldSession{activeDungeon: smallAbyssDungeon(), attunementReward: "42,42,42"}
+	plan := probe.attunementRewardPackets()
+	if len(plan) != 1 || plan[0].ID != attunementRewardPacketID {
+		t.Fatalf("诊断覆盖应当照发：%+v", plan)
+	}
+	if got := binary.LittleEndian.Uint32(plan[0].Payload[0:4]); got != 42 {
+		t.Fatalf("诊断载荷被改动了：%d", got)
 	}
 }
 
-// 诊断覆盖必须**整帧优先**（继续试值用），不能被正常接线顶掉。
-func TestDiagnosticOverrideWinsOverTheRunGrade(t *testing.T) {
-	w := &worldSession{
-		attunementRunTiers: loot.RunTiers{Primer: 43, Oath: 43},
-		attunementReward:   "45,45,45",
-	}
-	plan, err := w.oathInfoPackets()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(plan) != 2 {
-		t.Fatalf("plan = %+v", plan)
-	}
-	if got := binary.LittleEndian.Uint32(plan[1].Payload[0:4]); got != 45 {
-		t.Fatalf("诊断值必须原样发出，得到 %d", got)
+// 大深渊那一帧的换算链：本场档位 → 客户端四格演出表 → 2756 的 12 字节载荷。
+//
+// 这一条钉住「动画与掉落同档」（业主 2026-10-08 实机验收：传说砝码 → LegendaryDrop(41)
+// → 誓约物品 [rarity] 3），以及「低于独有就不发」（四格演出表从独有起）。
+func TestBorderRewardFrameFollowsTheFrozenGrade(t *testing.T) {
+	for _, c := range []struct {
+		name  string
+		grade uint32
+		slot  uint32
+		none  bool
+	}{
+		{"传说", 43, 41, false},        // LegendaryDrop
+		{"史诗", 44, 42, false},        // EpicDrop
+		{"太初", 45, 43, false},        // PrimevalDrop
+		{"独有（四格的最低那格）", 42, 40, false}, // UniqueDrop
+		{"普通（演出表没有这一格）", 40, 0, true},
+		{"稀有（演出表没有这一格）", 41, 0, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			slot, ok := loot.AnimationGrade(c.grade)
+			if c.none {
+				if ok {
+					t.Fatalf("档位 %d 不该有演出格，得到 %d", c.grade, slot)
+				}
+				return
+			}
+			if !ok || slot != c.slot {
+				t.Fatalf("AnimationGrade(%d) = (%d,%v)，want %d", c.grade, slot, ok, c.slot)
+			}
+			p, err := protocol.BorderRewardInfo(slot)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// 三格同值：实测只确认了驱动格是第 1 个（`40,43,43` 播的是最低那格），
+			// 而任何一格越界都会让整帧退化成最后一格 —— 旧版把第 1 格留在模块初值
+			// -1，于是每次都被兜底成太初。
+			for i := 0; i < 3; i++ {
+				if got := binary.LittleEndian.Uint32(p[i*4:]); got != slot {
+					t.Fatalf("位移 %d = %d(%s)，want 与第 1 格同值 %d",
+						i, got, loot.AnimationSlot(got), slot)
+				}
+			}
+		})
 	}
 }
 
@@ -305,7 +313,7 @@ func boundaryDungeon() *dungeon.Session {
 	}}
 }
 
-// smallAbyssDungeon 是**另一套玩法**（终末之边界）：2859 不许越界发过去。
+// smallAbyssDungeon 是**另一套玩法**（终末之边界）。
 func smallAbyssDungeon() *dungeon.Session {
 	return &dungeon.Session{Definition: catalog.DungeonDefinition{
 		Script: catalog.ScriptRecord{Cells: []pvf.Token{
@@ -313,28 +321,4 @@ func smallAbyssDungeon() *dungeon.Session {
 			{Type: 8, Reference: "endkeeper of order"},
 		}},
 	}}
-}
-
-// 门禁：另一套玩法（终末之边界 / 小深渊）**不许**收到这条包 —— 它的档位 74% 落在
-// 演出表之外（normal/rare），越界发送只会把它的表现改成「兜底太初」。
-// 判据取副本自己的 [dungeon type]，不按副本号硬编。
-func TestAttunementRewardIsGatedToTheBoundaryOfAttunementMode(t *testing.T) {
-	small := &worldSession{activeDungeon: smallAbyssDungeon(), attunementRunTiers: loot.RunTiers{Primer: 43, Oath: 43}}
-	if plan := small.attunementRewardPackets(); len(plan) != 0 {
-		t.Fatalf("小深渊不该收到 2859：%+v", plan)
-	}
-	// 没有活动副本（不在副本上下文里）同样不发。
-	none := &worldSession{attunementRunTiers: loot.RunTiers{Primer: 43, Oath: 43}}
-	if plan := none.attunementRewardPackets(); len(plan) != 0 {
-		t.Fatalf("没有活动副本时不该发：%+v", plan)
-	}
-	// 诊断覆盖**不受门禁限制**（试值要在任何副本里都能做）。
-	probe := &worldSession{activeDungeon: smallAbyssDungeon(), attunementReward: "42,42,42"}
-	plan := probe.attunementRewardPackets()
-	if len(plan) != 1 || plan[0].ID != attunementRewardPacketID {
-		t.Fatalf("诊断覆盖应当不受门禁限制：%+v", plan)
-	}
-	if got := binary.LittleEndian.Uint32(plan[0].Payload[0:4]); got != 42 {
-		t.Fatalf("诊断载荷被改动了：%d", got)
-	}
 }

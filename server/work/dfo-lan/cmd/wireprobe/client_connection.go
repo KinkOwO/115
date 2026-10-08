@@ -107,6 +107,8 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 		}
 		client.worldState.serverID = client.channelCfg.ServerID
 		client.worldState.channelType = client.channelTypes[client.channel]
+		client.worldState.bakalRules = client.bakalRaidRules
+		client.worldState.bakalRewards = client.bakalRewardService
 		// 特殊征讨频道（SemiRaid/Legion，towns 表里有专属城镇的）的位置隔离：
 		// 会话内位置不覆盖普通频道的共享行（黑鸦 73 / 矿区 106 既有模式的全频道推广）。
 		if _, isolated := client.gatewayRuntime.channelTowns[client.channelTypes[client.channel]]; isolated {
@@ -199,6 +201,11 @@ func (client *gameConnection) serve() {
 				// 维纳斯难度选择窗倒计时归 0：推原生 close ACK 自动关窗。
 				packets = client.worldState.venusOperationClose(now, client.event)
 				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
+					return
+				}
+				// 巴卡尔开战时钟：开战 burst、血量发布与结算串（2285→N13→588→574）
+				// 都从这一秒 tick 驱动（settle 前一瞬注入奖励冻结与全量背包）。
+				if client.tickBakalOpening(now) != nil {
 					return
 				}
 			}

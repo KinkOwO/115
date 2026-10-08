@@ -5,9 +5,14 @@
 下一次安装/卸载会按注册表重写。
 
 - 每个 mod 目录里的 `.modkit-owner` 是来源标记，卸载靠它确认归属。
-- 每个 mod 目录里的 `mod.json` 是**原样搬运**的组织文件副本：
-  管理器与 `modkit mods list` 从这里读 名称 / 版本 / **作者 / 说明** / 层 /
-  权限 / 依赖 / 钩子。作者与说明写在那份清单里，不要改这个副本。
+- **只有声明了 `hooks` 的 mod 才落 `mod.json`**：那是一份**原样搬运**的组织文件副本
+  （`modkit install` 只对带 Go 钩子的 mod 走这一步，启动器仓 `internal/modkit/install2.go:472,524-529`），
+  管理器与 `modkit mods list` 从它读 名称 / 版本 / **作者 / 说明** / 层 / 权限 / 依赖 / 钩子；
+  作者与说明写在那份清单里，不要改这个副本。
+- ⚠️ **只带 `scripts`（Lua 规则脚本）的服务端 mod 不建本目录下的 `<mod-id>/`、也不落 `mod.json`**
+  （它不参与编译，脚本直接平铺落到**启动器根**的 `mods/` 下）—— 所以"某个 mod 装过但这里
+  找不到目录/清单"是**正常现象**，不等于安装失败。判据：查注册表
+  `<客户端>\.launcher-mods\modkit\registry.json` 里 `kind = "server.script"` 的条目。
 - **mod 加载器**是 `mods/zz_mods_gen.go`（生成物，见下一节）：它 import 各已装 mod
   并调用它们的 `Register()`；即使本目录为空，服务端也编得过。
 - 删除某个 mod：用 `modkit uninstall --id <mod-id>`，不要直接删目录。

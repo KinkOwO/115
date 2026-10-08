@@ -79,7 +79,9 @@ func TestPrepareConsumeKeepsIdentityAndUnrelatedState(t *testing.T) {
 	}
 
 	_, _, _, err = s.PrepareConsume(role, protocol.UseStackableRequest{Slot: 99, Template: 700}, false,
-		func(state json.RawMessage, _ uint32, _ time.Time) (json.RawMessage, uint32, error) { return state, 0, nil },
+		func(state json.RawMessage, _ uint32, _ time.Time) (json.RawMessage, uint32, error) {
+			return state, 0, nil
+		},
 		func(uint32) (PremiumActivation, bool) { return PremiumActivation{}, false })
 	if err == nil || !reflect.DeepEqual(input, original) {
 		t.Fatal("failed consume accepted or mutated the caller's state")
@@ -93,7 +95,9 @@ func TestPrepareConsumeReturnsContractActivationWithoutChangingReceiptIdentity(t
 	state := consumableBoundaryState(t, []BagItem{{Slot: 65, Template: 700, Amount: 2, ExpireTime: protocol.MaxItemPeriod}})
 	role := Role{ConfigVersion: source, State: state}
 	updated, receiptJSON, premiums, err := s.PrepareConsume(role, request, false,
-		func(state json.RawMessage, _ uint32, _ time.Time) (json.RawMessage, uint32, error) { return state, 0, nil },
+		func(state json.RawMessage, _ uint32, _ time.Time) (json.RawMessage, uint32, error) {
+			return state, 0, nil
+		},
 		func(template uint32) (PremiumActivation, bool) {
 			if template == 700 {
 				return PremiumActivation{Type: 3, DurationSecond: 3600}, true
@@ -126,7 +130,7 @@ func TestPrepareBoxOpenPersistsDrawPointsAndPreservesOtherState(t *testing.T) {
 		Source: "fixture",
 		Tables: map[string]BoxTable{"9000": {
 			Rate: 100, MainGroup: 1,
-			Groups: map[string][]BoxEntry{"1": {{Group: 1, Template: mainPrize, Count: 2, Weight: 100}}},
+			Groups:      map[string][]BoxEntry{"1": {{Group: 1, Template: mainPrize, Count: 2, Weight: 100}}},
 			PointStacks: []BoxPointStack{{Type: "section", Gain: 1, Max: 5, SectionReward: []BoxSectionReward{{Group: 1, Threshold: 1, Template: sectionPrize, Count: 1}}}},
 		}},
 		Rewards: map[string]BoxReward{

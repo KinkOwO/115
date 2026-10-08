@@ -112,7 +112,7 @@ func (s *VaultService) TransferStacks(role Role, v VaultState, r protocol.ItemMo
 			case "[material expert job]":
 				home = [2]uint16{233, 288}
 			case "[avatar emblem]", "[rune]":
-				home = [2]uint16{289, 344}
+				home = [2]uint16{289, 360}
 			default:
 				home = [2]uint16{65, 120}
 			}

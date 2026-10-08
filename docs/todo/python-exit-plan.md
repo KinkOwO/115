@@ -43,8 +43,12 @@
 
 暂时保留（业主 2026-10-05 裁决：先保证启动链，不动这些）：
 
-- `scripts/gm.py`（已是薄封装，转 `dfo-tool` 成本最低，后续可做）
-- `gm-tool/scripts/gmweb.py`（Web GM，Go 化是独立工程）
+- ~~`scripts/gm.py`（已是薄封装，转 `dfo-tool` 成本最低，后续可做）~~ → **2026-10-05 已删除**：
+  它依赖的 `scripts/storage_profile.py` 在同轮被删，链路已不可用；命令行的能力由
+  `dfo-tool accountlist` / `cmd/admin` / `dfo-tool setlevel` 本身提供，不再需要薄封装。
+- ~~`gm-tool/scripts/gmweb.py`（Web GM，Go 化是独立工程）~~ → **2026-10-05 已删除**（连同
+  `gm-tool\dashboard\**` 与四个 `.cmd` 入口）：`gm-tool\bin\gmweb.exe` 不在包内，整套本来就跑不起来；
+  GM 现在只有启动器内嵌的 Go 实现（启动器仓库 `gm/` → `gmbridge.exe`）。
 - `scripts/configure_env.py`（环境配置：其 `.cmd` 入口已被并行工作删除，可能已孤立，需要确认后再决定）
 
 ## 4. 验收口径

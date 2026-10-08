@@ -584,11 +584,19 @@ func (w *worldSession) openBoosterItem(
 								dur = uint16(opts[0])
 								optMap[g.Template] = opts[1:]
 							}
+							// [FIX-20261007 时装孔] 礼包/胶囊开出时装时按 PVF 默认孔补孔，
+							// 让新时装存档即带孔（此前 avatar_options 恒空，背包不显示孔；
+							// 邮箱/商城部分路径带孔、开盒路径不带导致两件同模板一件有孔一件无孔）。
+							var sockOpts []byte
+							if w.characters != nil && w.characters.Equipment != nil {
+								sockOpts = w.characters.Equipment.DefaultAvatarSockets(g.Template)
+							}
 							b.Special[1] = append(b.Special[1], inventory.BagEquipment{
-								Slot:       s,
-								Template:   g.Template,
-								Durability: dur,
-								Period:     per,
+								Slot:         s,
+								Template:     g.Template,
+								Durability:   dur,
+								Period:       per,
+								AvatarOptions: sockOpts,
 							})
 							foundSlot = true
 							break

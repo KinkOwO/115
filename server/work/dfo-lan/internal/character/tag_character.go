@@ -43,8 +43,15 @@ func (s *Service) TagCharacterSnapshot(role Character) (protocol.TagCharacter, e
 			return out, err
 		}
 		row := protocol.DetailedWorn{Slot: item.Slot, Template: item.Template,
-			Durability: item.Durability, Period: item.Period, Record: item.Record,
-			AvatarOptions: item.AvatarOptions, AvatarSockets: item.AvatarSockets}
+			Durability: item.Durability, Period: item.Period, Record: item.Record}
+		// 与 entryAdditionWithStats 同口径：头像扩展只存在于时装行（槽 ≤ 11），
+		// 槽 26~29 / 32 的宠物行在原生 reader 里没有这两格。存档里混进的块
+		// （2026-10-07 邮件补孔缺陷写过的 30 字节全零块）在这里丢掉，
+		// 不能让一个队友的坏数据把整份队友包（TagEquipment）打成拒绝。
+		if item.Slot <= 11 {
+			row.AvatarOptions = item.AvatarOptions
+			row.AvatarSockets = item.AvatarSockets
+		}
 		if item.Slot <= 11 && item.Group == 0 {
 			row.HeaderTemplateA = bag.CloneAvatarLook(item)
 			for _, look := range bag.Worn {

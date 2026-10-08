@@ -58,7 +58,7 @@
 | 文件 | 归属 | 语义 | 谁写 |
 | --- | --- | --- | --- |
 | `<服务端模块>/mods/zz_mods_gen.go` | **装没装** | 生成的 import 清单：列进来的 mod 才会被编译进二进制 | 只有 `modkit install/uninstall` |
-| `<服务端模块>/mods/<mod-id>/` | **装了哪些** | 每个已装服务端 mod 的 Go 源码（含 `.modkit-owner` 来源标记；带 `hooks` 的才有 `mod.json`） | 只有 `modkit install/uninstall` |
+| `<服务端模块>/mods/<mod-id>/` | **装了哪些** | 每个已装服务端 mod 的 Go 源码（含 `.modkit-owner` 来源标记；**只有声明了 `hooks` 的 mod 才有 `mod.json`**，只带 `scripts` 的不落它 —— `install2.go:472,524-529`） | 只有 `modkit install/uninstall` |
 | `<服务端模块>/mods/enabled.json` | **开不开** | **禁用名单**：列在这里的 mod 不登记钩子 | 只有管理器（或 `modkit mods`） |
 | `<启动器根>/mods/` | **规则脚本 + mod 库** | 平铺 `*.lua` 是服务端读盘的**第一顺位**；同时也是「MOD 工具」页显示的 mod 库根（`internal/modlib/store.go:60-63`） | 人 / modkit 落位 / 管理器 |
 | `<客户端>/.launcher-mods/modkit/registry.json` | 客户端层 mod 的安装凭据 | 逐条还原依据（含 `server.script` 条目的登记哈希） | 只有 `modkit` |
@@ -119,8 +119,22 @@
 - 含 `pvf` 层：**"需要 PowerShell 7；缺失时安装会明确失败"**；
 - 含 `exe.patch`：**"修改 DFO.exe 字节；没有整文件哈希门——现场 sha256 与清单声明不符只警告、不阻断；能不能打由逐处 `before` 字节比对决定"**；
 - 含 Go 钩子但本机没有 Go 工具链：**"安装会在落位前硬失败（找不到 Go 工具链）"**；
-- 预编译服务端程序**可能没有 mod 宿主**：这时装好的 mod 一个都不会装载，
-  **启动日志里连 `servermod:` 都不出现** —— 管理器要提示"换成按当前源码编译的服务端"。
+- 预编译服务端程序**可能没有 mod 宿主**，但要分成两件事说（**安装期门禁** vs **日志判据**）：
+  - **安装期（启动器 v1.7.6 起，硬门禁；`dbb9970` 实现、`2000645` 随 1.7.6 发布）**：
+    `modkit install` 在**写盘之前**探测目标服务端，
+    判据 = `<模块根>/cmd/wireprobe/servermods.go` / `internal/servermod/` / `mods/zz_mods_gen.go`
+    三者任一存在即算"源码树有宿主"。
+    - **源码树也没有宿主 ⇒ 直接拒绝安装 server 层 mod**（报「计划被阻断：目标服务端的源码树里没有
+      mod 宿主…」），并给出两条出路：① 用启动器「更新」拿带宿主的新服务端包；
+      ② 有 Go 工具链时点「编译服务端」重编当前源码。**一个字节都不写**（连 modkit 状态目录都不建）；
+    - **源码有宿主、已编译产物里搜不到宿主标记** ⇒ **只提示**「装完要重新编译服务端」，**不阻断**。
+    （启动器仓 `internal/modkit/modhost.go:233-263` 的 `hostGate`，接在 `install2.go:108`
+    写盘之前的宿主门禁位置。管理器应当把这段输出原样展示，不要自己再判一次。）
+  - **日志判据（运行期）**：这时装好的 mod 一个都不会装载，**启动日志里连 `servermod:` 都不出现** ——
+    管理器要提示"换成按当前源码编译的服务端"。
+  - **发布包时间线**：2026-10-07 起重打的包已带宿主（`tools/tools-server-bin.zip` 85 条目 /
+    `tools/tools-server-src.zip` 1973 条目），但那批包在分支 `mr/packages-20261007`、**尚未合并上游**；
+    在此之前发布的包没有宿主。
 
 ---
 
@@ -188,8 +202,10 @@ modkit mods disable --id <mod-id>         --root <启动器根> [--by launcher-u
   `kind = "server.script"` 的条目（`target` = `mods/<名>`，**没有 `scripts/` 子目录**）；
   读不到注册表就**不猜**，归属显示为空并给出原因；
 - **会不会盖住某个 mod** = 各已装 mod 落位目录里的 `mod.json` 的 `server.scripts`
-  （同名时服务端**磁盘优先**——见 `MOD-DEVELOPMENT.md` §4.5.4 的实现核对状态脚注，
-  页面要点名是哪个 mod 被盖住）。
+  （同名时服务端**磁盘优先**，实现已落地：`reward_flow.go:128` 的
+  `compositeScriptFS{first: foldScriptFS(onDisk), second: bundled}`；
+  覆盖时日志会打 `reward scripts: 磁盘脚本 <名> 覆盖内置同名规则…`，见 `reward_flow.go:155`），
+  页面要点名是哪个 mod 被盖住；
 
 启动器里的落地（供其它宿主参考）：数据层 `internal/modlib/scripts.go`，
 RPC 在 `cmd/launcher/modlib.go`：
@@ -227,6 +243,20 @@ $env:DFO_SERVERMOD_CONSOLE = "<mod-id> status"             # 问某个 mod 自�
     （启动器仓 `internal/modkit/modsadmin.go:281-298`）。
 - modkit **不做加载顺序拓扑**：所有启用的 mod 都按 `Register()` 的稳定顺序注册，
   它们之间不应互相 import（同名包 `modpkg`，Go 里无法区分）；
+- ⚠️ **同时装 ≥2 个 server 层 mod：已支持**（启动器仓 commit `0bd67dc`，2026-10-07 03:03，
+  **已在远端 `fork/master`**；版号仍是 1.7.7、exe 已重出 —— `version.json` 的
+  `exe_size 64764416 → 64770048`）：
+  - 生成器在 **≥2 个 mod** 时给**每条 import 一个显式别名**（`mod_<清洗后的 id>`，撞名追加 `_2`/`_3`），
+    `RegisterMods()` 按别名逐条调用 ⇒ 不再有 `modpkg redeclared in this block`；
+    **0 个 / 1 个 mod 的产物逐字节不变**（已装 1 个 mod 的机器上那份加载器不会被动到）；
+  - 依据：`internal/modkit/support.go:196` 的 `serverModGoImportAlias()`、`:266-313` 的
+    `renderServerModsGen()`；回归 `internal/modkit/support_gen_loader_test.go`（2/3 个 mod 逐字节 golden +
+    临时模块里真跑 `go build ./mods/`，含旧的默认 import 形态必红的反向证据）。
+  - **历史版本**：`0bd67dc` 之前那一版 1.7.7（commit `8c87358`）**只能装 1 个**，
+    第二个会让 `mods/zz_mods_gen.go` 报 `modpkg redeclared in this block`，
+    由安装期 `go build ./mods/` 拦下并回滚（`install2.go:633-645`）。按 `version.json`
+    的 `exe_sha256` 可以区分手上那份 exe 是哪一版。
+  - 与 `layers.server.scripts`（只带 Lua 规则脚本）无关：那条路径不进加载器，装几个都不冲突。
 - 需要在 mod 之间协作时，走 `servermod` 的钩子与宿主机操作，不要直接耦合。
 
 ---
@@ -250,7 +280,9 @@ reward rules enabled (embedded scripts + 1 mod script(s))
 - 格式串来自 `internal/servermod/host.go:461-488`（`Description()`）与 `cmd/wireprobe/main.go:94-105`；
 - **一行 `servermod:` 都没有** ⇒ 这份服务端二进制**没有 mod 宿主**（预编译包可能就没有，
   现场记录见启动器仓 `internal/modlib/store.go:101-108`）。此时装好的 mod **一个都不会装载**，
-  但它仍可能出现在「生效」列里 —— 这正是需要管理器额外提示的场景；
+  但它仍可能出现在「生效」列里 —— 这正是需要管理器额外提示的场景。
+  ⚠️ 注意这**不是**安装期那道门禁（那道在 `install2.go:103-113`，见 §3 与 §7 第 5 条）：
+  安装期看的是**源码树**，**源码有宿主只提示"装完要重新编译"、不阻断**；这里看的是**跑起来的二进制**。
 - `reward rules enabled (embedded scripts + N mod script(s))` 是**构造顺序的见证**（`reward_flow.go:50-61`）：
   `+0` 而上面又打了"已装载 1 个 mod" ⇒ 规则**静默失效**（注册晚于管线构造，见 §1）。
 
@@ -279,6 +311,10 @@ reward rules enabled (embedded scripts + 1 mod script(s))
 5. **PVF 层需要 PowerShell 7**：管理器应在"装之前"提示，而不是等安装失败；
    **声明 Go 钩子（`hooks`）的 mod 需要本机 Go 工具链**：缺失时 `install` 在落位前就硬失败
    （启动器仓 `internal/modkit/install2.go:113-116`）；
+   **目标服务端的源码树必须有 mod 宿主**：缺了会被**安装期硬门禁**拒绝并在写盘前中止
+   （`internal/modkit/modhost.go:233-255`，接在 `install2.go:103-113`）——
+   管理器要把报错里的两条出路原样展示（「更新」拿新包 / 「编译服务端」重编源码）；
+   源码有宿主但产物里搜不到宿主标记时**只提示"装完要重新编译"，不阻断**（`modhost.go:256-262`）；
 6. **服务端 mod 的启用状态改动需要重启服务端**：奖励规则脚本在启动时一次性
    加载进 Lua state，无法热摘。管理器要么提示重启，要么帮玩家重启；
 7. **客户端插件自己的开关不归管理器管**：客户端 DLL mod 的 `.115us-mods\*.ini`
@@ -336,6 +372,11 @@ reward rules enabled (embedded scripts + 1 mod script(s))
    （`enabled.json`）：业主 2026-10-06 定的界面是"安装状态只做展示 + 批量装与卸"，
    开关仍只有 `modkit mods enable/disable` 与手工编辑那份文件两个入口；
 3. mod 的**加载顺序**没有显式依赖排序（只有 `requires` 存在性检查）；
+   - **同时装 ≥2 个 server 层 mod：已支持**（启动器仓 commit `0bd67dc`，版号仍 1.7.7、
+     已推到 `fork/master`）：≥2 个 mod 时生成器给每条 import 一个显式别名
+     （`mod_<清洗后的 id>`），按别名调用各自的 `Register()`。
+     `0bd67dc` 之前那一版 1.7.7（`8c87358`）只保证 1 个，第二个会被安装期拦下并回滚 ——
+     见 §5 与 `MOD-DEVELOPMENT.md` §4.8；
 4. 启用/禁用**不能热生效**（需重启服务端）——这是奖励脚本一次性加载带来的边界，
    要热摘需要把 Lua state 做成可重建的，属独立工作；
 5. **落盘规则脚本没有"停用"开关**：服务端无条件加载 `<启动器根>\mods\*.lua`，`enabled.json`
