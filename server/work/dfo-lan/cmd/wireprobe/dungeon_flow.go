@@ -458,7 +458,12 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 	plan = append(plan, []outboundPacket{
 		{"dungeon_info_sent", 0, 28, dungeonInfo},
 		{"dungeon_start_map_sent", 0, 29, start},
+		// NOTI475 CHARACTER_BUFF_DUNGEON（角色 buff·副本）：官服**每次进图都发**
+		//（冷进场与无缝再次挑战都有；见 next178 §14/§17 与 protocol.CharacterBuffDungeon），
+		// 而本仓正常进图路径此前一帧都不发 ⇒ 无缝续刷的 buff 延续在服务端没有依据。
+		{"dungeon_character_buff_sent", 0, 475, protocol.CharacterBuffDungeon()},
 	}...)
+	log.Printf("dungeon entry: NOTI475 角色 buff（副本）已发 —— 官服每次进图都发，本仓此前从不发")
 	plan = append(plan, stackableLimit...)
 	if s.Tournament != nil {
 		info, err := protocol.TournamentInfo(s.Tournament.Opening)

@@ -86,3 +86,19 @@ func TestDungeonSelectionHeadFollowsTheOfficialRechallengeShape(t *testing.T) {
 		t.Fatal("dungeonSelectionHead() 不再是普通进本形态")
 	}
 }
+
+// assertEntryTail 检查进图计划的尾部：… → 28 → 29 → 475。
+//
+// 475（NOTI475 CHARACTER_BUFF_DUNGEON，角色 buff·副本）是 2026-10-08 按官服补的：
+// 官方把它放在 START_MAP 之后（analysis/tasks/next178 §14/§17），所以尾部形状是有意变的。
+func assertEntryTail(t *testing.T, plan []outboundPacket) {
+	t.Helper()
+	n := len(plan)
+	if n < 3 {
+		t.Fatalf("进图计划太短：%d 帧", n)
+	}
+	if plan[n-3].ID != 28 || plan[n-2].ID != 29 || plan[n-1].ID != 475 {
+		t.Fatalf("进图计划尾部应为 28→29→475，实际 %d→%d→%d",
+			plan[n-3].ID, plan[n-2].ID, plan[n-1].ID)
+	}
+}

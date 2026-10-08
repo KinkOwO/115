@@ -78,10 +78,7 @@ func TestDirectMoveEntryPlanMatchesTownSelection(t *testing.T) {
 			t.Fatalf("direct move acknowledgement must not be sent: %+v", p)
 		}
 	}
-	last := plan[len(plan)-1]
-	if last.Name != "dungeon_start_map_sent" || last.ID != 29 {
-		t.Fatalf("last packet is not NOTI 29 start map: %+v", last)
-	}
+	assertEntryTail(t, plan)
 }
 
 // 直达下一关复用城镇选图的整套进图序列，只有 ack 的 id 不同。
@@ -104,14 +101,14 @@ func TestDungeonEntryPlanAcksDirectMove(t *testing.T) {
 	if ack.Name != "dungeon_direct_move_ack" || ack.ID != 2062 || ack.Kind != 1 {
 		t.Fatalf("first packet is not the CMD 2062 acknowledgement: %+v", ack)
 	}
-	info := plan[len(plan)-2]
+	info := plan[len(plan)-3]
 	if info.Name != "dungeon_info_sent" || info.ID != 28 {
 		t.Fatalf("missing NOTI 28 dungeon info: %+v", info)
 	}
 	if !bytes.Contains(info.Payload, []byte{0x53, 0xf4, 0xf5, 0x05}) {
 		t.Fatal("dungeon info does not carry the target dungeon 100004947")
 	}
-	start := plan[len(plan)-1]
+	start := plan[len(plan)-2]
 	if start.Name != "dungeon_start_map_sent" || start.ID != 29 {
 		t.Fatalf("last packet is not NOTI 29 start map: %+v", start)
 	}
