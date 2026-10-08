@@ -115,6 +115,15 @@ type DungeonInfoState struct {
 	Difficulty, Maze byte
 	Boss             [2]byte
 	Hell             *[2]byte
+	// Entry 是 body[30]：这次进本的**入口类型**。0 = 普通进本；5 = EPLP 无缝再次
+	// 挑战（SettlementExitSeamless）。
+	//
+	// 官服取证（2026-10-08 抓包，analysis/tasks/next178 §3）：同一个副本冷进场的
+	// 这一字节是 0x00、两次「继续挑战」（CMD72 选项 5）都是 0x05，而两次之间的其余
+	// 字段逐帧相同 —— 它就是「这是继续、不是新副本」的信号。本仓客户端在
+	// 0x1452ada9e 单独读这一个字节（testdata/native_dungeon_info_cursor.json 的
+	// offset=30/size=1），与官服那一字节**位移一致**。
+	Entry byte
 }
 
 func DungeonInfo(s DungeonInfoState) []byte {
@@ -133,7 +142,9 @@ func DungeonInfo(s DungeonInfoState) []byte {
 	p = add16(add16(p, 0), 0)
 	p = append(p, 0)
 	p = add32(p, 0xffffffff)
-	p = append(p, 0, 0, 0, 0, 0, 0, 0, 0)
+	// 23..30 是八个**各自独立**的单字节字段（客户端逐个读：0x1452ad3dd/3ec/3fb/
+	// 96d/998/9c3/a0f/a9e）。最后那一个（offset 30）是入口类型，见 Entry 的注释。
+	p = append(p, 0, 0, 0, 0, 0, 0, 0, s.Entry)
 	p = add16(add16(add16(p, 0), 0), 0)
 	return add32(p, 0)
 }

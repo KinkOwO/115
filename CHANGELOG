@@ -13,6 +13,33 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-08：小深渊无缝再次挑战 —— NOTI28 body[30] 写「入口类型」 —— **候选，待业主实机验收**
+
+依据 `analysis/tasks/next178-小深渊无缝再次挑战-官服抓包定案-20261008.md`（业主提供的官服抓包）。
+
+### 已修复 / 已完成
+
+- **抓包定案**：官方再次挑战（CMD72 选项 5）**照发整套进图帧**，靠 **NOTI28 body[30]**
+  （冷进 `00` / 继续 `05`）表示「这是继续，不是新副本」；两次再挑战之间其余字段逐帧相同。
+  官方全程**不发 NOTI1361**（增益强化注册）。
+- 本仓客户端在 `0x1452ada9e` **单独**读该字节（`native_dungeon_info_cursor.json` 的 offset=30），
+  与官服**位移一致** ⇒ 直接写这个偏移，不用改布局。
+- `protocol.DungeonInfoState.Entry` + `worldSession.dungeonEntryKind()`（`seamlessRetry` ⇒ 5）：
+  `dungeonEntryPlan` 与 `seamlessRoomReset`（未接线）两处 NOTI28 都接上。
+  **冷进场载荷逐字节不变**，原生一致性测试继续通过。
+
+### 未修复 / 未闭环
+
+- 本轮**只动这一个变量**：无缝续刷仍跳过 NOTI2（角色对象）与 NOTI1361。官方照发 NOTI2，
+  若 0x05 不够，下一步单独验「恢复 NOTI2」（next178 §9 的 A2）。
+- 官服与本仓在 NOTI28 的 23..25（官服 `ff ff ff` / 本仓 `00`）与 37..40
+  （官服 `ffffffff` / 本仓 `00000000`）**值**不同 —— 记为候选，本轮未动。
+
+### bug 测试取证
+
+- `internal/game/protocol/dungeon_info_entry_test.go`：body[30] 的语义、只有这一个字节变、常数 = 5。
+- `cmd/wireprobe/dungeon_entry_kind_test.go`：`seamlessRetry` → 5，其余 → 0，nil 安全。
+
 ## 2026-10-08：小深渊征兆「连续 30 次未触发」保底计数器 —— **候选，待业主实机验收**
 
 依据 `analysis/tasks/next177-小深渊征兆30次保底计数器-20261008.md`，官方设定（业主 2026-10-08 提供）。

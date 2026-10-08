@@ -416,7 +416,7 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 	// 21:42:18.601 实发、首字段 = 8 = 每关消耗品上限；伊斯 replay 同款——
 	// 伊斯副本能用药正是因为发了它。没有这一帧客户端把消耗品全部本地禁用，
 	// 0953 会话实证 N28 48B 单独无效，限制载体是本包）。
-	dungeonInfo := protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition})
+	dungeonInfo := protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition, Entry: w.dungeonEntryKind()})
 	var stackableLimit []outboundPacket
 	// N1584 STACKABLE_DUNGEON_LIMIT：副本消耗品许可（@0 = 每关上限 8）。
 	// 森林与维纳斯军团本都需要：没有这一帧客户端把副本消耗品全部本地禁用
@@ -621,6 +621,22 @@ func (w *worldSession) directMoveEntryPlan(sel protocol.DungeonSelection, s *dun
 	return w.dungeonEntryPlan(context.Background(), "dungeon_select_ack", 16, sel, s)
 }
 
+// dungeonEntryKind 是 NOTI28 body[30] 的「入口类型」：0 = 普通进本，5 = EPLP 无缝再次挑战。
+//
+// 官服取证（2026-10-08 抓包，analysis/tasks/next178 §3）：同一个副本冷进场的 NOTI28 该字节
+// 是 0x00、两次「继续挑战」（CMD72 选项 5）都是 0x05，而两次之间的其余字段**逐帧相同** ——
+// 这一字节就是「这是继续，不是新副本」的信号，官方靠它让客户端延续 buff / 召唤物。
+// 本仓客户端在 0x1452ada9e 单独读它（testdata/native_dungeon_info_cursor.json 的 offset=30）。
+//
+// 消费时机：`w.seamlessRetry` 由 card_flow.go 的 SettlementExitSeamless 置位，
+// 在 finishDungeonLoading 里清；进图计划在它清之前构建，所以这里读得到。
+func (w *worldSession) dungeonEntryKind() byte {
+	if w != nil && w.seamlessRetry {
+		return protocol.SettlementExitSeamless
+	}
+	return 0
+}
+
 // ⚠️ seamlessRoomReset 已实机证伪：2026-10-07 18:44 把它接到 CMD72 选项 5 上，
 // 客户端收到 `ENUM_NOTIPACKET_START_MAP` 后立刻 0xC0000005（exit=0xC0000005）。
 // 结论：**不切模块、不重喂角色状态的「原地推 NOTI29」这条路走不通** —— 客户端要先把
@@ -694,7 +710,8 @@ func (w *worldSession) seamlessRoomReset() (*dungeon.Session, []outboundPacket, 
 		return nil, nil, err
 	}
 	plan := []outboundPacket{
-		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition})},
+		// 这条路径（seamlessRoomReset）按定义只服务无缝续刷，所以入口类型恒为 5。
+		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition, Entry: protocol.SettlementExitSeamless})},
 		{"dungeon_start_map_sent", 0, 29, start},
 	}
 	plan = append(plan, grades...)
