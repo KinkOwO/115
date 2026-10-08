@@ -417,6 +417,10 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 	// 伊斯副本能用药正是因为发了它。没有这一帧客户端把消耗品全部本地禁用，
 	// 0953 会话实证 N28 48B 单独无效，限制载体是本包）。
 	dungeonInfo := protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition, Entry: w.dungeonEntryKind()})
+	// 入口类型同时打一行日志：实机验收要一眼看出「这一轮是继续还是新副本」，
+	// 不必去 events.jsonl 里数第 31 个字节。
+	log.Printf("dungeon entry: dungeon=%d map=%d NOTI28 body[30]=%d（0=普通进本 5=无缝再次挑战）",
+		sel.ID, s.Room.Map, w.dungeonEntryKind())
 	var stackableLimit []outboundPacket
 	// N1584 STACKABLE_DUNGEON_LIMIT：副本消耗品许可（@0 = 每关上限 8）。
 	// 森林与维纳斯军团本都需要：没有这一帧客户端把副本消耗品全部本地禁用

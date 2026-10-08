@@ -32,6 +32,14 @@
 
 - 本轮**只动这一个变量**：无缝续刷仍跳过 NOTI2（角色对象）与 NOTI1361。官方照发 NOTI2，
   若 0x05 不够，下一步单独验「恢复 NOTI2」（next178 §9 的 A2）。
+- ⚠️ 2026-10-08 16:xx **实机那轮没跑上本改动**：`调试启动-本地构建.cmd` 会用 `runtime/dev-local/`
+  的旧快照覆盖 `bin/wireprobe-pvf.exe` 与 `cmd/wireprobe/testdata/config_{help,legacy}.json`
+  （实证：那轮跑的是 11:34 的 exe，两个新串都是 0 次）。已重编到 `bin/wireprobe-pvf.exe` 并刷新快照；
+  改完代码的收尾三步见 next178 §10。
+- A2 的候选已调整：优先试 **NOTI27 的两个 mode 字段**（官方 NOTI27 头 = 冷进 `00000001` / 继续
+  `0001c301`，而本仓发的是全 0；`mode flag`@0x145303ff4 与 `mode0`@0x145304033 都是客户端会读的字段），
+  见 next178 §11。
+
 - 官服与本仓在 NOTI28 的 23..25（官服 `ff ff ff` / 本仓 `00`）与 37..40
   （官服 `ffffffff` / 本仓 `00000000`）**值**不同 —— 记为候选，本轮未动。
 
