@@ -58,6 +58,7 @@
     "DeferredClearDungeons": "",
     "OmenHold": -1,
     "OmenInfo": "",
+    "OmenMisses": -1,
     "Output": "runtime/wireprobe",
     "PVFArchive": "",
     "PVFBoxPolicy": "configs/pvf-box-policy.json",
@@ -170,6 +171,7 @@
         "DFO_OATH_INJECT": "env/oath-inject",
         "DFO_OMEN_HOLD": "9",
         "DFO_OMEN_INFO": "env/omen-info",
+        "DFO_OMEN_MISSES": "9",
         "DFO_SCALE_DEATH_FROM_HP": "1",
         "DFO_BOOSTUP_EVENT": "0"
       },
@@ -207,6 +209,7 @@
         "DeferredClearDungeons": "env/deferred-clear-dungeons",
         "OmenHold": 9,
         "OmenInfo": "env/omen-info",
+        "OmenMisses": 9,
         "PVFArchive": "env/pvf-archive",
         "PVFBoxPolicy": "env/pvf-box-policy",
         "PVFCacheDir": "env/pvf-cache-dir",
@@ -330,6 +333,7 @@
         "-oath-inject=",
         "-omen-hold=-17",
         "-omen-info=",
+        "-omen-misses=-17",
         "-scale-death-from-hp=false"
       ],
       "env": {
@@ -387,6 +391,7 @@
         "DFO_OATH_INJECT": "env/oath-inject",
         "DFO_OMEN_HOLD": "9",
         "DFO_OMEN_INFO": "env/omen-info",
+        "DFO_OMEN_MISSES": "9",
         "DFO_SCALE_DEATH_FROM_HP": "1"
       },
       "overrides": {
@@ -427,6 +432,7 @@
         "OathProgressDungeons": "cli/oath-progress-dungeons",
         "DeferredClearDungeons": "cli/deferred-clear-dungeons",
         "OmenHold": -17,
+        "OmenMisses": -17,
         "Output": "cli/output",
         "PVFBoxPolicy": "",
         "PVFCacheDir": "cli/pvf-cache-dir",
