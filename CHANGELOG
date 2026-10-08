@@ -13,417 +13,10 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
-## 2026-10-08：深渊两条线的征兆档位与掉落演出对齐（小深渊征兆锁档 / 大深渊恒定太初动画）—— **候选，待业主实机验收**
-
-依据 `analysis/tasks/next167`~`next176`、`analysis/dumps/ida-attunement/`，以及 2026-10-08 业主四轮实机。
-
-### 已修复 / 已完成
-
-- **小深渊（终末之边界）征兆不再被锁在 1 阶**：结算链（`omen_state` / `omen_info` /
-  `oath_progress` / 会话结算）原先把征兆固定在首档；同时 noti 2838 在「没有活动表」时改发
-  `normal(40)`，不再发 `0`（0 不在客户端 8 档阶梯 40..45/70/71 里，而 2838 是常驻状态）。
-- **大深渊（调律之边界）动画与掉落不再脱钩**：掉落演出那一帧的 12 字节载荷（noti 2756/2859
-  共用的 handler `0x1406b18d0`）改为**三格填同一个演出格**。旧的 `[-1][max][40]` 里 `-1` 是
-  构造初值、在四格演出表（Unique/Legendary/Epic/Primeval，索引 = 值 − 40）里越界 ⇒ 整帧兜底成
-  最后一格，这就是「每次必播太初」的成因（业主两次实机复现）。刻度换算 `AnimationGrade = tier − 2`。
-- **档位来源**：保底档由**砝码那张表的最低档**推出（100005067→传说 / 100005068→史诗），
-  保底之上按权重随机；`RollPlanned` 让「珠子/天平显示的那一档」与发出去的装备同档。
-- **奖励池两处根因**：`parseBoosterInfo` 丢掉池正文里的 `-1`（源里表示「本次没有」）导致三元组
-  错位一格（`drawCount` 被当模板，实机地上出现 template 1/6）；拆不拆包装的判据从硬编名单改为
-  **源标记** `[instantly open]`（先只在大深渊启用）。
-- **合并上游新主干**：`border_plan.go` / `PrepareBorderRewards` 与 noti 2756 一并接入；自动发送
-  收敛到 2756 一条（2859 只留诊断 `-attunement-reward`），会话创建收敛到 `ensureDropSession` 一处。
-
-### 未修复 / 未闭环
-
-- 三格里**只有第 1 格**有正向证据是驱动格（`40,43,43` 播最低那格）；另两格语义仍未静态取证，
-  当前「三格同值」是实测下最安全的写法。
-- 小深渊「累计 30 次未触发征兆 ⇒ 保底 +1 阶」的**角色维度计数器尚未实现**（需要存档新字段）。
-- 上游 `borderRarityGrade` 的 rarity→档位映射（6→传说 / 4→史诗 / 8→太初）沿用本仓 10417545 /
-  10417552 / 10417571 的实测展开，本轮未逐条重证。
-
-### bug 测试取证
-
-- `internal/game/protocol/border_reward_test.go`：载荷三格同值；`-1`/72/44/45 一律拒绝。
-- `cmd/wireprobe/attunement_reward_test.go`：2859 只剩诊断通道；43→LegendaryDrop(41) /
-  44→EpicDrop(42) / 45→PrimevalDrop(43) 的换算链。
-- `internal/loot/attunement_floor_test.go`、`attunement_plan_test.go`：保底 = 砝码表最低档。
-
-## 2026-10-07：奶系职业直升活动第二关无法进副本（NOTI2638 `Mode` = 轨道号）—— **候选，待业主实机验收**
-
-依据 `analysis/dumps/boost-buffer-route/`（IDA `probe.json`~`probe13.json`）：客户端把 NOTI2638
-（`BOOST_UP_MODE_CHARAC_INFO`）的 `Mode` 字节当**轨道号**用，四处消费者只认 `mode == 1` ——
-`sub_14074C6B0`（训练副本路线，`map<(grow, variant)>` 精确匹配不回绕）、`sub_140C13440`（奖励取回
-`[buffer reward]` / `[reward]` 二选一）、`sub_14074A990`（双职业判定，与 PVF `[dual job and grow] 4 1`
-同一编号系）、`sub_14074DEF0`（`active = mode != 2`）。服务端此前恒发 `0` ⇒ 奶系步骤的 `(grow,1)` 行
-永远查不到，回落到 `[dungeon index]` 那张普通轨副本，再被服务端按真实路线拒绝 —— 即「第二关进不去」。
-
-### 已修复 / 已完成
-- `internal/game/protocol/boostup_frames115.go`：`Mode` 取值域由 `{0,2}` 扩为 `{0,1,2}`，守卫改为
-  `Mode > 2`，类型注释写明「轨道号，非完成标志」。字节宽度与编码顺序未动。
-- `cmd/wireprobe/boostup_flow.go`：未毕业时下发 `v.Mode = byte(st.Variant)`（胶囊 `[capsule]` 行的轨道号，
-  0 普通 / 1 奶系），与 `internal/loot/boostup_training.go` 里 `[buffer reward]` 用的判据是同一个量。
-- `cmd/wireprobe/boostup_flow_test.go`、`internal/game/protocol/boostup_frames115_test.go`：补 `mode=1`
-  编码与奶系轨下发用例。
-
-### 未修复 / 未闭环
-- **业主实机「第二关可进」验收尚未做**，本节是候选记录，不得当已确认（`AGENTS.md` §0 第 7 条）。
-- 取证产物按业主裁决**不入库**：`analysis/dumps/boost-buffer-route/`、`server/work/dfo-lan/.tmp/boost-step4/`
-  只在本机存在，代码注释里引用的 dump 路径在仓库内不可解析。
-- 老存档已落库的 `mode` 值无需迁移（取值域只放宽不收窄，`0` 仍是普通轨）；`mode=2` 与「已结束」的
-  边界本轮未触碰。
-
-### bug 测试取证
-- `go build ./...` exit 0；`go vet ./...` exit 0 且无输出；`go test ./... -count=1` exit 0（45 个包 ok）；
-  `go test -run Boost ./cmd/wireprobe ./internal/game/protocol` 两包 ok。
-- 提交前门禁 `scripts/check-commit-hygiene.ps1` exit 2，唯一命中 `[环境不匹配] configs/pvf-default.json`
-  → `bin/wireprobe-pvf.exe` 在本机不存在（新克隆不含未入库 exe），与本次暂存文件无关，业主授权按现状提交。
-
-## 2026-10-07：强化/增幅光效等级投影（EntryBasicProbe / AppearanceProbe）—— **业主已实机确认**
-
-依据 `强化特效逻辑说明.md` §4：客户端 reader `145639840` 从外观行 offset 9 读取打包的
-强化/增幅等级（`packed>>1` 得效果等级），据此决定是否创建武器/增幅光效。
-
-### 已修复 / 已完成
-- **等级投影链路补齐**：`protocol.Equipment` 增加 `UpgradeLevel`；`EquipmentAppearance`
-  把 `UpgradeLevel<<1` 写入外观行 offset 9（无模型载荷时即 26 字节尾首字节，等价
-  `EquippedAppearance.Flags`），>127 拒绝避免回绕。`internal/character/appearance.go`
-  （EntryBasicProbe 列表投影）与 `internal/character/service.go`（AppearanceProbe 换装刷新
-  投影）分别从穿戴装备实例 `record[10]` 低 5 位读等级写入。此前两条链路都不读等级，
-  外观包等级恒为 0，穿戴武器强化后无光效（对应说明文档 §6 的「缺光效」现象）。
-- 提交 `0557615b`（3 文件，+48/-1）；提交前门禁 `check-commit-hygiene`（已暂存内容）通过；
-  业主已在本机构建并实机测试通过。
-
-### 未修复 / 未闭环
-- 强化/增幅成功后按说明文档 §3 第 4 点，在穿戴装备**等级变化/碎毁**时补发 **NOTI2 外观快照**，
-  尚未接入 CMD80（`cmd/wireprobe/reinforcement_flow.go`）流程；本提交只闭合等级投影链路。
-- 完整打造名望与全部特殊装备光效仍未闭环（同说明文档 §7）。
-
-### bug 测试取证
-- 说明文档 §8 列出的 `TestEntryBasicPreservesWeaponUpgradeAppearance` /
-  `TestEnhancementRefreshesWornWeaponGlowAfterInstance` 等测试当前仓库尚未落地，本提交未附自动化测试；
-  验证以业主实机为准。
-
-## 2026-10-07：「直升各种修复-20261006」外部包落地（662/665 六小节）—— **未经实机，待业主逐项验收**
-
-来源：外部交付包 `D:\直升各种修复-20261006.zip`（2026-10-07 00:13 收到，45 个改动文件）。
-评估、基线归属、刻意分歧、审计与验证命令见 `analysis/tasks/next164-662直升补充修复包落地-20261006.md`。
-
-**落地姿势（关键）**：包是**整文件快照**（作者根工作区无 `.git`），其基线**早于我方 `4db68451`**
-（包内 `client_entry.go`/`bootstrap.go`/`internal/gamedata/catalogs.go` 缺 `MaxLevelReward` 与
-`grantOdysseyArmor/WeaponBox/CreatePotion`）⇒ **整文件覆盖会静默回退「奥德赛创建奖励 + 满级礼盒」**。
-改走**三路合并**（base = `cedb47b5` = `4db68451^`），**0 冲突**；44 个文件写入、1 个刻意保留本仓版本。
-
-### 已落地（**未经实机，待业主逐项验收**）
-- **665 挑战激活 · NOTI2722 布局闭环**：删 `boostup-challenge` 开关（一律按源绑定）、修
-  `buildTownEventInfoTable` 表头 count 写死 `base+3`、662/665 记录日期对齐官服抓包；修
-  `loot.BoostChallengeSnapshot` 的 nil map 崩溃（**每次 662 领奖掉线**）；2722 改 **定长 323 B /
-  32 槽 `{u8,u8,u32,u32}`**（短包体客户端必崩，IDA `sub_140BAE420`）；补两处推送 —— 结算
-  `boostChallengeClearProgress` + 进城 `boostChallengeEntryRestore`（**只在真 enrolled 时出帧**）。
-- **665 面板 Go 按钮**：传送落点改读源 `[go contents town area]`（行 0 = 241/1@143,173），不再落到存档回城点。
-- **NOTI2639 行宽 5 → 7 字节**（正文契约 `4+7N`）—— 一条游标越界同时解释「第二角色卡赛利亚」与「选角名单空白」。
-  ⚠️ **本 MR 暂不落这一条**（业主 2026-10-07 裁决）：上游同轮带进 `cmd/wireprobe/boostup_roster.go` 的
-  `maxVerifiedBoostRosterBytes=9` 与本改动**互斥**（9 < 编码最小合法长度 `4+7×1=11` ⇒ 名单恒被降级成空标记）。
-  证据与修法留档 `docs/protocol/next53-boost-662-roster-2639-row-width.md`，待与上游对齐后再落；
-  本 MR 实际落地 = 六小节中的 5 条 + 进城自动登记 665。
-  ⇒ **已按权威说明单独提交**（`fix/noti2639-row-width-20261007`）：行宽改 7 字节、上限改成与编码自洽的
-  `4 + 7×32`，并把「太长 ⇒ 太短」的成因连同三条独立证据写进
-  `docs/protocol/noti2639-row-width-authoritative-20261007.md`。
-- **缓冲（奶系）胶囊**：只给胶囊一份 CMD507 字段掩码，**通用解码器不放松**（药水/皮肤仓/幻化栏/飞艇照旧）；变体按源推导。
-- **662 首登弹窗门禁**：`character.CreatedAsOdyssey(role)` 或 `level >= [goal level]`（源 = 115）时把礼盒行**全部标已处理**；
-  CMD643 领取路径**不加**同门禁（业主口径「发胶囊不用管」）。
-- **662 主线清除 v2**：上界放宽为 `min <= [goal level]`（含等于，+60 条 min=115 的 epic），事件键升
-  `boost-story-skip-v2`，**只带 v1 收据的老存档按 v2 补跑一次**（回执写 `compensated_from`，无 schema 变更）；
-  按源补发 `[quest clear item]` 三张券（`[any quest clear]` = 649/650/2636，**券不升版**以免二次发放）。
-- 门禁：`go build ./cmd/... ./internal/...`、`go vet` 无输出；`go test -p 1 ./cmd/... ./internal/...` 全绿；
-  本次触及的 **38 个 `.go` 过 `gofmt -e` 0 问题**（无语法错、无 `\r\r\n`、无裸 LF）。
-
-- **进城自动登记 665**（实机 2026-10-07 暴露并收口）：665 登记此前只挂在**副作用**上
-  （穿脱装备 → `reconcileBoostEquipment`、走训练步、662 领奖复核），而 `boostChallengeEntryRestore`
-  **只读不写** ⇒ 正常毕业的角色**进城看不到 665 面板，必须去动一次装备才出现**（业主实机复现）。
-  而客户端全程**不发 CMD681**（会话里 681 = 0 次），面板**只由服务端推的 2722 渲染** ⇒「推帧」就是接线本身。
-  修法：新增 `boostChallengeEntrySync`（先跑 `ReconcileBoostChallenge`（幂等，判据 = 已毕业：
-  `activated && Training.Finished && Step>1 && Claimed[Step-1]`），再按登记状态出 2722），
-  替换 `client_entry.go` 进城恢复块里的旧调用；未毕业角色早退 ⇒ 进城序列逐字节不变。
-  回归测试 `cmd/wireprobe/boostup_challenge_entry_test.go`（已毕业⇒登记并出 323 B / 已登记⇒仍出恢复帧且不动进度 /
-  未毕业⇒不出帧不登记 / 无挑战目录⇒静默跳过）。
-
-### 不采纳（**刻意分歧**，逐条有理由）
-- `cmd/wireprobe/booster_flow.go`：**整文件保留本仓** —— 包对该文件的唯一改动是奥德赛**固定礼盒**打开块，
-  引用 `w.openOdysseyFixedPackage`/`odysseyFixedPackageRows`/`w.odysseyCreationRewards`（本仓**不存在**，
-  属「奥德赛创建礼盒邮寄发放」**另一任务**，其专属文件被本包自己排除）⇒ 落地即编译错。
-- `client_entry.go` 的奥德赛创建奖励区：**保留本仓 armor/weapon-box/potion 三段**（同上理由）；
-  本包在该文件只取 2 处 boost 新增（`boostStorySkipApply` 钩子 + `boostChallengeEntryRestore`），净 **+18/−0**。
-- 三路合并保住：`internal/gamedata/catalogs.go` 的 `MaxLevelReward`、
-  `boostup_training.go` 的 `accountMaterialRefreshPackets(m, next, false)` **3 参数**签名（`account_materials_flow.go` 不在包内）。
-
-### 未修复 / 未闭环
-- **665 row1/2/3 不计数**：判据是源里的**内容号**，而「副本号 → 内容号」在本树**没有直读真源**
-  （旧活动树由 `internal/conquest` 提供，该包不在交付快照）⇒ 按 §0.3 不猜表，需业主裁决取证范围。
-- 官服 2722 body 为 **328 B**，我方只发整 **323 B**（末 5 B 处理器根本不读、含义未闭环）；
-  **券的使用帧**（CMD507 `[action type]`）**未抓到**（attempt 1/3）。
-- `boost-story-skip` 的 **v1→v2 补偿分支实机未命中**（作者侧库中 v1 收据被外部清掉），目前**只有单测背书**
-  ⇒ 要验它必须留一个带 v1 收据的角色。
-- 2639 行首 u8 观测值 3 的语义、行尾保留字节；`[go contents channel type]` / `[party create npc index]` 是否要求切频道或建队 —— 未取证。
-- §0.2 重复规则（作者已报告、未收敛）：两个 `.evt` 都写着 `[event period]`，「源不含活动起止日期」的旧注释是错的；
-  因脚本串 → epoch **无可证时区折算规则**，暂用「对齐官服抓包」的常量。
-
-### bug 测试取证
-- 包留档 `D:/115us-backup/pkg-boost-20261006/`；沙盒 `D:/115us-backup/wt-boost-20261006/`（`git archive HEAD` + 铺包，工作区未参与实验）。
-- 随包落地的 5 份取证文档（`server/work/dfo-lan/docs/protocol/`）：`boost665-go-teleport-20261006.md`、
-  `boostup662-popup-gate-20261006.md`、`boostup662-story-skip-20261006.md`、
-  `next53-boost-662-roster-2639-row-width.md`、`next54-boost-capsule-507-param-field.md`。
-- ⚠️ **与本包无关的预先存在缺口**：本仓 `server/work/dfo-lan/mods/odyssey.hardcore/` **缺失**
-  （上游 `9c99e651` 只带进了生成物 `mods/zz_mods_gen.go`，没带「已安装目录」）⇒ `go build` 报
-  `package dfolan/mods/odyssey.hardcore is not in std`，`cmd/wireprobe` 原本无法被类型检查。
-  本次为验证按根示例源码**临时补出**该目录（**未跟踪、未计入本包改动**），**待业主裁决**补提交还是回退生成物。
-- 本次**未重编** `bin/wireprobe-pvf.exe`（未实机；§0.3.3 候选程序默认不入库）；实机前请先重编并发布到直读档 profile 的路径。
-
-## 2026-10-06：奥德赛关联修复五包落地（红柱与提前通关 / 4125 章节奖励公告 / CMD38 放技能换房 / 层图格走回头路 / 毕业范围与满级礼盒）
-
-来源：外部交付的 5 个方包（`D:\奥德赛关联修复`，2026-10-05）。逐符号核实我方**一个都没有**
-（`interactDoor`/`sceneExitRequest`/`ExitSceneRoom` 仍在，`OnFinishedLayer`/`BossEntranceConditionIDs`/
-`MaxLevelReward`/`odyssey-graduation-v3` 全 0）。评估、合并面与验证点见
-`analysis/tasks/next161-奥德赛五包落地评估-20261006.md`。
-
-**落地姿势（关键）**：交付方是**另一棵树**（`D:/DNF115/115US/115-main`，本机不存在）；其文件与我方
-**0 个逐字节相同**、算 git blob sha1 后在本仓对象库 **0 命中**；用「历史最小差异」定位到基线 ≈
-我方 `10b922c62d`（2026-10-05），而我方已前进 **97 提交 / 429 文件**。⇒ **一律走三路合并
-（base = 我方 `10b922c62d` 版本），禁止整文件覆盖**。5 个包是同一条交付链的前后快照
-（基线 exe：`9eaea33d`→`0a7d8ce4`→`8bcf1d9e`→`2dd64fc0`→`94ba9768`），每个共享文件只取链上最新包。
-
-### 已落地（**未经实机，待业主逐项验收**）
-- ① **红柱与提前通关**：`catalog/dungeons.go` 采集源 `[boss room entrance condition]` type-6 字面量
-  （`BossEntranceConditionIDs`）；`protocol.BossRoomPassGateCompleted`；怪物死亡确认 generic 路径补发
-  **NOTI312**；撤除 `Room.Map==100016294` 合成旁路；`internal/dungeon/completion.go` 的 display-boss
-  兜底补 `&& !s.huntTargetAbsent()`（巴卡尔 100004971 进 Boss 房即通关的另一条分支）。
-- ② **4125 章节奖励公告**：删 `completeDungeon` 的通关爆发 **2856**，改 `leaveDungeon` 回城补发
-  `odyssey_journal_updated_on_return`。
-- ③ **CMD38 放技能换房**：case 38 改不响应；删 `interactDoor`/`sceneExitRequest`/`Session.ExitSceneRoom`/
-  `DungeonRoomTransition.SceneExit`；删 `cmd/wireprobe/scene_exit_record_test.go`。
-- ④ **层图格走回头路**：新增 `Session.OnFinishedLayer()` + `finishedLayerLastMap()`；回头命中时 NOTI29 改
-  **flag 1 + mode 0**（清怪物行 + StartMap 原生默认 18 字节记录）。
-- ⑤ **毕业范围 + 满级礼盒**：删 `q.MinimumLevel >= 115` 平行规则（计划 922→**974**）、收据升 **v3**
-  并带 v2 补偿（`ClearQuests` 只补缺失行）；新增满级礼盒 **10362946** 全链
-  （`etc/titlebook.etc [maxlevel reward]` → catalog → character → database → 回城/登录投递）。
-- 验证：`go build ./cmd/... ./internal/... ./mods/...` 与 `go vet`（覆盖 `_test.go`）**全绿**；
-  `go test -p 1 -count=1` 覆盖 `internal/dungeon|catalog|character|database|gamedata|quest|game/protocol`
-  与 `cmd/wireprobe` 亦**全绿**。
-
-### 刻意分歧（§D：不采纳交付树自带的重构）
-| 包内 | 我方 | 理由 |
-| --- | --- | --- |
-| `levelUpRefresh(before)`（3 处调用 + 配套 `before :=`） | 保留 `automaticSkillRefresh()` | 该符号我方树**不存在**，且与 4125 的 2856 时序修复无关 |
-| `ProgressionService.Awakener` 字段 + `bootstrap.go` 的 `Awakener: characters` | 不采纳 | 交付树另一条线（奥德赛 `[level action]` 觉醒）的接线 |
-| 红柱 netdiff 的 `-4`（删 `appendDungeonWornRandomOptions` 无条件调用） | 不采纳 | 该行正是我方 `10b922c62d` **自己引入**的 ⇒ 是「我方更新」不是包改动 |
-| `internal/database/*` 的 `s.db.Begin` / `pgx.ErrNoRows` / `sqlcgen.New(tx)` | 按我方 SQLite 架构改写为 `s.engine.begin` / `isNoRows` / `tx.queries()` | 我方 2026-10-05 起存储只有 SQLite（`go.mod` 已无 pgx）；交付包的 `max_level_reward_test.go` 是 PG 专用用例（`PostgresDSN`+`CREATE SCHEMA`+`$1`），已按 SQLite 夹具重写 |
-
-### 未修复 / 未闭环（验收点）
-1. **2856 是最高风险项**：红柱包自带的历史条目记着「删通关爆发 2856」的 **attempt 1/3 实机失败**
-   ——「Noblesse Code 通关后卡图无法完成/退出」并已回退；4125 是改良版（删通关爆发 **且** 回城补发）。
-   ⚠️ 必验：章节末本通关 → **4125 弹窗出现**；回城 → 地图即时显示完成、下一站解锁；**全程退图不卡**。
-2. **CMD38 的尾巴**：`interactDoor` 内的 **7113（祭司引导副本）/76026** 硬编码推进已随合成一并删除，
-   原生 CMD45 是否走得通**无实机证据**；引导卡门时第一个回查项即此处。
-3. **层图格覆盖面**：判据是 session 级共享谓词，但历史实机只覆盖 100004968 (0,2) 一例；另有 25 个挂
-   layered 格的奥德赛副本（其中 6 个挂多张序列）**未逐本回头实测**。
-4. **毕业 v2 补偿分支未在实机命中**（交付方自述：取证与实机之间该角色数据被清理过）；
-   本仓由 `TestOdysseyGraduationCompensatesLegacyReceipt`（SQLite 夹具）覆盖。
-5. 礼盒正文仍写 "Level 86"（源 `86_levelup_maxlevel_text` 旧上限遗留）—— 按「PVF 是唯一真源」逐字引用，
-   未自造 115 句子；附件期限沿用本服「永不过期」哨兵，故 tooltip 不显示源里的「剩余 30 天」（**有意偏离**）。
-6. 交付方自述的**缺口 B**（源有 20 条 `[no conditions]`，其中 10 条客户端本地持有、`InitialProgress` 拒绝）未解。
-
-### bug 测试取证
-- 新增：`cmd/wireprobe/pass_gate_noti312_test.go`、`sirocco_boss_door_test.go`、`noblesse_layer_revisit_test.go`；
-  `internal/catalog/dungeon_bossentrance_test.go`、`internal/dungeon/odyssey_bakal_hunt_last_room_native_test.go`；
-  `internal/catalog/max_level_reward_test.go`、`internal/character/max_level_reward_test.go`、
-  `internal/database/max_level_reward_test.go`（SQLite 版）。
-- 删除：`cmd/wireprobe/scene_exit_record_test.go`（专测已删掉的服务端合成路径）。
-- 归档：`analysis/dumps/idb_funcs.tsv` / `idb_globals.tsv` / `idb_struct.json`（NOTI312 的 IDA 结构偏移）。
-- 提交纪律：本轮**只提交到本地、不推远端**；未实机验收前不得把以上任一条写成「已确认」。
-## 2026-10-06：客户端中文输入修复（mod 交付，业主实机确认）
-
-### 已修复 / 已完成
-
-- **客户端无法输入中文（业主实机确认「已经好了」）**。取证（`analysis/tasks/chinese-input-probe-20261006.md`）：
-  客户端 IME 通路的两个门禁是「IME 管理器布局 ∈ {E0080404,E0090404,E00E0804}」+「`ImmGetIMEFileNameW`
-  返回 5 个 XP 时代 IME 文件名之一」；本机是 `0x08040804` 且文件名取不到 ⇒ 通路从不启用。
-  真正的拦路虎是**客户端（Themida 加壳）调 user32/imm32 走它自己的导入桩**（`FF 25` → `.rdata` 槽，
-  RVA `0x9186160..0x9187988`），改导出表（EAT）对它完全无效；最后一块拼图是客户端每次按键都
-  `ImmNotifyIME(NI_COMPOSITIONSTR, CPS_CANCEL)` 取消组字。
-- 交付 schema 2 四层 mod 包：`qol.client-host` v1.0.0（宿主，占住客户端唯一的自动加载 DLL 槽位）、
-  `qol.chinese-input-probe` **v2.0.2**（槽修正 + 门禁/布局写入点钩子 + `ImmIsIME` 对传统布局
-  改报「是输入法」+ `fix_cancel` + `ime_bridge` 兜底；显示名改为「中文输出支持」，宿主改为「客户端DLL框架」）。
-  实机日志锚点：`Themida 槽修正 12 处` → `★ 吞掉 ImmNotifyIME(CPS_CANCEL) ×43` → 组字串开始累积
-  （`'a'`→`"a's'd"`）→ `WM_IME_COMPOSITION … RESULTSTR` → `ImmGetCompositionStringW(idx=0x800) -> "模拟器"`。
-- **删角色免打字**：`qol.auto-confirm` v1.0.0（把删角色窗编辑框的「取文本」虚表槽按实例替换）。
-  实机日志确认补丁动作发生（短语取到「删除角色」、编辑框文本被替换）；删除流程本身业主未单独确认。
-- **mod 元数据（作者/描述）支持**（启动器仓 `115us-dfolauncher`）：`internal/modkit` 新增
-  `Author`/`Description` 字段与 `Credit()` 拼接，`modkit mods`/`status` 展示署名；
-  新增 `internal/modkit/credit_test.go`（3 用例）。验证：`go build ./...` = 0、`go test ./internal/modkit/` ok。
-- **客户端补丁目录规范**：新增 `client-patchs/AGENTS.md`（根 §1 索引此前引用了不存在的文件）与
-  `client-patchs/README.md`；`.gitignore` 补 `*.obj` / `*.exp` / `client-patchs/*/dist/`；
-  `client-patchs` 下 10 个 `.cmd` 归一化为纯 ASCII + CRLF（根 §0.4.2）；机制自测 4 项入 `client-patchs/tests/`。
-- **modkit 简易页面** `mods/modkit-web/`（Go，单文件服务 + 内嵌单页 UI；`scripts\启动modkit.cmd` 一键起）：
-  分页列表（名称/**描述**/添加日期/启用/制作人）、多选批量启停删、导入导出 zip（支持「zip 根即 mod 根」
-  与「一组 mod 子目录」两种形态），导入前按 `mods/MOD-DEVELOPMENT.md` 校验清单；运行 exe 不需要 Go。
-
-
-### 未修复 / 未闭环
-
-- 客户端补丁的 RVA 与槽区间是**版本相关**的（仅在本机这一版 `DFO.exe`，258,972,712 字节上验证）；
-  换构建会逐字节核对失败并静默跳过（不崩，但也不生效）——分享给他人前必须说明。
-- 客户端带 BlackCipher：本机加载这两个 DLL 未被拦；其它环境未验证。
-- `qol.auto-confirm` 的删除流程业主未逐项确认（只确认了补丁动作发生）。
-
-### bug 测试取证
-
-- 机制自测（都不碰真客户端、可复跑）：`client-patchs/tests/` 下
-  `inline_test.c`（inline 跳转 + 跳板）、`vtable_test.c`（虚表槽按实例替换）、
-  `gate_test.c`（复刻客户端 IME 门禁，装插件前"不启用"→ 装后"启用"）、
-  `slot_test.c`（假客户端真 Themida 槽 → 被换成包装 → 通过槽调用拿到 `0xE00E0804`）。
-  四项 `RUN_EXIT=0`。
-- 自测过程中修掉的真缺陷：桥与目标距离未校验导致 rel32 越界崩、读目标字节前未验证内存可读、
-  `/O2` 把撑大镜像的 `.bss` 消掉（测试自身）；以及实机暴露的「改导出表对 Themida 导入桩无效」。
-
----
-
-## 2026-10-06：662 直升活动「入口 → 第10关变换 → 第11关毕业」三处修复（十一关全通 + 毕业实机确认）
-
-入口之前的逐点接线审计见 `analysis/tasks/next156` / `next157`（后者已追加 §6 勘误）。
-本次三处根因都**不是"漏移植"**：前两处来自移植来源本身的口径缺陷，第三处是本仓自加的守卫与官服相反。
-
-**已修复 / 已完成**（候选 `bin/wireprobe-pvf.exe` sha256 前 8 = `3e90fafe`）
-
-- ①**活动入口消失：城里没有活动礼物图标**（`next158`）。客户端对 **NOTI108 是整表替换** ——
-  进城 announce 那条 19 行频道门表（`event_info_generated.go`）会把选角时下发的活动三行
-  （10017/10018/662）**整条抹掉**。判据来自参考包 `活动Boost与胶囊教学-20260927.zip` 的
-  `BoostOpeningEvents115(base []byte, …)`：它把活动行**并进**基础表，且两个发送点（进城 announce +
-  CMD8 选角）发的是**同一条**快照；参考版 `boostup_flow.go` 里**没有**独立的活动 108 发送函数。
-  修复：新增 `cmd/wireprobe/event_info_variant.go`，`buildTownEventInfoTable()` 把活动行**纯追加**到
-  频道门表之后（行布局两边一致，复用同一编码器、不重敲行字节），选角与进城发同一条；
-  `bootstrap.go` 的选角 108 同步改。官方 19 行逐字节保留。
-  启动日志指纹 `NOTI108 rows=22 bytes=1386`（修前 `3 / 248`）。
-  排除项：起始发放 —— 注掉 `newchar.lua` 全部 10 行后新建角色，`character_create` 计数 0，图标依旧不出现。
-- ②**第 10 关第二环节（Armory Convert）「界面换了、退出打回」**（`next159`）。变换成本表是源
-  `etc/115lvability/equipmenttransformsystem.cos` 的 `[need materials]`，键 **(chain, 稀有度名, 付款方式)**
-  —— **按稀有度**；而教学件 `100051285` 在 `[create cost]` 里**根本没有条目**（PVF 投影
-  `configs/equipment-create-cost.generated.json` 全表查无此件），却因稀有度 legendary 命中
-  「登记证×1 + 35,000 金币」。原免单只在 `transformPayment` **报错**时触发 ⇒ 照收 35,000 ⇒
-  学员号付不起 ⇒ 拒绝且**不回拒绝包**（2259 无拒绝分支，回 Error 客户端 `exit=0xC0000005`）⇒
-  界面只做本地乐观更新。实机 `03:15:20 TRANSFORM-REFUSED: need 35000 gold, have 6973 in bag + 0 in vault`。
-  修复：`transformStep` 增 `unpriced`（与生成路径**同一个按件谓词**：`CreateCost.GroupFor` 精确未命中），
-  `tutorialFree := live.TutorialMode() && (p.unpriced || e != nil)`；保留原兜底 ⇒ **放宽而非收紧**。
-- ③**第 10 关帧补全**。变换会改图鉴与穿戴，但此前只发 14/13。补齐 **NOTI2610 图鉴权威快照** 与
-  **变换后的关卡重算**（`reconcileBoostEquipment()`，此前只挂 CMD19 / CMD272 / 训练查询）。
-  实机证据：`TRANSFORM … applied=true` 之后整个会话**没有一帧** `boost_equipment_mission_progress`；
-  业主点「Go」重走一次即过关 ⇒ 判定事实（穿戴分组）本就具备，只差自动重算。
-- ④**第 11 关（最后一关）毕业卡死**（`next160`）。NOTI2638 编码器有一条**与官服相反的**守卫
-  `mode == 2 && active → "finished boost training cannot be active"`；而官服毕业态**就是**
-  `02 0c 00 00 01`（参考包 `规格文档/2638-BOOSTUPCHARACTER.md`「已推翻」一节）。本仓
-  `boostup.next()` 越过最后一关正好产出 `Step=12 / Phase=0 / Finished=true` ⇒ 自家守卫把官方帧
-  挡成编码错误。实机 `03:39:44 boost_event_request_refused: finished boost training cannot be active`
-  （request_hex `960200000b000000` = 事件 662 / 第 11 关）。影响面不止领奖：`boostTrainingRestore`
-  有 **6 个调用方**（含进城恢复 `client_entry.go`）。修复：删该守卫，保留真不变量「未激活不得携带进度」。
-- **实机验收**：十一关全通、毕业正常结束、角色转普通角色 115 满级（会话 `..._20261006_034852_720927`）。
-
-**未修复 / 未闭环**
-
-- `PrepareEquipmentTransform` 的 `affordable` 只查 `pay.AccountMats`、**不查金币**（`:492-502`）：
-  金币不足要等到 `payTransformGold` 才失败，多件一起换时是**整笔失败**。本轮只在训练轨道内被免单
-  绕过，**非教学场景未改**（会动既有语义）。
-- 变换前后的**实例字段**差异（除模板外的附魔/强化等）未核对完，承 `next155` §9.3 / 参考包 §11.4。
-- `profession=0` 对应的职业名**未能从仓内确证**（本仓无职业 id→名称表）；Buffer 胶囊的职业门结论
-  依赖物品自述 Class 与业主截图。**不影响结论** —— 该次会话 182 个客户端帧里 CMD507 一次都没有，
-  使用请求根本没到服务端（`..._20261006_034852_720927`）。
-- 参考包另附的客户端 EXE 补丁（跳过胶囊本地确认框）**未做**，涉及时需单独评估（`client-patchs/AGENTS.md`）。
-
-**bug 测试取证**
-
-- 会话：`..._20261006_025747_213882_next37`（入口弹出正确日历 + 第10关拒绝）、
-  `..._20261006_033224_339881_next37`（变换 `gold=0 applied=true` + 进第11关）、
-  `..._20261006_034852_720927_next37`（毕业进城 + 胶囊取证）。
-- 新增回归测试：`cmd/wireprobe/event_info_variant_test.go`（合并表形状 + 官方 19 行逐字节保留）、
-  `internal/inventory/equipment_transform_tutorial_test.go`（训练中免单成功 / 出关后仍拒）、
-  `internal/game/protocol/boostup_frames115_test.go::TestBoostTrainingStatusGraduatedFrame`
-  （钉官服毕业帧 `02 0c 00 00 01`）；`cmd/wireprobe/story_digest_test.go` 的 announce 用例改钉
-  `townEventInfoTable`。
-- 候选 exe：`bin/wireprobe-pvf.exe` = `runtime/dev-local/wireprobe-pvf.exe`，
-  sha256 `3e90fafec145f66c7dac008248c78ffe97d680e56e5fece0b75cddd3593467ed`（29,144,576 B）。
-- `go vet ./internal/game/protocol/ ./internal/inventory/ ./cmd/wireprobe/` = 0；
-  `go test ./internal/game/protocol/ ./internal/inventory/ ./cmd/wireprobe/ ./internal/workflow/` 全绿。
-
-## 2026-10-04：662 直升活动在 main 主干重推落地 + 教学免单（装备库 2259）
-
-外部交付包 `boostup-662-merge-full-20261004`（134 文件的差异集，基线是本仓 27 个提交之前的 `4fcb6280`、
-目标树是另一台机器上的 `D:\DNF115\115US\115-main`）**不能直接覆盖**：包内有 35 个文件仍 import 本仓
-已合并掉的 `internal/storage` / `internal/db`。本次改为**按语义在 main 主干重推**，规格资产见
-`runtime/boostup662-spec/`，计划与结论见 `analysis/tasks/next154`、`next155`。
-
-落地（分支 `feat/boostup662-on-main`，本地提交）：
-
-- `159f39b3` S1 协议层：新增 `boostup_events115.go` / `boostup_frames115.go`（+test）；
-  `stackable_action.go` 动作号按 u32 认（实机胶囊动作 337）。放宽只动 action 字节范围，
-  `p[2]==0` 的旧严格性原本就在各读取器内，未受影响。
-- `7222f9a7` S2 活动领域层：`internal/boostup/` 28 文件，**零适配**（只依赖 catalog/pvf、catalog、dungeon）。
-- `b941ffb0` S3 源装载：`gamedata/boostup.go` + `catalogs_boostup.go` + `catalogs.go` 七处插入；
-  `fame.go` / `fame_native.go` 增 `Groups`（`equipmentgrouping.etc [ability group]` 原始成员关系）与
-  `SetPointTotals` —— 穿戴任务的分组真源走名望侧同一解析器（§0.2 单一规则）。
-  ⚠️ 本仓四张 catalog 清单原本已含 `transform`（55 项），故为 **55 → 56**（包侧是 54 → 55）。
-- `9b4abe1b` S4 角色侧：11 新 + 5 处钩子（只插不覆，保住本仓独有的 `notifyLevelUp` / `stateLevel`）。
-- `86c3c1af` S5：训练装备封存门禁（`TutorialLocked` 来源标记 + `SetInBoostTraining` 谓词注入，
-  `inventory` 不反向依赖 `boostup`）、自选箱件数真源、`SelectGuide`。
-- `33b95d30` S6：掉落/工作流 16 新；邮件层不引入包的 `system_mail.go`（与本仓
-  `database/mailbox.go` 重复），只补 `SystemMailAssets` 与 `SendSystemMailWithCharacterUpdate`。
-- `8bc49583` S7 网关接线：21 新 + 19 个既有文件钩子；新增 `dispatchBoostEvent`（643/680/681）；
-  选角/回选角活动清单与建号后名单同一口径；681 不再吞帧（改走 `dispatchNext`）；2265/2638 帧序。
-  活动测试改用本仓 `database.OpenTestFixture`（原先依赖旧 `storage.Store.DB` 字段），
-  为此在 fixture 增三个具名助手（`EventCountByKey` / `SeedAccountPremium` / `SetAccountPremiumEnd`），
-  不开放任意 SQL。
-- `9f580435` 把 643/680 登记进 `observedGameRequest`（681 原本已有）+ 守卫测试。
-  经代码核对：`unimplemented_sample` 是**采样白名单标记**、不是「未处理」；判定与采样已解耦。
-- `87233eac` **生成路径的金库金币口径与变换线对齐**：`pickCraftCost` 原先只比 `bag.Gold`，
-  而紧随其后的 `payTransformGold(paid, vaultGold, gold)` 本来就会去账号金库取
-  （背包优先、不足从金库调取 —— 业主确认口径）⇒ 同一笔成本判两次还判错一次。
-  改为收 `vaultGold` 并用 `bag.Gold + vaultGold`；拒因同时报出两边余额；**不回退换支**的禁令保留。
-
-★ **刻意偏离原生源：教学期免单（业主 2026-10-04 明确要求）**
-
-662 第 10 关的**教学目标就是让玩家走一遍装备变换**（源 `[guide actions] open equipment journal`），
-而那件教学用装备（`100051285`）在源里**没有任何 `[create cost]` 条目**（`[item index]` 零命中、
-其 `.equ` 也无 `[create cost]` 段），客户端界面因此显示 **0 材料 / 0 金币**（实机截图：
-「只有一个定价无法切换、金币免费」）。**这是正确设计，服务端应当支持**。
-
-此前服务端有一条 2026-09-30 加的「按 `[grade]`+`[rarity]` 兜底找档」，给这件编出 35,000 金币，
-而背包/金库都是 0 的学员号会被拒死；2259 的拒绝链又因客户端会崩
-（`[ALIGN-20260930-CRAFT-NO-REFUSAL]`，2026-09-30 两次实测回 Error ⇒ `exit=0xC0000005`）
-**不能回包** ⇒ 界面「点了没反应」，教学卡在第 10 关。
-
-本提交按业主口径加入免单：`EquipmentCraftPlan.Unpriced`（源里查不到该件的成本条目）
-**且** `bag.TutorialMode()`（仍在 662 训练轨道）时，按 **0 材料 / 0 金币** 执行并对客户端回成功
-（走既有的 `accountMaterialRefreshPackets` 刷新，装备进背包）。
-**免单不得外溢**：出关后同一件仍走正常（兜底）定价 —— 门禁由 `TestTutorialFreeCraftGate` 与
-`TestPlanEquipmentCraftMarksUnpricedStep10Item`（用真实 `equipment-create-cost.generated.json`）钉住。
-
-验证：
-
-- `go build ./internal/... ./cmd/...` = 0；`go vet ./cmd/... ./internal/...` = 0
-- **全量** `go test -p 1 -count=1 ./internal/... ./cmd/...` = **exit 0**（8m0s，无失败项）
-- 候选/现役二进制 `bin/wireprobe-pvf.exe`（sha256 前缀 `d574e7ac…` → 本次免单版 `e2c7b1…`）
-- 启动自检（`scripts/profile_pvf_startup.py`）：`PVF Starter Boost prepared: steps=11 gifts=2
-  capsules=2 challenge-buffs=0 groups=9721`，`domain_count=56`，exit 0
-
-已知未决（均已在 `analysis/tasks/next155` 记档）：
-
-- 「客户端把未定价条目列进生成窗口」这一现象的**来源**尚未取证（候选：`[part set index]` 关联的另一张表）。
-- 免单目前只加在**生成**路径；若客户端以 `action=1` 发同一件，变换路径的成本表按稀有度查找，
-  尚未加同样的教学门禁。
-- 包作者侧遗留：第二关副本中的地图箱（取证任务书在其交付包 `docs/analysis/`）。
-
 ## 阶段索引（按时间顺序）
 
 | # | 阶段 | 时间区间 | 归档行 | 主题 |
 | --- | --- | --- | --- | --- |
-| 7 | 客户端中文输入 | 2026-10-06 | 本文件 | 客户端 IME 门禁取证与 mod 修复（含 mod 元数据支持、客户端补丁目录规范、modkit 简易页面） |
 | 6 | 规范与门禁 | 2026-10-05 | 本文件 | 提交/目录/开发规范、提交前门禁、远端合并与 SQLite 环境适配 |
 | 5 | SQLite 双引擎收口 | 2026-10-04 | L3–L752（34 节） | SQLite 引擎缝/适配器/schema 分叉、去 Python、Go 启动器、双引擎门禁 |
 | 4 | 工具整理与 cmd 收敛 | 2026-10-03–10-04 | L753–L1472（26 节） | 39 工具删除、`cmd` 四入口、数据库访问集中 sqlc、蔚蓝号落地 |
@@ -433,9 +26,29 @@
 
 ---
 
-## 2026-10-05：Clone 原生来源关联修复
+## 2026-10-08 便携强化器/增幅器/锻造炉全量模板识别 + 增幅上限保护 + cap31
 
-Clone复制外观改为来源关联，普通装扮保留在背包；解除复制保留Clone穿戴。补齐卸Clone后的非装扮装备恢复，并提供旧存档无损迁移；复制、解除、实际穿脱和进图回城已实机确认。详见[修复说明](server/work/dfo-lan/docs/protocol/avatar-clone-native-contract-20261005.md)。
+**现象**：GM 发放的 115 原版便携强化器/增幅器无法使用（强化器报"既不是强化券也不是强化材料"、增幅器报"不是矛盾结晶体"），仅锻造炉生效。
+
+**根因**：`internal/inventory/portable_ticket.go` 只识别 3 个模板（590723097 强化器 / 590723096 增幅器 / 10307734 锻造炉，均为美服 cash 版），115 原版便携道具模板不在表内，被服务端拒绝。
+
+**修复（服务端）**：用 `scripts/reinforcement_pvf_reader.py` 全量扫描客户端 Script.pvf（189135 个 stackable .stk），按 **[action type]** 提取：便携强化器 `[portable upgrade]` 196 个、便携增幅器 `[portable amplify]` 217 个、便携锻造炉 `[portable genuine damage upgrade upgrede]` 167 个，全部写入 portable_ticket.go 识别表（覆盖 115 原版 + 美服 cash 版）。另：增幅上限保护（`internal/inventory/amplify_upgrade.go` 新增 `AmplifyMaxLevelCap=15`，普通/便携增幅 +15 后直接拒绝）与 `AmplifyUpgradeResultCap` 15→31（`internal/game/protocol/reinforcement.go`），配合后无需客户端补丁也安全；后续统一打客户端补丁（上限放开 31）后放宽 AmplifyMaxLevelCap 即可。
+
+**验证**：go build / go vet 通过；三件套统一 md5 `c1fe78c5`；实机测试 GM 发放的 115 原版便携道具正常生效（2026-10-08 业主确认）。
+
+**提交**：分支 `fix/portable-full-templates-amplify-cap-20261008`（commit 13863ba2 + e4903b29，基于上游 main 48f22d4f），已推送 fork（Fornightmare/115），MR 待建。
+
+## 2026-10-07 徽章镶嵌放宽（时装孔补全的收尾）
+
+**现象**：新时装（克隆/高级/天空）无法镶嵌徽章，仅一件旧皮肤时装（Healthy Bright Skin，[skin avatar] + 2×[M socket]）可嵌。
+
+**根因**：`internal/inventory/emblem_inlay.go` UseEmblems 三处写死——只允许 `[skin avatar]` 类型（148-151）；孔布局必须是 `2 [M socket] [M socket]`（152-156）；前两孔必须 M、第 3 孔必须 S（170-183）。克隆套（A/B/C/D 红蓝绿黑孔）、高级时装（C 绿孔）全部被拒。
+
+**修复（服务端）**：去掉 `[skin avatar]` 专一性与 M/M 布局检查；放宽为"任意时装（IsAvatar）+ 开放孔即可嵌"，颜色匹配继续由 `rules.Masks` 的 `mask & socket` 把关（A=1 红/B=2 黄/C=4 绿/D=8 蓝/S=16 白金/M=65519 彩色）。孔数据优先 AvatarOptions，空则按 PVF 默认孔补（沿用 10-06 的 DefaultAvatarSockets）。二进制 wireprobe-handoff-source.exe 2026-10-07 00:04:25（29326848 B）。
+
+**验证**：`go build ./internal/inventory/` 通过；完整 wireprobe 编译通过并部署。待实机：克隆套红孔嵌红徽章、高级时装绿孔嵌绿徽章、天空白金孔嵌白金。
+
+**遗留**：Skin Avatar Box（590703373）皮肤时装仍 0 孔（selection-boxes 目录该盒 [avatar] 分类未建模，kind 判定差异待核对）；部分模板 PVF 无默认孔声明（512600205/101591087 等）保持 0 孔属预期。10-06 时装默认孔补全两段记录见文末。
 
 ## 2026-10-05：汉化 dll（localization.dll）经启动宿主接回完整链路
 
@@ -800,3 +413,31 @@ Clone复制外观改为来源关联，普通装扮保留在背包；解除复制
 | 4 | `pgdata/` 是否加入 `.gitignore` 并 `git rm --cached` | 已跟踪的 `postgresql.conf` 每次提交都会被门禁拦下 | 决定处置方式 |
 | 5 | `使用教程.md` 重写入口指引 | 仍在教双击根目录入口（11 处），且编码非法 | 指定处理方式或交由作者 |
 | 6 | CLI 编排落点 A' / B'、是否允许改相邻仓库一处 LevelError | `tools/python` 可删的前提 | 拍板方向 |
+
+---
+
+## 2026-10-06 时装默认徽章孔修复（美服规则）
+
+**现象**：美服时装默认带徽章孔（普通部位 2 孔、稀有天空上衣/下装含白金孔、光环/皮肤彩色孔），本服发放的时装全部 0 孔。
+
+**根因**：PVF 时装定义里本来就有默认孔声明（[emblem socket default] 段 或 [avatar type select] 尾部 N [socket]…），但服务端发放时装时不写 AvatarOptions 扩展 → 客户端 0 孔。打孔器（AddAvatarSocket）与嵌徽章（UseEmblems）只支持已开孔，无法补救。
+
+**修复（服务端，不动 PVF）**：
+- 新增 EquipmentCatalog.DefaultAvatarSockets(id)：读 PVF 时装定义的默认孔（[emblem socket default] 优先，其次 [avatar type select] 尾部 N 个 socket），按掩码值写入 30 字节扩展（A=1/B=2/C=4/D=8/S=16 白金/M=65519 彩色/All=65535）。
+- 4 个发放入口补默认孔：商城（cashshop Pilot 新增 SetAvatarSockets 注入）、邮件附件（mailbox）、成长包 Booster（booster_flow）、抽奖（lottery_item_flow）。
+- 嵌徽章兼容老时装：AvatarOptions 为空时按 PVF 定义就地补默认孔再嵌。
+- 嵌徽章放开第 3 孔（白金孔 S socket 16，只能嵌白金徽章；原逻辑 socket>=2 直接拒绝）。
+
+**验证**：单测 TestDefaultSocketsFromFields / TestDefaultAvatarSocketsWritesWireFormat 通过；go build 通过；wireprobe-handoff-source.exe 已更新（启动器 launch_local.py 使用该二进制）。
+
+**遗留**：稀有天空 3 孔若使用其他字段布局（待真实天空定义样例复核）；已有 0 孔老时装在嵌徽章时才补孔（显示层仍是 0 孔，可后续批量补）。
+## 2026-10-06 时装默认徽章孔修复（第二次：读 PVF 定义版 + 老时装批量回填）
+
+**上一版失效原因**（本版修正）：
+1. 时装不在 selection Rows（仅 3174 条基本装备），definitionResolved 找不到 → 改走 Full 全量目录（bootstrap 已挂载）。
+2. socket 名 token 的 PVF Type 是 6（[方括号] 标记文本），不是 3；判定只认 3 → 全 0 孔。
+3. 3 孔布局：真实格式是 \N [socket1] [socket2] …\（N 后跟 N 个 socket，如 \3 [S socket] [C socket] [C socket]\），原逻辑只认 2 个尾随 socket。
+
+**验证（真实 PVF）**：1690000 克隆上衣 [A socket]×2 → [1,1]；115500002 上衣 [S]+[C]×2 → [16,4,4]；101590001 光环 [M]×2 → [65519,65519]；101591087 光环无默认孔声明 → 0 孔。
+
+**老时装批量回填**：25 角色 288 行时装，无孔 279 行；解析 PVF 定义得 203 模板（115 个 2 孔 / 18 个 3 孔白金 / 70 个无定义）；写库 10 角色 180 行（70 无定义模板保持 0 孔）。存档 avatar_options 为 Go []byte 的 base64 形式（30 字节 = 5 槽 × u16 socket + u32 emblem）。写库前备份 dfolan.sqlite3（.bak_20261006_232517）。
