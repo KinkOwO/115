@@ -228,7 +228,13 @@ func (s *Store) CreateCharacter(ctx context.Context, c Character, maxCharacters 
 	if e != nil {
 		return c, e
 	}
-	if allocation.ActiveCount >= int64(maxCharacters) || allocation.NextWireID > 65534 {
+	// The cash-shop Character Slot Extension Kit takes effect on purchase:
+	// the account-level bonus stacks on top of the global cap.
+	bonus, e := queries.AccountSlotBonus(ctx, c.AccountID)
+	if e != nil {
+		return c, e
+	}
+	if allocation.ActiveCount >= int64(maxCharacters)+int64(bonus) || allocation.NextWireID > 65534 {
 		return c, errors.New("character slots full")
 	}
 	c.WireID = uint16(allocation.NextWireID)

@@ -196,6 +196,21 @@ func (s *Service) List(ctx context.Context, account int64) ([]byte, error) {
 	return s.ListWithFatigue(ctx, account, nil, time.Time{})
 }
 
+// slotCapacity returns the account's effective character-slot cap: the global
+// Rules.MaxCharacters plus the account-level bonus granted by the cash-shop
+// Character Slot Extension Kit (account-level column, takes effect on purchase).
+// Offline projections without a Store fall back to the global cap.
+func (s *Service) slotCapacity(ctx context.Context, account int64) (int, error) {
+	if s.Store == nil {
+		return s.Rules.MaxCharacters, nil
+	}
+	bonus, err := s.Store.AccountSlotBonus(ctx, account)
+	if err != nil {
+		return 0, err
+	}
+	return s.Rules.MaxCharacters + int(bonus), nil
+}
+
 var specialChannelPrerequisites = []uint16{12167, 12312, 12392, 12422, 13763}
 
 // 列表、进城及外观刷新使用同一份任务到频道资格映射。
@@ -237,7 +252,11 @@ func (s *Service) ListWithFatigue(ctx context.Context, account int64, fatigue *F
 	if err != nil {
 		return nil, err
 	}
-	return protocol.CharacterList(uint16(s.Rules.MaxCharacters), rows)
+	capacity, err := s.slotCapacity(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	return protocol.CharacterList(uint16(capacity), rows)
 }
 
 // 复用相同角色顺序及真实属性，数量与详情来自同一次账号角色查询。
@@ -254,7 +273,11 @@ func (s *Service) AllServerRoster(ctx context.Context, account int64, fatigue *F
 	for i, c := range chars {
 		ids[i] = c.ID
 	}
-	p, err := protocol.AllServerCharacterList(s.ChannelContext[0], uint16(s.Rules.MaxCharacters), rows)
+	capacity, err := s.slotCapacity(ctx, account)
+	if err != nil {
+		return nil, nil, err
+	}
+	p, err := protocol.AllServerCharacterList(s.ChannelContext[0], uint16(capacity), rows)
 	return p, ids, err
 }
 
