@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"dfolan/internal/loot"
 	"dfolan/internal/database"
+	"dfolan/internal/loot"
 	"dfolan/internal/workflow"
 	"log"
 	"time"

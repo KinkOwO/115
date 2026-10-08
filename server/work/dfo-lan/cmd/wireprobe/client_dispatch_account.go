@@ -71,6 +71,9 @@ func (client *gameConnection) dispatchAccountQueries(requestData *clientRequest)
 			packets, err = client.worldState.buyAdventureItem(ctx, requestData.plaintext, requestData.frame.Raw, client.purchaseSession.prefix)
 		}
 		cancel()
+		if requestData.frame.ID == 1719 || requestData.frame.ID == 1811 {
+			client.event(adventureEliteDiagnostic(client.worldState, requestData.frame.ID, packets, err))
+		}
 		if err != nil {
 			client.event(map[string]any{"kind": "adventure_request_rejected", "id": requestData.frame.ID, "reason": err.Error()})
 			if err = client.output.send(1, requestData.frame.ID, adventureFailure(requestData.frame.ID, err)); err != nil {

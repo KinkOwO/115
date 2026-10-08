@@ -41,15 +41,11 @@ func (w *worldSession) refreshAdventure(ctx context.Context) ([]outboundPacket, 
 		packets = append(packets, outboundPacket{"图鉴装备登记恢复", 0, 2425, protocol.AdventureCollectionGuide(profile.Data.CollectionEquipment)})
 		w.adventureSnapshot = signature
 	}
-	elite, err := w.adventureElitePayload(ctx, profile)
+	elitePackets, err := w.refreshAdventureEliteSelections(ctx, profile)
 	if err != nil {
 		return nil, err
 	}
-	eliteSignature := sha256.Sum256(elite)
-	if eliteSignature != w.adventureEliteSnapshot {
-		packets = append(packets, outboundPacket{"精锐角色设置恢复", 0, 1754, elite})
-		w.adventureEliteSnapshot = eliteSignature
-	}
+	packets = append(packets, elitePackets...)
 	seasonPackets, err := w.refreshSeason(ctx)
 	if err != nil {
 		return nil, err

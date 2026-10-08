@@ -239,6 +239,9 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 		// domain remains solo; never normalize arbitrary party IDs.
 		r.Party = 65535
 	}
+	if err := w.validateEliteEntryProbe(r); err != nil {
+		return nil, nil, err
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if definition, ok := w.dungeons.Dungeons[r.ID]; ok && definition.Tower != nil {
@@ -299,6 +302,10 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 		if _, e = w.store.ReserveTowerEntry(ctx, w.account, towerPolicy(tower), tower.Floor, time.Now()); e != nil {
 			return nil, nil, e
 		}
+	}
+	if w.adventureElitePrepared != nil {
+		w.adventureEliteEntryProbeUsed = true
+		w.adventureEliteEntrySerial++
 	}
 	return s, plan, nil
 }
@@ -477,6 +484,15 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 	if w == nil || w.dungeons == nil || w.role.ID == 0 {
 		return nil, nil, fmt.Errorf("dungeon catalog or character unavailable")
 	}
+	if w.adventureElitePrepared != nil {
+		r, err := protocol.DecodeDungeonDirectMove(p)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := w.validateEliteDirectMove(r); err != nil {
+			return nil, nil, err
+		}
+	}
 	// 苏醒之森直进：音符记录类型 0x04 的关卡，客户端确认音符后不走 CMD2045
 	// 而发 CMD2062 直进下一关（官服 21:44:34.387、私服 21:06 会话实证）。
 	// 此时上一关会话已在 forestResult（CMD46）收尾、activeDungeon 为空，因此
@@ -552,6 +568,9 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 	// 地下城」入口，走的是 gate_ack(15) + selection_sent(27) 这条 UI 层帧；先进这个
 	// 界面再下发进图帧，避免用"回城帧"造成的场景切换与进图撞车（实测那会让客户端
 	// 黑屏退出）。
+	if w.adventureElitePrepared != nil {
+		w.adventureEliteEntrySerial++
+	}
 	return s, append(dungeonSelectionHead(), plan...), nil
 }
 

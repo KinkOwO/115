@@ -107,6 +107,9 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 		}
 		client.worldState.serverID = client.channelCfg.ServerID
 		client.worldState.channelType = client.channelTypes[client.channel]
+		client.worldState.eliteChannelDirectory = client.gatewayRuntime.channelDirectory
+		client.worldState.eliteChannelInfo = client.gatewayRuntime.channelInfo
+		client.worldState.eliteChannelID = client.channel
 		// 特殊征讨频道（SemiRaid/Legion，towns 表里有专属城镇的）的位置隔离：
 		// 会话内位置不覆盖普通频道的共享行（黑鸦 73 / 矿区 106 既有模式的全频道推广）。
 		if _, isolated := client.gatewayRuntime.channelTowns[client.channelTypes[client.channel]]; isolated {
@@ -333,7 +336,16 @@ func (client *gameConnection) serve() {
 }
 
 func (client *gameConnection) sendPlan(plan []outboundPacket, sent func(outboundPacket)) error {
-	return sendPacketPlan(plan, client.output.send, sent)
+	return sendPacketPlan(plan, client.output.send, func(p outboundPacket) {
+		if p.ID == 1754 || p.ID == 1382 || p.ID == 1879 {
+			event := adventureEliteDiagnostic(client.worldState, p.ID, []outboundPacket{p}, nil)
+			event["kind"] = "adventure_elite_packet_sent"
+			client.event(event)
+		}
+		if sent != nil {
+			sent(p)
+		}
+	})
 }
 
 func (client *gameConnection) logCharacterResponseBody(p outboundPacket) {

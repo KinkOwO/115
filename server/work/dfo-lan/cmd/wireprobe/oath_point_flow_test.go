@@ -2,9 +2,9 @@ package main
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/database"
 	"encoding/binary"
 	"testing"
 )

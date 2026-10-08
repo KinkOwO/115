@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/adventureelite"
 	"dfolan/internal/character"
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
@@ -18,7 +19,7 @@ func (w *worldSession) adventureElitePayload(ctx context.Context, profile databa
 	if err != nil {
 		return nil, err
 	}
-	return adventureElitePayloadForRoles(profile, roles)
+	return adventureElitePayloadForRoles(w.eliteProfileView(profile), roles)
 }
 
 func adventureElitePayloadForRoles(profile database.AccountAdventure, roles []database.Character) ([]byte, error) {
@@ -79,7 +80,8 @@ func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, pre
 		if err = json.Unmarshal(role.State, &state); err != nil {
 			return nil, fmt.Errorf("读取精锐角色存档：%w", err)
 		}
-		if state.Level < 100 || state.Awakening < 2 {
+		// 业主指定的兼容策略：仅开关启用时取消资格，始终保留真实存档。
+		if !adventureelite.Enabled() && (state.Level < 100 || state.Awakening < 2) {
 			return nil, fmt.Errorf("精锐角色需要达到100级并完成二次觉醒或自我觉醒")
 		}
 		selected[i] = role.ID
@@ -111,6 +113,9 @@ func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, pre
 		return nil, err
 	}
 	w.adventureEliteSnapshot = sha256.Sum256(body)
+	if req.Mode == 2 && selected == ([3]int64{}) {
+		w.adventureElitePrepared = nil
+	}
 	// 成功ACK只弹成功提示，不更新设置map；先发NOTI1754，界面才会回显。
 	return []outboundPacket{{"精锐角色设置同步", 0, 1754, body}, {"精锐角色保存完成", 1, 1719, []byte{1}}}, nil
 }
@@ -130,7 +135,7 @@ func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outb
 	if err != nil {
 		return nil, err
 	}
-	if w == nil || !adventureEliteChannel(w.channelType) {
+	if w == nil || (!adventureEliteChannel(w.channelType) && !w.ordinaryElitePreparationAllowed()) {
 		return nil, fmt.Errorf("当前频道未启用客户端精锐同伴系统，请在支持精锐的频道加载")
 	}
 	if w.activeDungeon != nil || w.selectingDungeon || w.bleedingMineStart != nil || w.pendingTownArrival != nil {
@@ -140,6 +145,10 @@ func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outb
 	// 旧模式和活动模式4有不同消费分支，不套用当前账号同伴资料。
 	if mode != 2 {
 		return nil, fmt.Errorf("当前客户端资源未启用此精锐模式：%d", mode)
+	}
+	ordinary := !adventureEliteChannel(w.channelType)
+	if ordinary && w.adventureElitePrepared != nil {
+		return nil, fmt.Errorf("精锐资料已经准备，请勿重复加载")
 	}
 	profile, err := w.prepareAdventure(ctx)
 	if err != nil {
@@ -156,7 +165,8 @@ func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outb
 	var slots []byte
 	var companions []protocol.TagCharacter
 	seen := map[int64]bool{}
-	for _, id := range profile.Data.EliteSelections[mode] {
+	effectiveProfile := w.eliteProfileView(profile)
+	for _, id := range effectiveProfile.Data.EliteSelections[mode] {
 		if id == 0 {
 			continue
 		}
@@ -174,7 +184,8 @@ func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outb
 		if err = json.Unmarshal(role.State, &state); err != nil {
 			return nil, fmt.Errorf("读取精锐角色%s：%w", role.Name, err)
 		}
-		if state.Level < 100 || state.Awakening < 2 {
+		// 不为低等级精锐升级或补觉醒；TagCharacterSnapshot投影真实状态。
+		if !adventureelite.Enabled() && (state.Level < 100 || state.Awakening < 2) {
 			return nil, fmt.Errorf("精锐角色%s未达到100级二次觉醒条件", role.Name)
 		}
 		_, err := w.characters.AdventureEliteSkillUsage(role, profile.Data.EliteSkillUsage[mode][id])
@@ -195,7 +206,7 @@ func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outb
 	if err != nil {
 		return nil, fmt.Errorf("精锐装备技能资料无法完整编码：%w", err)
 	}
-	settings, err := adventureElitePayloadForRoles(profile, roles)
+	settings, err := adventureElitePayloadForRoles(effectiveProfile, roles)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +219,11 @@ func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outb
 		w.adventureEliteSnapshot = signature
 		packets = append(packets, outboundPacket{"精锐角色索引变更同步", 0, 1754, settings})
 	}
-	// attempt 1/3：1382建立真实对象，1879克隆为AI同伴并应用技能开关。
+	if ordinary {
+		w.adventureElitePrepared = &adventureElitePreparation{Channel: w.channelType, Owner: w.role.ID,
+			Selected: effectiveProfile.Data.EliteSelections[mode], Settings: sha256.Sum256(settings)}
+	}
+	// 原生 layout attempt 1/3；普通事务适配 attempt 2/3。1382建立真实对象，1879克隆为AI同伴并应用技能开关。
 	return append(packets,
 		outboundPacket{"精锐真实装备技能加载（attempt 1/3）", 0, 1382, characters},
 		outboundPacket{"精锐同伴资料加载完成", 0, 1879, done},

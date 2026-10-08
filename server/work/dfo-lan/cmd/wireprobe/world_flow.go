@@ -36,17 +36,23 @@ type worldSession struct {
 	// azure 是蔚蓝号（Azure Main，channelType 102）的会话状态。
 	// 它不像 moonConfig 那样需要注入对象才生效 ——
 	// 分派直接按 w.channelType == azureMainChannelType 门控（见 azure_main_flow.go）。
-	azure             azureMainState
-	characters        *character.Service
-	pilotDeath        *odysseyDeath
-	service           *world.Service
-	store             *database.Store
-	account           int64
-	serverID          uint32
-	role              database.Character
-	level             byte
-	adventureSnapshot [32]byte
-	channelType       uint32
+	azure                        azureMainState
+	characters                   *character.Service
+	pilotDeath                   *odysseyDeath
+	service                      *world.Service
+	store                        *database.Store
+	account                      int64
+	serverID                     uint32
+	role                         database.Character
+	level                        byte
+	adventureSnapshot            [32]byte
+	channelType                  uint32
+	eliteChannelDirectory        *catalog.ChannelDirectory
+	eliteChannelInfo             *catalog.ChannelInfo
+	eliteChannelID               uint32
+	adventureElitePrepared       *adventureElitePreparation
+	adventureEliteEntryProbeUsed bool
+	adventureEliteEntrySerial    uint64
 	// channelWorldIsolated 标记当前连接在特殊征讨频道（towns 表有专属城镇）。
 	// true 时会话内位置不落普通频道共享行；specialTowns 是全部特殊城镇集合，
 	// 用于把共享行里的历史污染位置修回默认落点。
@@ -355,6 +361,9 @@ func (w *worldSession) enter(role database.Character, spawn database.WorldPositi
 	w.lastFatigueDay = ""
 	w.adventureSnapshot = [32]byte{}
 	w.adventureEliteSnapshot = [32]byte{}
+	w.adventureElitePrepared = nil
+	w.adventureEliteEntryProbeUsed = false
+	w.adventureEliteEntrySerial = 0
 	w.adventureReady = false
 	w.seasonLevelSnapshot = [32]byte{}
 	w.seasonOathSnapshot = [32]byte{}

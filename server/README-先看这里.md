@@ -1,5 +1,10 @@
 # DFO 服务端源码与启动脚本交接包
 
+
+## 精锐普通与剧情助战：已确认范围
+
+`DFO_ADVENTURE_ELITE=1`沿现有Go启动链启用隔离服务端及DLL注入。普通五房通关、多次回城后入场、再次挑战和结算重新选图已确认；普通剧情ID5/Quest3146的APC出现本轮已确认，两名原生登记成功。该剧情日志还记录五房、17个有精锐来源证据的普通击杀、任务3146物品/经验事务、后继3147及结算回城；原生死亡函数调用与实际CMD39存在一项采集缺口，不能称完整剧情覆盖。奥德赛/直进2062/特殊队伍与对象释放仍待证。实际剧情服务端1c9f5842、DLL94165690；默认程序/PVF/存档结构保持。详见[说明](../client-patchs/adventure-elite/README.md)、[计划](../docs/todo/adventure-elite-ordinary-plan.md)及[确认基线](work/dfo-lan/docs/protocol/next79-confirmed-baseline-20261003.md)。
+
 ## Bot 独立通道候选（2026-10-06）
 
 新增 `go run ./cmd/dfo-tool botclient -h`，用于服主明确选中源码候选连接、签发短期凭据和只读检查角色列表。只有手动启动前设置 `DFO_BOT_CONTROL=1` 才启用服务端操作/数据端，默认配置保持。DLL 通信候选已离线互通（`scripts/build-bot-client.ps1 -Channel`）；服务端邀请/未发布准备和有界 DLL 请求已接线，原生列表 hook、创建角色及战斗尚未接入，不需要重做已通过的场景探针。实际接线、手动命令和验收边界见 [说明](work/dfo-lan/docs/bot-client-channel.md)。
@@ -107,3 +112,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./Build-Server.ps1
 - 默认关闭内存观察器。日常启动只需要Python标准库；`reference/analysis-tools` 的历史分析脚本可能需要pefile/capstone/unicorn/cryptography，且含原机路径，**不能直接批量执行**。
 - 原机启动脚本只作对照，位于 `reference/original-launcher`，不要用它代替本包根目录的新入口。
 - 功能和协议详细交接看 `开发对接文档.md`。文件校验看 `MANIFEST.sha256`、`package-manifest.json`。
+
+精锐助战 v0.3.0 城镇准备候选：同一 DFO_ADVENTURE_ELITE=1 链加载隔离服务端/启动器/DLL，普通及奥德赛角色复用原生模式 2 资料事务；准备后暂拦进图，剧情/奥德赛战斗未验收。手动测试及匹配回退见 client-patchs/adventure-elite/README.md，证据见 analysis/tasks/adventure-elite-ordinary-preparation-evidence-20261008.json。

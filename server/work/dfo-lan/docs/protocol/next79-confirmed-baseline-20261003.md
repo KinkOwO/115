@@ -71,3 +71,121 @@ analysis/tasks/next79-legion-weekly-open.md §29/30。没有改schema、玩家�
 ## 2026-10-05：副本穿戴鉴定显示局部确认
 
 用户确认本地候选进副本后问号消失，并明确反馈不是汉化影响。修复包含进本及 CMD19 穿脱后的全身随机词条刷新。确认不扩大至最新主线移植、其它版本换装复发场景或其它玩法；默认程序保持。详见 [协议记录](worn-magic-options-dungeon-20261004.md)。
+
+## 2026-10-08：精锐资格选择与保存局部确认
+
+### 精锐名单恢复及普通选图取消返回局部确认
+
+业主反馈步骤2“正常”、步骤3“副本显示没有发生变化”、步骤4“正常”。本轮确认名单恢复和选图取消返回后页面正常；会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_180054_958631_next37` / PID39224 / runTick119854828 使用服务端 `3f773468`、DLL v0.3.2 `bf9c5c75`，候选/资源哈希与清单一致、缺口0、正常退出。
+
+events第182–187行仅一次CMD1811及资料通知，第256/261–262、271/275–276行实际两次CMD15→CMD132及接受返回；没有新增空名单通知、重复CMD1811或资料重建。返回后第293/295行CMD1395与原生已确认caller按4对4数量配对；lifecycle第55行weakAlive=2、actorKind=[5,5,-1]、controllerBound=[1,1,-1]，身份及重复读取一致。71个样本全部保持两名同伴存活，没有丢弃/上限或引用释放观测。确认限制为这些采样点及普通选图取消路径，不据采样推断所有时刻或所有退出路径。
+
+控制器ID和controllerWire在全部样本均为[65535,65535,-1]，当前玩家wireID=2。权威IDA的145EFA4B0→145EFD6B0初始化控制器+112为0xFFFF，145F04E30再将其写到同伴+74020；弱引用绑定不代表真人战斗身份已分配。副本显示没有变化与当前只开放城镇准备的边界相符；type5战斗注册、攻击/击杀/召唤归属、切房以及剧情/奥德赛/特殊队伍均不纳入确认。默认程序未发布、PVF和SQLite结构未改。详见 [本轮生命周期证据](../../../../../analysis/tasks/adventure-elite-lifecycle-controller-evidence-20261008.json)。
+
+### 精锐名单恢复显示确认与首次城镇克隆取证
+
+业主本轮明确反馈“确认页面正确显示列表”，截图显示1级 test 与115级 glow 两名精锐回显。会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_164902_605424_next37` / PID51160，候选服务端 `c957e508`、DLL0.3.1 `630bca38`：events.jsonl 第231、233–238行完成 N1754 → CMD1811 → N1382 → N1879；原生日志第11行 N1879 after 为 readerSuccess=1、weakAlive=2、weakStrong=[1,1,-1]、无异常。当前48槽装备资料由原生 reader 读完，保留真实低等级角色。
+
+确认范围仅为页面名单恢复；日志证实首次城镇克隆创建，不能扩大为稳定保留或战斗。该会话随后 CMD15 打开选图、CMD132 返回：第247行下发空名单，第260行恢复名单，原生日志第19行 weakAlive 从2变0，第262行重复 CMD1811被拒。该生命周期缺陷单独修复候选，普通/剧情/奥德赛及特殊队伍战斗仍未启用。后续证据见 [名单生命周期记录](../../../../../analysis/tasks/adventure-elite-selection-lifecycle-evidence-20261008.json)。
+
+后续取证补充：业主完成操作后的 `20261008_172355_230248_next37` / PID85712，只记录一次 CMD1811（第184行）与 N1382/N1879（第186–189行），原生日志第11行首次 weakAlive=2；第192–195行是 CMD36 普通城镇区域切换，CMD15/CMD132 均未出现。因此选图往返稳定保留仍未验收，既有确认范围保持。DLL v0.3.2 只读生命周期/控制器采样已部署待实机，不写成新的 confirmed 行为；详见 [控制器取证候选](../../../../../analysis/tasks/adventure-elite-lifecycle-controller-evidence-20261008.json)。
+
+业主截图显示 1 级 `test` 被选为精锐，当前 5 级 `nene` 收到保存成功提示，并反馈“等级不够也能保存精锐小队”。本轮只确认资格选择与保存，不扩大至资料加载、重登或进图战斗。
+
+会话 `runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_085305_229339_next37`：client.log 第 5 行 `ADVENTURE_ELITE_READY`；events.jsonl 第 258–260、318–320 行为 CMD1719 → NOTI1754 → ACK1719，第 257 行当前角色/重复选择被拒。该会话未出现 CMD1811、NOTI1382、NOTI1879。
+
+DLL v0.2.0 SHA256 `7f0b4d3c9049ae24ed8a5eb77ac11fc8c1bb8a1051e0d5e1c2cc90afd55f214e`，自身目录状态 `ready=true, enabled=true, changedBytes=10, ordinaryReady=false`。`DFO_ADVENTURE_ELITE=1` 为业主明确要求的统一启用策略；服务端保留角色真实快照，不改 PVF 或 SQLite schema。确认使用隔离候选，未覆盖或发布默认程序。后续范围见 [实施计划](../../../../../docs/todo/adventure-elite-ordinary-plan.md)。
+
+### 2026-10-08：名单再次进入回显与原生通知观测确认
+
+业主反馈“已保存，重新进入数据也存在”。会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_104716_042826_next37` 的 client.log 第 5 行确认注入；events.jsonl 第 198–200 行记录 CMD1719、N1754 同步及保存成功 ACK。DLL v0.2.1 状态 `nativeTraceReady=true`，原生日志第 1–4 行有两次 N1754 的处理前后命中；两次剩余读取长度均为 544 → 10，三个弱引用存活数均为 0。确认名单保存和再次进入的回显，不据此扩展为完整退出登录/重登、资料加载或 APC 创建验收。没有 CMD1811/N1382/N1879。
+
+观测字段订正：v0.2.1 将 N1754 的记录保留字节误标为 `headerMode`；旧日志该字段作废。当前 reader `142E5A753` 复制 531 字节记录，`142E5A7AA` 从记录 `+0x0d` 取模式，因此首行模式位于完整正文 `+14`。v0.2.2 修正这一个诊断偏移并补长度/空名单/原生布局机制测试，不修改发包或原生消费路径，不增加 C2S 尝试。普通、剧情、奥德赛仍为 `ordinaryReady=false`。
+
+### 精锐对象身份与当前真人主人引用取证确认
+
+业主完成 v0.3.3 操作后的 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_184829_613984_next37` / PID17196 / runTick122719062，DLL `8aca1e37`、服务端 `3f773468`、启动器 `94296f90` 及四份原生资源身份均匹配；采集缺口0，client.log第8–9行正常退出。一次CMD1811、12条原生通知记录、42条一致的生命周期样本。两个同伴对象ID为0/1，校验有效；两个主人CRef的control/alias均与当前真人CRef完全相同，主人对象ID和控制器ID为2。双方kind均为5；不能用kind5判为NPC，亦不能把有效对象ID0判为空。
+
+确认范围为这42个城镇观测点的身份/主人引用。APC控制器仍为65535、sceneAttached均为0；这些没有证明场景登记、AI战斗或击杀归属。没有写控制器ID、PVF、SQLite/schema或玩家存档。首房注册/攻击/召唤/切房及剧情、奥德赛、特殊队伍仍待后续；下一候选只读入场观察，不能加入 confirmed 战斗行为。
+
+### 精锐普通首房加载及原生登记条件局部确认
+
+业主完成 v0.3.4 手动首房操作；会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_194942_871765_next37` / PID51904 / runTick126375750，DLL b6747908、服务端e6d5e47d、启动器aed177c4及四资源哈希匹配。一次CMD1811、12条原生通知、82条生命周期和3条入场观察；采集缺口0，client.log第8–9行正常退出。原有CMD16→37→42的普通单人入场、首房加载和回城完成；冻结名单[1,3,0]及设置32保持。
+
+首房loader前后和精确caller5B25191同线程110720：145F0C980返回1，但dungeon+6264=0；+8056=128，manager+576=0，场景向量对两名克隆的精确CRef匹配为0。对象ID0/1、主人引用仍匹配当前控制器玩家，控制器65535。原生145DE4360登记未调用；只确认加载、条件值及观测点保留，未确认APC参战、AI、攻击/召唤归属或清理。
+
+实际副本3/地图58548来自dungeon/act1/mirkwood.dgn，SHA256 a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52。源含storymode标签，实际Quest=0/Mode=0是普通入口，不能据标签扩展为剧情验收。PVF、SQLite结构/存档、默认程序不修改。
+
+### 精锐普通首房原生登记及 AI 行为局部确认
+
+业主反馈“成功了”，加载界面和副本HUD截图显示真人 nene Lv6、APC test Lv1、glow Lv115，副本中两名同伴带 [AI]；随后明确反馈“APC会动，会打怪，没怪会跟随玩家”。本轮确认低等级同伴在该普通首房完成登记、显示及上述可见AI行为；这不是服务端伤害归属、击杀奖励或全流程副本验收。
+
+会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_205959_164276_next37` / PID40540 / runTick130600046，DLL v0.3.6 SHA256 5e80ee14、候选服务端5af6d212、启动器aed177c4与构建清单匹配；采集缺口0。客户端启动初始化全部ready，client.log第8–9行exit=0；一次CMD1811、12条原生通知、63条生命周期、7条入场记录，无丢弃/上限。events第226–227行首次CMD16接受，第237–238行CMD37加载确认，第304–305行CMD42回城确认；普通副本3/地图58548，源dungeon/act1/mirkwood.dgn SHA256 a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52，Quest=0/Mode=0。
+
+entry第1–7行同线程27372：原生总门禁返回1，登记作用域十个布尔条件均为1、有效同伴数2，原生玩家CRef与控制器玩家CRef精确相同。频道判定原始返回0，仅本次作用域放行；两次145DE4360原生登记均返回1，场景向量精确CRef匹配从[0,0,-1]变为[1,0,-1]再到[1,1,-1]，loader-after manager576=1。dungeon6264=0/8056=128未写，两个对象ID0/1、owner匹配及controller65535保持。玩家可见AI行为由业主报告证明，不将sceneAttached=0或battleVerified=false解读为AI暂停。
+
+服务端仍限制首次普通单人非剧情入口，拒绝击杀结算、拾取、换房及通关。该会话CMD39记录均被拒；回城后额外CMD39因无活动run拒绝，events第335/338行第二次入口因“不是本连接首次普通选图”拒绝，这是现有阶段边界。ordinaryReady=false和采集battleVerified=false保留，表示完整服务端战斗验收未完成，不否认已确认的客户端AI。生命周期最后样本仍保留两名克隆，不能据正常退出宣布场景解绑/弱引用回收完成。
+
+伤害/击杀/召唤归属、奖励与存档幂等、换房/重复入场/回收、剧情、奥德赛及特殊队伍继续待闭环。原始日志只留本机，版本与证据见analysis/tasks/adventure-elite-registration-confirmed-evidence-20261008.json。本轮仅更新文档/证据；不修改PVF、数据库/schema、控制器、DLL或默认程序，不发布全流程默认版。
+
+### 精锐原生来源到死亡请求的观察链确认
+
+业主完成 v0.3.7 操作。会话 `roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_215047_744185_next37` / PID106676 / runTick133649765：12条通知、84条生命周期、43条战斗记录（8条来源赋值、8条击杀者写入、27条死亡发送）；采集缺口0、正常退出。两个精锐对象0/1在精确caller5DD022B将自身控制器65535写入怪物killer；主人ID/控制器2和当前玩家CRef一致。4个怪物4096/4098/4097/4099的27次死亡发送（含重发），逐顺序与服务端CMD39的entity/killer对应。原生self getter14014CC20已由当前IDA和现场字节确认。
+
+本轮只确认这条动态来源链，服务端仍拒绝结算，不能称掉落/经验/通关或多房验收。最后城镇样本保留两名克隆，没有证明弱引用释放。副本3/地图58548来自dungeon/act1/mirkwood.dgn（a1be7025），实际Quest=0/Mode=0；不作剧情确认。没有PVF/schema/存档修改。压缩证据见analysis/tasks/adventure-elite-owned-combat-candidate-20261008.json；原始日志仅留本机。
+
+### 精锐普通单人五房通关流程确认（v0.3.8）
+
+业主明确反馈“已完成通关流程，APC能跟随过门，能拾取，能打boss、能结算”。会话`roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_223704_525989_next37`，PID93772 / runTick136444046；DLL772bd1e0、候选服务端3449b055、启动器aed177c4及四份源资源哈希匹配，采集缺口0、正常退出。一次准备、12通知、158生命周期、23入场和137战斗记录；54击杀者写入、56来源赋值、27原生死亡。
+
+同一普通单人run经过58548→58549→58551→58552→58553五房，4次CMD45过门及5次CMD37加载全部接受。27个死亡均首次从dead=false变true、unowned=false、killer=主人2；按房间代次/精确来源关联54次setter适配，27个原生CMD39与服务端逐序对应，无死亡重发或阶段拒绝。实际发送27次ACK39/N38/经验N37，保留原有领域去重执行。Boss CMD117确认、CMD46结果/通关经验/奖励、CMD69/70/71翻牌及背包入库、CMD43拾取/场景移除/背包更新、CMD72回城均发送。events锚点：入口224，加载236/291/353/413/473，过门286/348/408/468，Boss549，结果557，翻牌570/573/576，拾取583，离场589；原始日志仅本机，摘要含日志哈希。
+
+确认范围为该普通单人五房精锐参战流程，以及用户可见APC跨门跟随、打Boss、拾取和结算可用。拾取日志是当前玩家CMD43，不单独宣称APC自动捡物；经验更新已下发，不推断重登后数值验收。后续房间entry场景向量匹配值为0，但用户观察和逐房APC来源/击杀证明实际携带；不以该单一字段否定行为或宣布对象表全部闭环。最后城镇弱引用仍保留2个，清理/释放未证实。
+
+本连接第二次入场仍保留限制；其它普通副本、召唤归属、剧情、奥德赛、军团/攻坚等特殊队伍，以及modkit安装/卸载继续未验收。ordinaryReady=false/battleVerified=false是已有候选的全局完整性标记，本次不改原始采集或扩大为所有模式完成。本轮仅文档/证据收口，不再变更运行路径、不增加attempt；默认服务端不发布，DFO_ADVENTURE_ELITE环境开关按业主要求保留，PVF/SQLite/schema保持。
+
+证据：analysis/tasks/adventure-elite-ordinary-combat-confirmed-20261008.json。当前无需重复保存名单或重复该通关实机；后续先分析现有多房/回城证据，再为重复入场、剧情及奥德赛准备同轮可收齐的诊断。
+
+### 普通回城后多次入场确认（v0.3.9，reentry attempt2/3）
+
+业主明确确认“确认通过，多次进本APC均出现”。会话20261008_234621_294907_next37 / PID100828，DLL94165690、候选服务端5ca6128a、启动器aed177c4及四份资源hash匹配。三次独立RunID与入场序号1/2/3，原生同线程loader每场两名精锐登记均返回1，结束新场景CRef成员均为1；第二/三场active原始及物理manager576仍1，精确145B251D8消费者各适配一次，首场不适配。三场分别有4/7/9次APC归属死亡，第二/三场各过一道门；三次主动退出均提交清空run死亡/掉落/翻牌/结果状态，无阶段拒绝。
+
+确认该普通单人非剧情副本在同连接主动回城后可重复登记与战斗，不扩大为直达下一副本、HP/MP/死亡/冷却连续性或所有地图/模式。采集时客户端仍在运行，run.json和正常退出汇总未落盘；采集明确保留该1项缺口，fullCaptureCertified=false，不为补收尾重复跑图，不宣称正常退出或完整归档。原capture不改写。证据analysis/tasks/adventure-elite-reentry-confirmed-20261008.json。
+
+本轮文档收口，不改运行路径、不增加attempt、不改PVF/SQLite/schema/default。DFO_ADVENTURE_ELITE按业主要求保留。下一项按计划处理普通结算再次挑战/非回城直达新副本；剧情、奥德赛、特殊队伍和对象释放继续待闭环。
+
+### 再次挑战与结算重新选图确认
+
+业主补充确认“再次挑战和选择另一个副本也是正常的”。同一会话现已正常退出，run.json已落盘。CMD72实际向量010001...（state1/option0），旧run9ad51701在1229行创建原有入场计划，1242行提交全新a1644789，清空死亡/掉落/翻牌/结算；对应第五次新副本loader ordinal56，两名APC登记成功，随后5次精锐归属新死亡。CMD72向量010101...（state1/option1）在1829行清空旧run并保留选图状态，1831行CMD16接受新runf55462a5，两名APC正常登记。
+
+只读采集器原来仅数CMD16，漏掉无需CMD16的再次挑战；现在凭原请求、ACK16入场计划、成功提交与干净新RunID统计，保持实际服务端序号4，不伪造新序号。六次CMD16加一次CMD72共七次新副本加载，全部登记成功；正常退出、采集缺口0。78种离线夹具覆盖缺请求/脏状态/同RunID/缺计划/重复/缺loader，不改游戏运行路径。fresh build退出0；同658f3ffa Go源码的完整vet/test退出0结论保持。
+
+本次日志中接受的副本ID均为3，因此确认结算重新选图入口及用户可见行为，不据此扩为所有不同地图。CMD2062和无缝option5没有本轮样本，继续待证。原三次回城确认的采集时缺口作为历史快照保留，本次完整收尾补齐。证据analysis/tasks/adventure-elite-retry-confirmed-20261009.json。下一项普通剧情战斗层，奥德赛随后单独处理；PVF、SQLite、DLL及服务器运行产物不改，默认程序不发布。
+
+### 普通剧情首次入场 APC 出现实机确认（ID5 / Quest3146）
+
+业主确认“成功，剧情副本也有APC出现”。会话20261009_004730_456710_next37 / PID69388，源链为同一内层PVF→list/dungeon.lst→dungeon/act1/sunderland.dgn（f2ad25fd）→既有DungeonSelection/已接任务校验→maze0 Quest3146→普通副本状态机与既有SQLite事务。角色2、频道22、等级8，源最低等级5；入口map76131、NonCombat计数1、source_story_layers=0。两名精锐原生登记均result1，首房场景成员和主人匹配，用户可见APC出现已确认；不把这次无额外maze layer的流程称为全部剧情层验收。
+
+本会话日志还记录五次房间加载（76131→76132→76134→76135→76136）、4次过门、2次拾取、23次怪物经验更新、结果页/翻牌ACK、Quest3146完成与物品/经验事务、后继Quest3147保存发送及结算回城。23组普通怪物CMD39与原生death-send按对象/击杀者精确配对；其中17组同时具备精锐source CRef、同线程原生来源父调用/精确setter、controller绑定和当前主人证据，其余6组是真人来源。日志流程观察与用户“APC出现”的直接确认分别记录，不据此宣称全部剧情Boss均由APC击杀。
+
+完整死亡采集仍有一项缺口：26次原生death函数调用与25个服务端CMD39不等；起始对象13099有CMD39但未经过当前hook记录，终场对象4123有3次函数调用但仅1个CMD39。函数正常返回不等于每次发送一个包；保持原采集器缺口与全局coverage=false，不凭65535猜主人、不过滤未知剧情调用以凑齐计数。后续房间loader-after即时采样sceneVectorMatches为0也不冒充最终挂场确认，后续精锐攻击来源只按本轮精确样本确认。NonCombat演员不被攻击、其它剧情/多层、APC状态连续性及原生引用释放仍未闭环；无需为本次出现确认重复实机。
+
+本轮实际部署服务端为共享工作树29b48b06基线加工作区改动构建的1c9f5842（29,571,584B），与隔离候选8f2e187a区分；策略源码提交08613763、DLL v0.3.9 / 94165690、启动器aed177c4。采集候选/PID匹配、正常退出；摘要中的allFreshEntriesRegistered=false由整体战斗缺口传播，单次freshCycle的两名登记本身均成功。沿用上轮完整build/vet/test、真实PVF source tests与78项采集夹具通过结论；本轮仅文档/证据收口，不改Go/DLL运行路径、不增加attempt、不改PVF/schema/玩家存档或默认程序。DFO_ADVENTURE_ELITE按业主要求保留。证据analysis/tasks/adventure-elite-story-confirmed-20261009.json。
+
+下一项奥德赛仍须先闭合模式、频道与原生登记消费路径；CMD2062/无缝option5、军团/攻坚等特殊队伍另行取证。已有Type22/发布ID10兼容策略与etc/channel_info.etc [server]重复仍保留原台账，本次没有扩展该策略或新增内容清单。
+
+### 奥德赛单名 APC 出现确认；快速进入失败定位
+
+业主确认奥德赛APC出现，但明确报告Boss后快速进入失败。会话20261009_013718_578732_next37 / PID64800 / runTick147257500，实际服务端0.3.12 b1fa9d74、DLL0.3.9 94165690：出战test ID1，冻结临时名单[0,3,0]，glow原生单名登记result1，用户可见出现确认。日志还有8组完整来源的精锐归属新死亡，以及过门、Boss/结果/翻牌、等级升至15与回城观察；这不等于全部奥德赛或完整死亡采集通过。原生死亡调用与CMD39数量不一致的一项缺口原样保留。
+
+events619行CMD2062实际目标100004935/难度2，620/621行被精锐候选“尚未接入专用传送/直进副本”门禁拒绝；没有创建新run/发送下一副本进图计划，故转场停在原地。确认范围仅首场APC出现；快速进入保持失败记录。证据analysis/tasks/adventure-elite-odyssey-quick-next-candidate-20261009.json。
+
+### 奥德赛快速进入下一副本及 APC 出现确认（单次2062转场）
+
+业主确认“能够快速进入下一个副本，APC也出现”。会话20261009_015823_668706_next37 / PID85832 / runTick148524671，实际共享服务端0.3.13 / 85a3ff4b（29,683,200B），DLL0.3.9 / 94165690、启动器aed177c4，源归档4d8c0c82及冻结投影名单[0,3,0]一致。首场源100004935格拉卡→CMD2062→目标100004936雷鸣废墟，请求/源目标/原15/27/16/28/29计划及成功提交匹配，RunID14c7cbbc→1663e92e，入场序号1→2，死亡/掉落/翻牌/结果/通关初始状态已清空。现有fresh loader第二次managerActive=1，经已确认的局部适配后单名glow原生登记result1，用户可见下一场APC出现确认。
+
+首场与目标场各有4次过门、结果/翻牌，目标场6次拾取并结算回城，正常退出。日志观察不替代用户确认范围：本轮只有一次2062快速转场，目标场没有完整来源的APC归属新死亡样本，不能据此宣称目标场APC击杀或连续多次快速转场全部通过。服务端记录70个CMD39，原生死亡函数正常返回记录97次，调用/发包计数仍有1项缺口；保留overall coverage与allFreshEntriesRegistered=false，两个独立freshCycle的登记均成功，不过滤未知调用凑计数。
+
+CHANGELOG及confirmed baseline按本次单次快速进入/APC出现收口；原0.3.12拒绝会话与0.3.13候选证据保留。六个任务源码/测试/采集脚本hash均未改变，无新远端合并；本轮fresh build两套源码退出0，沿用0.3.13完整vet/test（隔离3824通过/282跳过；共享3676通过/207跳过，失败及新增失败均空）、真实PVF原目标准入及85项采集夹具通过结论。本轮仅文档/证据收口，不改Go/DLL/PVF/schema/玩家存档或默认程序，不增加attempt，不要求重复实机。mode3、option5、特殊队伍、APC释放/状态连续性及完整死亡采集仍独立待证。
+
+证据analysis/tasks/adventure-elite-odyssey-quick-next-confirmed-20261009.json。Type22/发布ID10与etc/channel_info.etc [server]重复策略仍在原台账，本次不扩展。

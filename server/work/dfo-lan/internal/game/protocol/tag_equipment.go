@@ -8,6 +8,8 @@ import (
 // TagEquipment 将角色实例投影到145962410调用的1452C1540装备块。
 // 普通登录的DetailedEquipment保持不变；队友没有随后补发NOTI13的机会。
 // 字段映射取自1452C1EB3..1452C2123：原生临时181字节物品起点为rbp+1E0。
+// 1452C15D3/1452C2548/1452C2EF7 使用48格已读标记，槽号覆盖0..47；
+// 这是协议容器容量，不是装备玩法或资格表。36..46等扩展栏走同一行布局。
 func TagEquipment(rows []DetailedWorn) ([]byte, error) {
 	if len(rows) > 48 {
 		return nil, fmt.Errorf("队友穿戴数量超过客户端容量")
@@ -15,7 +17,7 @@ func TagEquipment(rows []DetailedWorn) ([]byte, error) {
 	p := []byte{byte(len(rows))}
 	seen := map[uint16]bool{}
 	for _, item := range rows {
-		if item.Slot > 29 && item.Slot != 32 || item.Template == 0 || seen[item.Slot] {
+		if item.Slot >= 48 || item.Template == 0 || seen[item.Slot] {
 			return nil, fmt.Errorf("队友穿戴槽位或模板无效：%d", item.Slot)
 		}
 		seen[item.Slot] = true
