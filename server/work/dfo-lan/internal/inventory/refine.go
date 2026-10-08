@@ -258,22 +258,26 @@ func (s *WearService) ApplyRefine(role Role, r protocol.RefineRequest) (json.Raw
 		return nil, out, Refuse(RefusalMaterials, "锻造等级 %d 取不到材料消耗", level)
 	}
 
-	// 扣材料：请求里只带一个材料槽。
+	// 扣材料：请求里只带一个材料槽。便携锻造炉（[portable genuine damage upgrade upgrede]）
+	// 固定消耗 1 个、不耗 Powerful Energy，材料槽放的是锻造炉本身。
 	rows := append([]BagItem(nil), bag.Items...)
 	remaining := uint32(0)
+	need := count
 	found := false
 	for i, item := range rows {
 		if item.Slot != r.MaterialSlot {
 			continue
 		}
-		if !IsRefineMaterial(item.Template) {
+		if IsPortableRefineTemplate(item.Template) {
+			need = 1
+		} else if !IsRefineMaterial(item.Template) {
 			return nil, out, Refuse(RefusalMaterials, "锻造材料槽位放的不是 %s（槽 %d 里是模板 %d，需要 %d）",
 				refineRules.MaterialName, r.MaterialSlot, item.Template, refineRules.MaterialTemplate)
 		}
-		if item.Amount < count {
-			return nil, out, Refuse(RefusalMaterials, "锻造材料不足：需要 %d，持有 %d", count, item.Amount)
+		if item.Amount < need {
+			return nil, out, Refuse(RefusalMaterials, "锻造材料不足：需要 %d，持有 %d", need, item.Amount)
 		}
-		remaining = item.Amount - count
+		remaining = item.Amount - need
 		if remaining == 0 {
 			rows = append(rows[:i:i], rows[i+1:]...)
 		} else {
@@ -306,7 +310,7 @@ func (s *WearService) ApplyRefine(role Role, r protocol.RefineRequest) (json.Raw
 	out = RefineReceipt{
 		Request: r, Equipment: gear, EquipmentSpace: space, EquipmentSlot: r.EquipmentSlot,
 		LevelBefore: byte(level), LevelAfter: newLevel, Result: result, Success: success,
-		MaterialSlot: r.MaterialSlot, MaterialRemaining: remaining, MaterialSpent: count,
+		MaterialSlot: r.MaterialSlot, MaterialRemaining: remaining, MaterialSpent: need,
 		SuccessPercent: percent,
 		RowBefore:      rowBefore, RowAfter: fmt.Sprintf("%x", row[:]),
 		RecordOffset: RefineRecordOffset(),
