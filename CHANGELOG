@@ -13,6 +13,36 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-08：无缝再次挑战（二）—— NOTI27 `relay` = 1 —— **候选，待业主实机验收**
+
+依据 `analysis/tasks/next178 §12/§13`。
+
+### 已修复 / 已完成
+
+- **A1 的实机结论：不够**。14:30 那轮确认跑的是新二进制（`dungeon_info_sent` body[30] 冷进 `00` /
+  继续 `05`），buff 仍被自动重上 ⇒ NOTI28 那一个字节单独不够。
+- 客户端 trace 指出真正路径：`ENUM_NOTIPACKET_ENTER_SELECT_DUNGEON`（NOTI27）触发
+  `change module : MAIN_GAME(3) -> SELECT_DUNGEON(2)` + `[SelectDungeon] cutscenestate = 1`
+  整套选图加载；而 **没有** `<read minimum Information>`（= NOTI2/USERINFO 的角色重读）——
+  说明「重上 buff」不是 NOTI2 那一步造成的（我们本来就跳过它）。
+- 落地 A2：`protocol.EnterDungeonSelectionRelay()`（只把 NOTI27 byte 1 置 1）+
+  `dungeonSelectionHeadFor(relay)`；`restartDungeon` 按 `seamlessRetry` 分流
+  （选项 0 普通重开 relay 0 / 选项 5 无缝续刷 relay 1），城镇选图那条路逐字节不变。
+- 进图日志带上入口形态：`dungeon entry: … NOTI28 body[30]=<0|5> relay=<0|1>`。
+
+### 未修复 / 未闭环
+
+- 若 relay=1 仍无效，下一批候选见 next178 §13（NOTI27 的 mode 字段 / `relay-extra` 0xc3 /
+  原地换房路线 —— 最后一条已两次实机 0xC0000005 证伪）。
+- 本地构建收尾三步（重编 → 刷新 `runtime/dev-local/` 快照 → 用 Python 数二进制里的串）见 next178 §10；
+  本轮已按它执行（新 exe sha `fa3d8456…`，快照同步）。
+
+### bug 测试取证
+
+- `internal/game/protocol/dungeon_selection_relay_test.go`：relay 形态只改 byte 1、长度 36。
+- `cmd/wireprobe/dungeon_entry_kind_test.go`：`dungeonRelayFlag()` 映射 + `dungeonSelectionHeadFor`
+  的两态与 `dungeonSelectionHead()` 未变。
+
 ## 2026-10-08：小深渊无缝再次挑战 —— NOTI28 body[30] 写「入口类型」 —— **候选，待业主实机验收**
 
 依据 `analysis/tasks/next178-小深渊无缝再次挑战-官服抓包定案-20261008.md`（业主提供的官服抓包）。

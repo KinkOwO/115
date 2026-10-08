@@ -35,6 +35,21 @@ func EnterDungeonSelection() []byte {
 	return append(p, 0, 0)    // u32/u16 collections, 145304140/1b9
 }
 
+// EnterDungeonSelectionRelay 是 NOTI27 的**接力/继续挑战**形态：只把头部第二个字节
+// `relay` 置 1，其余与 EnterDungeonSelection 逐字节相同。
+//
+// 依据官服抓包（analysis/tasks/next178 §3）：同一个副本冷进场的该字节是 0x00，
+// 两次「继续挑战」（CMD72 选项 5）都是 0x01，而两次之间的其余字段逐帧相同。
+// 本仓客户端在 0x145303307 单独读这一个字节（见 EnterDungeonSelection 的字段表），
+// 而我们此前**恒为 0** —— 也就是一直告诉客户端「这是新副本」，而客户端在这条路径上
+// 会 `change module : MAIN_GAME(3) -> SELECT_DUNGEON(2)` 并重跑 SelectDungeon 加载，
+// 那正是 buff/召唤物被重上的地方（会话 client_trace 实证，next178 §12）。
+func EnterDungeonSelectionRelay() []byte {
+	p := EnterDungeonSelection()
+	p[1] = 1
+	return p
+}
+
 type DungeonSelection struct {
 	ID         uint32
 	Difficulty byte

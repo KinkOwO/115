@@ -419,8 +419,8 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 	dungeonInfo := protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss, Hell: s.HellPosition, Entry: w.dungeonEntryKind()})
 	// 入口类型同时打一行日志：实机验收要一眼看出「这一轮是继续还是新副本」，
 	// 不必去 events.jsonl 里数第 31 个字节。
-	log.Printf("dungeon entry: dungeon=%d map=%d NOTI28 body[30]=%d（0=普通进本 5=无缝再次挑战）",
-		sel.ID, s.Room.Map, w.dungeonEntryKind())
+	log.Printf("dungeon entry: dungeon=%d map=%d NOTI28 body[30]=%d relay=%d（0/0=普通进本，5/1=无缝再次挑战）",
+		sel.ID, s.Room.Map, w.dungeonEntryKind(), w.dungeonRelayFlag())
 	var stackableLimit []outboundPacket
 	// N1584 STACKABLE_DUNGEON_LIMIT：副本消耗品许可（@0 = 每关上限 8）。
 	// 森林与维纳斯军团本都需要：没有这一帧客户端把副本消耗品全部本地禁用
@@ -576,9 +576,19 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 // to be preceded by this pair, or the entry frames land on a scene the client
 // has already torn down and it exits (0xC0000005).
 func dungeonSelectionHead() []outboundPacket {
+	return dungeonSelectionHeadFor(false)
+}
+
+// dungeonSelectionHeadFor 组装这一对握手；relay 为真时 NOTI27 走「继续挑战」形态
+//（头字节 1）。只有 CMD72 选项 5 的无缝续刷用真值 —— 见 card_flow.go 的 restartDungeon。
+func dungeonSelectionHeadFor(relay bool) []outboundPacket {
+	selection := protocol.EnterDungeonSelection()
+	if relay {
+		selection = protocol.EnterDungeonSelectionRelay()
+	}
 	return []outboundPacket{
 		{"dungeon_gate_ack", 1, 15, []byte{1}},
-		{"dungeon_selection_sent", 0, 27, protocol.EnterDungeonSelection()},
+		{"dungeon_selection_sent", 0, 27, selection},
 	}
 }
 
@@ -623,6 +633,15 @@ func seamlessSelectionHead() []outboundPacket {
 // it is dropped here: the direct move replays the town selection entry exactly.
 func (w *worldSession) directMoveEntryPlan(sel protocol.DungeonSelection, s *dungeon.Session) ([]outboundPacket, error) {
 	return w.dungeonEntryPlan(context.Background(), "dungeon_select_ack", 16, sel, s)
+}
+
+// dungeonRelayFlag 是 NOTI27 头部 `relay` 字节（0 = 普通进本 / 1 = 无缝再次挑战）。
+// 与 dungeonEntryKind 同源同因：都来自 seamlessRetry，见下一处注释与 next178 §3/§12。
+func (w *worldSession) dungeonRelayFlag() byte {
+	if w != nil && w.seamlessRetry {
+		return 1
+	}
+	return 0
 }
 
 // dungeonEntryKind 是 NOTI28 body[30] 的「入口类型」：0 = 普通进本，5 = EPLP 无缝再次挑战。
