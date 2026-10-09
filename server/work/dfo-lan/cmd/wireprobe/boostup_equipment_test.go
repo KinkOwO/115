@@ -11,6 +11,7 @@ import (
 	"dfolan/internal/loot"
 	"dfolan/internal/workflow"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"testing"
 	"time"
@@ -172,47 +173,72 @@ func assertBoostWearSQL(t *testing.T, ctx context.Context, store *database.TestF
 	}
 }
 
-// 662 教学期的图鉴窗口（panel 36 / 来源窗口 0x054131D0）必须改派为**变换**。
-//
-// 教学第 10 关的目标是"把图鉴已登记的那件换到点名槽位"（业主 2026-10-04 口径），
-// 而该窗口实测发 `[12]=0`（生成）。不改派的话：走的生成路径只把装备放进背包，
-// 且成本按 [create cost] 兜档收 35,000 金币 ⇒ 学员号被拒、界面「点了没反应」。
+// 用改变源任务/步骤和领取事实验证分派，不把旧样本 panel=36 当规则。
 func TestBoostJournalWindowRoutesToTransform(t *testing.T) {
 	inTrack, e := boostup.WriteState(json.RawMessage(`{"level":115}`),
-		boostup.State{Version: 1, Activated: true, Training: boostup.Training{Step: 10, Phase: 2}})
+		boostup.State{Version: 1, Activated: true, Training: boostup.Training{Step: 1, Phase: 2, Claimed: map[byte]bool{1: true}}})
 	must115(t, e)
-	w := &worldSession{boostup: &boostup.Catalog{}, role: database.Character{ID: 1, State: inTrack}}
-	win := protocol.EquipmentCraftRequest{Panel: boostJournalPanel, Context: 0x054131D0, Action: 0}
-
-	// ★ context 随窗口实例变（2026-10-04 0x054131D0 / 2026-10-05 0x5453070），
-	// 不是窗口标识 —— 门禁只看 panel。钉死 context 会让教学期退回生成路径（实测踩过）。
-	otherContext := win
-	otherContext.Context = 0x5453070
-	if !w.boostJournalSwap(otherContext) {
-		t.Fatal("context 变化不应影响改派（它随窗口实例变，不是标识）")
+	cat := &boostup.Catalog{Steps: []boostup.Step{{Number: 1, Mission: "transform equip journal or equip item"}}}
+	w := &worldSession{boostup: cat, role: database.Character{ID: 1, State: inTrack}}
+	win := protocol.EquipmentCraftRequest{Action: 0}
+	for _, header := range []uint32{36, 46, 164, 0, ^uint32(0)} {
+		win.Panel, win.Context = header, header*17
+		if !w.boostJournalSwap(win) {
+			t.Fatalf("已领取的源变换任务被请求头 %d 阻断", header)
+		}
 	}
-
-	if !w.boostJournalSwap(win) {
-		t.Fatal("教学期图鉴窗口应改派为变换")
-	}
-	// 别的窗口（既有取证：panel=164 / 0x46ece836 是变换、0 / 0x005ff2f9 是生成）不改派。
-	other := win
-	other.Panel, other.Context = 164, 0x46ece836
-	if w.boostJournalSwap(other) {
-		t.Fatal("非教学窗口不应改派")
-	}
-	// 出关后不再改派：免单与改派都不得外溢。
-	finished, e := boostup.WriteState(json.RawMessage(`{"level":115}`),
-		boostup.State{Version: 1, Activated: true, Training: boostup.Training{Step: 11, Finished: true}})
-	must115(t, e)
-	w.role.State = finished
+	cat.Steps[0].Mission = "equip item"
 	if w.boostJournalSwap(win) {
-		t.Fatal("出关后不应改派")
+		t.Fatal("改变源任务后仍被当成变换")
 	}
-	// 活动关闭时不改派。
+	cat.Steps[0].Mission = "transform equip journal or equip item"
+	for _, training := range []boostup.Training{
+		{Step: 1, Phase: 0}, {Step: 1, Phase: 1}, {Step: 1, Phase: 2},
+		{Step: 2, Phase: 2, Claimed: map[byte]bool{2: true}},
+		{Step: 1, Phase: 2, Finished: true, Claimed: map[byte]bool{1: true}},
+	} {
+		w.role.State, e = boostup.WriteState(json.RawMessage(`{"level":115}`), boostup.State{Version: 1, Activated: true, Training: training})
+		must115(t, e)
+		if w.boostJournalSwap(win) {
+			t.Fatalf("未领取/非任务期不应改派：%+v", training)
+		}
+	}
+	w.role.State, e = boostup.WriteState(json.RawMessage(`{"level":115}`), boostup.State{Version: 1, Training: boostup.Training{Step: 1, Phase: 2, Claimed: map[byte]bool{1: true}}})
+	must115(t, e)
+	if w.boostJournalSwap(win) {
+		t.Fatal("未激活角色不应改派")
+	}
 	w.role.State = inTrack
 	w.boostup = nil
 	if w.boostJournalSwap(win) {
 		t.Fatal("活动关闭时不应改派")
+	}
+}
+
+// 原生实机向量：034251_994078_next37/events.jsonl:966。直接验证网关选择了
+// 变换分支；observe 仅使测试不写库，生产仍走同一分支的现有原子变换事务。
+func TestBoostJournalCapturedConfirmRoutesToTransform(t *testing.T) {
+	p, e := hex.DecodeString("2e00000000000000f0d7830000010000002e0000ffffffff2e0000ffffffff030e0059a9f6052e0000ffffffff2e0000ffffffff2e0000ffffffff2e0000ffffffff2e0000ffffffff2e0000ffffffff2e0000ffffffff2e0000ffffffff2e0000ffffffff2e0000ffffffff2e0000ffffffff00010000000000000000000000")
+	must115(t, e)
+	r, e := protocol.DecodeEquipmentCraftRequest(p)
+	must115(t, e)
+	slots, templates := r.Wanted()
+	if r.Panel != 46 || r.Action != 0 || len(slots) != 1 || slots[0] != 14 || templates[0] != 100051289 {
+		t.Fatal("实机向量解析不符", r, slots, templates)
+	}
+	raw, e := boostup.WriteState(json.RawMessage(`{"level":115}`), boostup.State{Version: 1, Activated: true,
+		Training: boostup.Training{Step: 10, Phase: 2, Claimed: map[byte]bool{10: true}}})
+	must115(t, e)
+	cat := &boostup.Catalog{Steps: make([]boostup.Step, 10)}
+	cat.Steps[9] = boostup.Step{Number: 10, Mission: "transform equip journal or equip item"}
+	w := &worldSession{boostup: cat, role: database.Character{ID: 3, State: raw}}
+	before := equipmentTransformApply
+	equipmentTransformApply = "observe"
+	t.Cleanup(func() { equipmentTransformApply = before })
+	var kind string
+	plan, e := w.equipmentCraft(p, func(event map[string]any) { kind, _ = event["kind"].(string) })
+	must115(t, e)
+	if kind != "equipment_craft_transform_planned" || len(plan) != 1 || plan[0].ID != protocol.EquipmentCraftOpcode {
+		t.Fatal("确认请求仍走生成分支", kind, plan)
 	}
 }

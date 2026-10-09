@@ -13,6 +13,14 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-10 Boost 662 教程装备变换推进确认
+
+**已修复 / 已完成**：业主确认“已确认教程推进，可提交”。移除教学装备库请求的 panel=36 固定门禁，按当前PVF任务类型及已领取状态分派变换，避免确认被误作装备生成。复用现有换装、图鉴记账与源条件推进事务；确认源码候选8d3b2d50。详见 `server/work/dfo-lan/docs/protocol/boostup662-transform-confirmed-baseline-20261010.md`。
+
+**未修复 / 未闭环**：确认范围为本角色教程装备变换及推进，不扩大为全部职业、普通装备库分派或全部费用规则。旧教学免单特例仍未接入源[discount cost]，留在PVF迁移计划；误生成的两件装备未自动删除。默认程序、39归档、PVF、客户端、schema及SQLite存档结构保持。
+
+**bug 测试取证**：040737_176050_next37会话 `events.jsonl:229..235` 记录角色3确认CMD2259、槽14从100051288变为100051289（applied=true、gold=0），后续N14/N13/N2610/N2638齐备。权威IDB一致副本IDA确认旧头字段采样值不能作固定窗口身份；原始请求回归及源任务/领取边界测试通过。Go1.26.0全量build/vet/test通过；提交前按当前实际远端gud/main同步，HEAD与远端0/0，无需合并。二进制、日志、存档及其他工作区改动不入库。
+
 ## 2026-10-10 Boost 662 训练 APC 与第二关通过确认
 
 **已修复 / 已完成**：业主确认“训练用APC出现了，能通过第二关”，截图显示“训练小助手”。服务端接入CMD2333→NOTI1754(mode3)→CMD1811→NOTI1382/1879原生准备链，NPC选择从当前PVF特殊APC `[index]` 读取，修正误发AIC模板号；周期账号刷新保留已准备的活动名单。源链为special_apc.etc→boostup reader→会话临时选择→原生NPC创建，不新增玩法表、不写账号精锐存档。confirmed源码候选6b93bfdc；详见 `server/work/dfo-lan/docs/protocol/boostup662-teaching-apc-confirmed-baseline-20261010.md`。
@@ -2026,6 +2034,8 @@ Clone复制外观改为来源关联，普通装扮保留在背包；解除复制
 ---
 
 ## 跨阶段未闭环总表
+
+- Boost教程装备库费用收敛：本次装备变换及教程推进已确认；旧教学免单特例与源 `[discount cost]` 的接线仍待客户端字段语义及授权差异范围闭环，普通请求头完整语义未确认。见本文件“Boost 662 教程装备变换推进确认”、`server/work/dfo-lan/docs/protocol/boostup662-transform-routing-20261010.md` 与 `docs/todo/pvf/PVF单一内容真源改造计划.md`。
 
 - 精锐普通/剧情/奥德赛接入：普通首房两名APC原生登记及可见AI行为已局部确认；伤害/击杀/召唤归属、奖励、换房/重复入场/回收、剧情/奥德赛及特殊队伍待证；见本文件“精锐普通首房原生登记及 AI 行为局部确认”及 `docs/todo/adventure-elite-ordinary-plan.md`。
 
