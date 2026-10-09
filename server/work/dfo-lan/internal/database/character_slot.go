@@ -121,3 +121,10 @@ func (s *Store) ChangeCharacterSlots(ctx context.Context, account int64, r Chara
 	}
 	return nil
 }
+
+// AccountSlotBonus returns the account-level extra character slots granted by
+// the cash-shop Character Slot Extension Kit (account-level column, takes
+// effect on purchase).
+func (s *Store) AccountSlotBonus(ctx context.Context, account int64) (int32, error) {
+	return s.queries.AccountSlotBonus(ctx, account)
+}

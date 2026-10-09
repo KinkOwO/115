@@ -560,6 +560,12 @@ type BagLedger interface {
 	PurchaseCashToBag(context.Context, CashOrder, func(json.RawMessage) (json.RawMessage, error)) (CashReceipt, bool, error)
 }
 
+// CharacterSlotLedger grants the account-level character-slot bonus inside the
+// same cash transaction (Character Slot Extension Kit, 购买即生效)。
+type CharacterSlotLedger interface {
+	PurchaseCashCharacterSlots(context.Context, CashOrder, int) (CashReceipt, bool, error)
+}
+
 // ContractCartLedger activates every named contract line and delivers the
 // remaining lines of one order inside a single transaction, so a cart may mix
 // contracts with ordinary merchandise (实机 2026-09-23:合并购买契约被旧的
@@ -608,6 +614,9 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 		return receipt, applied, err
 	}
 	if receipt, applied, handled, err := p.TryPurchaseInventoryExpansion(ctx, ledger, account, character, key, cart); handled || err != nil {
+		return receipt, applied, err
+	}
+	if receipt, applied, handled, err := p.TryPurchaseCharacterSlotExpansion(ctx, ledger, account, character, key, cart); handled || err != nil {
 		return receipt, applied, err
 	}
 	for _, item := range cart {

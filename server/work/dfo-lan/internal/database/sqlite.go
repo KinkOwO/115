@@ -216,6 +216,7 @@ var sqliteMigrationSections = []string{
 	"0036_mailbox.sql",
 	"0037_gm_mail.sql",
 	"0038_omen_pity.sql",
+	"0039_character_slots_bonus.sql",
 }
 
 // migrateSQLiteAll brings a fresh (or already migrated) SQLite database up to the

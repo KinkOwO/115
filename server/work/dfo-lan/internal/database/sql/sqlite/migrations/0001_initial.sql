@@ -647,3 +647,16 @@ CREATE INDEX IF NOT EXISTS gm_mail_to_char_idx ON gm_mail(to_character_id, statu
 ALTER TABLE character_omen_state ADD COLUMN misses INTEGER NOT NULL DEFAULT 0 CHECK(misses>=0);
 
 -- end migration
+
+-- migration: 0039_character_slots_bonus.sql
+-- Cash-shop Character Slot Extension Kit (product 3000152 / template 2660239)
+-- takes effect at purchase: account-level extra character slots, +1 per kit.
+-- ADD COLUMN is used instead of folding the column into 0001_core's CREATE
+-- TABLE: migrateSQLite keys its ledger on each section's checksum, so editing
+-- the applied 0001_core section would make existing saves refuse to open. The
+-- column is an account-level cap bonus, stacked on Rules.MaxCharacters when
+-- creating characters and listing rosters; the client roster UI follows the
+-- uint16 cap sent with the list.
+ALTER TABLE accounts ADD COLUMN character_slots_bonus INTEGER NOT NULL DEFAULT 0 CHECK(character_slots_bonus BETWEEN 0 AND 65534);
+
+-- end migration
