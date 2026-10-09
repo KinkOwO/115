@@ -674,10 +674,16 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 				return nil, nil, e
 			}
 		}
-		developmentAccount, e = s.DevelopmentAccount(ctx, "probe")
+		developmentAccount, e = s.DevelopmentAccount(ctx, startup.Account)
 		if e != nil {
+			// UPSERT 带 WHERE accounts.development_only：名字已被正式账号占用时没有返回行，
+			// 而不是报错。不包这一层，玩家看到的只是启动期一条裸 ErrNotFound。
+			if errors.Is(e, database.ErrNotFound) {
+				return nil, nil, fmt.Errorf("account %q 已存在但不是开发账号（accounts.development_only=0），换一个名字", startup.Account)
+			}
 			return nil, nil, e
 		}
+		log.Printf("login account: %s (id=%d)", startup.Account, developmentAccount)
 	}
 	if startup.EntryAdditionProbe && !startup.EntryBasicProbe {
 		return nil, nil, errors.New("addition requires a basic actor")
