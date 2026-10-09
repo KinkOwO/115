@@ -179,6 +179,255 @@ Go 1.26 `go build ./...`、`go vet ./...`、`go test ./... -count=1` 通过，�
 
 ---
 
+## 2026-10-08 末世录军团本（内容 107 / 频道 Type 119）**运行时流程**移植
+
+**范围**：`server/work/dfo-lan/` 服务端。
+`internal/catalog/apocalypse.go`（目录解析层）与 `configs/apocalypse.generated.json`
+已在库中；本阶段补的是**玩法运行时**：进频道 → 待机区建队 → 难度确认 → 攻坚房间 →
+六关推进 → 角色分配 → 清关翻牌 → 通关视频 → 收面板。
+
+**新增文件（18）**：
+- `internal/legion/apocalypse.go`、`apocalypse_info.go`、`apocalypse_reward.go`（+2 测试）
+- `internal/game/protocol/apocalypse_party.go`
+- `cmd/wireprobe/apocalypse_run.go`、`apocalypse_stage.go`、`apocalypse_timer.go`、
+  `apocalypse_reward_flow.go`（+7 测试：run / stage / timer / reward_flow / advance /
+  sequence / dispatch_routing）
+- `internal/toolcmd/flippool/main.go`（现场枚举内层 PVF 生成终局翻牌池的工具）
+- `configs/apocalypse-flip-gear.generated.json`
+
+**共享文件接线（18）**：`world_flow.go`（会话字段）、`legion_flow.go`
+（`apocalypseChannelType=119`、`isApocalypse/apocalypseRan`、`sideOf(CMD2355)` 放宽为
+`either`、末世录路由块）、`client_connection.go`（会话镜像 + 5 处 ticker 挂点）、
+`client_dispatch_world.go`（待机区 CMD12/13 **前置块**、CMD191 优先分支）、
+`dungeon_flow.go`（N1584、CMD2062 直进早退、`bossCheck` 阶段投影、`completeDungeon`
+阶段本分支、掉落门禁）、`card_flow.go`（CMD72 挂起续关 / 通关关闭态）、
+`adventure_refresh.go`（`forceAdventureRefresh`：清关无条件重发 N1337/N1331/N2425）、
+`bootstrap.go` + `config.go`（`-apocalypse-flip-gear`）、`internal/launcher/gateway.go`(+test)、
+`cmd/dfo-tool/main.go`、`testdata/config_{legacy,help}.json`。
+
+**顺带修掉的上游既有 BUG（2）**：
+1. `dispatchForest` 的 `default:` 分支对外来内容号回**共享 ACK** ⇒ 内容 107 的 CMD2043
+   被苏醒之森吃掉：客户端以为开战成功，服务端从未进 channel（日志只有
+   `forest_start_unmatched`，没有 `legion_entered_channel`），后续 CMD2354 因「还没有
+   CMD2043」被拒，开团流程整条卡死。改为记 `forest_start_foreign_content` 后
+   `return dispatchNext`。由新增测试 `TestApocalypseStartIsNotClaimedByForest` 抓出。
+2. `sideOf(CMD2355)` 原判 `dungeon`；实机抓包 `20261008-105227` 显示客户端在**攻坚房间**
+   （CMD2062 载入，服务端尚无 activeDungeon）内连发两次 ⇒ 必被拒。按证据放宽为 `either`，
+   `TestLegionSideClassification` 同步更新。
+
+**验证**（本分支基于 `main`）：
+- `go build ./...`、`go vet ./...` 通过；
+- `go test ./... -count=1`：**46 个包全部 ok**；
+- `git status --short` 改动集 = 18 修改 + 18 新增，未夹带其它工作线。
+
+**修掉的问题（本轮）**：
+- **难度选择框倒计时为 0、永不自动关闭**（业主 2026-10-08 报：框内无关闭按钮，不选难度
+  即卡死；维纳斯同类框正常）。根因：CMD2354 成功响应里**没有下发倒计时截止值**
+  （操作记录 `byte@6..9` = 正文 `@9..12`，规格《2354-LEGIONOPERATION成功响应》
+  第 85 行「`u32@6` 被写入子面板+1000，用于倒计时截止值」），全零 ⇒ 客户端对 0
+  不做任何事。修法照维纳斯可用先例（`VenusOperationAck(1,false,deadline,0)`）：
+  开窗（action1）下发 `now + ApocalypseSelectionSeconds`，确认（action2）传 0。
+  > 更正一条旧结论：此前一次失败后判为「客户端不认该字段」并回退 —— **是错的**。
+  > 那次把截止值写到正文 `@7..10`、关闭位写到 `@11`，**整体提前 2B**，压掉了真正的
+  > 关闭位 `byte@5`（正文 `@8`）⇒ 点 Open 完全没反应（客户端连发 9 次 action1）。
+  > 新增护栏测试 `TestApocalypseOperationDeadlineDoesNotClobberCloseBit` 钉住这两个偏移，
+  > 并在 `apocalypse_run_test.go` 端到端断言 action1 的 ACK 截止值非 0。
+- **难度框倒计时到 0 之后不关窗**（第二轮实机：截止值补上后倒计时已能 15→0 递减，
+  说明偏移与时基都对，但到 0 什么都不发生）。根因：**强制关窗帧的 Action 写成了 0**。
+  原生 reader 的关闭分支判据是「**Action1 + close=1**」（维纳斯 `venusOperationClose`
+  推 `VenusOperationAck(1,true,0,0)` 且注释明写此判据）。events.jsonl 实证服务端
+  15 秒确实发了该帧 `016b000000000000010000000000000000`（Action=0），客户端完全不理。
+  修法：`ApocalypseOperationClose()` 补 `Action=1`，关闭位与截止值不变；
+  护栏测试新增断言 close ack 的 Action == 1。
+- **死亡被请离后点右上角「进入」没有任何反应**（第三轮实机）。角色在副本内死亡 →
+  10 秒倒计时判负 → 被请离回城；此后点面板「进入」，客户端**正确**地带着保存阶段
+  发 CMD2045（实测 `…6b000000 02000000…`，stage=2），服务端却把它当**首次入场**拒绝：
+  `{"id":2045,"kind":"legion_refused","reason":"apocalypse first entry carries stage 2, want 0"}`。
+  根因：死亡请离链 `player_death.go:deathFailLeave` 只为维纳斯清了阶段时钟，
+  **没有给末世录置 `Suspended`** ⇒ `apocalypseEnter` 落进首次入场分支。
+  注意这条与**阶段时限超时**（`apocalypseStageTimeout`，本来就置挂起）是两条不同路径，
+  只测超时那条会漏掉本 BUG。
+  修法：在该链上按维纳斯同型补一段 —— `w.apocalypse != nil` 时置 `run.Suspended = true`
+  （保留 Stage/Cleared/Choice/RunID；该关倒计时由 `apocalypseEnter` 按 ResumeStage 重置），
+  并发 `apocalypse_death_suspended` 事件。复活币复活（不请离）不走本函数、不受影响。
+  护栏测试 `TestApocalypseDeathLeaveSuspendsRunForResume`（已反向验证：禁用修复即红）。
+- **死亡请离后点「进入」仍然没反应 —— 服务端漏发 NOTI2895**（第四轮实机）。上一轮补上
+  `Suspended` 后拒绝原因变了，从「首次入场」变成阶段不匹配：
+  `{"id":2045,"kind":"legion_refused","reason":"apocalypse resume stage 0 does not match the saved stage 2"}`
+  —— 客户端报 **0**，而保存阶段是 **2**。
+  根因（events.jsonl 逐帧实证）：**服务端主动推进阶段时不补发 NOTI2895**。
+  客户端把收到的 N2895 `@13` **原样回送**成 CMD2045 `@17`，而这条「攻坚房/导航房清空后
+  自动进下一关」的路径只加载房间、不发 N2895：
+  ```
+  apocalypse_navigation_cleared  N2895 @13=0   ← 客户端最后看到的阶段
+  apocalypse_server_advanced     run.Stage=2    ← 服务端自己推进，未告知客户端
+  CMD2045 @17=0 → 被拒 → 看不出任何反应
+  ```
+  （战斗关的清关投影 `apocalypseStageProjection` 本来就发这一帧，所以只有这条路径漏了。）
+  修法两处：
+  1. `apocalypse_stage.go`：服务端推进后**补发权威 NOTI2895**（放在进图帧序之后，
+     先载完新房间再告知阶段），事件 `apocalypse_advance_stage_published`。
+  2. `apocalypse_run.go`：续关时对**陈旧阶段值**改硬拒为容忍 —— 本场只有这一条 run
+     （Suspended = 同一作战已暂停），服务端才是权威，按保存阶段续关，并把不符记进
+     `apocalypse_navigation_prepared` 事件（`resume_stage_stale` / `resume_stage`）
+     以便继续收敛漏发点。
+  护栏测试 `TestApocalypseServerAdvancePublishesStage`（断言推进后最后一帧是 N2895 且
+  `@13 == run.Stage`）与 `TestApocalypseResumeToleratesStaleClientStage`（断言陈旧值被
+  按保存阶段受理且留痕）—— **两条都已反向验证**：各自禁用对应修复即红。
+- **死亡请离后点「进入」能进去了，但回到的是前一关**（第五轮实机）。
+  根因：**客户端主动 CMD2062 直进**这条快路径也漏发 NOTI2895。
+  实机 16:47 完整链条（events.jsonl）：
+  ```
+  16:47:15  CMD2045 续关 → N2895 @13=2（在第 1 关）
+  16:47:31  apocalypse_advance_swept（sweep 已排推进）
+  16:47:33  客户端自己发 CMD2062 → 本路径载入 index 2（第 2 关），run.Stage=3
+            **但不发 N2895** ⇒ 客户端仍以为在 stage 2
+  16:47:45  角色死亡 → 16:47:55 请离（run.Stage=3）
+  16:47:57  点「进入」→ 客户端回送 @17=2 → 命中 `case want-1` ⇒ 载入 index 1
+            ⇒ 业主看到的「回到前一关」
+  ```
+  修法：`apocalypse_run.go` 的 `apocalypseDirectMove` 在进图帧序之后补发权威 NOTI2895
+  （与 `apocalypseAdvanceDue` 同款）。至此生产代码里给 `run.Stage` 赋值的四个点
+  （重置 0 / 清关投影 / 服务端推进 / 客户端直进）**全部都会把新阶段告知客户端**。
+  护栏测试 `TestApocalypseDirectMovePublishesStage`（已反向验证：删掉补发即红）。
+  顺带修掉一个**既有夹具缺陷**：`apocalypseTestDungeons` 原先用 `range` 一个 map 挑 donor
+  （Go 的 map 顺序随机）+ 已存在的副本 ID 会被跳过 + 只清迷宫 `Quest` 不清 `Pending`
+  ⇒ 新护栏真的载入战斗关后暴露为偶发
+  `entry unavailable: no resolved source maze / missing source start room`。
+  改为：按 ID 升序、**用 `dungeon.Select` 本身当探针**取第一个真能开出战斗关的 donor，
+  六个阶段副本 ID 无条件覆盖（`cloneOf` 同时清 `Quest` 与 `Pending`）。连跑 6 次稳定通过。
+- **复活币次数不受 `[allow coin]` 约束**（第六轮实机：难度1 每关应限 8 个却在第 1 关用掉
+  99 个；难度2 应禁止却能照用）。
+  **这不是回归**：本阶段 6 个 commit 触碰的 40 个文件里没有任何 revive/2621/coin 相关文件，
+  且全仓 `N2621`（剩余复活次数）只对蔚蓝号实现过 —— 末世录的复活经济**从来没被移植过**。
+  根因：真源字段 `[allow coin]`（PVF `apocalypse.ctp` 的 `[operation data set]`）**已被解析**
+  （`internal/catalog/apocalypse_import.go` 的 `colAllowCoin` → `RunPlan.AllowCoin`），
+  但唯一消费者是日志事件（`legion_flow.go` 的 `allow_coin` / `allow_coin_values`），**从未执行**。
+  实测只有作战①（难度1）带该列、值 `-1, 8`；作战②/③/④ 都没有该列。
+  业主 2026-10-08 定调语义：**最后一个数 = 每关上限；无该列 = 禁止复活**。
+  修法（照巴卡尔团本 `CheckCoinBudget` / `SpendCoinBudget` 同型）：
+  1. `ApocalypseRunState.RevivesUsedThisStage` —— 本关已用次数；
+  2. `apocalypseStageEntry` 里归零（CMD2045 / CMD2062 直进 / 服务端推进三条进关路径
+     都经过它，是唯一归零点）⇒ 粒度是**每关**而非每局；
+  3. `apocalypseCoinLimit` / `apocalypseCheckCoinBudget` / `apocalypseSpendCoinBudget`
+     放在 `apocalypse_run.go`；`useCoinRevive` 在 `resolveCoinRevive` **之前**判闸、
+     成功后再扣（被拒不消耗存档）。
+  护栏 `apocalypse_revive_test.go` 六条：8 次上限与第 9 次拒绝、无该列即禁止、上限 0 即禁止、
+  非末世录关卡不适用、进关归零、以及端到端两条（难度2 第一次即拒且不动存档 /
+  难度1 第一次成功并记 1 次）。**已反向验证**：临时禁用闸门调用，
+  `TestApocalypseUseCoinReviveRefusedWithoutAllowCoin` 立即失败（打印出 3 帧复活包）。
+  > 仍未闭环（上游 `analysis/dumps/CLIENT-MECHANICS.md:235` 同列此条）：`-1, 8` 的**时基/单位**
+  > 与「免费额度 vs 账号币」的区分；本实现按业主口径取最后一个数为每关上限。
+- **难度2 死亡时仍出现「请按X键使用复活币」提示**（第七轮实机：业主在 2号 对照 ——
+  2号 死亡时**没有**该提示，1号 有）。
+  根因：**N1584 `STACKABLE_DUNGEON_LIMIT` 的 `@0` 写死 8**，而它的真源是所选作战的
+  `[allow coin]`。该帧正是「本关允许使用几个消耗品」的载体（本文件所在函数上方的注释：
+  「**没有这一帧客户端把消耗品全部本地禁用**」），而复活币本身就是可叠加道具
+  ⇒ 难度2（该作战没有 `[allow coin]`）写死发 8，客户端于是画出复活币入口。
+  实测对照：`20261008-195838`（2号）抓包里 **op=1584 计数为 0**（全场不发），
+  死亡时无该提示；本服此前每关都发 8。
+  修法：`apocalypseStackableLimit(selID)` 从作战的 `[allow coin]` 取值 ——
+  难度1 → 8；难度2/3 → **不发该帧**（与 2号 形状一致）。顺带消掉一处 §0 写死值。
+  护栏两条（均已反向验证）：
+  `TestApocalypseStackableLimitFollowsAllowCoin`（helper 层：难度1=8、难度2/3 不发、
+  非末世录副本不适用）与 `TestApocalypseEntryStackableLimitPerOperation`（**进图帧序**层：
+  难度1 必须恰好一帧且 `@0=8`、难度2 必须一帧都没有）—— 反向验证：把帧序改回写死 8 即红，
+  报「难度2 的进图帧序里出现了 1 帧 N1584」。
+  同时把 `apocalypseCoinLimit` 拆出 `apocalypseOperationCoinLimit(stageDungeonID)`：
+  进图帧序是在 `activeDungeon` 建立**之前**按 `sel.ID` 组装的，那时读不到 activeDungeon。
+  ⚠️ 本轮发现两棵树在**上游层面**已分叉：`dungeon_flow.go` 相差 292 行（本工作树是较早
+  状态）⇒ 该共享文件此后一律**按块合并**、禁止整文件复制；本轮合并后该文件仅 +16/−3。
+- **回滚上一条**（N1584）：业主实机复测证明「难度2 仍出现复活提示」**未解决**，且明确指示
+  「2号 自身有大量 BUG，不要拿它当参照」。⇒ 末世录恢复为**每关都发 N1584 @0 = 8**
+  （与维纳斯/苏醒之森同口径）。同时澄清：N1584 的真源语义是「本关允许使用几个可叠加消耗品」，
+  与复活币闸门（`[allow coin]`，由 `apocalypseCoinLimit` 判定）**是两件事**。
+- **删除「房间里补发的 N2895」—— 它才是地图内三症状的真凶**（第八轮实机对照）。
+  症状（业主报）：难度1 右上角复活币数字显示 **99**（老版本为 8）、难度2 死亡出现
+  「请按X键使用复活币」、副本内**药水被禁用**。
+  排查：先排除 CMD2354 应答 `@9..12` 的截止值（把它改回 0 后数字**仍是 99**，⇒ 该格无辜），
+  再逐条对比「老版本会话 vs 本版会话实际发出的帧」，**新增的帧只有第4/5轮那两条**：
+  `apocalypse_advance_stage_published`（服务端推进后补发）与
+  `apocalypse_direct_move_stage_published`（客户端 CMD2062 直进后补发）——
+  **老版本从不发这类「房间里补发的 N2895」，而它地图内一切正常**。
+  时序也吻合：业主「数字 99」的截图所在房间，正是 `direct_move_stage_published` 之后那一间。
+  机理：客户端把每一条 NOTI2895 当作「当前作战状态」整体重读，进图后再塞一帧会把
+  作战状态冲掉（复活额度显示、复活分支、消耗品许可同源）。
+  ⇒ 两处补发**删除**，撤销因此不再依赖它们（见下一条）。
+- **续关改为「服务端权威」**（第九轮实机）。删除续关阶段判定的 `case want, want-1` 分支，
+  一律 `ResumeStage = run.ContinueStage() - 1`（当前所在房间 = 已进入过的房间数 − 1）；
+  客户端 `@17` 只用于诊断（不符记 `resume_stage_stale`）。
+  依据（会话 `roles_..._20261009_030620_232753_next37`，同一条 run）：
+  `19:10:43` 服务端 `run.Stage=3`、客户端报 `2`（陈旧一格）→ 旧代码走 `case want-1`
+  并算 `requested-1 = 1` ⇒ 载入 `100004995`（第 1 关）= 业主报的「回到前一关」；
+  `19:11:06` 服务端 3、客户端 3 ⇒ 载入 `100005057`（第 2 关）✓。
+  同场两种结果并存 ⇒ 业主报的「不一定回到刚退出的那一关」。
+  **为什么客户端值不可靠**：它来自客户端最后收到的 N2895 `@13`，而这类补发已删除。
+  护栏 `TestApocalypseResumeIgnoresClientStageDelta`（6 组偏差：一致/陈旧一格/陈旧两格/
+  超前/报 0/第 5 关报 0）断言**任何客户端值都重建同一间**；已反向验证（把偏移加回去即红）。
+  同时反转护栏：`TestApocalypseAdvancePathsDoNotRepublishStage` 钉「推进/直进**不得**补发 N2895」。
+- **作战选择窗时长：按业主拍板保持 15 秒**（不在本 MR 改成源表的 40 秒）。
+  真源 `legionsystem.cos` 的 `operation select limit time` 对末世录是 40 s（已解析进
+  `catalog.LegionContent.SelectLimit`），本实现按业主指定沿用维纳斯口径 15 s；
+  `ApocalypseSelectionSeconds` 的注释已写明「**这是有意保留，不要当写死值去修**」，
+  以免日后被误改而破坏业主已验收的倒计时表现。
+- **仍未闭环（已在代码注释与本文档登记，不在本 MR 声称完成）**：
+  1. 难度2 死亡时客户端**仍会画出**复活提示入口（服务端正确拒绝、账号币不扣）；
+     两次实机分别「从第 2/第 3 个 BOSS 起」出现 ⇒ 阈值浮动，需官服抓包或 IDA 才能定位
+     下发抑制的帧。
+  2. `NOTI2896`（作战列表）未发、难度3（作战③ master）入口未开：载荷布局未取证。
+  3. `[allow coin] = -1, 8` 两字段的时基/含义（上游 `CLIENT-MECHANICS.md:235` 亦列为未闭环）。
+  4. **「点开始作战 → 横幅 → 约 3 秒后自动弹出难度选择框」未实现**（业主 2026-10-09 报，
+     同日拍板**暂缓**、列入本清单）。该表现的载体是 **`NOTI2568 PREPARE_LEGION_ENTER_DUNGEON`**，
+     本轮用 IDA 9.4（`D:\115US-001\DFO.exe.i64`）反编译 + `analysis/dumps/xorstr_addr_to_text.json`
+     解密字符串**已解出全部字段语义**：它是 **`CNTownModule::onStartSeamlessLoading`（"无缝加载进本"）
+     的触发器**，不是横幅本身 —— 客户端据此把玩家从军团频道无缝送进该内容的等待区
+     （等待区取自客户端自己的 `legionsystem.cos` waiting_area），到了等待区难度框才自动弹出。
+     字段：`@0` = 失败码（0 = 开始；非 0 走 `… failed %d`）、`@4` = type、
+     `@12` = passive（被动对象 id，**只在 > 0 时**查表/生成）、`@8` 从不读；且它是 **toggle**
+     （翻 `CNTownModule+1416`）⇒ 每场只能发一次。
+     **为什么暂缓**：两轮实机都让客户端掉线 —— ① `@12` 照抄官服**苏醒之森**样本（= 森林的
+     被动对象）⇒「播放苏醒之森演出 + 界面全消失」；② `@12 = 0`（跳过被动对象）+ `@4 = 1`
+     ⇒ **界面依旧全消失**，会话日志显示客户端此后只发保活（`id=2127`×4），随后
+     `channel_refresh_finished error=EOF`、连接被强制关闭。根因是**它是一次"入场序列"的收尾帧**：
+     官服同一会话（`official_20261008-220048_live` s13）在它之前还发
+     `N546 USER_STATE_MOTION` → `N22 USER_POSITION` → **`N2565 FOREST_OF_AWAKENING_HARD_INFO`
+     （内容专属！）** → `N9 PARTY_INFO`，本仓这几帧**一个都不发**，故客户端状态机不满足前置条件。
+     **闭环条件**：一份**官服末世录**覆盖「点开始作战」**整个序列**的抓包（帧序 + 每帧载荷，
+     含末世录自己的内容专属信息帧）。构造器与护栏已就位（`legion.PrepareLegionEnterDungeon()`，
+     载荷现取 `@0=0/@4=1/@8=0/@12=0`，字段依据逐条写在函数注释里），且测试**反向钉死**
+     「谁单独发 2568 就直接失败」——补齐序列前不得发送。
+
+**未闭环 / 未验收**：
+- 上述截止值的**时基**：规格自标「未假定其时基，仍需单独校准」，本实现与维纳斯同口径
+  取**绝对 UNIX 秒**，**须实机校准**（若倒计时显示异常，第一嫌疑即时基）。
+- 2 号抓包 `20261008-105227` 的该字段为 0，与旧实现逐字节一致；但 2 号的难度框
+  同样不会自动关闭（业主确认）⇒ **那一帧是"带 BUG 的参考"**，不可作为字段应为 0 的依据。
+- 本分支**尚未实机验收**；业主本机树上的实机结论见 `docs/protocol/` 与本阶段取证记录，
+  未经收口不得视为「已确认」（`AGENTS.md` §0 第 7 条）。
+
+**取证缺口**：
+- N2896（`ENUM_NOTIPACKET_LEGION_OPERATION`）除首 u16 内容号外的字段语义；当前不发不猜。
+- 追加抓包 `official_20261008-220048_live` 经核验为**苏醒之森**（内容 105，副本号 100003xxx），
+  **不含末世录**（无 `id=2895` / `id=2354`，末世录六关副本号 100005xxx 出现 0 次）。
+  该包顺带校正两点：① 官方**确实会发** N2254 入场角色信息（既有规格《2254-…-未发》
+  结论有误）；② 官方 CMD2045 应答在**每次阶段转换**都补发一发（内容 u16 + 阶段字段），
+  而本实现只在收到客户端 CMD2045 时回一发 —— 形状差异待后续取证。
+- **N2568 的入场序列帧序**（新增）：字段语义已解（见上文未闭环第 4 条），但官服在 2568 之前
+  还发 `N546 USER_STATE_MOTION` → `N22 USER_POSITION` → `<内容专属信息帧，森林为 N2565
+  FOREST_OF_AWAKENING_HARD_INFO>` → `N9 PARTY_INFO`。**末世录的内容专属帧是哪一个、
+  这几帧的载荷各是什么，均未取证** ⇒ 补序列前不发（每条反向护栏见
+  `cmd/wireprobe/legion_flow_test.go::TestLegionStartAnswersWithAckThenInfo`）。
+  取证入口：`rz\006\IDA-2568取证\`（IDA 9.4 一键取证包：`run-ida-2568.cmd` +
+  `ida_legion_noti_consumers.py` + `ida_n2568_followup.py` + 已跑出的 `legion-noti-consumers\`）。
+
+**新增服务端 configs JSON 的说明**（`AGENTS.md` §0.4.1 要求显式说明）：
+`configs/apocalypse-flip-gear.generated.json` 的内容由 `internal/toolcmd/flippool`
+现场枚举内层 PVF 生成（`list/equipment.lst` → `[rarity]` 2/3/4 + `[minimum level]`=115 +
+可发放性），**未引入新的中间导出物**，与库中既有的
+`configs/venus-flip-gear.generated.json` 同类同用途（终局翻牌随机装备池）。
+
+---
+
 ## 2026-10-08 决斗场 PKC：exit 回城序列 + 街机模式 + **type 8/13 实测校正**（第二轮）
 
 **现象**：

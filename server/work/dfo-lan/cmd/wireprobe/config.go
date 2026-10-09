@@ -84,6 +84,7 @@ type Config struct {
 	Boxes                         string `koanf:"boxes" help:"deprecated path; requires the prepared native PVF boxes domain"`
 	CardRules                     string `koanf:"card-rules" default:"configs/cards.compat90.json" help:"separate compatible free-card policy"`
 	VenusFlipGear                 string `koanf:"venus-flip-gear" default:"configs/venus-flip-gear.generated.json" env:"DFO_VENUS_FLIP_GEAR" help:"venus terminal flip random-gear pool (row 1 slots 1-5, legion 106)"`
+	ApocalypseFlipGear            string `koanf:"apocalypse-flip-gear" default:"configs/apocalypse-flip-gear.generated.json" env:"DFO_APOCALYPSE_FLIP_GEAR" help:"apocalypse terminal flip random-gear pool (legion 107; rarity 2/3/4 = magic/unique/epic at 15/35/50)"`
 	SkillCatalog                  string `koanf:"skill-catalog" help:"deprecated skill JSON path; requires the native PVF skills domain"`
 	ChannelRefreshConfig          string `koanf:"channel-refresh-config" help:"separate local channel directory service for native refresh"`
 	ChannelIdentity               bool   `koanf:"channel-identity" default:"false" help:"candidate: synchronize NOTI2435 and all actor contexts with the connected channel"`

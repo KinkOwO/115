@@ -1115,6 +1115,16 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		venusFlipGearPool = flipGearPool.Templates
 		log.Printf("loaded venus flip gear pool: %d templates from %s", len(flipGearPool.Templates), startup.VenusFlipGear)
+		// 末世录翻牌专用池（业主 2026-10-08 方案 A）：115 级、按 rarity 2/3/4
+		// 分三档（魔法/神器/史诗）。维纳斯那个池子只有 rarity 2/3、缺 SS，
+		// 所以单独生成一份（见 internal/toolcmd/flippool）。
+		apocFlipPool, e := legion.LoadApocalypseFlipGearPool(startup.ApocalypseFlipGear)
+		if e != nil {
+			return nil, nil, e
+		}
+		apocalypseFlipGearPool = apocFlipPool
+		log.Printf("loaded apocalypse flip gear pool: %s (%d templates) from %s",
+			legion.ApocalypseFlipGearPoolStats(apocFlipPool), len(apocFlipPool.Tiers), startup.ApocalypseFlipGear)
 		if pvfCatalogs.Boxes != nil || startup.Boxes != "" {
 			boxes, boxErr := pvfCatalogs.LoadBoxes(startup.Boxes, lootService.Catalog.Source.Checksum)
 			if boxErr != nil {

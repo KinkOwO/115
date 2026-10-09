@@ -305,6 +305,12 @@ func buildGatewayCommand(in gatewayCommandInput) (gatewayCommand, error) {
 	// Scenario Mode 会因找不到配置文件启动失败。旧二进制没有这个 flag 时由
 	// PruneCommand 按 exe -h 的能力探测自动丢弃（连同它的值）。
 	command = append(command, "-venus-flip-gear", at("configs", "venus-flip-gear.generated.json"))
+	// 末世录终局翻牌装备池（业主 2026-10-08 方案 A）：115 级、rarity 2/3/4
+	// 三档（魔法/神器/史诗）= 15/35/50。同样必须给**绝对路径** —— 网关的 cwd
+	// 不是 dfo-lan，出厂相对默认值解析不到，服务端会以
+	// `open configs/apocalypse-flip-gear.generated.json: The system cannot find
+	// the file specified.` 启动失败（实机 2026-10-08 20:37）。
+	command = append(command, "-apocalypse-flip-gear", at("configs", "apocalypse-flip-gear.generated.json"))
 	// 服务端程序由外层选定（本启动器写 DFO_SERVER_BINARY）。
 	if chosen := env.Get("DFO_SERVER_BINARY"); chosen != "" {
 		command[0] = chosen

@@ -129,6 +129,13 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 		}
 		// Starter Boost 662：会话拿装配层冻结的活动目录；nil = 活动关闭，一切照旧。
 		client.worldState.boostup = client.boostCatalog
+		// 末世录（频道 Type 119）：CMD2062 直进要在 dungeon 派发层先于通用
+		// 「没有 activeDungeon 就拒绝」的守卫被接管，所以把 legionSession 挂到
+		// worldSession 上；apocalypse 指针在 apocalypseRun() 里随 run 建立同步
+		// 写回 worldState，两者始终指向同一份状态。
+		client.worldState.legion = &client.legionState
+		client.legionState.world = client.worldState
+		client.worldState.apocalypse = client.legionState.apocalypse
 	}
 	if client.worldState != nil {
 		defer client.worldState.departArea()
@@ -176,6 +183,41 @@ func (client *gameConnection) serve() {
 				if client.sendPlan(packets, client.logCharacterResponseBody) != nil {
 					return
 				}
+				// 末世录终局结算：清关那一刻挂起，约 400ms 后发翻牌链。
+				if grantPackets, grantEvents := client.worldState.apocalypseSettlementDue(now); len(grantPackets) > 0 || len(grantEvents) > 0 {
+					for _, note := range grantEvents {
+						client.event(note)
+					}
+					if client.sendPlan(grantPackets, client.logWorldResponseBody) != nil {
+						return
+					}
+				}
+				// 末世录难度框强制关闭：开窗 15 秒未确认难度就关窗并把状态复位成
+				// 未选（业主 2026-10-08，防「开了窗不选就卡死」）。
+				if closePackets, closeEvents := client.worldState.apocalypseSelectWindowDue(now); len(closePackets) > 0 || len(closeEvents) > 0 {
+					for _, note := range closeEvents {
+						client.event(note)
+					}
+					if client.sendPlan(closePackets, client.logWorldResponseBody) != nil {
+						return
+					}
+				}
+				// 末世录阶段推进兜底：清关后客户端没有发 CMD2062 时，由服务端自己
+				// 把下一关推进去（发全套进图帧）。见 apocalypseStageAdvanceDelay。
+				//
+				// 先 sweep：只要房间已清空而没有任何挂起推进就补排一次 —— 客户端
+				// 有时不发 CMD117（投影不跑），只靠投影会把推进链打断。
+				for _, note := range client.worldState.apocalypseAdvanceSweep(now) {
+					client.event(note)
+				}
+				if advPackets, advEvents := client.worldState.apocalypseAdvanceDue(now); len(advPackets) > 0 || len(advEvents) > 0 {
+					for _, note := range advEvents {
+						client.event(note)
+					}
+					if client.sendPlan(advPackets, client.logWorldResponseBody) != nil {
+						return
+					}
+				}
 				// 超时只打开矿区失败选项，保留会话供结束探索或放弃处理。
 				packets, err = client.worldState.blackPurgatoryTimeout(now)
 				if err != nil {
@@ -193,6 +235,7 @@ func (client *gameConnection) serve() {
 				}
 				// 维纳斯阶段倒计时到期：判定挑战失败、回待机区并复位 run（venus_stage_timeout）。
 				packets = client.worldState.venusStageTimeout(now, client.event)
+				packets = append(packets, client.worldState.apocalypseStageTimeout(now, client.event)...)
 				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
 					return
 				}

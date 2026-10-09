@@ -109,7 +109,31 @@ type worldSession struct {
 	forestPartyHard         bool
 	lastVenusResetCharacter int64
 	pendingRelicReset       bool
-	channelSpawns           map[uint32]database.WorldPosition
+	// apocalypse 是末世录（内容号 107 / 频道 Type 119）本场攻坚的会话状态；
+	// nil = 本连接没有开过 run。字节契约与证据见 apocalypse_run.go、
+	// apocalypse_stage.go 与 internal/legion/apocalypse*.go。
+	apocalypse *legion.ApocalypseRunState
+	// legion 是本连接的军团会话（同一份状态的宿主）。CMD2062 直进要在
+	// dungeon 派发层（而不是军团层）先于通用「没有 activeDungeon 就拒绝」的
+	// 守卫被接管，所以这里留一个镜像指针。
+	legion *legionSession
+	// apocalypseStageCleared marks the apocalypse stages whose monsters are all
+	// dead in this connection, so the stage projection fires once per stage
+	// (the same guard venusRun.cleared provides for Venus). Index = stage.
+	apocalypseStageCleared [6]bool
+	// apocalypseSelectWindowPending 是「难度框开窗后强制关闭」的挂起任务。
+	apocalypseSelectWindowPending *apocalypseSelectWindow
+	// apocalypseAdvancePending 是「清关后服务端主动推进下一关」的挂起任务。
+	// 客户端若自己发了 CMD2062 就取消它（那条是快路径）。
+	apocalypseAdvancePending *apocalypseAdvance
+	// apocalypsePending 是清关时挂起的终局结算任务：boss 死亡与翻牌之间需要
+	// 一小段延迟（抓包 94.91s 清关 → 94.94s N2252），由 client_connection 的
+	// 定时器触发。nil = 没有挂起的结算。
+	apocalypsePending *apocalypseSettlement
+	// apocalypseGrant 是最近一次末世录终局结算的结果（入库明细 + 完成事件），
+	// 供日志与测试断言。nil = 本连接还没结算过。
+	apocalypseGrant *apocalypseGrant
+	channelSpawns   map[uint32]database.WorldPosition
 	blackPurgatory          blackPurgatoryState
 	adventureEliteSnapshot  [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which

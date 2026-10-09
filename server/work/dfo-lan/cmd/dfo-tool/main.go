@@ -14,6 +14,7 @@ import (
 	"dfolan/internal/toolcmd/dungeonimport"
 	"dfolan/internal/toolcmd/dungeonscenesaudit"
 	"dfolan/internal/toolcmd/equipfields"
+	"dfolan/internal/toolcmd/flippool"
 	"dfolan/internal/toolcmd/equipmentfull"
 	"dfolan/internal/toolcmd/eventinfogate"
 	"dfolan/internal/toolcmd/framedump"
@@ -50,6 +51,7 @@ var commands = []command{
 	{"dungeonimport", "catalog", "[options]", true, 0, dungeonimport.Run},
 	{"dungeonscenesaudit", "audit", "[options]", true, 0, dungeonscenesaudit.Run},
 	{"equipfields", "catalog", "[options]", true, 0, equipfields.Run},
+	{"flippool", "catalog", "[options]", true, 0, flippool.Run},
 	{"equipmentfull", "catalog", "[options]", true, 0, equipmentfull.Run},
 	{"eventinfogate", "audit", "[options]", true, 0, eventinfogate.Run},
 	{"framedump", "protocol", "<label> <key.bin> <stream.bin> <all|id|offset:size> [header]", false, 4, framedump.Run},
