@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/accountname"
 	"dfolan/internal/gamedata"
 	"flag"
 	"fmt"
@@ -99,6 +100,7 @@ type Config struct {
 	ShopPrices                    string `koanf:"shop-prices" env:"DFO_SHOP_PRICES" help:"deprecated path; ignored with native PVF prices, otherwise refused"`
 	BleedingMineRewards           string `koanf:"bleeding-mine-rewards" help:"deprecated path; requires the prepared native PVF bleeding-mine domain"`
 	SoloPartyBootstrap            bool   `koanf:"solo-party-bootstrap" default:"false" help:"initialize the owned actor in the current solo party roster"`
+	Account                       string `koanf:"account" default:"probe" env:"DFO_ACCOUNT" help:"本次会话登录用的开发账号名；决定角色与存档归属 accounts 表的哪一行（UPSERT：换名即自动建号）"`
 	AccountOptions                string `koanf:"account-options" help:"sparse current-client account option overrides; other defaults remain client-owned"`
 	UnifiedCharacTemplate         string `koanf:"unified-charac-template" help:"override the built-in 3539 byte character option block sent as NOTI2827 (different client build only)"`
 	SkillLockOffset               int    `koanf:"skill-lock-offset" default:"-1" help:"override the subtype 19 skill lock offset inside the character option block (default 2736)"`
@@ -235,6 +237,11 @@ func (c Config) validate() error {
 	// ⇒ 报 `got "44"`。值要用引号包起来，或走 `set DFO_ATTUNEMENT_REWARD=44,43,0`。
 	if _, err := attunementRewardSpec(c.AttunementReward); err != nil {
 		return fmt.Errorf("attunement-reward: %w", err)
+	}
+	// 账号名要同时进 SQL 与客户端连接 payload（以 ? 分段），所以只放行安全字符，
+	// 这里拦下比等 prepareRuntime 报一条看不懂的唯一键冲突便宜得多。
+	if !accountname.Valid(c.Account) {
+		return fmt.Errorf("account %q 只允许 1..%d 个 ASCII 字母、数字、_ 与 -", c.Account, accountname.MaxLength)
 	}
 	return nil
 }

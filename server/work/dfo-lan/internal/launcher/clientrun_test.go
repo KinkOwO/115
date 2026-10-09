@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 	"unicode/utf8"
+
+	"dfolan/internal/accountname"
 )
 
 // probePayload 的三条分支：默认用 ready.json 里的端口，channel-check 写死 7001，
@@ -40,7 +42,7 @@ func TestProbePayloadSelection(t *testing.T) {
 			// sessionTagName 生成的 tag 是 _next37，channel_probe.py L24-L32 会先降级。
 			tag = newSessionTag(``, tag).Effective
 		}
-		if got := probePayload(56201, testCase.channelCheck, tag); got != testCase.want {
+		if got := probePayload(56201, testCase.channelCheck, tag, ""); got != testCase.want {
 			t.Errorf("%s：probePayload = %s，want %s", testCase.name, got, testCase.want)
 		}
 	}
@@ -50,7 +52,7 @@ func TestProbePayloadSelection(t *testing.T) {
 // 7001 形态；这条断言把"默认启动"与 payload 之间的连接钉死。
 func TestDefaultLaunchTagGetsTheFixedPortPayload(t *testing.T) {
 	tag := newSessionTag(`C:\dfo-lan`, sessionTagName(time.Now()))
-	payload := probePayload(49956, false, tag.Effective)
+	payload := probePayload(49956, false, tag.Effective, "")
 	if !strings.HasPrefix(payload, "3?127.0.0.1?7001?") {
 		t.Errorf("默认 tag 的 payload = %s", payload)
 	}
@@ -59,6 +61,42 @@ func TestDefaultLaunchTagGetsTheFixedPortPayload(t *testing.T) {
 	}
 	if payload != probePayload7001 {
 		t.Errorf("payload = %s，want %s", payload, probePayload7001)
+	}
+}
+
+// 账号段（第 4 段）跟着会话走，其余分段一个字节都不动 —— 这是本批改动的验收口径：
+// 「除账号那一段外逐字节一致」。服务端从不读这一段（身份来自 wireprobe 的 -account /
+// DFO_ACCOUNT 与那条 UPSERT），但客户端显示的是它，所以换账号后必须与会话真实身份一致，
+// 否则玩家看到的名字和存档归属对不上。
+func TestProbePayloadAccountSegment(t *testing.T) {
+	const withProbe = "13?127.0.0.1?56201?probe?00000000000000000000000000000000?0?0?30?0?0?0"
+	const withTomeu = "13?127.0.0.1?56201?tomeu?00000000000000000000000000000000?0?0?30?0?0?0"
+
+	if got := probePayload(56201, false, "channel_01", "tomeu"); got != withTomeu {
+		t.Errorf("改名后的 payload = %s，want %s", got, withTomeu)
+	}
+	if got := probePayload(56201, false, "channel_01", ""); got != withProbe {
+		t.Errorf("默认账号（空 = probe）的 payload = %s，want %s", got, withProbe)
+	}
+	probe, moved := strings.Split(withProbe, "?"), strings.Split(withTomeu, "?")
+	if len(probe) != len(moved) {
+		t.Fatalf("分段数变了：%d vs %d", len(probe), len(moved))
+	}
+	for i := range probe {
+		if i == 3 {
+			continue
+		}
+		if probe[i] != moved[i] {
+			t.Errorf("第 %d 段被连带改动：%q -> %q", i, probe[i], moved[i])
+		}
+	}
+	if got := probePayload(0, true, "", "tomeu"); got !=
+		"3?127.0.0.1?7001?tomeu?00000000000000000000000000000000?0?0?30?0?0?0" {
+		t.Errorf("7001 形态没跟着改名：%s", got)
+	}
+	// 默认账号时计划行必须与历史常量逐字节相同（Python 对拍的基线）。
+	if got := planPayload(accountname.Default); got != probePayload7001 {
+		t.Errorf("默认账号的计划行 = %s，want %s", got, probePayload7001)
 	}
 }
 

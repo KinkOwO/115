@@ -13,6 +13,14 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-09 登录账号名不再写死 probe（-account / DFO_ACCOUNT，源码候选）
+
+**已修复 / 已完成**：账号名从写死 `probe` 改为按会话指定。`cmd/wireprobe/config.go` 新增 `-account`（koanf `account`，默认 `probe`，环境别名 `DFO_ACCOUNT`），`Config.validate()` 用新包 `internal/accountname`（`Default` / `MaxLength` / `Valid`：1..32 个 ASCII 字母、数字、`_` 与 `-`）拦下不安全名字；`cmd/wireprobe/bootstrap.go` 的 `s.DevelopmentAccount` 改按该名字 UPSERT，名字已被正式账号占用时（UPSERT 的 `WHERE accounts.development_only` 返回零行，不报错）给出中文拒绝而不是裸 `ErrNotFound`，并落一行 `login account: <name> (id=<n>)` 启动日志。`internal/launcher`：`applySessionAccount` 把定型的名字以 `DFO_ACCOUNT` 写进网关子进程环境，**没显式选账号时一个字节都不加**，子进程环境与改动前逐字节一致；连接 payload 第 4 段跟着会话名字走（服务端从不读该段，身份仍来自那条 UPSERT），`--dry-run` 计划行同口径。`cmd/dfolauncher` 的 usage 同步 `--account`。存档零迁移：不改 schema、不改写任何身份，旧档留在 `probe` 名下。锚点：`server/work/dfo-lan/docs/startup-configuration.md`；工作区源码候选 `5e87291a3c0f585d5ef67324b12714beb5be9f2bff48c44cfce5950cbb561348`，作废 `364c4912…`（那颗完全不读 `DFO_ACCOUNT`，无论选谁登录的都是 `probe`）。
+
+**未修复 / 未闭环**：① 未部署、未替换日常入口——业主默认 `server_binary` 是 `bin/wireprobe-pvf.exe`，本功能要生效需走一次「强制编译服务端」/`--source-build`；未启动客户端，实机登录由业主操作。② 候选 SHA256 出自工作区树，本合并树未重编候选。③ `internal/toolcmd/storagecheck/main.go:28` 仍写死 `DevelopmentAccount(ctx, "probe")`，换账号后它检查的是错的账号（诊断入口，不在启动链上）。④ 换名即换档：新名字首次登录会建号，但旧角色与存档不会跟着过来。
+
+**bug 测试取证**：本分支（`origin/main` + 本改动）上 `go build` / `go vet` / `go test -count=1 ./cmd/... ./internal/...` 退出码 0 / 0 / 0，47 个含测试的包全 ok、0 失败（该树是 sparse 检出，共 68 个包，未物化目录不计入；工作区整树同一命令为 55 包 ok / 0 失败）。新增用例：`internal/accountname`（`TestValidAcceptsSafeNames`、`TestValidRejectsNamesThatWouldBreakThePayload`）、`cmd/wireprobe`（`TestAccountConfigContract`、`TestAccountConfigValidationRejectsUnsafeNames`）、`internal/launcher`（`TestSessionAccountPrecedence`、`TestApplySessionAccountWritePolicy`、`TestLaunchDryRunPlanAccount`、`TestProbePayloadAccountSegment`；最后一条钉「除账号那一段外逐字节一致」：分段数不变、逐段比对、默认账号的计划行与历史常量 `probePayload7001` 逐字节相同）。`cmd/wireprobe/testdata/config_help.json` 与 `config_legacy.json` 两份向量按合并后的 flag 集合补齐（`-account` 帮助块、`defaults.Account`）。启动器侧那条逐字节对拍按业主 2026-10-09 决定放宽为「除账号那一段外逐字节一致」。未改 PVF、schema、玩家存档；二进制与 `runtime/` 不入库。
+
 ## 普通商城购买被角色栏扩展券误拦截修复确认
 
 **已修复 / 已完成**：用户确认 MOD 商品与原生商品“两种都购买成功”。角色栏扩展券处理先校验请求商品 SKU，再按商品 ID 精确查找，避免通用查找的模板回退误命中扩展券并拒绝普通单件购买。保留原报价、扣款、发货与扩展券逻辑；现用服务端已备份更新，程序 SHA256 前缀 125dcd57。

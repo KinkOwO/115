@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"dfolan/internal/accountname"
 	"dfolan/internal/gamedata"
 )
 
@@ -626,6 +627,48 @@ func TestLaunchDryRunPlan(t *testing.T) {
 	}
 }
 
+// 计划行的 payload 账号段跟着会话定型的名字走，而名字不合法必须在打印计划之前失败 ——
+// 业主拿来做实机对照的就是这几行，不能出现「打印得出、启动却起不来」。
+func TestLaunchDryRunPlanAccount(t *testing.T) {
+	root := buildLaunchTree(t)
+	// 计划走的是 os.Getenv，宿主环境里真带着 DFO_ACCOUNT 时默认段就不是 probe 了；这里把它
+	// 钉成空，两条断言才只测 --account 这一条路。
+	t.Setenv(accountEnvKey, "")
+	// 会话目录名默认来自时钟，不钉住 tag 两次计划的 client.log 路径就不同，逐字节比对无从成立。
+	pinned := filepath.Join(root, "server", "work", "dfo-lan", "runtime", "account_plan_pin")
+
+	defaultPlan, err := LaunchPlan(root, LaunchOptions{Check: true, DryRun: true, Tag: "account_plan_pin"})
+	if err != nil {
+		t.Fatalf("默认计划: %v", err)
+	}
+	defaultLine := defaultPlan.Plan[3].Detail
+	if !strings.Contains(defaultLine, "?probe?") {
+		t.Errorf("默认客户端行 = %q，payload 的账号段该是 %q", defaultLine, accountname.Default)
+	}
+	if !strings.Contains(defaultLine, pinned) {
+		t.Errorf("默认客户端行 = %q，会话目录该钉在 %q", defaultLine, pinned)
+	}
+
+	renamed, err := LaunchPlan(root, LaunchOptions{Check: true, DryRun: true, Tag: "account_plan_pin", Account: "Tomeu-2"})
+	if err != nil {
+		t.Fatalf("改名计划: %v", err)
+	}
+	renamedLine := renamed.Plan[3].Detail
+	if !strings.Contains(renamedLine, "?Tomeu-2?") {
+		t.Errorf("改名客户端行 = %q", renamedLine)
+	}
+	// 除账号那一段外逐字节一致：这一条同时钉住「改名只动了账号段」。
+	if got := strings.Replace(renamedLine, "?Tomeu-2?", "?probe?", 1); got != defaultLine {
+		t.Errorf("改名后的客户端行除账号段外应一致：\n got %q\nwant %q", got, defaultLine)
+	}
+
+	for _, bad := range []string{"玩家", "probe?2", "a b", strings.Repeat("a", accountname.MaxLength+1)} {
+		if _, err := LaunchPlan(root, LaunchOptions{Check: true, DryRun: true, Account: bad}); err == nil {
+			t.Errorf("账号名 %q 该在打印计划前被拒", bad)
+		}
+	}
+}
+
 // Every profile value rule the Python enforced, in one table. The accepted cases also pin
 // the normalisation (lower-cased checksum, canonical drop percent, trimmed domains) and
 // the required-file list each key class contributes.
@@ -876,4 +919,120 @@ func strconvQuote(path string) string {
 		return `""`
 	}
 	return string(encoded)
+}
+
+// 账号口径：显式 --account 赢，其次已合并进来的 DFO_ACCOUNT（GUI 启动器注入的就是这条），
+// 最后才是历史默认 probe。
+func TestSessionAccountPrecedence(t *testing.T) {
+	lookup := func(value string) func(string) string {
+		return func(key string) string {
+			if key == accountEnvKey {
+				return value
+			}
+			return ""
+		}
+	}
+	if got := sessionAccount("Tomeu-2", lookup("from_env")); got != "Tomeu-2" {
+		t.Errorf("给了显式参数时该用它，得到 %q", got)
+	}
+	if got := sessionAccount("", lookup("from_env")); got != "from_env" {
+		t.Errorf("没有显式参数时该沿用环境，得到 %q", got)
+	}
+	if got := sessionAccount("", lookup("")); got != accountname.Default {
+		t.Errorf("两处都没给时该回落 %q，得到 %q", accountname.Default, got)
+	}
+}
+
+// 写环境策略：谁都没选账号时一个字节都不加，子进程环境与今天逐字节一致；选了才写，写的值
+// 就是定型的名字；名字不合法当场失败。
+func TestApplySessionAccountWritePolicy(t *testing.T) {
+	base := []string{`SystemRoot=C:\Windows`, "DFO_ENABLE_OBSERVER=0"}
+	withInherited := func(value string) []string {
+		return append(append([]string{}, base...), accountEnvKey+"="+value)
+	}
+	assertEnv := func(t *testing.T, env *childEnv, want []string) {
+		t.Helper()
+		if got := env.List(); !reflect.DeepEqual(got, want) {
+			t.Errorf("子进程环境 = %v, want %v", got, want)
+		}
+	}
+
+	t.Run("默认一个字节都不加", func(t *testing.T) {
+		env := newChildEnv(base)
+		account, err := applySessionAccount(env, LaunchOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if account != accountname.Default {
+			t.Errorf("account = %q, want %q", account, accountname.Default)
+		}
+		if env.Has(accountEnvKey) {
+			t.Errorf("默认启动不该写出 %s", accountEnvKey)
+		}
+		assertEnv(t, env, base)
+	})
+
+	t.Run("显式参数写进环境", func(t *testing.T) {
+		env := newChildEnv(base)
+		account, err := applySessionAccount(env, LaunchOptions{Account: "Tomeu-2"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if account != "Tomeu-2" {
+			t.Errorf("account = %q", account)
+		}
+		assertEnv(t, env, withInherited("Tomeu-2"))
+	})
+
+	t.Run("继承值原样保住", func(t *testing.T) {
+		env := newChildEnv(withInherited("gui_saved"))
+		account, err := applySessionAccount(env, LaunchOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if account != "gui_saved" {
+			t.Errorf("account = %q, want gui_saved", account)
+		}
+		assertEnv(t, env, withInherited("gui_saved"))
+	})
+
+	t.Run("显式参数覆盖继承值且留在原位", func(t *testing.T) {
+		env := newChildEnv(withInherited("gui_saved"))
+		account, err := applySessionAccount(env, LaunchOptions{Account: "tomeu_new"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if account != "tomeu_new" {
+			t.Errorf("account = %q", account)
+		}
+		assertEnv(t, env, withInherited("tomeu_new"))
+	})
+
+	t.Run("存在但为空也写回默认名", func(t *testing.T) {
+		env := newChildEnv(withInherited(""))
+		account, err := applySessionAccount(env, LaunchOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if account != accountname.Default {
+			t.Errorf("account = %q, want %q", account, accountname.Default)
+		}
+		assertEnv(t, env, withInherited(accountname.Default))
+	})
+
+	unsafe := []string{"probe?2", "玩家", "a b", "a=b", strings.Repeat("a", accountname.MaxLength+1)}
+	for _, name := range unsafe {
+		t.Run("拒绝 "+name, func(t *testing.T) {
+			env := newChildEnv(base)
+			if _, err := applySessionAccount(env, LaunchOptions{Account: name}); err == nil {
+				t.Errorf("账号名 %q 该被拒", name)
+			}
+			assertEnv(t, env, base)
+
+			inherited := newChildEnv(append([]string{}, withInherited(name)...))
+			if _, err := applySessionAccount(inherited, LaunchOptions{}); err == nil {
+				t.Errorf("环境里的账号名 %q 该被拒", name)
+			}
+		})
+	}
 }

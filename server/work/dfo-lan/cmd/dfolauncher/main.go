@@ -101,7 +101,7 @@ Usage:
   dfolauncher launch --check|--dry-run [--root <path>]
                     [--server-only|--client-only|--storage-only]
                     [--json-mode|--repair-profile <path>] [--source-build]
-  dfolauncher launch [--root <path>] [--tag <name>]
+  dfolauncher launch [--root <path>] [--tag <name>] [--account <name>]
                     [--json-mode|--repair-profile <path>] [--source-build]
 
 Flags:
@@ -112,6 +112,10 @@ Flags:
   --force     rebuild even when the four-state gate would reuse the archive
   --dry-run   print every action without performing it
   --tag       pin the session tag (default: built from the clock)
+  --account   launch: development account this session logs in with (default: the
+              inherited DFO_ACCOUNT, then probe). bakal-reset: account whose Bakal
+              quota is restored. Roles and saves belong to that accounts row, and a
+              name that was never used creates it.
 
 prepare-inner-pvf is Stage 4 of docs/go-launch-migration-plan.md: it replaces
 scripts/ensure_inner_pvf.py + scripts/prepare_inner_pvf.py with the Go generator in
@@ -126,6 +130,13 @@ scripts/launch_local.py, and --check prints the same four lines. --dry-run adds 
 storage -> inner PVF -> gateway -> client command plan. Like the Python's own --check
 (whose _ensure_inner_pvf runs first), --check generates the inner archive when the gate
 says it is missing or stale; --dry-run never writes it.
+
+--account is passed to the gateway as DFO_ACCOUNT, and the gateway hands the same name to
+wireprobe, which owns the identity: the roles and saves of the session belong to that
+accounts row, and a name that was never used creates it. When neither --account nor an
+inherited DFO_ACCOUNT is given the variable is not added at all, so the child environment
+is byte-for-byte what it was before. An older server binary ignores the variable and keeps
+logging in as probe.
 
 --server-only really starts the game gateway in Go (Stage 2 of
 docs/go-launch-migration-plan.md): the protocol fixture, the gateway argv, ready.json
@@ -262,6 +273,10 @@ func runLaunch(args []string) int {
 	sourceBuild := flags.Bool("source-build", false, "use bin/wireprobe-handoff-source.exe")
 	repairProfile := flags.String("repair-profile", "", "override the default PVF profile")
 	tag := flags.String("tag", "", "pin the session tag (default: from the clock)")
+	// 账号名：空 = 沿用环境的 DFO_ACCOUNT = 再退 probe。GUI 启动器走环境变量注入
+	// （旧的服务端二进制会直接忽略它，而命令行参数需要能力探测才安全），这里同时给
+	// 一个显式参数是为了手敲复现某一场会话。
+	account := flags.String("account", "", "development account this session logs in with (default: DFO_ACCOUNT, then probe)")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -281,6 +296,7 @@ func runLaunch(args []string) int {
 		SourceBuild:   *sourceBuild,
 		RepairProfile: *repairProfile,
 		Tag:           *tag,
+		Account:       *account,
 	}
 	absolute, err := filepathAbs(*root)
 	if err != nil {

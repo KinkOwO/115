@@ -1,6 +1,7 @@
 {
   "source_sha256": "84b8f034e8ef446328664ca3c01c21599f136c83e7c498a7325649b717e18b15",
   "defaults": {
+    "Account": "probe",
     "AccountOptions": "",
     "AdvertiseHost": "",
     "ApocalypseCatalog": "configs/apocalypse.generated.json",
