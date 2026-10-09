@@ -2,6 +2,7 @@ package gamedata_test
 
 import (
 	"dfolan/internal/boostup"
+	"dfolan/internal/catalog"
 	"dfolan/internal/gamedata"
 	"os"
 	"testing"
@@ -105,4 +106,24 @@ func TestBoostUpFullSourceClosure(t *testing.T) {
 	}
 	t.Logf("boost source closure: steps=%d gifts=%d capsules=%d buffs=%d roots=%d boosters=%d",
 		len(c.Steps), len(c.Gifts), len(c.Capsules), len(c.ChallengeBuffs), len(roots), len(boxes))
+}
+
+func TestBoostUpTeachingAPCSource(t *testing.T) {
+	path := os.Getenv("US115_TEST_BOOST_PVF")
+	if path == "" {
+		t.Skip("explicit read-only source required")
+	}
+	s, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: path, ExpectedChecksum: os.Getenv("US115_TEST_BOOST_PVF_SHA256"), MaxBytes: gamedata.DefaultMaxBytes})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	// Loading event/NPC tokens does not need unrelated item/reward-box projections.
+	_, c, err := s.BoostUp(catalog.ItemIndex{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.TeachingAPCs) != 1 || c.TeachingAPCs[0] != (boostup.TeachingAPC{Index: 1, Template: 2504, Event: boostup.EventID}) {
+		t.Fatal("source teaching APC binding lost", c.TeachingAPCs)
+	}
 }

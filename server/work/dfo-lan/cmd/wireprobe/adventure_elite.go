@@ -19,10 +19,18 @@ func (w *worldSession) adventureElitePayload(ctx context.Context, profile databa
 	if err != nil {
 		return nil, err
 	}
-	return adventureElitePayloadForRoles(w.eliteProfileView(profile), roles)
+	rows, err := w.withBoostAPCSelection(adventureEliteSelectionsForRoles(w.eliteProfileView(profile), roles))
+	if err != nil {
+		return nil, err
+	}
+	return protocol.AdventureEliteSelections(rows)
 }
 
 func adventureElitePayloadForRoles(profile database.AccountAdventure, roles []database.Character) ([]byte, error) {
+	return protocol.AdventureEliteSelections(adventureEliteSelectionsForRoles(profile, roles))
+}
+
+func adventureEliteSelectionsForRoles(profile database.AccountAdventure, roles []database.Character) []protocol.AdventureEliteSelection {
 	slots := make(map[int64]int32, len(roles))
 	for slot, role := range roles {
 		slots[role.ID] = int32(slot)
@@ -44,7 +52,7 @@ func adventureElitePayloadForRoles(profile database.AccountAdventure, roles []da
 		}
 		rows = append(rows, row)
 	}
-	return protocol.AdventureEliteSelections(rows)
+	return rows
 }
 
 func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, prefix string) ([]outboundPacket, error) {
@@ -127,7 +135,7 @@ func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, pre
 }
 
 // 原生142E60CF0在这些频道选择类型2的精锐容器；普通频道和矿区走类型0。
-// 另一个分支依赖活动662，尚未接入，不伪造活动或临时更改玩家频道身份。
+// 活动662的普通频道分支由boostup_apc.go单独按原生活动模式处理。
 func adventureEliteChannel(channelType uint32) bool {
 	switch channelType {
 	case 68, 73, 74, 76, 78:
@@ -140,6 +148,9 @@ func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outb
 	mode, err := protocol.DecodeAdventureEliteLoad(p)
 	if err != nil {
 		return nil, err
+	}
+	if mode == boostAPCMode {
+		return w.loadBoostAPC()
 	}
 	if w == nil || (!adventureEliteChannel(w.channelType) && !w.ordinaryElitePreparationAllowed()) {
 		return nil, fmt.Errorf("当前频道未启用客户端精锐同伴系统，请在支持精锐的频道加载")

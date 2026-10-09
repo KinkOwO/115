@@ -101,7 +101,8 @@ type worldSession struct {
 	bakalQuotaRole int64
 	bakalQuotaBody []byte
 	// boostup 是一次新手成长胶囊教学（活动 662）的会话状态。
-	boostup *boostup.Catalog
+	boostup               *boostup.Catalog
+	boostAPCSelectionSent bool // native mode3 selection sent on this actor connection
 	// boostWorldBase / boostOperations / notifyBoostMail 是 Starter Boost 活动
 	// 662 的注入接线：基地世界服务、一次性事件键会话与毕业邮件回调。
 	boostWorldBase  *world.Service

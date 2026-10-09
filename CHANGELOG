@@ -13,6 +13,14 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-10 Boost 662 训练 APC 与第二关通过确认
+
+**已修复 / 已完成**：业主确认“训练用APC出现了，能通过第二关”，截图显示“训练小助手”。服务端接入CMD2333→NOTI1754(mode3)→CMD1811→NOTI1382/1879原生准备链，NPC选择从当前PVF特殊APC `[index]` 读取，修正误发AIC模板号；周期账号刷新保留已准备的活动名单。源链为special_apc.etc→boostup reader→会话临时选择→原生NPC创建，不新增玩法表、不写账号精锐存档。confirmed源码候选6b93bfdc；详见 `server/work/dfo-lan/docs/protocol/boostup662-teaching-apc-confirmed-baseline-20261010.md`。
+
+**未修复 / 未闭环**：确认范围仅为本角色训练APC出现与第二关通过，不扩大为全部职业、训练路线或活动奖励验收。默认程序未替换；真实归档全量奖励闭环测试的既有590015880缺少[booster]问题仍在专项记录中保留。无schema、SQLite存档、客户端资源或DLL变更。
+
+**bug 测试取证**：IDA MCP和经业主授权的x64dbg只读内存确认：NPC线上字段应为特殊索引1，AIC2504为资源身份；此前发2504导致虚拟槽位保持FFFFFFFF。Go1.26.0完整build/vet/test全部通过，与attempt2失败集合逐名比较均为空；源绑定与周期刷新回归通过。034251_994078_next37会话03:44:09下发索引1并完成1382/1879，03:44:58收到CMD45后由地图100015495进入100015496。用户授权改按当前gud/main同步提交，fetch后HEAD与远端一致；二进制、会话日志和存档不入库。
+
 ## 2026-10-09 登录账号名不再写死 probe（-account / DFO_ACCOUNT，源码候选）
 
 **已修复 / 已完成**：账号名从写死 `probe` 改为按会话指定。`cmd/wireprobe/config.go` 新增 `-account`（koanf `account`，默认 `probe`，环境别名 `DFO_ACCOUNT`），`Config.validate()` 用新包 `internal/accountname`（`Default` / `MaxLength` / `Valid`：1..32 个 ASCII 字母、数字、`_` 与 `-`）拦下不安全名字；`cmd/wireprobe/bootstrap.go` 的 `s.DevelopmentAccount` 改按该名字 UPSERT，名字已被正式账号占用时（UPSERT 的 `WHERE accounts.development_only` 返回零行，不报错）给出中文拒绝而不是裸 `ErrNotFound`，并落一行 `login account: <name> (id=<n>)` 启动日志。`internal/launcher`：`applySessionAccount` 把定型的名字以 `DFO_ACCOUNT` 写进网关子进程环境，**没显式选账号时一个字节都不加**，子进程环境与改动前逐字节一致；连接 payload 第 4 段跟着会话名字走（服务端从不读该段，身份仍来自那条 UPSERT），`--dry-run` 计划行同口径。`cmd/dfolauncher` 的 usage 同步 `--account`。存档零迁移：不改 schema、不改写任何身份，旧档留在 `probe` 名下。锚点：`server/work/dfo-lan/docs/startup-configuration.md`；工作区源码候选 `5e87291a3c0f585d5ef67324b12714beb5be9f2bff48c44cfce5950cbb561348`，作废 `364c4912…`（那颗完全不读 `DFO_ACCOUNT`，无论选谁登录的都是 `probe`）。
