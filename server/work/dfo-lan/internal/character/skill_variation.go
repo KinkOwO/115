@@ -129,13 +129,24 @@ func (s *Service) VariationRestore(role Character) ([]byte, error) {
 	if !variationUnlocked(&st) {
 		return nil, nil
 	}
-	v := st.SkillVariations[0]
+	// 恢复的必须是**当前页**的 VP：原来写死 0，切到第二页后进化/突破面板会空
+	// （实机 2026-10-09 20:32 业主："第二页没有 vp 了"）。
+	// ⚠️ 第十轮曾因"怀疑它引起 18:24/18:32 闪退"把它退回页 0 —— 后来查明那两次崩溃的
+	// 元凶是第十一轮加的 cmd260 通知（第八轮的 mode0+mode1 同理），与 variation 帧无关，
+	// 所以这里按页取是安全的。
+	tree := 0
+	if st.SkillTreeType == 2 {
+		tree = 1
+	}
+	v := st.SkillVariations[tree]
 	fillVariationSlots(&v)
-	p, e := protocol.SkillPurchaseSuccess(0, st.SkillPoints[0], st.TechniquePoints[0], nil)
+	p, e := protocol.SkillPurchaseSuccess(byte(tree), st.SkillPoints[tree], st.TechniquePoints[tree], nil)
 	if e != nil {
 		return nil, e
 	}
-	return protocol.SkillPurchaseVariations(p, 0, v.Intensions, v.Options)
+	// 实验第四轮曾把 mode 固定 0（怀疑 NOTI29 mode=1 是闪退元凶），与 2179 放行
+	// 配套实测仍崩（2026-10-09 21:17），已回退为 mode=tree，维持 20:32 之后形态。
+	return protocol.SkillPurchaseVariations(p, byte(tree), v.Intensions, v.Options)
 }
 
 // ResetAutoSet is the Reset / Auto Set button (CMD483).
@@ -314,16 +325,13 @@ func (s *Service) ReconcileTechniquePoints(ctx context.Context, role Character) 
 	if !variationUnlocked(&state) {
 		return role, false, nil
 	}
-	want := uint16(5)
-	if n := activeEvolutions(state.SkillVariations[0].Options); n <= 5 {
-		want = uint16(5 - n)
-	}
-	if state.TechniquePoints[0] == want {
+	want := techniquePointBalances(&state)
+	if state.TechniquePoints == want {
 		return role, false, nil
 	}
 	// The event key carries the target balance so a pre-awakening login can
 	// never poison the key that a later awakening still needs.
-	key := fmt.Sprintf("technique-points-reconcile-v1:%d:want-%d", role.ID, want)
+	key := fmt.Sprintf("technique-points-reconcile-v1:%d:want-%d-%d", role.ID, want[0], want[1])
 	saved, backfilled, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "technique-points-reconcile-v1", func(cur Character) (json.RawMessage, json.RawMessage, error) {
 		var st State
 		if e := json.Unmarshal(cur.State, &st); e != nil {
@@ -332,14 +340,11 @@ func (s *Service) ReconcileTechniquePoints(ctx context.Context, role Character) 
 		if !variationUnlocked(&st) {
 			return cur.State, nil, nil
 		}
-		want := uint16(5)
-		if n := activeEvolutions(st.SkillVariations[0].Options); n <= 5 {
-			want = uint16(5 - n)
-		}
-		if st.TechniquePoints[0] == want {
+		want := techniquePointBalances(&st)
+		if st.TechniquePoints == want {
 			return cur.State, nil, nil
 		}
-		st.TechniquePoints[0] = want
+		st.TechniquePoints = want
 		p, e := mergeSkillState(cur.State, st)
 		if e != nil {
 			return nil, nil, e
@@ -352,4 +357,20 @@ func (s *Service) ReconcileTechniquePoints(ctx context.Context, role Character) 
 	}
 	saved.WireID = role.WireID
 	return saved, backfilled, nil
+}
+
+// techniquePointBalances 给出两页各自的 VP（进化/突破）余额：5 − 该页 Evolve 选择数。
+// 技能页 2 是独立的第二套加点，但它同样在三觉后拥有 VP，所以两页同规则；
+// **未解锁**的第二页保持原值（没解锁就不该有点）。
+func techniquePointBalances(st *State) [2]uint16 {
+	want := [2]uint16{5, 5}
+	for tree := 0; tree < 2; tree++ {
+		if n := activeEvolutions(st.SkillVariations[tree].Options); n <= 5 {
+			want[tree] = uint16(5 - n)
+		}
+	}
+	if st.SkillTreeType < 1 || st.SkillTreeType > 2 {
+		want[1] = st.TechniquePoints[1]
+	}
+	return want
 }

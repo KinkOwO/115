@@ -972,6 +972,66 @@ func (s *ItemService) transformPayment(chain catalog.TransformChain, target uint
 	return out, nil
 }
 
+// TransformCostLine 是「装备变换」里**单件**的成本预览。
+type TransformCostLine struct {
+	Slot        uint32         `json:"slot"`
+	Template    uint32         `json:"template"`
+	Rarity      int32          `json:"rarity"`
+	RarityName  string         `json:"rarity_name,omitempty"`
+	Gold        uint32         `json:"gold"`
+	AccountMats []MaterialCost `json:"account_mats,omitempty"`
+	BagMats     []MaterialCost `json:"bag_mats,omitempty"`
+	// Unpriced 表示源 `[create cost]` 里**没有这件**（`[item index]` 精确查找未命中），
+	// 与生成路径 `EquipmentCraftPlan.Unpriced` 同一个按件谓词。教学轨道内据此免单。
+	Unpriced bool `json:"unpriced,omitempty"`
+	// Problem 记录算不出成本的原因（读不到稀有度 / 变换表没这一档 / 没这支付法）。
+	Problem string `json:"problem,omitempty"`
+}
+
+// InspectTransformCost 只回答「这次变换要付什么」，**不读存档之外的东西、不扣料、不改状态**。
+//
+// 存在的理由（2026-10-09）：CMD2259 的应答只有「窗口 + 方法」两个字节，**没有失败与禁用
+// 语义**，变换按钮能不能点是客户端拿自己的成本×库存判的。所以当出现「客户端没禁用、
+// 服务端却以材料不足拒绝」时，服务端**无法**通知客户端，只能先把**自己算的成本**原样摊开
+// 到日志里，拿去和界面上显示的数字对账，才能判定是按件还是按套、以及魂的种类对不对。
+//
+// ★ 纯诊断：不调 PlanEquipmentTransform、不做账本守卫、不碰事务 —— 预览的结果**不等于**
+// 真正执行时会扣多少（真正执行还会逐件跳过未登记/旧件回不了图鉴的条目）。
+func (s *ItemService) InspectTransformCost(slots, templates []uint32, payOption int) []TransformCostLine {
+	n := len(slots)
+	if len(templates) < n {
+		n = len(templates)
+	}
+	out := make([]TransformCostLine, 0, n)
+	for i := 0; i < n; i++ {
+		line := TransformCostLine{Slot: slots[i], Template: templates[i]}
+		target := templates[i]
+		if target == 0 || target == 0xFFFFFFFF {
+			continue
+		}
+		_, rarity, ok := s.equipmentGradeRarity(target)
+		if ok {
+			line.Rarity = rarity
+			if name, known := catalog.TransformRarityName(rarity); known {
+				line.RarityName = name
+			}
+		}
+		if s.CreateCost != nil {
+			_, exact := s.CreateCost.GroupFor(target)
+			line.Unpriced = !exact
+		}
+		pay, e := s.transformPayment(catalog.TransformChainEquipment, target, payOption)
+		if e != nil {
+			line.Problem = e.Error()
+			out = append(out, line)
+			continue
+		}
+		line.Gold, line.AccountMats, line.BagMats = pay.Gold, pay.AccountMats, pay.BagMats
+		out = append(out, line)
+	}
+	return out
+}
+
 // transformKey 让同一次变换（同一份请求 + 同一个前置状态）只应用一次。
 //
 // ⚠️ 键必须 **≤200 字节**：`storage.CommitAccountMaterialEvent` 会拒绝超长的 event_key，

@@ -138,3 +138,42 @@ attempt 2/3 静态门禁：`go test ./...` 与 `go vet ./...` 均通过。独立
 修复按列表身份判断：纯背包移动保留 CMD19 成功、背包 NOTI13 与源/目标单槽 NOTI14；穿戴 NOTI13/14 仅在 list3 参与时发送，宠物列表/外观仅在 list7 或 list3 宠物主体槽参与时刷新。另在后续合并后的当前主线发现，`dungeonCloneEquipmentRefresh` 的调用点丢失（函数与测试仍在），已将此前用户确认的副本内真实换装重建调用接回 CMD19 路径；list0→list0 不触发它。无新增协议字段、数据库或客户端改动。回滚可撤回本节的 `equipment_flow.go`、`main.go` 与回归测试增量，并保留先前已确认的 commit `8b1947c` 作为参照。用户已确认副本内 list0→list0 移动后外观保持，并能进入下一房间；list3 真换装的 Clone 重建逻辑一并恢复。
 
 验证：`go test ./...` 与 `go vet ./...` 通过；新增背包 slot26 双向移动回归断言。用户手动使用隔离程序确认修复。正常启动程序 `bin/wireprobe-handoff-source.exe` SHA-256 `BF3B203A92A641AD35F8904B8E5C364170A9F3E4158EA14C745D9916033C8720`；临时测试 profile 随主线合并移除。
+
+### 2026-10-09 再次挑战后 Clone 立刻裸体（attempt 1/3，待实机）
+
+用户报告：点「再次挑战」进图后，Clone 部位**立刻**裸体（未做换装）。会话
+`runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261009_213112_241527_next37/events.jsonl`
+两次进本对账：
+
+| 帧 | 13:32:25 首次进本 | 13:32:38 再次挑战 |
+| --- | --- | --- |
+| NOTI13 `dungeon_worn_equipment_restored` | 发 | 跳过 |
+| NOTI14 `dungeon_worn_visuals_restored` | 发 | **照发** |
+| `dungeon_clone_detached` / `_reattached` | 发 | **跳过** |
+| `dungeon_nonavatar_worn_restored` | 发 | 跳过 |
+| `dungeon_skin_cargo_family_restored` ×5 | 发 | 跳过 |
+
+根因是自相矛盾：入口那步按 350-351 的约定跳过 N14 sent，改由 `finishDungeonLoading`
+的 `dungeon_worn_visuals_restored` 补发（对 relay 照样生效）；而 09-30 已实机确认
+「NOTI14 全量穿戴刷新会重建未变化的 Clone 对象」。**只补发 N14 却不重建 Clone
+＝ 冲掉覆盖外观又不修回来**。
+
+修法只动一处：`finishDungeonLoading` 的 Clone 重建条件由
+`enabled && !directEntry && !relay` 去掉 `!relay`。其余重喂块保持不动 ——
+buff 注册（NOTI1361）由 `seamlessRetry` 分支的提前 `return` 跳过，随机属性（1030）、
+宠物（978）、伤害字体（991）仍在各自 `!relay` 保护内。这样既修裸体，也不会退回
+「再次挑战自动上 buff / 穿戴效果应用两次」。
+
+未采纳的备选：把 952 行的 N14 一并跳过（方案 A）—— 那会打破 350-351
+「它们在 CMD37 那一步由 *_restored 补发……不会少」的既有约定，使再次挑战完全没有穿戴视觉帧。
+
+新增回归断言 `TestSeamlessRetryRebuildsCloneWithoutBuffRegistration`
+（`dungeon_clone_reattach_test.go`）：seamlessRetry 时**必须**含 N14 补发与
+Clone detach/reattach，**必须不含** buff 注册、随机属性块、NOTI13，
+且 `seamlessRetry` 要在函数内消费清零。
+
+同一会话另有一条 `equipment_craft_transform_refused` reason =
+`insufficient account material`、requested = 11（13:33:05，城镇）——那是账号材料不足的
+业务拒绝（`internal/inventory/account_materials.go:160`），**不是**渲染/协议缺陷，另案核对材料数。
+
+待用户手动实机验收：进副本 → 通关 → 再次挑战 → Clone 部位不裸 **且** buff 未被重上。

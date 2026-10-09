@@ -207,7 +207,7 @@ func (s *Service) entryAdditionWithStats(role Character, state State, stats prot
 			return nil, fmt.Errorf("读取角色属性包的冒险团等级：%w", err)
 		}
 	}
-	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{Context: s.ChannelContext, ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees, Worn: worn, Fame: fame, ExpandEquipFlags: projection.Inventory.ExpandEquipFlags, AdventureLevel: adventureLevel})
+	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{Context: s.ChannelContext, ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees, Worn: worn, Fame: fame, ExpandEquipFlags: projection.Inventory.ExpandEquipFlags, SkillTreeType: state.SkillTreeType, AdventureLevel: adventureLevel})
 }
 
 // EquipmentFame复用完整穿戴名望投影；明细可通过EquipmentFameBreakdown核对。

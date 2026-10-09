@@ -428,16 +428,13 @@ func atoiDefault(s string, def int) int {
 // mods 目录是本工具**本来就要写**的地方，暂存在那里一定可写，也更符合"就近处理"。
 func (s *Server) saveUpload(r *http.Request) (string, func(), error) {
 	if err := r.ParseMultipartForm(64 << 20); err != nil {
-		return "", nil, fmt.Errorf("解析上传失败（zip 上限 512MB）：%w", err)
+		return "", nil, fmt.Errorf("解析上传失败：%w", err)
 	}
 	f, hdr, err := r.FormFile("file")
 	if err != nil {
 		return "", nil, fmt.Errorf("没有收到文件字段 file：%w", err)
 	}
 	defer f.Close()
-	if hdr.Size > maxZipBytes {
-		return "", nil, fmt.Errorf("zip 太大（%d > %d 字节）", hdr.Size, int64(maxZipBytes))
-	}
 	if !strings.HasSuffix(strings.ToLower(hdr.Filename), ".zip") {
 		return "", nil, fmt.Errorf("只支持 .zip（收到 %s）", hdr.Filename)
 	}
@@ -456,7 +453,8 @@ func (s *Server) saveUpload(r *http.Request) (string, func(), error) {
 		_ = os.Remove(name)
 		_ = os.Remove(stageDir) // 空了就顺手删掉；非空会失败，忽略
 	}
-	if _, err := io.Copy(tmp, io.LimitReader(f, maxZipBytes)); err != nil {
+	// 上限取消后不再截断：截断会静默产出半个 zip，后续解压必然失败且看不出原因。
+	if _, err := io.Copy(tmp, f); err != nil {
 		cleanup()
 		return "", nil, fmt.Errorf("接收上传内容失败：%w", err)
 	}

@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"dfolan/internal/accountname"
 )
 
 // This file is Stage 2 of the Python-orchestration migration: `dfolauncher launch
@@ -118,6 +120,17 @@ func startSession(ctx context.Context, root string, opts LaunchOptions, console 
 		env.Set("DFO_CHANNEL_IDENTITY", "0")
 	}
 	env.Set("DFO_ENABLE_OBSERVER", "0")
+
+	// 5.1 账号：会话登录用的开发账号名（口径见 applySessionAccount）。名字不合法在这里就失败，
+	//     不等网关起来再报一条看不懂的启动错误；真正换了账号时打一行，让启动器日志里能看到
+	//     这一场到底归属谁 —— 排查「建完号进不去游戏」时这一行是第一线索。
+	account, err := applySessionAccount(env, opts)
+	if err != nil {
+		return nil, err
+	}
+	if account != accountname.Default {
+		fmt.Fprintf(console, "本次会话账号：%s\n", account)
+	}
 
 	// 6. 命令行。exe -h 的能力探测按 Python 的做法跑两次（prune 一次、装备目录一次）。
 	probe := func(exe string) map[string]bool { return ExeFlags(ctx, exe) }

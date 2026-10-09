@@ -13,6 +13,30 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-09 登录账号名不再写死 probe（-account / DFO_ACCOUNT，源码候选）
+
+**已修复 / 已完成**：账号名从写死 `probe` 改为按会话指定。`cmd/wireprobe/config.go` 新增 `-account`（koanf `account`，默认 `probe`，环境别名 `DFO_ACCOUNT`），`Config.validate()` 用新包 `internal/accountname`（`Default` / `MaxLength` / `Valid`：1..32 个 ASCII 字母、数字、`_` 与 `-`）拦下不安全名字；`cmd/wireprobe/bootstrap.go` 的 `s.DevelopmentAccount` 改按该名字 UPSERT，名字已被正式账号占用时（UPSERT 的 `WHERE accounts.development_only` 返回零行，不报错）给出中文拒绝而不是裸 `ErrNotFound`，并落一行 `login account: <name> (id=<n>)` 启动日志。`internal/launcher`：`applySessionAccount` 把定型的名字以 `DFO_ACCOUNT` 写进网关子进程环境，**没显式选账号时一个字节都不加**，子进程环境与改动前逐字节一致；连接 payload 第 4 段跟着会话名字走（服务端从不读该段，身份仍来自那条 UPSERT），`--dry-run` 计划行同口径。`cmd/dfolauncher` 的 usage 同步 `--account`。存档零迁移：不改 schema、不改写任何身份，旧档留在 `probe` 名下。锚点：`server/work/dfo-lan/docs/startup-configuration.md`；工作区源码候选 `5e87291a3c0f585d5ef67324b12714beb5be9f2bff48c44cfce5950cbb561348`，作废 `364c4912…`（那颗完全不读 `DFO_ACCOUNT`，无论选谁登录的都是 `probe`）。
+
+**未修复 / 未闭环**：① 未部署、未替换日常入口——业主默认 `server_binary` 是 `bin/wireprobe-pvf.exe`，本功能要生效需走一次「强制编译服务端」/`--source-build`；未启动客户端，实机登录由业主操作。② 候选 SHA256 出自工作区树，本合并树未重编候选。③ `internal/toolcmd/storagecheck/main.go:28` 仍写死 `DevelopmentAccount(ctx, "probe")`，换账号后它检查的是错的账号（诊断入口，不在启动链上）。④ 换名即换档：新名字首次登录会建号，但旧角色与存档不会跟着过来。
+
+**bug 测试取证**：本分支（`origin/main` + 本改动）上 `go build` / `go vet` / `go test -count=1 ./cmd/... ./internal/...` 退出码 0 / 0 / 0，47 个含测试的包全 ok、0 失败（该树是 sparse 检出，共 68 个包，未物化目录不计入；工作区整树同一命令为 55 包 ok / 0 失败）。新增用例：`internal/accountname`（`TestValidAcceptsSafeNames`、`TestValidRejectsNamesThatWouldBreakThePayload`）、`cmd/wireprobe`（`TestAccountConfigContract`、`TestAccountConfigValidationRejectsUnsafeNames`）、`internal/launcher`（`TestSessionAccountPrecedence`、`TestApplySessionAccountWritePolicy`、`TestLaunchDryRunPlanAccount`、`TestProbePayloadAccountSegment`；最后一条钉「除账号那一段外逐字节一致」：分段数不变、逐段比对、默认账号的计划行与历史常量 `probePayload7001` 逐字节相同）。`cmd/wireprobe/testdata/config_help.json` 与 `config_legacy.json` 两份向量按合并后的 flag 集合补齐（`-account` 帮助块、`defaults.Account`）。启动器侧那条逐字节对拍按业主 2026-10-09 决定放宽为「除账号那一段外逐字节一致」。未改 PVF、schema、玩家存档；二进制与 `runtime/` 不入库。
+
+## 普通商城购买被角色栏扩展券误拦截修复确认
+
+**已修复 / 已完成**：用户确认 MOD 商品与原生商品“两种都购买成功”。角色栏扩展券处理先校验请求商品 SKU，再按商品 ID 精确查找，避免通用查找的模板回退误命中扩展券并拒绝普通单件购买。保留原报价、扣款、发货与扩展券逻辑；现用服务端已备份更新，程序 SHA256 前缀 125dcd57。
+
+**未修复 / 未闭环**：本次不扩大为全部商城商品或扩展券实机验收；扩展券正确分流由回归测试验证。charactercheck 的 quest source experience mismatch 在还原本次生产代码后同样复现，保留为既有失败。安装目录的全量扫描还会读入自动更新备份中的不完整旧源码，未删除备份或夹带构建链修复。
+
+**bug 测试取证**：完整源码副本 go build ./...、go vet ./...、go test ./... -count=1 通过；新增分流测试修复前失败、修复后通过。现用目录候选编译与活动包 vet 通过；真实 PVF 普通礼包进入正常购买事务。175552_071234_next37 的商品3400489/3400490分别扣款3180/600并发货成功；MOD 购买以用户确认记录。未修改客户端、PVF、schema 或玩家存档，程序与日志不入库。
+
+## 2026-10-09 苏醒之森极难度（ForestOfAwakeningHard，内容 105）按官服抓包重做收口
+
+**已修复 / 已完成**：业主实机确认“已测试，没有任何问题”（第 29 轮候选，即本提交）。极难度整链按官服抓包 `official_20261008-220048_live`（s13）逐帧对齐：N2565 64B 状态机（等待 01／作战窗 02／阶段清关 tick／终局 03／离场 05／复位 0e）、无选音符窗、CMD2045 两段式（先发 N2568「净化开始」横幅，正文 `@4 type=1 / @8 delay=4 / @12 passive=109122984` 与客户端 `[SEAMLESS LOADING] PREPARE_LEGION_ENTER_DUNGEON start type[1] delay[4]` 逐字对齐，**精确 4.000s** 后再下进图帧列）、CMD2062 连战过段直进、N31 清关 token、N2566 阶段清关 tick、官服七行 N2252 + 一行 N2253、CMD2046 终局走 state3 + 官服 32B ACK、CMD191 演出后**由玩家点「返回城镇」**（不再自动回城）。HUD 全丢的真因经六轮实机收敛到**字节级**：森林专属 48B N28 从 @26 起整段错位一字节（客户端在 native `0x1452ada9e` 单独读的 @30 入口类型应写 05，旧实现写到了 @31），并补齐 N27 的无缝加载形态（第 1 关 `01 00 00 01`）与过段形态（`00 01 01 01`）、N23 `area=0xff`、官服军团帧列 N26／N781·N782／N476／N629／N465；同一 N28 修正对 Normal 森林（内容 104）同时生效（官服两个难度该帧逐字节相同）。另修：撤退／死亡判负请离出本后本关倒计时未重置（清冻结起算时刻 + 补满额 N1474）。锚点：候选=现役 `bin/wireprobe-handoff-source.exe` = `wireprobe-pvf.exe`，SHA256 `027e43d2b5e5acfae196d7ac0cb5ac7f20a6ee1d1e50c6772ed20b7ff41896e0`；协议文档 `server/work/dfo-lan/docs/protocol/forest-extreme-official-20261009.md`。
+
+**未修复 / 未闭环**：① 通关→退队→再建队后客户端**本地**拒绝开战（「开始作战」不再发 CMD2043，退队/再建队后零包）——曾按官服「两局之间」推送 N2254 军团账本与 N781/N782 周难度（客户端 RECV 确认收到）均未解开，业主 2026-10-09 决定**不再处理**，实现已回滚、过程留档见协议文档 §10/§11；② N2568 之前官服还发 `N546 USER_STATE_MOTION` → `N22 USER_POSITION`，本实现未补（实机无可见影响），留作取证缺口；③ N2568 的无缝加载窗口与「客户端模块切到 FOREST_OF_AWAKENING_LEGION(40)」的必然关系仍只由实机与 trace 佐证，未做反汇编取证。
+
+**bug 测试取证**：`go build ./...`、`go vet ./...` 通过；新增 `internal/legion/forest_hard_test.go`、`internal/game/protocol/forest_dungeon_info_test.go`（逐字节对齐官服两份抓包：2026-10-02 Normal 与 2026-10-08 Extreme，含「两难度除副本 id 与尾部动态值外完全一致」这一前提，并钉住 @26/@30 语义字节与 N27 三种头形态）、`cmd/wireprobe/forest_hard_flow_test.go`（12 项：开战向量／家族分流／清关链／CMD46／CMD2046／派发层／建队 0x19+q[55]／横幅两段式／军团帧列注入／N23 area=0xff／倒计时重置）。`cmd/wireprobe` 全量仅剩 4 项与本改动无关的既有失败（巴卡尔启动档、配置默认值漂移 ×2、本工作区缺 `mods/`）。实机会话证据：`runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261009_170056_070923_next37`（HUD 修正前）、`…_171949_177250_next37`（修正后全链 + 再次开战现象）。二进制、运行日志与 `runtime/` 不入库。
+
 ## 奥德赛转场后精锐名单与 APC 保持确认（服务端0.3.17）
 
 **已修复 / 已完成**：业主确认“确认修复，可以提交”。将普通精锐账号名单可见性与加载/入场资格分开，城镇传送等待不再发送临时空名单，避免客户端释放 APC 后与 CMD15 选图抢先发生的 CMD1811 加载拒绝；实际名单变化仍清除旧准备，相同名单保留角色并同步设置身份。候选0.3.17 / 1ee81eaf，DLL仍0.3.10 / a46493c6。本次一并补跟踪远端遗漏的精锐 Go 源码、测试和采集/取证文件；DLL源码已在37774428入库。

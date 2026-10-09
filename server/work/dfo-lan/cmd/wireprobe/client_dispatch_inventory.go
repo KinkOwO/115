@@ -47,6 +47,19 @@ func (client *gameConnection) dispatchCashshopAndBoxes(requestData *clientReques
 					return dispatchClose
 				}
 				client.event(map[string]any{"kind": "cera_purchase_committed", "order": receipt.Order, "character_id": client.selectedCharacterID, "applied": applied, "charged": receipt.Charged, "gold_charged": receipt.GoldCharged, "before": receipt.Before, "after": receipt.After, "deliveries": receipt.Deliveries})
+				// Skill Type Extension Ticket: the selector byte the client read on
+				// entry is now unlocked, and USERINFO1 (mode0+mode1) is the only
+				// packet that carries it. Re-publish the actor detail so the second
+				// skill page appears without a relog.
+				if receipt.SkillTreeUnlocked {
+					refresh, refreshErr := client.worldState.unlockRefresh(client.worldState.role)
+					if refreshErr != nil {
+						client.event(map[string]any{"kind": "cera_skill_tree_refresh_error", "order": receipt.Order, "error": refreshErr.Error()})
+						return dispatchClose
+					}
+					packets = append(packets, refresh...)
+					client.event(map[string]any{"kind": "cera_skill_tree_expansion_refresh", "order": receipt.Order, "character_id": client.selectedCharacterID})
+				}
 				if client.sendPlan(packets, client.logResponseBody) != nil {
 					return dispatchClose
 				}

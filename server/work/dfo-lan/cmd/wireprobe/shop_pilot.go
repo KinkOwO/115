@@ -140,6 +140,32 @@ func (l preparedBagLedger) PurchaseCashCharacterSlots(ctx context.Context, o dat
 	return receipt, applied, nil
 }
 
+// PurchaseCashSkillTreeExpansion unlocks the character's second skill type
+// (Skill Type Extension Ticket, product 3000150 / template 821) inside the same
+// cash transaction. The dispatcher appends the authoritative USERINFO1 refresh
+// because the world session lives there, not in this ledger.
+func (l preparedBagLedger) PurchaseCashSkillTreeExpansion(ctx context.Context, o database.CashOrder) (database.CashReceipt, bool, error) {
+	ledger, ok := l.ledger.(cashshop.SkillTreeLedger)
+	if !ok {
+		return database.CashReceipt{}, false, fmt.Errorf("skill tree ledger missing")
+	}
+	receipt, applied, err := ledger.PurchaseCashSkillTreeExpansion(ctx, o)
+	if err != nil {
+		return receipt, applied, err
+	}
+	packets, e := shopPilotSpaces(l.pilot, receipt, 0, true)
+	if e != nil {
+		return database.CashReceipt{}, false, e
+	}
+	if len(l.keys) != wire.SessionKeyBytes {
+		return database.CashReceipt{}, false, fmt.Errorf("purchase cipher not initialized")
+	}
+	if _, e = preparePackets(l.keys, packets); e != nil {
+		return database.CashReceipt{}, false, e
+	}
+	return receipt, applied, nil
+}
+
 func newShopPilotSession() (*shopPilotSession, error) {
 	var b [16]byte
 	if _, e := rand.Read(b[:]); e != nil {

@@ -288,6 +288,58 @@ func (s *Store) PurchaseCashCharacterSlots(ctx context.Context, o CashOrder, bon
 	return s.purchaseCash(ctx, o, nil, nil, bonus)
 }
 
+// PurchaseCashSkillTreeExpansion unlocks the character's second skill type
+// (Skill Type Extension Ticket, PVF item 821 / product 3000150) inside the same
+// transaction as the CERA debit. Takes effect on purchase; no inventory item is
+// delivered, matching the 86JP SkillTreeExpansionService policy.
+func (s *Store) PurchaseCashSkillTreeExpansion(ctx context.Context, o CashOrder) (CashReceipt, bool, error) {
+	if o.DeliveryMode != "" {
+		return CashReceipt{}, false, fmt.Errorf("invalid skill tree expansion purchase")
+	}
+	o.DeliveryMode = "skill-tree-v1"
+	receipt, applied, e := s.purchaseCash(ctx, o, unlockSkillTreeType, nil, 0)
+	if e != nil {
+		return receipt, applied, e
+	}
+	receipt.SkillTreeUnlocked = true
+	return receipt, applied, nil
+}
+
+// unlockSkillTreeType 是角色 State 的原地变换：只把技能类型解锁位从 0（未解锁）
+// 换成 1（技能类型 1）。已经解锁时原样返回，重复购买不会把玩家当前选择的页重置。
+// 字段语义见 character.State.SkillTreeType。
+func unlockSkillTreeType(state json.RawMessage) (json.RawMessage, error) {
+	var object map[string]json.RawMessage
+	if e := json.Unmarshal(state, &object); e != nil || object == nil {
+		return nil, fmt.Errorf("invalid character state")
+	}
+	var current byte
+	if raw, ok := object["skill_tree_type"]; ok {
+		if e := json.Unmarshal(raw, &current); e != nil {
+			return nil, fmt.Errorf("invalid skill tree selection")
+		}
+	}
+	if current >= 1 && current <= 2 {
+		return state, nil
+	}
+	object["skill_tree_type"] = json.RawMessage("1")
+	// 解锁时把第一页的 VP 点数复制给第二页：觉醒只在那**一刻**发过 5 点，
+	// 之后才解锁的角色第二页会一直是 0（业主 2026-10-09 20:32："第二页没有 vp 了"）。
+	var points [2]uint16
+	if raw, ok := object["technique_points"]; ok {
+		if e := json.Unmarshal(raw, &points); e != nil {
+			return nil, fmt.Errorf("invalid technique points")
+		}
+	}
+	points[1] = points[0]
+	buf, e := json.Marshal(points)
+	if e != nil {
+		return nil, e
+	}
+	object["technique_points"] = buf
+	return json.Marshal(object)
+}
+
 // PurchaseCashToBag executes a pure, source-backed inventory mutation under
 // the same lock and transaction as the debit and audit. On replay it returns
 // the current character state, never an old inventory snapshot to overwrite it.

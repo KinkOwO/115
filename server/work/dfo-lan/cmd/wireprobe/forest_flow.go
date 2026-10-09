@@ -39,7 +39,7 @@ func (w *worldSession) forestStandbyPartyHandle(id uint16, p []byte) (bool, []ou
 	}
 	if id == 13 {
 		// 离队与伊斯/维纳斯同款：原生 CMD13 body 为空或 8B 零填充；NOTI9
-		// action3 清空八个成员槽。苏醒之森尚无伊斯式重复次数恢复包。
+		// action3 清空八个成员槽。
 		if len(p) != 0 && len(p) != 8 {
 			return fail(fmt.Errorf("苏醒之森离队请求长度无效"))
 		}
@@ -51,23 +51,37 @@ func (w *worldSession) forestStandbyPartyHandle(id uint16, p []byte) (bool, []ou
 		if w.activeDungeon != nil {
 			return fail(fmt.Errorf("请先返回待机区再退出苏醒之森队伍"))
 		}
+		packets := []outboundPacket{
+			{"苏醒之森队伍解散", 0, 9, protocol.BlackPurgatoryPartyGone(w.characters.ChannelContext)},
+		}
+		if w.forestPartyHard || (w.forest != nil && w.forest.hard) {
+			// 官服 2026-10-08 22:08:45.691：离队后补一帧 Extreme 复位态
+			// （N2565 state0e），右上角面板收干净。判定同时看建队标记 ——
+			// 终局点「返回城镇」时 run 已作废（w.forest = nil），只看 run 会漏发。
+			packets = append(packets, outboundPacket{"forest_hard_info_idle", 0, legion.NotiForestHardInfo, legion.ForestHardIdleInfo()})
+		}
 		w.soloPartyReady = false
 		w.forestPartyHard = false
-		return true, []outboundPacket{
-			{"苏醒之森队伍解散", 0, 9, protocol.BlackPurgatoryPartyGone(w.characters.ChannelContext)},
-		}, nil
+		w.forestEntryPending = nil
+		w.forest = nil
+		return true, packets, nil
 	}
 	request, err := protocol.DecodeForestStandbyParty(p)
 	if err != nil {
 		return fail(err)
 	}
-	// Extreme 建队应答仍用 Normal 队伍类型 0x18（第十四轮）：Extreme 类型
-	// 0x19 的队伍会让客户端在进图确认时做「成员集结区」本地检查（Extreme
-	// 集结区 = town198 area3，Normal = area2），单人 bootstrap 队伍的区域
-	// 数据为空 → 永远弹「party members have not gathered」(21:30 会话实证)。
-	// 回 0x18 让检查按 Normal 规则放行；run.hard 仍把进图副本换成 Extreme
-	// 三关。代价：客户端队伍 UI 显示为普通军团队伍（纯外观）。
-	party, err := protocol.ForestStandbyPartyReply(request.Name, w.role.WireID, w.characters.ChannelContext, false)
+	// Extreme 建队应答**回显官服队伍类型 0x19**（2026-10-08 抓包改正）：
+	// 官服 session_s13 的建队应答就是 0x19，客户端据此进入 Extreme 模式
+	// （开战内容号 105、无选音符窗、N2565 状态、CMD2062 连战过段）。
+	//
+	// 第十四轮曾因「成员未集结」把应答改成 0x18，那是**误判**：该弹窗的真正
+	// 成因是客户端建队后会自己走到 Extreme 集结区 town198 area3（官服
+	// 22:05:29.112 的 SET_USER_AREA 实锤；军团表 waiting_area = 198/3），
+	// 而我们当时把角色留在 198/0/1 没放行这一步。world 目录里 198/1 → 198/3
+	// 是源生门户边（bounds 8,242,80,220），放行后集结检查自然通过。
+	// 回 0x18 的代价是客户端整场按 Normal 口径跑（内容号 104、弹选音符窗），
+	// 与本模式完全不符。
+	party, err := protocol.ForestStandbyPartyReply(request.Name, w.role.WireID, w.characters.ChannelContext, request.Hard)
 	if err != nil {
 		return fail(err)
 	}
@@ -104,8 +118,9 @@ type forestRun struct {
 	// 作废 run。
 	finalDone     bool
 	storyFinished bool
-	// hard 标记 Extreme（ForestOfAwakeningHard）挑战：建队类型 0x19 带入。
-	// 硬模式的开战内容号/状态 NOTI（2565）尚未取证，本轮仅承载标记。
+	// hard 标记 Extreme（ForestOfAwakeningHard，内容 105）挑战：建队类型
+	// 0x19 带入。Extreme 是**连战**：状态包走 N2565（64B 官服形状）、
+	// 无选音符窗、第 1 关走 CMD2045，第 2/3 关由客户端 CMD2062 直进。
 	hard bool
 	// potionUsed[stage] 是本关已使用的消耗品次数（CMD44）：军团口径每关
 	// 限 8 次（用户要求），进图时清零、超限拒绝（UseStackableRefused）。
@@ -114,7 +129,7 @@ type forestRun struct {
 
 // isForestRequest 判别苏醒之森族请求：CMD2226/2227 为本族专属；
 // CMD2043/2045/2046 与末世录/伊斯/维纳斯共用信封，由 body @13 的内容号
-// 104 区分。
+// 104（Normal，extreme 105 由开战分支与 run.hard 处理）区分。
 func isForestRequest(id uint16, p []byte) bool {
 	switch id {
 	case legion.CmdForestOperationSelect, legion.CmdForestBuffSelect:
@@ -124,6 +139,25 @@ func isForestRequest(id uint16, p []byte) bool {
 		return false
 	}
 	return binary.LittleEndian.Uint32(p[legion.EnvelopeSize:]) == legion.ForestContentID
+}
+
+// isForestHardFamilyRequest 判别内容 105（Extreme）的家族命令
+// CMD2045/2046。只在**本连接已经开过 Extreme run** 时接手，避免吞掉其它
+// 内容的共用信封命令（内容号 105 在别的玩法里没有第二含义，但保守起见
+// 仍加 run 门控）。
+func (w *worldSession) isForestHardFamilyRequest(id uint16, p []byte) bool {
+	if w.forest == nil || !w.forest.hard {
+		return false
+	}
+	switch id {
+	case legion.CmdEnterDungeon, legion.CmdRewardEnd:
+	default:
+		return false
+	}
+	if len(p) < legion.EnvelopeSize+4 {
+		return false
+	}
+	return binary.LittleEndian.Uint32(p[legion.EnvelopeSize:]) == legion.ForestHardContentID
 }
 
 // handleForestRequest answers one forest family command (CMD2226/2045/2046;
@@ -153,6 +187,12 @@ func (w *worldSession) forestOperation(p []byte) ([]outboundPacket, []map[string
 	}
 	if w.forest == nil {
 		return nil, nil, fmt.Errorf("forest operation before start (no CMD2043 yet)")
+	}
+	if w.forest.hard {
+		// 官服 Extreme 全程**没有** CMD2226（2026-10-08 抓包 s13 零帧）；
+		// 真收到说明客户端还在 Normal 口径（多半是建队类型没回显 0x19），
+		// 此时发 Normal 的 N2563 只会把状态机搅乱 —— 明确拒绝并落日志。
+		return nil, nil, fmt.Errorf("forest operation (CMD2226) is a Normal-only step; Extreme has no melody selection")
 	}
 	if w.activeDungeon != nil {
 		return nil, nil, fmt.Errorf("forest operation inside an active dungeon")
@@ -191,12 +231,12 @@ func (w *worldSession) forestOperation(p []byte) ([]outboundPacket, []map[string
 	return nil, nil, fmt.Errorf("forest operation action %d is not implemented", req.Action)
 }
 
-// enterForestStage handles CMD2045 (content 104 Normal / 105 Extreme): load
-// the stage dungeon and run the standard entry frame sequence. 阶段副本号按
-// run.hard 取 Normal/Extreme 两套（官服 N2563 作战窗 @27/@39/@51 与 PVF
+// enterForestStage handles CMD2045: load the stage dungeon and run the standard
+// entry frame sequence. Extreme 只有**第一关**走这条命令（官服
+// 22:05:41.255 CMD2045 内容 105 阶段 0）；第 2/3 关由客户端 CMD2062 直进
+// （enterForestStageDirectMove）。阶段副本号按 run.hard 取两套（PVF
 // hermitage_extreme_1/2/3.dgn）；苏醒之森副本无维纳斯式事件怪缺口，不注入
-// 载体怪（实机若地图无怪再按 18:04 会话取证）。Extreme 连战无选音符步骤，
-// 不要求 choice 确认。
+// 载体怪。Extreme 连战无选音符步骤，不要求 choice 确认。
 func (w *worldSession) enterForestStage(p []byte) ([]outboundPacket, []map[string]any, error) {
 	req, err := legion.DecodeForestEnter(p)
 	if err != nil {
@@ -209,8 +249,7 @@ func (w *worldSession) enterForestStage(p []byte) ([]outboundPacket, []map[strin
 	if run == nil {
 		return nil, nil, fmt.Errorf("forest enter before start (no CMD2043 yet)")
 	}
-	// 第 3/3 次尝试：Extreme run 也走 Normal 包链（CMD2045 内容 104），内容
-	// 号不再作模式判定——进图副本只按 run.hard 选。
+	// Normal 必须先确认音符（CMD2226 action2）；Extreme 无此步骤。
 	if !run.hard && run.choice != 0x02 {
 		return nil, nil, fmt.Errorf("forest enter before a melody was confirmed (no CMD2226 action2)")
 	}
@@ -262,22 +301,45 @@ func (w *worldSession) enterForestStage(p []byte) ([]outboundPacket, []map[strin
 		return nil, nil, err
 	}
 	// 家族 CMD2045 应答是共享的 01+13B 结果块（1424FDC50 形，维纳斯同款），
-	// 不是 dungeonEntryPlanImpl 默认的 1B 成功字节。
+	// 不是 dungeonEntryPlanImpl 默认的 1B 成功字节。Extreme 用**官服原文**
+	// （24B：内容 105 + 阶段号 + 尾部 nonce，2026-10-08 抓包 s406/s465/s531）。
+	enterAck := legion.EnterDungeonAck()
+	if run.hard {
+		official, ackErr := legion.ForestHardEnterAck(uint32(stage))
+		if ackErr != nil {
+			return nil, nil, ackErr
+		}
+		enterAck = official
+	}
 	frames[0].Name = "forest_enter_ack"
-	frames[0].Payload = legion.EnterDungeonAck()
+	frames[0].Payload = enterAck
 	// N28 之前补 N3（角色状态 → 副本态）与 N27（选图上下文），维纳斯/
-	// SemiRaid 军团进图序列同款。
+	// SemiRaid 军团进图序列同款。Extreme 用**官服无缝加载形态**：这一关之前
+	// 客户端刚被 N2568 带进 `[SEAMLESS LOADING] … delay[4]`，官服在那里发的
+	// NOTI27 头四字节是 `01 00 00 01`（22:05:45.580），冷进场形态（`00 00 00 01`）
+	// 会让客户端按「新副本」处理 —— 与 N28 @30 必须写 05 是同一件事。
 	actorState, se := protocol.UserState(w.role.WireID, protocol.UserStateDungeon)
 	if se != nil {
 		return nil, nil, se
 	}
+	selection := protocol.EnterDungeonSelection()
+	if run.hard {
+		selection = protocol.EnterDungeonSelectionSeamless()
+	}
 	inserted := false
 	plan := make([]outboundPacket, 0, len(frames)+3)
+	if run.hard {
+		// 官服 22:05:41.244 / 22:05:45.580：进图前推该关作战窗（state2），
+		// 客户端据此确认「这是连战的第 stage 关」。
+		if window, wErr := legion.ForestHardWindowInfo(stage); wErr == nil {
+			plan = append(plan, outboundPacket{"forest_hard_info_window", 0, legion.NotiForestHardInfo, window})
+		}
+	}
 	for _, pkt := range frames {
 		if pkt.ID == 28 && !inserted {
 			plan = append(plan,
 				outboundPacket{"forest_actor_state_dungeon", 0, 3, actorState},
-				outboundPacket{"forest_dungeon_selection", 0, 27, protocol.EnterDungeonSelection()},
+				outboundPacket{"forest_dungeon_selection", 0, 27, selection},
 			)
 			inserted = true
 		}
@@ -290,20 +352,50 @@ func (w *worldSession) enterForestStage(p []byte) ([]outboundPacket, []map[strin
 		return nil, nil, loyaltyErr
 	}
 	plan = append(plan, loyaltyPackets...)
-	// 会话样板与主循环/SemiRaid 门一致。
-	w.deathSent = map[uint16]bool{}
-	w.drops = nil
-	w.resetCards()
-	w.completionSent = false
-	w.completionErr = nil
-	w.resultSent = false
-	w.selectingDungeon = false
-	w.approvedDungeonGate = 0
-	w.pendingTownArrival = nil
-	w.leaveScene()
-	w.activeDungeon = s
-	run.stage = stage
-	run.potionUsed[stage] = 0
+	if run.hard {
+		// 军团帧列（N26/781/782/476/629/465）：官服每关进图都发，伊斯进图一直
+		// 发这一套（HUD 正常），本仓极难度此前**一条都没发**。
+		plan, err = injectForestLegionFrames(plan)
+		if err != nil {
+			return nil, nil, err
+		}
+		// N23 + area=0xff：官服进图的**第一帧**（Normal/Extreme 两份抓包都是），
+		// 告诉客户端「角色已经在副本区」。无缝加载（N2568）之后没有这一帧，
+		// 客户端就一直停在城镇区域态 ⇒ 屏幕 UI 全丢（本轮实机的真因）。
+		areaNotice, areaErr := w.forestDungeonAreaNotice()
+		if areaErr != nil {
+			return nil, nil, areaErr
+		}
+		plan = append([]outboundPacket{{"forest_dungeon_area_entered", 0, 23, areaNotice}}, plan...)
+	}
+	if run.hard {
+		// ⚠️ Extreme 的进图是**两段式**（官服 2026-10-08 抓包，业主 2026-10-09 实机校准）：
+		//
+		//	22:05:41.255 c2s CMD2045（开始净化）
+		//	22:05:41.514 s2c **N2568 PREPARE_LEGION_ENTER_DUNGEON** ← 净化开始横幅 + 演出
+		//	22:05:45.580 s2c 作战窗 + N1584 + N28 + N29 + CMD2045 ACK ← 演出结束才进图
+		//
+		// 两帧之间固定 4.066s。一次连发（横幅与进图帧同一批）会让客户端在演出中途
+		// 收到 N28/N29，演出永不收尾 —— 2026-10-09 实机症状正是「进第 1 关后屏幕
+		// UI 全部消失、技能仍可用」。所以：横幅立即发，进图帧挂起到 4.066s 后由
+		// client_connection 的秒 tick 下发（与 apocalypsePending 同款挂起-到期）。
+		w.forestEntryPending = &forestStageEntryPending{
+			session: s,
+			stage:   stage,
+			at:      time.Now().Add(forestPurifyBannerFallback),
+			packets: plan,
+		}
+		return []outboundPacket{
+				{"forest_hard_prepare_enter_dungeon", 0, legion.NotiPrepareEnterDungeon, legion.ForestHardPrepareEnterInfo()},
+			}, []map[string]any{{
+				"kind":         "forest_purify_banner_sent",
+				"character_id": w.role.ID,
+				"stage":        stage,
+				"dungeon":      s.Definition.ID,
+				"delay_ms":     forestPurifyBannerSeconds.Milliseconds(),
+			}}, nil
+	}
+	w.beginForestStageEntry(s, stage)
 	notes := []map[string]any{{
 		"kind":         "forest_stage_entered",
 		"character_id": w.role.ID,
@@ -315,6 +407,206 @@ func (w *worldSession) enterForestStage(p []byte) ([]outboundPacket, []map[strin
 		"monsters":     len(s.Monsters),
 	}}
 	return plan, notes, nil
+}
+
+// forestDungeonArea 是官服「角色已进入副本」的 N23（USER_AREA）里的区域号。
+//
+// 官服两份抓包（Normal 2026-10-02、Extreme 2026-10-08）**每次进图的第一个 s2c
+// 帧都是 N23 + area=0xff**，例如：
+//
+//	官服 Normal  21:42:18.422  id=23  c401 c6000000 ff000000 b903 da00 05 …
+//	官服 Extreme 22:05:45.515  id=23  4400 c6000000 ff000000 ee01 1f01 05 …
+//
+// 本仓此前**任何副本进图都不发这一帧**：非无缝路径下客户端自己会把区域切成
+// 副本态（所以普通副本 HUD 正常）；但走 N2568 的无缝加载时，客户端**在等服务端
+// 把区域改成 0xff**，我们不发 ⇒ 客户端认为仍在城镇 ⇒ 城镇界面收起、副本界面
+// 不建 ⇒ 2026-10-09 业主连着四轮看到的「进图后屏幕 UI 全丢、技能仍可用」。
+const forestDungeonArea uint32 = 0xff
+
+// forestDungeonAreaNotice 构造「角色进入副本区」的 N23。位置沿用当前落点，
+// 只把区域号换成 0xff（官服同形：town 不变、x/y 为进图前落点、第 5 字节 05）。
+func (w *worldSession) forestDungeonAreaNotice() ([]byte, error) {
+	p := w.state.Position
+	return protocol.UserArea(p.Town, forestDungeonArea, protocol.AreaUser{
+		ActorServerID: w.role.WireID,
+		X:             p.X,
+		Y:             p.Y,
+		Flags:         w.flags,
+	})
+}
+
+// forestLegionEntryFrames 是官服军团副本进图时随进图帧列一起下发的
+// **军团帧列**，与伊斯 enterIspinsStage 用的是同一批原文字节
+// （internal/legion/ispins_replay_frames.generated.go，出自官服 session_s4 抓包）。
+//
+// 为什么极难度必须补上（2026-10-09 业主三轮实机校准）：
+//
+//	官服 Extreme 每关进图批次（22:05:45.580 / 22:06:15.456 / 22:06:46.792）里
+//	都有 N476（疲劳加速）、N629（连战关联副本信息）、N465（怪物移动系统）、
+//	N26（UDP_HOST）、N781/N782（周无限难度）；本仓极难度进图**一条都没发**，
+//	而伊斯进图一直发这一套（HUD 正常）——差别就在这里。
+//	其中 N629 `linked_dungeon_info`（"连战"）与 N476 是与副本内界面最相关的两帧。
+//
+// 注入位置照官服/Ispins 的顺序：N26/781/782 在 N27 之前、N476 在 N1584 之前、
+// N629 在 N28 之后、N465 在 N29 之后。
+func forestLegionEntryFrames() (before27, before1584, after28, after29 []outboundPacket, err error) {
+	pre, err := legion.IspinsReplayFrames("udp_host", "infinite_difficulty_user", "infinite_difficulty_charac")
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	before27 = ispinsReplayPackets("forest_legion_", pre)
+	mid, err := legion.IspinsReplayFrames("fatigue_acceleration")
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	before1584 = ispinsReplayPackets("forest_legion_", mid)
+	if linked, err := legion.IspinsReplayFrames("linked_dungeon_info"); err != nil {
+		return nil, nil, nil, nil, err
+	} else {
+		after28 = ispinsReplayPackets("forest_legion_", linked)
+	}
+	if moves, err := legion.IspinsReplayFrames("monster_move_system"); err != nil {
+		return nil, nil, nil, nil, err
+	} else {
+		after29 = ispinsReplayPackets("forest_legion_", moves)
+	}
+	return before27, before1584, after28, after29, nil
+}
+
+func ispinsReplayPackets(prefix string, frames []legion.IspinsReplayFrame) []outboundPacket {
+	out := make([]outboundPacket, 0, len(frames))
+	for _, f := range frames {
+		out = append(out, outboundPacket{prefix + f.Name, 0, f.ID, f.Body})
+	}
+	return out
+}
+
+// injectForestLegionFrames 把上面的军团帧列按官服顺序插进进图计划。
+// 找不到锚点（N27/N1584/N28/N29）时**报错而不是静默跳过** —— 静默少发一帧
+// 正是这一轮丢 HUD 的成因。
+func injectForestLegionFrames(plan []outboundPacket) ([]outboundPacket, error) {
+	before27, before1584, after28, after29, err := forestLegionEntryFrames()
+	if err != nil {
+		return nil, err
+	}
+	anchors := map[string]bool{"27": false, "1584": false, "28": false, "29": false}
+	out := make([]outboundPacket, 0, len(plan)+len(before27)+len(before1584)+len(after28)+len(after29))
+	for _, pkt := range plan {
+		if pkt.Kind == 0 {
+			switch pkt.ID {
+			case 27:
+				if !anchors["27"] {
+					out = append(out, before27...)
+					anchors["27"] = true
+				}
+			case 1584:
+				if !anchors["1584"] {
+					out = append(out, before1584...)
+					anchors["1584"] = true
+				}
+			}
+		}
+		out = append(out, pkt)
+		if pkt.Kind != 0 {
+			continue
+		}
+		switch pkt.ID {
+		case 28:
+			if !anchors["28"] {
+				out = append(out, after28...)
+				anchors["28"] = true
+			}
+		case 29:
+			if !anchors["29"] {
+				out = append(out, after29...)
+				anchors["29"] = true
+			}
+		}
+	}
+	for name, seen := range anchors {
+		if !seen {
+			return nil, fmt.Errorf("forest legion entry plan lacks anchor NOTI%s（军团帧列必须按官服位置注入）", name)
+		}
+	}
+	return out, nil
+}
+
+// forestPurifyBannerSeconds 是「净化开始」横幅 + 演出到真正进图的间隔。
+//
+// **它必须等于 N2568 正文 @8..11 的 delay 字段（官服 = 4 秒）**：客户端拿到这一帧
+// 会打 `[SEAMLESS LOADING] PREPARE_LEGION_ENTER_DUNGEON start type[1] delay[4]`，
+// 进图帧列必须落在它自己声明的窗口内，否则客户端退回非无缝路径、界面态卡在
+// 「无缝加载中」—— 实机症状就是进图后屏幕 UI 全丢。官服 22:05:41.514（N2568）
+// → 22:05:45.514（下一批）正好 4.000s。测试
+// `TestForestHardPurifyDelayMatchesVector` 会把这两个数钉在一起。
+const forestPurifyBannerSeconds = 4 * time.Second
+
+// forestPurifyBannerFallback 是精确定时器失效时的兜底期限（1 秒 tick 才会用到）。
+// 取 6 秒：宁可晚一点进图，也不要早于客户端声明的 4 秒窗口。
+const forestPurifyBannerFallback = 6 * time.Second
+
+// forestStageEntryPending 是「净化开始横幅已发、进图帧列待发」的挂起项。
+type forestStageEntryPending struct {
+	session *dungeon.Session
+	stage   int
+	at      time.Time
+	packets []outboundPacket
+}
+
+// forestEntryDue 在演出结束后下发挂起的进图帧列。
+//
+// force=true 由 connection_session 的精确定时器驱动（按 N2568 的 delay 到期），
+// 直接放行；force=false 是 1 秒 tick 的兜底路径，只在超过 fallback 期限时才发。
+//
+// 无论哪条路径都在主循环里执行，所以可以直接改 worldSession。
+func (w *worldSession) forestEntryDue(now time.Time, force bool) ([]outboundPacket, []map[string]any) {
+	pending := w.forestEntryPending
+	if pending == nil {
+		return nil, nil
+	}
+	if !force && now.Before(pending.at) {
+		return nil, nil
+	}
+	w.forestEntryPending = nil
+	if w.forest == nil || w.activeDungeon != nil {
+		return nil, []map[string]any{{
+			"kind":   "forest_purify_entry_aborted",
+			"reason": "run finished or another dungeon is active",
+		}}
+	}
+	w.beginForestStageEntry(pending.session, pending.stage)
+	return pending.packets, []map[string]any{{
+		"kind":         "forest_stage_entered",
+		"character_id": w.role.ID,
+		"stage":        pending.stage,
+		"dungeon":      pending.session.Definition.ID,
+		"maze":         pending.session.Maze.Index,
+		"map":          pending.session.Room.Map,
+		"monsters":     len(pending.session.Monsters),
+		"after_banner": true,
+	}}
+}
+
+// beginForestStageEntry 是进图真正生效那一刻的会话样板（Normal 立即调用，
+// Extreme 在横幅演出结束后由 forestEntryDue 调用）。
+func (w *worldSession) beginForestStageEntry(s *dungeon.Session, stage int) {
+	w.deathSent = map[uint16]bool{}
+	w.drops = nil
+	w.resetCards()
+	w.completionSent = false
+	w.completionErr = nil
+	w.resultSent = false
+	w.selectingDungeon = false
+	w.approvedDungeonGate = 0
+	w.pendingTownArrival = nil
+	w.leaveScene()
+	w.activeDungeon = s
+	if w.forest != nil {
+		w.forest.stage = stage
+		if stage >= 0 && stage < len(w.forest.potionUsed) {
+			w.forest.potionUsed[stage] = 0
+		}
+	}
 }
 
 // completeForestStage 是清怪完成钩子（completeDungeon 的苏醒之森分支）。
@@ -339,26 +631,25 @@ func (w *worldSession) completeForestStage() ([]outboundPacket, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Extreme 连战（第十六轮，用户按国服视频确认的口径）：非终点关打完不结算
-	// （无横幅/翻牌/选音符），只发该关 cleared 状态——官服 Normal 实测客户端
-	// 收到 cleared N2563 后 32ms 自动发 CMD46（21:43:02.294→.326，人来不及点
-	// 翻牌 UI），forestResult 据此用「已选状态（类型 04 记录）」应答——那是
-	// 官服实证的客户端自动 CMD2062 直进触发器（21:44:32.422→34.387）。
-	// 终点关保持完整结算链（横幅/翻牌/视频/回城 = 用户要的终局形态）。
+	// Extreme 连战（官服 2026-10-08 抓包口径，2026-10-09 改正）：第 1/2 关
+	// 清关只发该关 N31 横幅（官服 22:06:06.828 / 22:06:44.364 **确实有横幅**，
+	// 旧实现「非终点关不发横幅」是错的）；翻牌/材料链只在终点关出现。
+	// 状态推进（N2565 清关 tick / 下一关作战窗）由 forestResult（CMD46 应答）
+	// 下发，与官服同序：CMD39 → N31 → 客户端 CMD46 → tick + 窗态 → CMD2062。
 	if run.hard && stage < len(legion.ForestStageDungeons)-1 {
 		if run.cleared[stage] {
 			return nil, nil // 一次性投影（venus 同款守卫）
 		}
-		clearedInfo, err := legion.ForestClearedInfo(stage)
+		banner, err := legion.ForestHardStageClearEnabled(stage)
 		if err != nil {
 			return nil, err
 		}
 		run.cleared[stage] = true
 		return []outboundPacket{
-			{"forest_hard_stage_cleared", 0, legion.NotiForestInfo, clearedInfo},
+			{"dungeon_clear_enabled", 0, 31, banner},
 		}, nil
 	}
-	clearBanner, err := legion.ForestStageClearEnabled(stage)
+	clearBanner, err := legion.ForestStageClearEnabledFor(stage, run.hard)
 	if err != nil {
 		return nil, err
 	}
@@ -366,9 +657,10 @@ func (w *worldSession) completeForestStage() ([]outboundPacket, error) {
 	if err != nil {
 		return nil, err
 	}
-	// 通关奖励表（第二十一轮，用户方案）：Normal 终局 = N2252 四条（材料 +
-	// 3 件随机魔器/神器装备）+ N2253 五条；Extreme 终局 = N2252 十一条 +
-	// N2253 一条；Normal 第 1/2 关 = N2252 token-only + N2253 三条。
+	// 通关奖励表：Normal 终局 = N2252 四条（材料 + 3 件随机魔器/神器装备）+
+	// N2253 五条；Extreme 终局 = 官服七行 N2252 + 一行 N2253
+	//（2026-10-08 抓包解压后的真表，见 forest_rewards.go）；Normal 第 1/2 关
+	// = N2252 token-only + N2253 三条。
 	// 显示与发放同源（同一张表），全部经 Awarder 真实入库。
 	var basicItems, additionalItems []legion.ForestRewardItem
 	if run.hard {
@@ -381,6 +673,7 @@ func (w *worldSession) completeForestStage() ([]outboundPacket, error) {
 		additionalItems = legion.ForestNormalStageRewards()
 	}
 	// 装备槽 roll：Normal 终局 3 件 115 级魔器/神器（维纳斯翻牌池子）。
+	// Extreme 七行全是确定模板，没有装备槽。
 	var gear []uint32
 	for _, item := range basicItems {
 		if item.Template == 0 {
@@ -390,15 +683,20 @@ func (w *worldSession) completeForestStage() ([]outboundPacket, error) {
 	if len(gear) != 0 {
 		gear = legion.VenusRollFlipGear(venusFlipGearPool, len(gear))
 	}
-	flip, err := legion.ForestBasicClearReward(stage, basicItems, gear)
+	flip, err := legion.ForestBasicClearReward(stage, basicItems, gear, run.hard)
 	if err != nil {
 		return nil, err
 	}
-	additional, err := legion.ForestAdditionalReward(additionalItems)
+	additional, err := legion.ForestAdditionalReward(additionalItems, run.hard)
 	if err != nil {
 		return nil, err
 	}
 	var plan []outboundPacket
+	// 官服 Extreme 终局顺序（22:07:23.311→.323）：N31 → **N2566 过段 tick**
+	// → N2252 → N2253。N2566 放最前，与官服同序。
+	if run.hard {
+		plan = append(plan, outboundPacket{"forest_hard_phase_clear_tick", 0, legion.NotiForestHardPhaseTick, legion.ForestHardPhaseClearTick()})
+	}
 	// N31 清关横幅：包名必须是 dungeon_clear_enabled（dispatch 发送监视器
 	// 按它置 completionSent，维纳斯同款约定）。
 	plan = append(plan, outboundPacket{"dungeon_clear_enabled", 0, 31, clearBanner})
@@ -473,6 +771,13 @@ func (w *worldSession) completeForestStage() ([]outboundPacket, error) {
 		return nil, err
 	}
 	plan = append(plan, outboundPacket{"forest_settlement_party_steady", 0, 9, party})
+	if run.hard {
+		// Extreme 终局不等 CMD46 的那一帧：官服 22:07:23.375 在 CMD46 之前
+		// 已经把 N31/N2566/N2252/N2253 发完，最后那帧是 N2565 清关 tick
+		//（state2、@10=2），由 forestResult 下发。
+		run.cleared[stage] = true
+		return plan, nil
+	}
 	plan = append(plan, outboundPacket{"forest_info_cleared", 0, legion.NotiForestInfo, clearedInfo})
 	run.cleared[stage] = true
 	return plan, nil
@@ -524,6 +829,7 @@ func (w *worldSession) forestStageTimeout(now time.Time, event func(map[string]a
 		log.Printf("forest stage timeout leave failed (stage %d): %v", stage, err)
 		return nil
 	}
+	hard := w.forest.hard
 	w.activeDungeon = nil
 	w.selectingDungeon = false
 	w.approvedDungeonGate = 0
@@ -532,10 +838,11 @@ func (w *worldSession) forestStageTimeout(now time.Time, event func(map[string]a
 	w.completionSent = false
 	w.resultSent = false
 	w.resetCards()
-	w.forest = &forestRun{choice: 0xff}
+	// 超时=本场作废：保留模式（Extreme 重开团仍走 N2565），只清进度。
+	w.forest = &forestRun{choice: 0xff, hard: hard}
 	if event != nil {
 		event(map[string]any{"kind": "forest_stage_timeout", "character_id": w.role.ID,
-			"stage": stage, "started": started.Unix(), "limit": int(limit / time.Second)})
+			"stage": stage, "hard": hard, "started": started.Unix(), "limit": int(limit / time.Second)})
 	}
 	packets := []outboundPacket{{"forest_time_limit_failed", 0, 33, protocol.DungeonFailClear(100)}}
 	for _, p := range route {
@@ -548,15 +855,64 @@ func (w *worldSession) forestStageTimeout(now time.Time, event func(map[string]a
 		revive[2] = 1
 		packets = append(packets, outboundPacket{"forest_timeout_actor_revived", 0, 32, revive})
 	}
+	// 超时=本场作废：右上角倒计时归零重来（业主 2026-10-09：撤退/判负出本后
+	// 倒计时必须重置，不能停在被判负的那一档）。
+	packets = append(packets, w.forestStageTimerReset(now, stage, "timeout")...)
+	if hard {
+		return append(packets, outboundPacket{"forest_hard_info_timeout_waiting", 0, legion.NotiForestHardInfo, legion.ForestHardWaitingInfo()})
+	}
 	return append(packets, outboundPacket{"forest_info_timeout_waiting", 0, legion.NotiForestInfo, legion.ForestWaitingInfo()})
 }
 
+// forestStageTimerReset 是「离开副本后把该关倒计时清零重来」的公共动作：
+// 清掉冻结的起算时刻（下一次进图按满额 60 分钟重新起算）并补发一帧 N1474，
+// 让客户端右上角立刻回到满额、而不是停在被中断的那一档。
+//
+// 业主 2026-10-09 实机 BUG：「点击撤退出去或者死亡强制退出，右上角的倒计时
+// 没有刷新，正常情况应该重置」。以往只有**死亡请离**那条链给维纳斯清过时钟
+// （player_death.go 的 venus_death_stage_timer_reset），苏醒之森既没清时钟、
+// 也没补帧，于是被中断的剩余时间一直留着；再进图时因为 stageClock 仍是旧值，
+// 客户端算出来的还是「剩下的时间」。
+func (w *worldSession) forestStageTimerReset(now time.Time, stage int, reason string) []outboundPacket {
+	if w.forest == nil || stage < 0 || stage >= len(w.forest.stageClock) {
+		return nil
+	}
+	w.forest.stageClock[stage] = time.Time{}
+	if stage < len(w.forest.potionUsed) {
+		w.forest.potionUsed[stage] = 0
+	}
+	body, err := protocol.LegionDungeonTimeout115(now, time.Duration(legion.ForestStageLimits[stage])*time.Second)
+	if err != nil {
+		log.Printf("forest stage timer reset failed (stage %d): %v", stage, err)
+		return nil
+	}
+	return []outboundPacket{{"forest_stage_timer_reset", 0, legion.NotiDungeonTimeoutTime, body}}
+}
+
+// forestStageOfActiveRun 取当前副本对应的苏醒之森关卡号（不是本内容/没有
+// 活动副本时返回 -1）。
+func (w *worldSession) forestStageOfActiveRun() int {
+	if w.forest == nil || w.activeDungeon == nil {
+		return -1
+	}
+	stage, _, err := legion.ForestStageOfDungeonAny(w.activeDungeon.Definition.ID)
+	if err != nil {
+		return -1
+	}
+	return stage
+}
+
 // forestResult 处理清关后的 CMD46（dungeonResult 的苏醒之森分支）：通用
-// 结算（N34/N35/N261+8张牌）不适用。Normal 应答 = 下一关作战窗（state6，
-// 官服 21:43:02.340）；终局关无下一窗，回 cleared 态（官服 21:45:25.262）。
+// 结算（N34/N35/N261+8张牌）不适用。
+//
+//   - Normal：应答 = 下一关作战窗（state6，官服 21:43:02.340）；终局关无下一
+//     窗，回 cleared 态（官服 21:45:25.262）。
+//   - Extreme：应答 = N2565 清关 tick（官服 22:06:06.894 / 22:06:44.387 /
+//     22:07:23.375）＋（非终点关）下一关作战窗（state2）。官服实测客户端
+//     收到窗态后自行发 CMD2062 直进下一关（22:06:15.191 / 22:06:46.183）。
+//
 // 官服 CMD46 后客户端自行完成场景切换，无回城包链；服务端在此静默收尾
-// 副本会话。Extreme 连战无 CMD46 环节样本（过段走清怪投影 + CMD2062），
-// 若到达此分支按 N2565 状态推进（第 1/3 次尝试值）。
+// 副本会话。
 func (w *worldSession) forestResult(p []byte) ([]outboundPacket, error) {
 	run := w.forest
 	if run == nil {
@@ -582,32 +938,33 @@ func (w *worldSession) forestResult(p []byte) ([]outboundPacket, error) {
 	}
 	terminal := stage == len(legion.ForestStageDungeons)-1
 	next := stage + 1
-	var info []byte
-	name := "forest_info_next_window"
+	var plan []outboundPacket
 	switch {
+	case run.hard:
+		tick, err := legion.ForestHardClearTickInfo(stage)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"forest_hard_stage_clear_tick", 0, legion.NotiForestHardInfo, tick})
+		if !terminal {
+			window, err := legion.ForestHardWindowInfo(next)
+			if err != nil {
+				return nil, err
+			}
+			plan = append(plan, outboundPacket{"forest_hard_info_next_window", 0, legion.NotiForestHardInfo, window})
+		}
 	case terminal:
 		clearedBody, err := legion.ForestClearedInfo(stage)
 		if err != nil {
 			return nil, err
 		}
-		info, name = clearedBody, "forest_info_cleared"
-	case run.hard:
-		// 连战：应答「已选状态（下一关 + 类型 04 记录）」——客户端收到后自动
-		// CMD2062 直进下一关（官服 21:44:32→34 实证的触发器），不回待机区、
-		// 不弹选音符窗。2062 目标是 Normal 副本号（客户端按窗口记录解析），
-		// enterForestStageDirectMove 按 run.hard 换成 Extreme 副本。
-		chosen, cerr := legion.ForestChosenInfo(next, 6)
-		if cerr != nil {
-			return nil, cerr
-		}
-		info = chosen
-		name = "forest_hard_info_direct_next"
+		plan = append(plan, outboundPacket{"forest_info_cleared", 0, legion.NotiForestInfo, clearedBody})
 	default:
-		var err error
-		info, err = legion.ForestWindowInfo(next)
+		info, err := legion.ForestWindowInfo(next)
 		if err != nil {
 			return nil, err
 		}
+		plan = append(plan, outboundPacket{"forest_info_next_window", 0, legion.NotiForestInfo, info})
 	}
 	// 静默收尾副本会话（无回城包链，官服口径）。
 	w.leaveScene()
@@ -620,7 +977,7 @@ func (w *worldSession) forestResult(p []byte) ([]outboundPacket, error) {
 	w.approvedDungeonGate = 0
 	w.pendingTownArrival = nil
 	w.activeDungeon = nil
-	return []outboundPacket{{name, 0, legion.NotiForestInfo, info}}, nil
+	return plan, nil
 }
 
 // forestRewardEnd handles the terminal CMD2046 (content 104/105, stage 2):
@@ -646,6 +1003,20 @@ func (w *worldSession) forestRewardEnd(p []byte) ([]outboundPacket, []map[string
 		return []outboundPacket{{"forest_reward_end_ack", 1, legion.CmdRewardEnd, legion.RewardEndAck()}}, nil, nil
 	}
 	run.finalDone = true
+	if run.hard {
+		// Extreme：官服 22:07:37.264/.329 先推 N2565 终局态（state3，触发通关
+		// 演出）再回 ACK（32B 原文，内容 105 + 阶段 2）。
+		return []outboundPacket{
+				{"forest_hard_info_final", 0, legion.NotiForestHardInfo, legion.ForestHardFinalInfo()},
+				{"forest_reward_end_ack", 1, legion.CmdRewardEnd, legion.ForestHardRewardEndAck()},
+			}, []map[string]any{{
+				"kind":         "forest_reward_end",
+				"character_id": w.role.ID,
+				"stage":        stage,
+				"terminal":     true,
+				"hard":         true,
+			}}, nil
+	}
 	return []outboundPacket{
 			{"forest_reward_end_ack", 1, legion.CmdRewardEnd, legion.RewardEndAck()},
 			{"forest_info_final", 0, legion.NotiForestInfo, legion.ForestFinalInfo()},
@@ -723,6 +1094,42 @@ func (w *worldSession) enterForestStageDirectMove(r protocol.DungeonDirectMove) 
 	if err != nil {
 		return nil, nil, err
 	}
+	// 官服 Extreme 过段（22:06:15.456）：先推下一关作战窗，再走 N28/N29，
+	// 然后 CMD2045 ACK（内容 105 + 阶段）+ CMD2062 ACK。私服沿用维纳斯
+	// 已验证的选图层形状（dungeonSelectionHead），只把 2045 应答换成官服原文，
+	// 并补 CMD2062 的 01+nonce ACK（官服 s466/s532）。
+	plan := dungeonSelectionHead()
+	if run.hard {
+		// Extreme 过段用官服「连战直进」形态的 NOTI27（头四字节 `00 01 01 01`，
+		// 抓包 22:06:15.456 / 22:06:46.792），并把选图层压成官服那样只有 N27
+		// —— 过段是同一场连战里的继续，不是新副本。
+		plan = []outboundPacket{{"forest_dungeon_selection", 0, 27, protocol.EnterDungeonSelectionStageContinue()}}
+		if window, wErr := legion.ForestHardWindowInfo(stage); wErr == nil {
+			plan = append(plan, outboundPacket{"forest_hard_info_window", 0, legion.NotiForestHardInfo, window})
+		}
+	}
+	plan = append(plan, frames...)
+	if run.hard {
+		// 过段直进同样补军团帧列（官服 22:06:15.456 / 22:06:46.792 第二三关
+		// 的进图批次里 N476/N629/N465 一帧不少）+ N23 area=0xff（每关都发）。
+		plan, err = injectForestLegionFrames(plan)
+		if err != nil {
+			return nil, nil, err
+		}
+		areaNotice, areaErr := w.forestDungeonAreaNotice()
+		if areaErr != nil {
+			return nil, nil, areaErr
+		}
+		plan = append([]outboundPacket{{"forest_dungeon_area_entered", 0, 23, areaNotice}}, plan...)
+		ack, ackErr := legion.ForestHardEnterAck(uint32(stage))
+		if ackErr != nil {
+			return nil, nil, ackErr
+		}
+		plan = append(plan,
+			outboundPacket{"forest_hard_enter_ack", 1, legion.CmdEnterDungeon, ack},
+			outboundPacket{"forest_direct_move_ack", 1, 2062, protocol.DungeonDirectMoveAck()},
+		)
+	}
 	run.stage = stage
 	run.potionUsed[stage] = 0
 	// 会话样板与主循环一致（dispatch 发送后把 pending 落位 activeDungeon，
@@ -737,7 +1144,7 @@ func (w *worldSession) enterForestStageDirectMove(r protocol.DungeonDirectMove) 
 	w.approvedDungeonGate = 0
 	w.pendingTownArrival = nil
 	w.leaveScene()
-	return s, append(dungeonSelectionHead(), frames...), nil
+	return s, plan, nil
 }
 
 // forestPotionGate 是苏醒之森副本内的消耗品限制（军团口径每关 8 次）：
@@ -777,12 +1184,25 @@ func (w *worldSession) forestStoryPause(p []byte) ([]outboundPacket, error) {
 	plan := []outboundPacket{{"forest_story_pause", 0, 170, notice}}
 	if r.State == 1 && !run.storyFinished {
 		run.storyFinished = true
-		plan = append(plan, outboundPacket{"forest_info_leave", 0, legion.NotiForestInfo, legion.ForestLeaveInfo()})
-		// 第十八轮：连战终局视频播完即**自动回城**（用户实测 Normal 式的
-		// 「视频后玩家点返回城镇」在连战里不出现——客户端连战态没有该按钮，
-		// 0254 会话实证；照维纳斯终局自动回城先例）。leaveDungeon 的回城
-		// 序列首帧是 dungeon_leave_ack（对从未发生的 CMD42 的应答），跳过；
-		// 会话样板在此自行清理（不走主循环 settlement_exit_ack 钩子）。
+		leaveNotice := outboundPacket{"forest_info_leave", 0, legion.NotiForestInfo, legion.ForestLeaveInfo()}
+		if run.hard {
+			// Extreme 的 leave 态走 N2565 state5（官服 22:08:33.372）。
+			leaveNotice = outboundPacket{"forest_hard_info_leave", 0, legion.NotiForestHardInfo, legion.ForestHardLeaveInfo()}
+		}
+		plan = append(plan, leaveNotice)
+		if run.hard {
+			// Extreme **不自动回城**（业主 2026-10-09 实机口径）：leave 态之后
+			// 客户端右上角出现「返回城镇」，玩家自己点 —— 官服同一时刻的帧列是
+			// 22:08:33.372 N2565 state5 → 22:08:33.821 c2s CMD72 → CMD72 ACK。
+			// 第十八轮的自动回城是「连战态没有返回按钮」时期的权宜（0254 会话），
+			// 走对 Extreme 协议（队伍 0x19 + N2565）之后该按钮回来了，自动回城
+			// 反而把玩家的操作抢掉。这里只留状态，落点交给 CMD72（card_flow.go
+			// 的苏醒之森终局退场分支）。
+			return plan, nil
+		}
+		// Normal 保持第十八轮实机确认过的自动回城：视频播完即回待机区。
+		// leaveDungeon 的回城序列首帧是 dungeon_leave_ack（对从未发生的 CMD42
+		// 的应答），跳过；会话样板在此自行清理（不走主循环 settlement_exit_ack 钩子）。
 		route, e := w.leaveDungeon()
 		if e != nil {
 			return nil, e
@@ -845,21 +1265,23 @@ func (client *gameConnection) dispatchForest(requestData *clientRequest) dispatc
 		return dispatchHandled
 	}
 	// 开战分流：CMD2043 内容 104（Normal）/ 105（Extreme，2026-10-06 00:09
-	// 会话 forest_hard_start_observed 实锤）。末世录/伊斯/维纳斯各持
+	// 会话 forest_hard_start_observed 实锤；2026-10-08 官服抓包确认
+	// Extreme 队伍的开战内容号就是 105）。末世录/伊斯/维纳斯各持
 	// 107/101/106，互不相认。
 	if requestData.frame.ID == legion.CmdStart && len(requestData.plaintext) >= legion.EnvelopeSize+4 {
 		content := binary.LittleEndian.Uint32(requestData.plaintext[legion.EnvelopeSize:])
 		hard := w.forestPartyHard
 		switch {
-		case !hard && content == legion.ForestContentID:
-			return client.dispatchForestStart(requestData, false)
+		case content == legion.ForestHardContentID:
+			// 内容 105 = Extreme（官服 2026-10-08 抓包实锤）。**不依赖建队标记**：
+			// 建队帧丢失/重连时也要有人应答，否则客户端停在「开始作战无反应」。
+			return client.dispatchForestStart(requestData, true)
 		case hard && content == legion.ForestContentID:
-			// Extreme 建队应答为 0x18 队伍（集结检查规避），开战随之以
-			// Normal 内容号 104 到达——副本集仍按 run.hard 走 Extreme。
+			// Extreme 队伍却按 Normal 内容号开战（旧客户端形态 / 回 0x18 时代）：
+			// 仍按 hard 连战走，副本集与状态包都由 run.hard 决定。
 			return client.dispatchForestStart(requestData, true)
-		case hard && content == legion.ForestHardContentID:
-			// 若客户端以 105 开战（未来形状），同样按 hard 连战处理。
-			return client.dispatchForestStart(requestData, true)
+		case content == legion.ForestContentID:
+			return client.dispatchForestStart(requestData, false)
 		default:
 			// 不是苏醒之森的内容号（104/105）：**必须放行**给后面的派发层。
 			//
@@ -875,7 +1297,8 @@ func (client *gameConnection) dispatchForest(requestData *clientRequest) dispatc
 		}
 	}
 	// 家族命令：CMD2226 就绪/确认音符、CMD2045 进图、CMD2046 终局。
-	if isForestRequest(requestData.frame.ID, requestData.plaintext) {
+	// 内容 105（Extreme）与 104 走同一个处理器，模式由 w.forest.hard 决定。
+	if isForestRequest(requestData.frame.ID, requestData.plaintext) || w.isForestHardFamilyRequest(requestData.frame.ID, requestData.plaintext) {
 		plan, notes, err := w.handleForestRequest(requestData.plaintext, requestData.frame.ID)
 		if err != nil {
 			client.event(map[string]any{"kind": "forest_refused", "id": requestData.frame.ID,
@@ -889,15 +1312,29 @@ func (client *gameConnection) dispatchForest(requestData *clientRequest) dispatc
 		if client.sendPlan(plan, client.logWorldResponseBody) != nil {
 			return dispatchClose
 		}
+		// Extreme 进图是两段式：上面这一批只含 N2568（净化开始横幅 + 演出），
+		// 挂起的进图帧列按 N2568 自带的 delay（4s）**精确**到期下发 —— 晚到会
+		// 让客户端退回非无缝路径、界面态卡住（实机：进图后 UI 全丢）。
+		if w.forestEntryPending != nil && client.connection != nil {
+			client.connection.scheduleForestBanner(forestPurifyBannerSeconds)
+			client.event(map[string]any{
+				"kind":     "forest_purify_entry_scheduled",
+				"id":       requestData.frame.ID,
+				"delay_ms": forestPurifyBannerSeconds.Milliseconds(),
+			})
+		}
 		return dispatchHandled
 	}
 	return dispatchNext
 }
 
-// dispatchForestStart 执行开战应答。Extreme（hard）按连战口径：ACK +
-// N2565 等待态（阶段未定）+ 2.8s 后 N2565 就绪态（state 2、阶段 0，镜像
-// Normal 的两段节奏；硬模式无选音符步骤，客户端应自行发 CMD2045 内容 105
-// 进第一关）。Normal 保持 1-8 轮的已验证流程。
+// dispatchForestStart 执行开战应答。两种模式各自的官服形状：
+//
+//   - Normal（内容 104）：ACK + N2563 等待态，2.8s 后 N2563 作战窗
+//     （官服 21:42:03.375→21:42:06.202）。
+//   - Extreme（内容 105）：ACK + **N2565 等待态**（64B），2.8s 后 **N2565
+//     作战窗**（state2，三关副本号；官服 22:05:38.308→22:05:41.244）。
+//     Extreme **没有** CMD2226 选音符步骤，客户端收到窗态后自行发 CMD2045。
 func (client *gameConnection) dispatchForestStart(requestData *clientRequest, hard bool) dispatchAction {
 	w := client.worldState
 	plan, notes, err := w.startForest(requestData.plaintext, hard)
@@ -913,12 +1350,19 @@ func (client *gameConnection) dispatchForestStart(requestData *clientRequest, ha
 	if client.sendPlan(plan, client.logWorldResponseBody) != nil {
 		return dispatchClose
 	}
-	// 状态二段推（第 3/3 次尝试决策）：两种模式都走已实机验证的 Normal
-	// 包链（等待态→窗态→CMD2226 确认→进图），只把进图副本按 run.hard 换成
-	// Extreme 三关。N2565 家族同构两次尝试均被客户端无视（第 1/3：自构体；
-	// 第 2/3：官服等待原文+win0 换副本），第 3 次不再猜硬模式专属形状，
-	// 与官服的偏差（Extreme 多一个选音符窗、状态走 N2563）记录于日志。
 	window, infoID := legion.ForestOperationWindowInfo(), legion.NotiForestInfo
+	if hard {
+		hardWindow, wErr := legion.ForestHardWindowInfo(0)
+		if wErr != nil {
+			client.event(map[string]any{"kind": "forest_operation_window_missing", "hard": true, "error": wErr.Error()})
+			return dispatchHandled
+		}
+		window, infoID = hardWindow, legion.NotiForestHardInfo
+	}
+	if len(window) == 0 {
+		client.event(map[string]any{"kind": "forest_operation_window_missing", "hard": hard})
+		return dispatchHandled
+	}
 	roleID := w.role.ID
 	var done <-chan struct{}
 	if client.connection != nil {
@@ -950,28 +1394,25 @@ func isForestStartRequest(id uint16, p []byte) bool {
 
 }
 
-// startForest handles CMD2043 (开始作战). Official order (2026-10-02
-// 21:42:03): N2254 → N2563 waiting → CMD2043 ACK; the shared ACK reader
-// consumes 01+4B and the N2563 waiting snapshot is what the forest content
-// object renders, so the plan sends the shared 5B ACK followed by the
-// official waiting vector. The operation window itself arrives via the
-// delayed push in dispatchForestStart. Guards mirror venus: a standby party
-// (CMD12) must exist and no dungeon may be active.
-// Extreme（hard=true，内容 105）：第 3/3 次尝试——放弃 N2565 猜测，改用与
-// Normal 完全相同的已验证包链（倒计时/横幅/选音符窗全部可用），差异只在
-// 进图副本集（run.hard → hermitage_extreme_1/2/3）。与官服连战口径的偏差
-// 见第十二轮日志。
+// startForest handles CMD2043 (开始作战).
+//
+// Normal（内容 104）官服顺序（2026-10-02 21:42:03）：N2254 → N2563 waiting →
+// CMD2043 ACK；共享 ACK 读取器只消费 01+4B，N2563 等待态才是内容对象渲染的
+// 数据源，所以计划是「共享 ACK + 官服等待向量」，作战窗由 dispatchForestStart
+// 的延迟推送补上。守卫同维纳斯：必须先有 CMD12 建队、且没有活动副本。
+//
+// Extreme（hard=true，内容 105）用**官服 2026-10-08 抓包**的原文：
+// CMD2043 ACK（16B 官服形）+ N2565 等待态（64B）；窗态/清关 tick/终局态全部
+// 走 N2565，奖励走官服七行 N2252。内容号以 105 为准，104 仍容忍（旧客户端
+// 若按队伍类型发 104，不因此拒绝整场）。
 func (w *worldSession) startForest(p []byte, hard bool) ([]outboundPacket, []map[string]any, error) {
 	if len(p) < legion.EnvelopeSize+4 {
 		return nil, nil, fmt.Errorf("forest start payload %d bytes, want at least %d", len(p), legion.EnvelopeSize+4)
 	}
 	content := binary.LittleEndian.Uint32(p[legion.EnvelopeSize:])
-	// 第十五轮修正：Extreme 建队应答为 0x18 队伍（集结检查规避），开战内容号
-	// 随之为 104；105 保留（若客户端以 hard 内容号开战）。两种内容号在 hard
-	// run 下都放行，副本集由 run.hard 决定。
 	if hard {
-		if content != legion.ForestContentID && content != legion.ForestHardContentID {
-			return nil, nil, fmt.Errorf("forest hard start content %d, want %d or %d", content, legion.ForestContentID, legion.ForestHardContentID)
+		if content != legion.ForestHardContentID && content != legion.ForestContentID {
+			return nil, nil, fmt.Errorf("forest hard start content %d, want %d or %d", content, legion.ForestHardContentID, legion.ForestContentID)
 		}
 	} else if content != legion.ForestContentID {
 		return nil, nil, fmt.Errorf("forest start content %d, want %d", content, legion.ForestContentID)
@@ -983,13 +1424,27 @@ func (w *worldSession) startForest(p []byte, hard bool) ([]outboundPacket, []map
 		return nil, nil, fmt.Errorf("forest start before the standby party was created (no CMD12)")
 	}
 	// 每次开战都是一场新挑战（官服 21:42/21:43/21:44 三轮 CMD2043 语义）；
-	// 重复开战覆盖旧 run（与维纳斯 startVenus 同口径）。
+	// 重复开战覆盖旧 run（与维纳斯 startVenus 同口径）。挂起的进图帧列一并作废。
+	w.forestEntryPending = nil
 	w.forest = &forestRun{choice: 0xff, hard: hard}
+	if hard {
+		return []outboundPacket{
+				{"forest_hard_start_ack", 1, legion.CmdStart, legion.ForestHardStartAck()},
+				{"forest_hard_info_waiting", 0, legion.NotiForestHardInfo, legion.ForestHardWaitingInfo()},
+			}, []map[string]any{{
+				"kind":         "forest_started",
+				"character_id": w.role.ID,
+				"hard":         true,
+				"content":      content,
+			}}, nil
+	}
 	return []outboundPacket{
 			{"forest_start_ack", 1, legion.CmdStart, legion.StartAck()},
 			{"forest_info_waiting", 0, legion.NotiForestInfo, legion.ForestWaitingInfo()},
 		}, []map[string]any{{
 			"kind":         "forest_started",
 			"character_id": w.role.ID,
+			"hard":         false,
+			"content":      content,
 		}}, nil
 }

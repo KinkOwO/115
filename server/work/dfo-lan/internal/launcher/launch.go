@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"dfolan/internal/accountname"
 	"dfolan/internal/adventureelite"
 )
 
@@ -31,6 +32,10 @@ const launcherTagPrefix = "roles_persist_select_actor_town_world_live_detail_dun
 // ending _next30.._next34). It is a plan line, not an executed argument.
 const probePayload7001 = "3?127.0.0.1?7001?probe?00000000000000000000000000000000?0?0?30?0?0?0"
 
+// accountEnvKey 是账号名的环境别名：GUI 启动器把它写进 dfolauncher launch 的子进程环境，
+// wireprobe 侧同一个键是 -account 的默认值来源（cmd/wireprobe/config.go）。
+const accountEnvKey = "DFO_ACCOUNT"
+
 // LaunchOptions is the launch_local.py command line as data. The Python had no --root: it
 // derived the root from its own location. A Go binary can be started from anywhere, so the
 // root is explicit and the .cmd entries pass the directory they cd to.
@@ -47,6 +52,48 @@ type LaunchOptions struct {
 	// byte-for-byte comparison against its own output impossible; --tag exists for that
 	// comparison (and for reproducing a session) and is empty for a normal launch.
 	Tag string
+	// Account picks the development account this session logs in with. Empty means "not
+	// chosen": the session then keeps DFO_ACCOUNT as inherited, or probe. Only the server
+	// binary mints the identity (a UPSERT on this name), so the launcher stores and passes
+	// the name without ever creating a row itself.
+	Account string
+}
+
+// sessionAccount 决定本次会话登录用的开发账号名：显式 --account 赢，其次合并进来的
+// DFO_ACCOUNT（GUI 启动器注入的就是这条），最后才是历史默认 probe。
+func sessionAccount(raw string, lookup func(string) string) string {
+	if raw != "" {
+		return raw
+	}
+	if fromEnv := lookup(accountEnvKey); fromEnv != "" {
+		return fromEnv
+	}
+	return accountname.Default
+}
+
+// accountRuleError 是账号名不合法时的统一措辞：真正启动（写子进程环境）与 --dry-run 打计划
+// 走的是同一条判据，预览说能用的名字，启动也一定能用。
+func accountRuleError(account string) error {
+	return fmt.Errorf("账号名 %q 不合法：只允许 1..%d 个 ASCII 字母、数字、_ 与 -（--account 或 DFO_ACCOUNT）",
+		account, accountname.MaxLength)
+}
+
+// applySessionAccount 把定型的账号写进网关子进程的环境。只有业主真的选了账号（给了显式
+// 参数，或环境里本来就有这个键）才写；默认 probe 时一个字节都不加，子进程环境与今天逐字节
+// 一致。服务端按这个名字 UPSERT 出 accounts 行（cmd/wireprobe/bootstrap.go），角色与存档
+// 就归属它 —— 换名即换档，不动旧档。
+//
+// 旧的服务端二进制没有 -account / DFO_ACCOUNT 时会继续用 probe，这是已知限制：它与命令行
+// 参数被 PruneCommand 丢弃是同一种结果，所以不为此加能力探测。
+func applySessionAccount(env *childEnv, opts LaunchOptions) (string, error) {
+	account := sessionAccount(opts.Account, env.Get)
+	if !accountname.Valid(account) {
+		return "", accountRuleError(account)
+	}
+	if opts.Account != "" || env.Has(accountEnvKey) {
+		env.Set(accountEnvKey, account)
+	}
+	return account, nil
 }
 
 // LaunchReport is everything launch --check / --dry-run reports, plus the raw material the
@@ -274,6 +321,12 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 	}
 
 	if opts.DryRun {
+		// 计划行里的 payload 带账号段，所以名字不合法要在打印之前失败，而不是让业主拿着一份
+		// 打印得出、启动却起不来的计划。
+		account := sessionAccount(opts.Account, os.Getenv)
+		if !accountname.Valid(account) {
+			return report, accountRuleError(account)
+		}
 		input := planInput{
 			module:      module,
 			storageDir:  storageDir,
@@ -284,6 +337,7 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 			binary:      binary,
 			storage:     storage,
 			opts:        opts,
+			account:     account,
 			catalogs:    profile.Env["DFO_PVF_CATALOGS"],
 			innerStatus: report.InnerPVF,
 			now:         time.Now(),
@@ -430,6 +484,7 @@ type planInput struct {
 	binary      string
 	storage     storageFile
 	opts        LaunchOptions
+	account     string
 	catalogs    string
 	innerStatus InnerPVFStatus
 	now         time.Time
@@ -441,7 +496,12 @@ type planInput struct {
 func launchPlanSteps(in planInput) ([]PlanStep, error) {
 	// The tag launch_local.py builds; it names the session directory the gateway and the
 	// probe write into. sessionTagName carries the strftime("%Y%m%d_%H%M%S_%f") detail.
-	tag := sessionTagName(in.now)
+	// --tag pins that directory, exactly like the real run does (serverrun.go 第 4 步), so
+	// a plan printed with --tag is byte-for-byte the session it claims to preview.
+	tag := in.opts.Tag
+	if tag == "" {
+		tag = sessionTagName(in.now)
+	}
 	out := filepath.Join(in.module, "runtime", tag)
 
 	storage := storageStep(in)
@@ -538,6 +598,6 @@ func clientStep(in planInput, out string) PlanStep {
 		Target: filepath.Join(in.probeDir, "probe.exe"),
 		Detail: fmt.Sprintf("%s %s 55 %s %s %s（由 Go 宿主拉起，probe.exe 仅作显式回退；payload 为 _next37→_next34 降级后的 7001 形态）",
 			in.client, filepath.Join(out, "client.log"), mode,
-			filepath.Join(out, "breakpoints.txt"), probePayload7001),
+			filepath.Join(out, "breakpoints.txt"), planPayload(in.account)),
 	}
 }

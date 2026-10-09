@@ -7,7 +7,10 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -96,6 +99,11 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 	if cs == nil || w == nil || w.role.ID == 0 {
 		return nil, fmt.Errorf("skill request requires owned selected character")
 	}
+	if len(raw) < 16 {
+		raw = append([]byte(nil), raw...)
+		raw = append(raw, make([]byte, 16-len(raw))...)
+	}
+	log.Printf("[skill-debug] id=%d len=%d hex=%s", id, len(p), hex.EncodeToString(raw[:16]))
 	if !s.initialized {
 		if _, e := rand.Read(s.nonce[:]); e != nil {
 			return nil, e
@@ -125,10 +133,15 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 		var r protocol.SkillPurchase
 		r, e = protocol.DecodeSkillPurchase(p)
 		if e != nil {
+			log.Printf("[skill-debug] 29 DECODE ERR tree=%d %v", r.Tree, e)
 			break
 		}
+		log.Printf("[skill-debug] 29 tree=%d entries=%d mode=%d preset=%d inten=%v opt=%v", r.Tree, len(r.Entries), r.Mode, r.Preset, r.Intensions != nil, r.Options != nil)
 		varied = r.Intensions != nil || r.Options != nil
 		saved, applied, e = cs.Learn(ctx, w.role, key, r)
+		if e != nil {
+			log.Printf("[skill-debug] 29 LEARN ERR tree=%d %v", r.Tree, e)
+		}
 		if e == nil {
 			body, e = cs.LearningResponse(saved, r)
 		}
@@ -137,16 +150,42 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 		// sends this swap list right after the auto-set learn burst and waits
 		// for the acknowledgement; with no handler it stayed an unimplemented
 		// sample (zero response), so the bar kept the server's own order and the
-		// preview the player confirmed was never applied. skillTreeRefreshRequired
-		// is true for this id, so the acknowledgement is followed by the full
-		// NOTI 19 redraw.
+		// preview the player confirmed was never applied.
+		//
+		// ⚠️ 实验七（21:5x）：受理落库后**补发 NOTI19**——客户端 autoset 后等
+		// NOTI19 应用布局（预览只是模拟，第六轮零刷新帧导致当次显示旧排列）。
+		// 只带 NOTI19，不带 NOTI29/preset/combo（页2 崩点候选隔离）。
+		// ACK 的 tree 字节仍强制 0（实验六已证 tree=1 响应帧是崩点）。
 		var r protocol.SkillSlotTotal
 		r, e = protocol.DecodeSkillSlotTotal(p)
 		if e == nil {
 			saved, applied, e = cs.MoveSkillTotal(ctx, w.role, key, r)
 		}
 		if e == nil {
-			body = protocol.SkillSlotTotalSuccess(r)
+			w.role = saved
+			ack := r
+			ack.Tree = 0
+			restore, err := cs.EntrySkills(saved)
+			if err != nil {
+				return nil, err
+			}
+			plan := []outboundPacket{{"skill_committed_response", 1, 2179, protocol.SkillSlotTotalSuccess(ack)}}
+			plan = append(plan, outboundPacket{"skill_state_restored", 0, 19, restore})
+			// ⚠️ NOTI19 的包体**不含 VP（进化／突破）数据**，客户端收到后会用
+			// 空 VP 覆盖刚显示正确的面板 —— 这正是 2026-09-22 踩过的同一个坑
+			// （《技能系统修复_20260922》第一节："点 Apply 后 id=29 之后再发
+			// id=19 ⇒ 显示重置，重选角色才正常"）。
+			// 公共出口 skillMutationResponsePlan 已经在 19 之后补了 id=29，
+			// 但本分支是提前 return 的，漏了这一步 ⇒ auto set 之后 enhance
+			// 看起来没设置、重登才恢复。这里补回同一个 VariationRestore。
+			variation, err := cs.VariationRestore(saved)
+			if err != nil {
+				return nil, err
+			}
+			if len(variation) > 0 {
+				plan = append(plan, outboundPacket{"skill_variation_response", 1, 29, variation})
+			}
+			return plan, nil
 		}
 	case 2346:
 		var r protocol.SkillPreset
@@ -168,8 +207,20 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 		// it as a (tree,mask) pair yielded tree 111 / mask 40) and clears all
 		// three groups of the main tree, letting the client lay out its own
 		// recommended shortcuts as it does natively.
+		//
+		// ⚠️ 2026-10-09：这两条判据目前**无法区分**两个按钮（实测 Reset 的确认帧恰好
+		// 8 字节，而 Auto Set 的形状未取到），所以这里保持上游原样不动 —— 等拿到
+		// Auto Set 按钮的明文再定向修。
 		if len(p) >= 8 && p[1] == 0 && p[0] <= 1 && p[2]&^(character.ResetOrdinarySkills|character.ResetEnhance|character.ResetEvolve) == 0 {
 			style, mask := p[0], p[2]
+			// ⚠️ 2026-10-09 试过把 style 改成"从存档取当前页"——**实测无效且更危险，已回退**：
+			//   存档页与客户端显示页并不同步（存档 SkillTreeType=1 时客户端正停在第二页），
+			//   以存档为准会去洗玩家根本没在看的那页。
+			//   实机取证：autoset 确认帧 p[0]=0，紧随其后的 cmd29 也报 Tree=0 —— 两者一致，
+			//   说明 **p[0] 就是客户端的真实页**，照用即可。
+			//   真正让 enhance 不刷新的不是页，是 cmd29 响应里 mode 用了 req.Mode（见
+			//   internal/character/learning.go LearningResponse）。
+			log.Printf("[skill-debug] 483 RESET-WINDOW branch style=%d mask=%d", style, mask)
 			saved, _, e = cs.ResetSkills(ctx, w.role, key, style, mask)
 			if e != nil {
 				break
@@ -191,12 +242,28 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 			if e != nil {
 				return nil, e
 			}
+			// ⛔ 这里**不能**补发 mode0+mode1 去"把页签拉回第二页"：实机 2026-10-09
+			// 18:26 在技能命令里注入 unlockRefresh 之后，客户端以 0xC0000005（访问冲突）
+			// 退出 —— 那等于在技能窗口打开时重建整个场景角色，窗口持有的技能对象随即悬垂。
+			// 客户端在 reset/autoset 后回到第一页是它**自己的**行为，改由玩家点"技能类型
+			// 替换按钮"(cmd260) 切回即可（那条路已实机验证）。
 			return append(plan, outboundPacket{"skill_variation_reset_response", 1, 29, body}), nil
 		}
 		if len(p) < 3 {
 			return nil, fmt.Errorf("short reset request")
 		}
-		saved, e = cs.ResetAutoSet(ctx, w.role, key, 0, 7)
+		// ⚠️ auto-set 必须作用于**当前页**。写死 0 时，在第二页点 autoset 会去洗第一页
+		// ⇒ 服务端状态与客户端所在的页错开 ⇒ 客户端崩。实机 2026-10-09 20:42 的对照很干净：
+		// 第二页的**手动加点**（cnt=1/6/14，走 Learn 那条路）全都不崩，**只有 autoset 崩**，
+		// 而 autoset 正是走这条分支。
+		// body 是 opaque（按 (tree,mask) 读得到 tree111/mask40），只能从存档取当前页。
+		log.Printf("[skill-debug] 483 AUTO-SET branch p0=%d p1=%d p2=%d len=%d", p[0], p[1], p[2], len(p))
+		autoTree := byte(0)
+		var autoState character.State
+		if json.Unmarshal(w.role.State, &autoState) == nil && character.SkillTreeWireIndex(autoState) == 1 {
+			autoTree = 1
+		}
+		saved, e = cs.ResetAutoSet(ctx, w.role, key, autoTree, 7)
 		if e != nil {
 			return nil, e
 		}
@@ -217,6 +284,8 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 		if len(variation) > 0 {
 			plan = append(plan, outboundPacket{"skill_variation_response", 1, 29, variation})
 		}
+		// ⛔ 这里**不要**补任何"纠正页签"的帧：mode0+mode1（第八轮）和 S→C CMD260
+		// 通知（第十一轮）都实测 0xC0000005。客户端自己回到第一页，玩家点按钮切回即可。
 		return plan, nil
 	case 2347:
 		// Chain / skill preset reset is not covered by the confirmed save/restore
@@ -235,7 +304,12 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 		if len(variation) > 0 {
 			plan = append(plan, outboundPacket{"skill_variation_chain_response", 1, 29, variation})
 		}
+		// ⛔ 同上：不补"纠正页签"的帧。
 		return plan, nil
+	case 260:
+		// CHANGE_ANOTHER_SKILL_TREE：技能窗口的"技能类型替换按钮"。
+		// 它只改选择位，不需要下面的技能事务计划（不重建技能树）。
+		return w.changeAnotherSkillTree(p)
 	default:
 		return nil, fmt.Errorf("unsupported skill mutation")
 	}
@@ -252,5 +326,7 @@ func (s *skillSession) handle(cs *character.Service, w *worldSession, id uint16,
 	// 不会自己带进度帧，实机 2026-10-04 会话里加点完成后客户端只发心跳：这里比较本次
 	// 事务前后的训练状态，只在确实前进时补发一条 NOTI2638，任务面板才会刷新。
 	plan = append(plan, boostTrainingProgress(w.boostup, before, saved)...)
+	// ⛔ 不补"纠正页签"的帧：mode0+mode1（第八轮）与 S→C CMD260 通知（第十一轮）
+	// 都实测过 0xC0000005。客户端重绘 NOTI19 后回到第一页是它自己的行为。
 	return plan, nil
 }

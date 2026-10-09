@@ -1173,3 +1173,56 @@ func TestJournalRegistrationsDisabledWithoutRulesOrCatalog(t *testing.T) {
 		t.Fatalf("nil catalog: next=%+v added=%+v skipped=%+v err=%v", next, added, skipped, e)
 	}
 }
+
+// InspectTransformCost 的成本预览必须**按件**给量，不是「一套一次」。
+//
+// [DIAG-20261009-TRANSFORM-COST] 这条断言本身就是取证用的标尺：客户端「变换按钮没禁用、
+// 服务端却以材料不足拒绝」的分歧，第一个要排除的就是计费单位（按件 vs 按套差 11 倍）。
+// 把同一件报两次，预览给的量就必须是单件的两倍 —— 与真正执行时逐件累加的口径一致
+// （`PrepareEquipmentTransform` 里 `gold += pay.Gold` / 逐件 `out.Spend`）。
+func TestInspectTransformCostIsPerPiece(t *testing.T) {
+	s, _ := loadTransformFixtures(t)
+
+	// 100401597 = legendary：付款方式 1 = 35000 金币 + 传说灵魂 10361514 ×1。
+	lines := s.InspectTransformCost([]uint32{14, 15}, []uint32{100401597, 100401597}, 1)
+	if len(lines) != 2 {
+		t.Fatalf("lines = %d, want 2 (one per requested piece)", len(lines))
+	}
+	var gold uint32
+	for i, ln := range lines {
+		if ln.Rarity != 6 || ln.RarityName != "legendary" {
+			t.Fatalf("line %d rarity = %d/%q, want 6/legendary", i, ln.Rarity, ln.RarityName)
+		}
+		if ln.Gold != 35000 {
+			t.Fatalf("line %d gold = %d, want 35000", i, ln.Gold)
+		}
+		if len(ln.AccountMats) != 1 || ln.AccountMats[0].Template != 10361514 || ln.AccountMats[0].Count != 1 {
+			t.Fatalf("line %d account mats = %+v, want 10361514 x1", i, ln.AccountMats)
+		}
+		if ln.Problem != "" {
+			t.Fatalf("line %d problem = %q, want none", i, ln.Problem)
+		}
+		gold += ln.Gold
+	}
+	if gold != 70000 {
+		t.Fatalf("gold total = %d, want 70000 (per piece, not per set)", gold)
+	}
+
+	// 空槽（0xFFFFFFFF）不产生预览行 —— 客户端把整屏 14 条都报上来，其中多数是占位。
+	if lines = s.InspectTransformCost([]uint32{14, 15}, []uint32{100401597, 0xFFFFFFFF}, 1); len(lines) != 1 {
+		t.Fatalf("placeholder lines = %d, want 1", len(lines))
+	}
+}
+
+// 预览要能标出「源 [create cost] 里没有这件」的目标（与生成路径免单谓词同一个按件判定）。
+func TestInspectTransformCostFlagsUnpriced(t *testing.T) {
+	s, cc := loadTransformFixtures(t)
+	const target = 100051285 // 第 10 关教学件：源里没有成本条目
+	if _, ok := cc.GroupFor(target); ok {
+		t.Skipf("前提失效：%d 已被源定价，测不到 unpriced", target)
+	}
+	lines := s.InspectTransformCost([]uint32{14}, []uint32{target}, 1)
+	if len(lines) != 1 || !lines[0].Unpriced {
+		t.Fatalf("lines = %+v, want one line with Unpriced=true", lines)
+	}
+}

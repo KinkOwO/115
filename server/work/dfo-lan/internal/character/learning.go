@@ -199,7 +199,8 @@ func (s *Service) validateLearningPrerequisites(job byte, known, changes map[uin
 }
 
 func (s *Service) Learn(ctx context.Context, role Character, key string, req protocol.SkillPurchase) (Character, bool, error) {
-	if s.Learning == nil || req.Tree != 0 {
+	// ⚠️ 实验第二轮：cmd29 放开（第一轮只开 2179 时"不崩但没加点"，崩因在 cmd29）。
+	if s.Learning == nil || req.Tree > 1 {
 		return role, false, fmt.Errorf("learning service/source unavailable")
 	}
 	hasTactician, _ := s.Store.HasTacticianPremium(ctx, role.AccountID, time.Now())
@@ -375,7 +376,7 @@ func (s *Service) placeNewShortcuts(job byte, rows []protocol.LearnedSkill, fres
 	}
 }
 func (s *Service) MoveSkill(ctx context.Context, role Character, key string, req protocol.SkillMove) (Character, bool, error) {
-	if s.Learning == nil || req.Tree != 0 || req.From == 255 || req.To == 255 || req.From == req.To {
+	if s.Learning == nil || req.Tree > 1 || req.From == 255 || req.To == 255 || req.From == req.To {
 		return role, false, fmt.Errorf("invalid ordinary skill move")
 	}
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-slots-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
@@ -383,7 +384,8 @@ func (s *Service) MoveSkill(ctx context.Context, role Character, key string, req
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
 		}
-		rows, e := s.skillRows(current, state, 0)
+		// 拖放也分页：第二页的栏位必须落到 SkillSlots[1]。
+		rows, e := s.skillRows(current, state, int(req.Tree))
 		if e != nil {
 			return nil, nil, e
 		}
@@ -413,7 +415,7 @@ func (s *Service) MoveSkill(ctx context.Context, role Character, key string, req
 		if to != 0 {
 			slots[to] = uint16(req.From)
 		}
-		state.SkillSlots[0] = slots
+		state.SkillSlots[req.Tree] = slots
 		p, e := mergeSkillState(current.State, state)
 		if e != nil {
 			return nil, nil, e
@@ -434,7 +436,9 @@ func (s *Service) MoveSkill(ctx context.Context, role Character, key string, req
 // Sources name the state the previous pair produced, so the pairs are applied
 // in order; an empty target receives the source skill outright.
 func (s *Service) MoveSkillTotal(ctx context.Context, role Character, key string, req protocol.SkillSlotTotal) (Character, bool, error) {
-	if s.Learning == nil || req.Tree != 0 || len(req.Pairs) == 0 {
+	// ⚠️ 实验第六轮（21:5x）：放行 tree≤1 受理第二页布局并落库。
+	// 与协议层 DecodeSkillSlotTotal 保持一致。
+	if s.Learning == nil || req.Tree > 1 || len(req.Pairs) == 0 {
 		return role, false, fmt.Errorf("invalid skill slot total")
 	}
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-slots-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
@@ -442,7 +446,7 @@ func (s *Service) MoveSkillTotal(ctx context.Context, role Character, key string
 		if e := json.Unmarshal(current.State, &state); e != nil {
 			return nil, nil, e
 		}
-		rows, e := s.skillRows(current, state, 0)
+		rows, e := s.skillRows(current, state, int(req.Tree))
 		if e != nil {
 			return nil, nil, e
 		}
@@ -451,9 +455,9 @@ func (s *Service) MoveSkillTotal(ctx context.Context, role Character, key string
 		}
 		// The list is the layout the client is about to display; persist the
 		// same rows so the next skillRows cannot re-lay them somewhere else.
-		state.SkillSlots[0] = map[uint16]uint16{}
+		state.SkillSlots[req.Tree] = map[uint16]uint16{}
 		for _, v := range rows {
-			state.SkillSlots[0][v.ID] = v.Slot
+			state.SkillSlots[req.Tree][v.ID] = v.Slot
 		}
 		p, e := mergeSkillState(current.State, state)
 		if e != nil {
@@ -476,6 +480,10 @@ func (s *Service) MoveSkillTotal(ctx context.Context, role Character, key string
 // unresolvable [type] as passive would refuse the whole layout, which is the
 // same trap MoveSkill already had to have fixed.
 func (s *Service) applySkillSlotSwaps(profession byte, rows []protocol.LearnedSkill, pairs []protocol.SkillSlotSwap) error {
+	// 槽位交换语义：页1 autoset 抓包（08:35，source/target 覆盖面板槽 7..31）
+	// 长期验证正确；页2 抓包（10-09 22:00）target 全为快捷栏 0..13，source 为面板槽
+	// 8..28，同样按槽位对应用（同一源槽被引用多次 = 链式交换，逐对生效）。
+	// 实验七：不改变落库语义，只恢复由 2179 受理后的 NOTI19 刷新（见 skill_flow case 2179）。
 	bySlot := map[uint16]int{}
 	for i, r := range rows {
 		if r.Slot < 255 {
@@ -545,5 +553,11 @@ func (s *Service) LearningResponse(role Character, req protocol.SkillPurchase) (
 	if variationUnlocked(&state) {
 		fillVariationSlots(&v)
 	}
-	return protocol.SkillPurchaseVariations(p, req.Mode, v.Intensions, v.Options)
+	// ⚠️ 这里的 mode 必须是 **req.Tree（页）**，不能是 req.Mode。
+	// 实机（2026-10-09 23:42）auto set 之后的批量加点包：Tree=0 而 Mode=1 ——
+	// Mode 是"这次是 auto set 批量"的标志，不是页。用 req.Mode 会发出一帧
+	// "页号=0 但 mode=1"自相矛盾的响应，客户端据此不刷新 VP 面板
+	// ⇒ 表现就是 auto set 后 enhance 看起来没设置，重登才恢复（登录走
+	// VariationRestore，那里 mode=tree 是自洽的，所以重登正常）。
+	return protocol.SkillPurchaseVariations(p, req.Tree, v.Intensions, v.Options)
 }
