@@ -21,6 +21,7 @@ func TestAzureMainFinishFightingShape(t *testing.T) {
 		}
 	}
 }
+
 // [AZURE-SETTLEMENT-OPTION] NOTI72 把「重开 / 返回城镇」摆在结算面板上。
 //
 // 官服 #695/#696 是 16B `State, Option, 2, <5B 常量 c5 20 24 76 3f>`，
@@ -44,6 +45,7 @@ func TestAzureSettlementOptionOfferShape(t *testing.T) {
 		}
 	}
 }
+
 // [AZURE-SETTLEMENT-OPTION] NOTI70 / NOTI71 的形状（官服 #687 / #692 逐字节）。
 func TestAzureSettlementOptionEnableShape(t *testing.T) {
 	en := AzureSettlementOptionEnable()

@@ -115,6 +115,21 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 	if e != nil {
 		return nil, nil, e
 	}
+	// [EPLP-SEAMLESS-UNSETTLED] 小深渊现在不发 NOTI31、只发 NOTI261（见
+	// dungeon_flow.go 的通关分支），所以客户端发来的 CMD72 `01 05 01`
+	// 到达时**没有**已提交的翻牌事务，cardsReady() 必然失败。
+	//
+	// 2026-10-07 18:11 实机（会话 `_181140_`）证明：选项 5 只回「focus ACK」而
+	// 不驱动入场时，客户端会退回它自己的直进路径、自己补发
+	// `CMD2062 DUNGEON_DIRECT_MOVE`，我们再按 2062 回一套「NOTI15 + NOTI27 +
+	// 入场序列」—— 结果声音与技能都正常，**画面却停在上一次清图那一帧**。
+	//
+	// 对照黄金样本 `_170534_` 的客户端 trace：那一次**整场没有 CMD2062**，
+	// 入场完全由 CMD72 的应答驱动，模块序列
+	// `MAIN_GAME(3) -> SELECT_DUNGEON(2) -> MAIN_GAME(3)` + `Enter Dungeon`，
+	// 与本次逐条同形（连 VMem 增量模式都一样）。
+	// ⇒ 定案：选项 5 必须**由应答当场驱动入场**，不能让客户端自己走 2062。
+	unsettledSeamless := r.Option == protocol.SettlementExitSeamless && w.cardsReady() != nil
 	// [ISPINS-ARENA-BOSS] 伊斯大陆的 CMD72 全部不走通用翻牌/结算：官服 s4
 	// 整场没有一帧 69/70/71（阶段奖励由 N2256/N2252 承载），撤退休退
 	// （source=0）更发生在副本未完成时。回城复用 leaveDungeon（回到进本前
@@ -215,8 +230,10 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 		}
 		return nil, append([]outboundPacket{ack}, route[1:]...), nil
 	}
-	if e = w.cardsReady(); e != nil {
-		return nil, nil, e
+	if !unsettledSeamless {
+		if e = w.cardsReady(); e != nil {
+			return nil, nil, e
+		}
 	}
 	ack := outboundPacket{"settlement_focus_ack", 1, 72, protocol.SettlementExitSuccess(r)}
 	if r.State == 2 {
@@ -250,6 +267,18 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 		if w.activeDungeon == nil || !w.activeDungeon.Completed() {
 			return nil, nil, fmt.Errorf("seamless rechallenge before a committed clear")
 		}
+		// ⚠️ 2026-10-07 18:44 实机**证伪**：小深渊一度改走「原地重置」（`seamlessRoomReset` ——
+		// 只发 ACK + NOTI28 + NOTI29 + 两条线档位 + 疲劳、不切模块、不重喂角色状态），
+		// 客户端收到 `ENUM_NOTIPACKET_START_MAP` 之后**立刻 0xC0000005**
+		//（client.log `exit=0xC0000005`；trace 最后三帧就是 DUNGEON_INFO / START_MAP / FATIGUE）。
+		// ⇒ 客户端必须先把「加载状态」建起来（NOTI27 切模块那一段，也就是屏幕上闪过的那一帧
+		// map select）才吃得下 START_MAP。这条捷径不再走；`seamlessRoomReset` 留在
+		// dungeon_flow.go 里只作取证，**不要接线**。
+		log.Printf("seamless rechallenge drives the entry itself: dungeon=%d state=%d settled=%v", w.activeDungeon.Definition.ID, r.State, !unsettledSeamless)
+		// 无缝续刷：让进图序列跳过 NOTI2（角色对象重建）—— buff/召唤物要延续。
+		// 置位后**不在这里清**：进图序列要跳过 NOTI2，CMD37 那一步还要跳过 1361
+		//（增益强化注册 = 重绑 buff），两处都靠它。
+		w.seamlessRetry = true
 		pending, route, e = w.restartDungeon()
 	case 2, 3:
 		// Current scenario option3 is "Start Next Quest". A town objective
@@ -263,7 +292,8 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 		return nil, nil, e
 	}
 	var plan []outboundPacket
-	if w.cardReceipt == nil {
+	// 无结算的无缝续刷没有翻牌事务（cardPlan == nil），补发免费牌会直接报错。
+	if !unsettledSeamless && w.cardReceipt == nil {
 		plan, e = w.grantFreeCard(0)
 		if e != nil {
 			if w.activeDungeon.Definition.ID != blackPurgatorySquadDungeon || (r.Option != 2 && r.Option != 3) {
@@ -338,5 +368,14 @@ func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, err
 	if e != nil {
 		return nil, nil, e
 	}
-	return s, append(dungeonSelectionHead(), entry...), nil
+	// ⚠️ 2026-10-07 19:14 实机**证伪**：无缝续刷曾试过「去掉 NOTI27、只留 NOTI15 门应答」
+	// （`seamlessSelectionHead`），客户端再次 0xC0000005。
+	// ⇒ **NOTI27 是必需的加载握手**：切模块那一步（屏幕上那一帧 map select）就是客户端
+	// 建立加载状态的过程，`START_MAP` 必须有它在前。`seamlessSelectionHead` 只作取证，不要接线。
+	// 无缝续刷（选项 5）要用 NOTI27 的「继续挑战」形态：头字节 `relay` = 1。
+	// 官服抓包里同一个副本冷进场是 0x00、两次继续都是 0x01（next178 §3），
+	// 而本仓此前恒为 0（客户端因此一直走「新副本」那条加载路径）。
+	// 选项 0（普通重开）保持 relay = 0。
+	return s, append(dungeonSelectionHeadFor(copy.dungeonRelayFlag() != 0), entry...), nil
 }
+

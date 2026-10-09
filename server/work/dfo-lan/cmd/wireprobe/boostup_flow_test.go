@@ -20,6 +20,43 @@ import (
 	"time"
 )
 
+// 实机缺陷（业主 2026-10-07）：奶系职业直升活动第二关无法进副本。
+//
+// 客户端把 2638 的第一字节当**轨道号**用（Dump：analysis/dumps/boost-buffer-route/）：
+//   - sub_14074C6B0 训练副本路线的内层键 = (grow, mode==1)，**精确匹配、不回绕**，
+//     查不到才回落 record+4 = 普通轨 `[dungeon index]`；
+//   - sub_140C13440 按 mode==1 取 [buffer reward]；
+//   - sub_14074DEF0 按 mode!=2 判定"仍在参与"。
+//
+// 我方恒发 0 ⇒ 奶系步骤的 `[specific dungeon index]` 变体 1 行永远匹配不上，客户端
+// 请求 100004558（普通轨那张），authorizeBoostDungeon 按真实路线（100004545/…546）拒绝，
+// 日志 guide dungeon differs from current profession/step（会话
+// runtime/roles_..._20261007_175054_282824_next37/events.jsonl，第二个角色两次）。
+// 轨道字节必须跟着 boost_up115.variant 走；毕业/未参与仍是 2。
+func TestBoostTrainingFrameCarriesTrack(t *testing.T) {
+	c := &boostup.Catalog{Gifts: []boostup.Gift{{ID: 117}}}
+	for _, tc := range []struct {
+		name  string
+		state boostup.State
+		want  []byte
+	}{
+		{"普通轨进行中", boostup.State{Version: 1, Activated: true, Variant: 0, Training: boostup.Training{Step: 2}}, []byte{0, 2, 0, 0, 1}},
+		{"奶系轨进行中", boostup.State{Version: 1, Activated: true, Variant: 1, Training: boostup.Training{Step: 2}}, []byte{1, 2, 0, 0, 1}},
+		{"奶系轨毕业", boostup.State{Version: 1, Activated: true, Variant: 1, Training: boostup.Training{Step: 12, Finished: true}}, []byte{2, 12, 0, 0, 1}},
+		{"未参与", boostup.State{Version: 1, Variant: 1}, []byte{2, 0, 0, 0, 0}},
+	} {
+		role := database.Character{State: json.RawMessage(`{}`)}
+		raw, e := boostup.WriteState(role.State, tc.state)
+		must115(t, e)
+		role.State = raw
+		got, e := boostTrainingRestore(c, role)
+		must115(t, e)
+		if !bytes.Equal(got, tc.want) {
+			t.Errorf("%s: 2638 = % x, want % x", tc.name, got, tc.want)
+		}
+	}
+}
+
 // TestBoostClaimFramesAreObserved 钉住 662 的三条入站线路都在采样白名单里：
 // 漏登记的通知第 BodySampleLimit(8) 次之后不再记录正文，诊断会静默变弱。
 func TestBoostClaimFramesAreObserved(t *testing.T) {

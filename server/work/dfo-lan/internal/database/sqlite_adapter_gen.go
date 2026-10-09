@@ -2616,6 +2616,10 @@ func (q *sqliteQueries) SaveOmenHeld(ctx context.Context, p0 sqlcgen.SaveOmenHel
 	return storageError(q.Queries.SaveOmenHeld(ctx, sqlcgensqlite.SaveOmenHeldParams(p0)))
 }
 
+func (q *sqliteQueries) SaveOmenMisses(ctx context.Context, p0 sqlcgen.SaveOmenMissesParams) (error) {
+	return storageError(q.Queries.SaveOmenMisses(ctx, sqlcgensqlite.SaveOmenMissesParams(p0)))
+}
+
 func (q *sqliteQueries) SavePremiumExpiry(ctx context.Context, p0 sqlcgen.SavePremiumExpiryParams) (error) {
 	return storageError(q.Queries.SavePremiumExpiry(ctx, sqlcgensqlite.SavePremiumExpiryParams(p0)))
 }

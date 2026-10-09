@@ -282,6 +282,7 @@ type querySet interface {
 	SaveFavorPoint(context.Context, sqlcgen.SaveFavorPointParams) (error)
 	SaveOathProgress(context.Context, sqlcgen.SaveOathProgressParams) (error)
 	SaveOmenHeld(context.Context, sqlcgen.SaveOmenHeldParams) (error)
+	SaveOmenMisses(context.Context, sqlcgen.SaveOmenMissesParams) (error)
 	SavePremiumExpiry(context.Context, sqlcgen.SavePremiumExpiryParams) (error)
 	SavePrimaryVaultItems(context.Context, sqlcgen.SavePrimaryVaultItemsParams) (error)
 	SavePrimaryVaultSlots(context.Context, sqlcgen.SavePrimaryVaultSlotsParams) (error)

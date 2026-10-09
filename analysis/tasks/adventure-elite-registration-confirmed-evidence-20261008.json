@@ -1,0 +1,1154 @@
+{
+  "stage": "confirmed-ordinary-first-room-registration-and-visible-ai-only",
+  "version": "0.3.6",
+  "sourceCommit": "76bdc002f32ce186ff69917e62dae13782efd162",
+  "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_205959_164276_next37",
+  "processId": 40540,
+  "runTick": 130600046,
+  "userConfirmation": {
+    "quotes": [
+      "成功了",
+      "APC会动，会打怪，没怪会跟随玩家"
+    ],
+    "screenshotFiles": [
+      "codex-clipboard-3a2b3a72-897e-484a-9553-c1c124d18741.png",
+      "codex-clipboard-759f903f-ba37-4935-85ca-0adbd989bdab.png"
+    ],
+    "observedParty": [
+      {
+        "name": "nene",
+        "level": 6,
+        "role": "player"
+      },
+      {
+        "name": "test",
+        "level": 1,
+        "role": "APC"
+      },
+      {
+        "name": "glow",
+        "level": 115,
+        "role": "APC"
+      }
+    ],
+    "visibleAiBehaviorConfirmed": true,
+    "serverDamageAttributionConfirmed": false
+  },
+  "collector": {
+    "candidateValid": true,
+    "pidMatch": true,
+    "requests1811": 1,
+    "nativeRecords": 12,
+    "lifecycleRecords": 63,
+    "entryRecords": 7,
+    "normalExitObserved": true,
+    "issues": [],
+    "coverageComplete": true,
+    "entryProbeCoverageComplete": true,
+    "registrationScopeAccepted": true,
+    "nativeRegistrationObserved": true,
+    "battleVerified": false,
+    "lifecycleReleaseObserved": false
+  },
+  "artifacts": [
+    {
+      "path": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+      "exists": true,
+      "match": true,
+      "sha256": "5e80ee140dd4f968f84d122464cbc17a68919527bee547a634e91e4bae1597d4"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+      "exists": true,
+      "match": true,
+      "sha256": "5af6d212642caff81ceeacc0802d01902a3e0ceb9b5f7df1a47cb89eae1a6e41"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe",
+      "exists": true,
+      "match": true,
+      "sha256": "aed177c46cb700afbb77d75d2f8aa3b5061dde82ac3f629901436722d3752a79"
+    }
+  ],
+  "authorityBuildResources": [
+    {
+      "path": "client/DFO.exe",
+      "exists": true,
+      "sha256": "1d3948784e5e0f77ed744017bf82bf0c50de9421423f9e59f6f70aed609d8ffa",
+      "sameAsBuildInput": true
+    },
+    {
+      "path": "client/Script.pvf",
+      "exists": true,
+      "sha256": "5dd03873edf2c1df7aea16db5ad146a776fb8461a947be73042cabd932e66f0a",
+      "sameAsBuildInput": true
+    },
+    {
+      "path": "client/sk.dat",
+      "exists": true,
+      "sha256": "59d78371335d22dae0eaeca2a827939576e85a5f5ede4ba286f0438d2fbc6eaf",
+      "sameAsBuildInput": true
+    },
+    {
+      "path": "server/work/client-build/Script.inner.pvf",
+      "exists": true,
+      "sha256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+      "sameAsBuildInput": true
+    }
+  ],
+  "runtimeClient": {
+    "path": "F:/wip/dof/115US/DFO.exe",
+    "sha256": "eb3e04a2f07f2eeb69919c3830e9b631c017b3110049ae109efcb9d3d979d552",
+    "wholeFileEqualsAuthority": false,
+    "installationByteGuardsMatched": true
+  },
+  "status": {
+    "version": "0.3.6",
+    "stage": "ordinary-first-room-registration",
+    "ready": true,
+    "enabled": true,
+    "ordinaryReady": false,
+    "ordinaryPrepareReady": true,
+    "nativeTraceReady": true,
+    "traceVersion": 2,
+    "traceLimitSelection": 128,
+    "traceLimitInfoDone": 64,
+    "processId": 40540,
+    "runTick": 130600046,
+    "nativeTraceFile": "adventure-elite-native-40540-130600046.jsonl",
+    "nativeTraceFailureSite": "ready",
+    "preparationFailureSite": "ready",
+    "hookStatus": 0,
+    "changedBytes": 10,
+    "rejectReason": "",
+    "ordinaryLifecycleReady": true,
+    "lifecycleTraceVersion": 2,
+    "lifecycleTraceLimit": 256,
+    "lifecycleTraceFile": "adventure-elite-lifecycle-40540-130600046.jsonl",
+    "ordinaryEntryTraceReady": true,
+    "entryTraceFile": "adventure-elite-entry-40540-130600046.jsonl",
+    "entryFailureSite": "ready",
+    "ordinaryRegistrationReady": true,
+    "registrationFailureSite": "ready"
+  },
+  "entryProbeDecisions": [
+    {
+      "accepted": true,
+      "attempt": "1/3",
+      "battle_enabled": false,
+      "channel_type": 22,
+      "character_id": 2,
+      "dungeon": 3,
+      "entry_probe_used": true,
+      "frozen_preparation": {
+        "Channel": 22,
+        "Owner": 2,
+        "Selected": [
+          1,
+          3,
+          0
+        ],
+        "Settings": [
+          64,
+          202,
+          13,
+          22,
+          54,
+          131,
+          26,
+          112,
+          73,
+          50,
+          197,
+          154,
+          242,
+          68,
+          182,
+          173,
+          54,
+          251,
+          30,
+          42,
+          12,
+          249,
+          78,
+          154,
+          171,
+          128,
+          53,
+          206,
+          186,
+          127,
+          248,
+          0
+        ]
+      },
+      "kind": "adventure_elite_entry_probe",
+      "map": 58548,
+      "maze": 0,
+      "monsters": 4,
+      "owner_wire_id": 2,
+      "source_script": "dungeon/act1/mirkwood.dgn",
+      "source_sha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "time": "2026-10-08T13:07:34.2145224Z"
+    }
+  ],
+  "entryRecords": [
+    {
+      "traceVersion": 1,
+      "processId": 40540,
+      "runTick": 130600046,
+      "ordinal": 1,
+      "tick": 131025796,
+      "thread": 27372,
+      "phase": "loader-before",
+      "callerRva": 114467303,
+      "nativeResult": -1,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 0,
+      "scene": 0,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 0,
+      "sceneVectorMatches": [
+        -1,
+        -1,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "registrationPlayerRef": [
+        0,
+        0
+      ],
+      "registrationNativePlayerRef": [
+        0,
+        0
+      ],
+      "battleEnabled": false
+    },
+    {
+      "traceVersion": 1,
+      "processId": 40540,
+      "runTick": 130600046,
+      "ordinal": 2,
+      "tick": 131025937,
+      "thread": 27372,
+      "phase": "registration-gate",
+      "callerRva": 95572369,
+      "nativeResult": 1,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 0,
+      "scene": 6141153024,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 1,
+      "sceneVectorMatches": [
+        0,
+        0,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "registrationPlayerRef": [
+        0,
+        0
+      ],
+      "registrationNativePlayerRef": [
+        0,
+        0
+      ],
+      "battleEnabled": false
+    },
+    {
+      "traceVersion": 1,
+      "processId": 40540,
+      "runTick": 130600046,
+      "ordinal": 3,
+      "tick": 131025953,
+      "thread": 27372,
+      "phase": "registration-scope-allowed",
+      "callerRva": 95572398,
+      "nativeResult": 1,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 0,
+      "scene": 6141153024,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 1,
+      "sceneVectorMatches": [
+        0,
+        0,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2
+      ],
+      "registrationPlayerRef": [
+        5081578272,
+        4643390704
+      ],
+      "registrationNativePlayerRef": [
+        5081578272,
+        4643390704
+      ],
+      "battleEnabled": false
+    },
+    {
+      "traceVersion": 1,
+      "processId": 40540,
+      "runTick": 130600046,
+      "ordinal": 4,
+      "tick": 131025953,
+      "thread": 27372,
+      "phase": "registration-channel-native",
+      "callerRva": 95572419,
+      "nativeResult": 0,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 0,
+      "scene": 6141153024,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 1,
+      "sceneVectorMatches": [
+        0,
+        0,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2
+      ],
+      "registrationPlayerRef": [
+        5081578272,
+        4643390704
+      ],
+      "registrationNativePlayerRef": [
+        5081578272,
+        4643390704
+      ],
+      "battleEnabled": false
+    },
+    {
+      "traceVersion": 1,
+      "processId": 40540,
+      "runTick": 130600046,
+      "ordinal": 5,
+      "tick": 131025968,
+      "thread": 27372,
+      "phase": "native-registration-result",
+      "callerRva": 95572637,
+      "nativeResult": 1,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 0,
+      "scene": 6141153024,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 1,
+      "sceneVectorMatches": [
+        1,
+        0,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2
+      ],
+      "registrationPlayerRef": [
+        5081578272,
+        4643390704
+      ],
+      "registrationNativePlayerRef": [
+        5081578272,
+        4643390704
+      ],
+      "battleEnabled": false
+    },
+    {
+      "traceVersion": 1,
+      "processId": 40540,
+      "runTick": 130600046,
+      "ordinal": 6,
+      "tick": 131025968,
+      "thread": 27372,
+      "phase": "native-registration-result",
+      "callerRva": 95572637,
+      "nativeResult": 1,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 1,
+      "scene": 6141153024,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 1,
+      "sceneVectorMatches": [
+        1,
+        1,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2
+      ],
+      "registrationPlayerRef": [
+        5081578272,
+        4643390704
+      ],
+      "registrationNativePlayerRef": [
+        5081578272,
+        4643390704
+      ],
+      "battleEnabled": false
+    },
+    {
+      "traceVersion": 1,
+      "processId": 40540,
+      "runTick": 130600046,
+      "ordinal": 7,
+      "tick": 131026062,
+      "thread": 27372,
+      "phase": "loader-after",
+      "callerRva": 114467303,
+      "nativeResult": -1,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 1,
+      "scene": 6141153024,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 1,
+      "sceneVectorMatches": [
+        1,
+        1,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2
+      ],
+      "registrationPlayerRef": [
+        5081578272,
+        4643390704
+      ],
+      "registrationNativePlayerRef": [
+        5081578272,
+        4643390704
+      ],
+      "battleEnabled": false
+    }
+  ],
+  "latestLifecycle": {
+    "traceVersion": 2,
+    "processId": 40540,
+    "runTick": 130600046,
+    "ordinal": 63,
+    "tick": 131100109,
+    "thread": 27372,
+    "cause": "native-flush",
+    "callerRva": 114599132,
+    "traceDropped": 0,
+    "traceLimit": 0,
+    "currentChannel": 22,
+    "currentOwner": 2,
+    "identityMatches": 1,
+    "available": 1,
+    "consistent": 1,
+    "weakAlive": 2,
+    "weakStrong": [
+      1,
+      1,
+      0
+    ],
+    "actorKind": [
+      5,
+      5,
+      -1
+    ],
+    "controllerId": [
+      65535,
+      65535,
+      -1
+    ],
+    "controllerWire": [
+      65535,
+      65535,
+      -1
+    ],
+    "controllerBound": [
+      1,
+      1,
+      -1
+    ],
+    "identityWords": [
+      [
+        522846808,
+        522847004
+      ],
+      [
+        522846809,
+        522847006
+      ],
+      [
+        0,
+        0
+      ]
+    ],
+    "identityValid": [
+      1,
+      1,
+      -1
+    ],
+    "objectId": [
+      0,
+      1,
+      -1
+    ],
+    "ownerStrong": [
+      1,
+      1,
+      -1
+    ],
+    "ownerKind": [
+      5,
+      5,
+      -1
+    ],
+    "ownerObjectId": [
+      2,
+      2,
+      -1
+    ],
+    "ownerControllerId": [
+      2,
+      2,
+      -1
+    ],
+    "ownerIdentityValid": [
+      1,
+      1,
+      -1
+    ],
+    "sceneAttached": [
+      0,
+      0,
+      -1
+    ],
+    "ownerMatchesCurrentPlayer": [
+      1,
+      1,
+      -1
+    ]
+  },
+  "eventAnchors": {
+    "adventure_elite_entry_probe": [
+      {
+        "line": 226,
+        "id": null,
+        "time": "2026-10-08T13:07:34.2145224Z",
+        "reason": null
+      },
+      {
+        "line": 335,
+        "id": null,
+        "time": "2026-10-08T13:08:47.6449084Z",
+        "reason": "精锐助战尚未完成战斗接入；首房取证拒绝：不是本连接首次普通选图"
+      },
+      {
+        "line": 338,
+        "id": null,
+        "time": "2026-10-08T13:08:48.7675918Z",
+        "reason": "精锐助战尚未完成战斗接入；首房取证拒绝：不是本连接首次普通选图"
+      }
+    ],
+    "dungeon_select_ack": [
+      {
+        "line": 227,
+        "id": 16,
+        "time": "2026-10-08T13:07:34.2145224Z",
+        "reason": null
+      }
+    ],
+    "dungeon_loading_ack": [
+      {
+        "line": 238,
+        "id": 37,
+        "time": "2026-10-08T13:07:37.9944866Z",
+        "reason": null
+      }
+    ],
+    "dungeon_leave_ack": [
+      {
+        "line": 305,
+        "id": 42,
+        "time": "2026-10-08T13:08:10.0271152Z",
+        "reason": null
+      }
+    ],
+    "dungeon_request_refused": [
+      {
+        "line": 259,
+        "id": 39,
+        "time": "2026-10-08T13:07:44.7872307Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 261,
+        "id": 39,
+        "time": "2026-10-08T13:07:44.7981759Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 263,
+        "id": 39,
+        "time": "2026-10-08T13:07:44.8823244Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 265,
+        "id": 39,
+        "time": "2026-10-08T13:07:45.0827125Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 267,
+        "id": 39,
+        "time": "2026-10-08T13:07:49.4815658Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 269,
+        "id": 39,
+        "time": "2026-10-08T13:07:49.4815658Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 271,
+        "id": 39,
+        "time": "2026-10-08T13:07:49.9177426Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 273,
+        "id": 39,
+        "time": "2026-10-08T13:07:50.1272546Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 275,
+        "id": 39,
+        "time": "2026-10-08T13:07:54.5002185Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 277,
+        "id": 39,
+        "time": "2026-10-08T13:07:54.5102371Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 279,
+        "id": 39,
+        "time": "2026-10-08T13:07:54.949948Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 281,
+        "id": 39,
+        "time": "2026-10-08T13:07:55.1582577Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 283,
+        "id": 39,
+        "time": "2026-10-08T13:07:59.5289036Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 285,
+        "id": 39,
+        "time": "2026-10-08T13:07:59.5289036Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 287,
+        "id": 39,
+        "time": "2026-10-08T13:07:59.9906662Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 289,
+        "id": 39,
+        "time": "2026-10-08T13:08:00.1957384Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 291,
+        "id": 39,
+        "time": "2026-10-08T13:08:04.534862Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 293,
+        "id": 39,
+        "time": "2026-10-08T13:08:04.534862Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 295,
+        "id": 39,
+        "time": "2026-10-08T13:08:05.0043306Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 297,
+        "id": 39,
+        "time": "2026-10-08T13:08:05.2024807Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 299,
+        "id": 39,
+        "time": "2026-10-08T13:08:09.5445832Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 301,
+        "id": 39,
+        "time": "2026-10-08T13:08:09.5445832Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 303,
+        "id": 39,
+        "time": "2026-10-08T13:08:10.0049245Z",
+        "reason": "精锐首房只读取证中：不结算、不换房；请返回城镇"
+      },
+      {
+        "line": 314,
+        "id": 39,
+        "time": "2026-10-08T13:08:10.2056602Z",
+        "reason": "death without active run"
+      },
+      {
+        "line": 336,
+        "id": 16,
+        "time": "2026-10-08T13:08:47.6449084Z",
+        "reason": "精锐助战尚未完成战斗接入；首房取证拒绝：不是本连接首次普通选图"
+      },
+      {
+        "line": 339,
+        "id": 16,
+        "time": "2026-10-08T13:08:48.7675918Z",
+        "reason": "精锐助战尚未完成战斗接入；首房取证拒绝：不是本连接首次普通选图"
+      }
+    ]
+  },
+  "captureFiles": {
+    "events.jsonl": {
+      "sha256": "9ca2dcd0e3df479387f82c619f636a3a8ababab48ed6f915874a2ebc9a562c97",
+      "bytes": 192777
+    },
+    "client.log": {
+      "sha256": "209826659175cea9e56c6fd5d24f208f3c6821615d9c2c8fa05bb1f7d8098849",
+      "bytes": 851
+    },
+    "summary.json": {
+      "sha256": "333a8a4d4b72adf13b062be9bfbdcf5c6e6552ab796a579085a695e90bb6670c",
+      "bytes": 123465
+    },
+    "adventure-elite-entry-40540-130600046.jsonl": {
+      "sha256": "e20a4acd3aa37e3553b131e9a4faf9b4deb1a660fa858e598b7bf6119b4f004b",
+      "bytes": 5721
+    },
+    "adventure-elite-lifecycle-40540-130600046.jsonl": {
+      "sha256": "dfe18f5c2cdd703260a097fea1c87dd3dfb4a3ab77dd594a5022a24f7cf603d0",
+      "bytes": 45176
+    }
+  },
+  "verification": {
+    "sameSourceExistingGates": {
+      "build": {
+        "kind": "build",
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\startup-gate-build.log"
+      },
+      "vet": {
+        "kind": "vet",
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\startup-gate-vet.log"
+      },
+      "test": {
+        "kind": "test",
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\startup-gate-test.jsonl",
+        "passed": 3769,
+        "skipped": 279,
+        "failures": [],
+        "baselineFailures": [],
+        "newFailures": []
+      }
+    },
+    "cppMechanismGroups": 10,
+    "collectorFixtureCases": 35,
+    "currentTurn": "Documentation and evidence only; no runtime changes or repeated build/tests. Collector command exited 0.",
+    "remote": "gud/main fetched; HEAD ahead 6, behind 0; origin/fork are not configured."
+  },
+  "unchanged": [
+    "DFO_ADVENTURE_ELITE exact-value-1 opt-in",
+    "PVF and disk EXE",
+    "SQLite schema and player saves",
+    "controller 65535",
+    "runtime DLL/server/launcher/default binaries",
+    "first-entry-only and no-settlement/no-room-transition boundaries"
+  ],
+  "unconfirmed": [
+    "server damage/killer/summon ownership",
+    "reward and archive idempotency",
+    "room transition",
+    "repeat entry",
+    "scene unregistration and weak-reference release",
+    "story",
+    "Odyssey",
+    "legion/raid special party",
+    "third-party mod-host install/uninstall"
+  ]
+}

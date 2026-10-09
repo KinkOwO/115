@@ -1,0 +1,46 @@
+{
+  "status": "manual-checkpoint-required-existing-candidate",
+  "session": "server/work/dfo-lan/runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_162334_154180_next37",
+  "processId": 54384,
+  "serverPid": 92388,
+  "dllVersion": "0.3.1",
+  "dllRunTick": 114043484,
+  "normalExit": true,
+  "clientCommandCounts": {"35": 0, "1395": 2, "1719": 0, "1811": 0, "217": 0},
+  "sentEliteNotifications": [],
+  "nativeRecords": 0,
+  "nativeTraceFileExists": false,
+  "collectorExitCode": 0,
+  "collectorProgress": "no-native-load-request",
+  "capture": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_162334_154180_next37/summary.json",
+  "databaseInspection": {
+    "access": "sqlite URI mode=ro; PRAGMA query_only=ON",
+    "table": "account_adventures",
+    "accountId": 1,
+    "field": "data.elite_selections",
+    "mode2StableIds": [1, 3, 0],
+    "writes": false
+  },
+  "codeEvidence": [
+    {"file": "server/work/dfo-lan/cmd/wireprobe/world_flow.go", "line": 508, "fact": "notePositionReport is the only assignment of adventureReady=true; handle CMD35 calls it"},
+    {"file": "server/work/dfo-lan/cmd/wireprobe/adventure_refresh.go", "line": 13, "fact": "refreshAdventure returns no packets when adventureReady=false"},
+    {"file": "server/work/dfo-lan/cmd/wireprobe/connection_session.go", "line": 25, "fact": "mail ticker interval is 2 seconds"},
+    {"file": "server/work/dfo-lan/cmd/wireprobe/client_connection.go", "line": 231, "fact": "serialized mail-change processing invokes refreshAdventure"},
+    {"file": "server/work/dfo-lan/cmd/wireprobe/client_dispatch_account.go", "line": 29, "fact": "CMD1395 replies with adventure info without changing adventureReady"}
+  ],
+  "artifactsMatchedOnDisk": {
+    "wireprobe-handoff-source.exe": "c957e508bd16900123b3f761e835d83cbc93aacb09a40115fc9cebcd6c35073f",
+    "AdventureElite.dll": "630bca38a443ec5e25ccbc884636ffcd6e5a27603e27b52f97df9119c3972835",
+    "dfolauncher-adventure-elite.exe": "94296f900bba7495ee1f7dba3209dcbf74b9c977a0a418a70ee7d39378719232"
+  },
+  "conclusion": "This run never reached list restoration. Persisted mode2 selection remains present. A static town session does not satisfy the existing first-position-report gate.",
+  "limits": [
+    "On-disk hashes are not in-process server hash attestation",
+    "Equipment-slot correction and native clone remain untested in this run",
+    "No battle, story, Odyssey or special-party verification"
+  ],
+  "attempts": {"ordinaryTransaction": "3/3 unchanged", "nativePacketLayout": "1/3 unchanged"},
+  "changes": "Evidence and manual instructions only; no protocol/runtime-path/DLL/resource/storage changes",
+  "nextManualCheckpoint": "Enter ordinary town, move a short distance once, view existing elite selection, wait ten seconds and exit normally; do not save again or enter dungeon",
+  "futureWork": "Remove dependency on first movement only after native identity/readiness evidence and explicitly authorized new investigation scope under root AGENTS section0.1"
+}

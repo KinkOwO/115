@@ -1,0 +1,408 @@
+{
+  "status": "confirmed-list-restoration-and-ordinary-selection-return; battle-unverified",
+  "authority": "client/DFO.exe and client/DFO.exe.i64",
+  "database": "c1000f62",
+  "staticContract": {
+    "registration": "145B22F50 fully read, 2088 lines. 145B25193 requires145F0C980, dungeon pointer, +6264, 142E60CF0, !142E60CE0; 145B2529F calls145DE4360 type5. No conditions patched.",
+    "binding": "142E5CD00 1243 lines complete: alias-48 object; actor context accessor145C6C080(+100888), context+5424 controller;145F04E30(controller,clone). Controller+112 ->145D369B0->actor+74020; actor kind+352=5.",
+    "weakAlias": "146EA47F0 complete85 lines: CRef three fields referent/control/alias. 145F04E30 stores these at controller+2072/+2080/+2088; alias is actor+48 in THIRD field. Manager+72/+80 supplies control/alias. Snapshots compare controls and aliases; not raw first field.",
+    "downstream": "145CE2860 returns+74020; 145CE9040 and145CCA980 look up holder145F0BFA0 by u16 controllerID. Some combat consumers also read it. Attack/kill/summon report attribution is not closed.",
+    "requestCorrelation": "143C76780 emitsCMD1395 and flushes at143C76825/143C768AA, returnRVAs0x3C7682A/0x3C768AF. Five field/caller byte contexts checked with authoritative IDA and on-diskEXE. Generic flush caller is not assigned an opcode.",
+    "controllerConstruction": "145C76D90 allocates controller3424 and binds clone;145EFA8D0->145EFA4B0(338lines complete)->145EFD6B0(59lines complete). At145EFA8B5 calls setter with0xFFFF,145EFD6C4 storescontroller+112. Existing145F04E30 copies to actor+74020. This is construction default, not proven human attack/kill identity. No native function patched/called."
+  },
+  "changeScope": {
+    "version": "0.3.2",
+    "newNativeHooks": 0,
+    "existingFlushHook": "Preserves original return, native last-error, exception propagation, request/body/order; adds read-only observation after normal return.",
+    "armedOn": "successful matching N1879 with predicateCalls==8",
+    "boundTo": [
+      "thread",
+      "channel",
+      "human wireID",
+      "runPID/runTick"
+    ],
+    "reads": [
+      "three companion weak refs",
+      "actor kind352",
+      "controllerID74020",
+      "actor context100888 -> controller5424 -> controller112 and CRef2072/2080/2088"
+    ],
+    "pointerRetention": false,
+    "getterCallsInObserver": false,
+    "ownershipMutation": false,
+    "strongRefMutation": false,
+    "consistentReadCheck": "re-read weak identity/control strong after fields; inconsistent/unreadable samples cannot verify native binding",
+    "limit": 256,
+    "limitRecord": 257,
+    "sampling": "only native requests; no worker/timer/client automation",
+    "logs": "DLL module directory; process-specific lifecycle filename",
+    "serverChanged": false,
+    "goSourceChanged": false,
+    "pvfChanged": false,
+    "schemaChanged": false,
+    "playerDataChanged": false,
+    "ordinaryReady": false
+  },
+  "collectorContract": {
+    "selectionReturn": "C2S15 beforeC2S132 plus accepted dungeon_selection_return",
+    "postReturn": "eligible CMD1395 server count exactly equals known native-caller sample count, matching index after accepted return; PID/runTick/current identity/consistent sample; kind5, same controllerId/controllerWire and weak binding; alive count equals N1879. Missing or unpaired records reject inference.",
+    "battleVerified": false
+  },
+  "attemptCounters": {
+    "ordinaryPreparation": "3/3 unchanged",
+    "nativeLayout": "1/3 unchanged",
+    "selectionLifecycle": "1/3 unchanged",
+    "thisTurn": "read-only observation; no added C2S/S2C or battle registration path"
+  },
+  "tests": {
+    "cppBuild": 0,
+    "cppMechanisms": 0,
+    "snapshotMechanism": 0,
+    "flushForwardingThreadIdentityBudget": 0,
+    "captureFixtureCases": 13,
+    "captureTests": 0,
+    "diskContexts": 5,
+    "jsonFormatterRows": 257,
+    "nonGameSmokeEnvironments": 6,
+    "goSourceChangedThisTurn": false,
+    "priorGoGate": {
+      "commit": "48f22d4fa79fdce60439c18edec59eb0992825e6",
+      "build": 0,
+      "vet": 0,
+      "test": 0,
+      "pass": 3717,
+      "skip": 280,
+      "failures": []
+    }
+  },
+  "delivery": {
+    "status": "delivered-awaiting-manual-selection-return-and-controller-snapshot",
+    "version": "0.3.2",
+    "artifacts": [
+      {
+        "path": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+        "bytes": 197120,
+        "sha256": "bf9c5c754aa19dee36cd2ff247df9f324f1572301c209401fd68af5430979951"
+      },
+      {
+        "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+        "bytes": 30486528,
+        "sha256": "3f773468c146af529408fde182f379a2505b4ce770e757209e609de1d4f10518"
+      },
+      {
+        "path": "server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe",
+        "bytes": 16969728,
+        "sha256": "94296f900bba7495ee1f7dba3209dcbf74b9c977a0a418a70ee7d39378719232"
+      }
+    ],
+    "previousArtifacts": {
+      "client-patchs/adventure-elite/dist/AdventureElite.dll": "630bca38a443ec5e25ccbc884636ffcd6e5a27603e27b52f97df9119c3972835",
+      "server/work/dfo-lan/bin/wireprobe-handoff-source.exe": "3f773468c146af529408fde182f379a2505b4ce770e757209e609de1d4f10518",
+      "server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe": "94296f900bba7495ee1f7dba3209dcbf74b9c977a0a418a70ee7d39378719232"
+    },
+    "backupDirectory": ".tmp\\adventure-elite\\lifecycle-backup",
+    "defaultSha256BeforeAndAfter": "a6f269603887f18fa8bb60814a655641f12c5eeaf1a07f89d840e166a393be6c",
+    "serverAndLauncherUnchanged": true,
+    "packageBytes": 110923,
+    "packageSha256": "6e9516e0e6d0fe60b984eaede598cfae13e46236655fd2da9862cabeb245d9a6",
+    "packageVerified": true,
+    "tests": {
+      "cppBuild": 0,
+      "cppMechanisms": 0,
+      "snapshotMechanism": 0,
+      "flushForwardingThreadIdentityBudget": 0,
+      "captureFixtureCases": 13,
+      "captureTests": 0,
+      "diskContexts": 5,
+      "jsonFormatterRows": 257,
+      "nonGameSmokeEnvironments": 6,
+      "goSourceChangedThisTurn": false,
+      "priorGoGate": {
+        "commit": "48f22d4fa79fdce60439c18edec59eb0992825e6",
+        "build": 0,
+        "vet": 0,
+        "test": 0,
+        "pass": 3717,
+        "skip": 280,
+        "failures": []
+      }
+    },
+    "committed": false
+  },
+  "proofFiles": {
+    ".tmp\\adventure-elite\\lifecycle-native-proof.json": "383d027a82ed67d0c3fdc366a21d20e6376aede499f0180770e5645bbdaefea9",
+    ".tmp\\adventure-elite\\lifecycle-native-followup.json": "57c41a0564242eddeafa0d96905edd07c891d381fc2aa49a34b9947c3de83d0b",
+    ".tmp/adventure-elite/selection-return-native-proof.json": "902dae0a092e1ee70e34e9c263b95107c7c9e6b1489e9a7e2ca86befee53eb97"
+  },
+  "contentRules": {
+    "nativeContentsSource": "mycharacters_apc_contents.etc unchanged; no new map whitelist",
+    "existingCompatibility": "ordinary channelType22 vs publishedchannelID10 override remains in prior plan ledger; no new hardcoded content rule",
+    "sourceIdentity": "current source hashes preserved in dist/adventure-elite-build.json"
+  },
+  "nextManual": [],
+  "unclosed": [
+    "native battle controllerID allocation; observed construction default65535",
+    "ordinary type5 admission/registration guard scope",
+    "human attack/kill/summon ownership",
+    "room/death/exit resource continuity",
+    "story/Odyssey battle",
+    "modkit install/uninstall"
+  ],
+  "commit": "Environment repaired; gates pass; local closure commit records this snapshot. No runtime artifact or shared checkout replacement.",
+  "selectionReturnConfirmation": {
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_180054_958631_next37",
+    "processId": 39224,
+    "runTick": 119854828,
+    "userFeedback": {
+      "2": "正常",
+      "3": "副本显示没有发生变化",
+      "4": "正常"
+    },
+    "candidateValid": true,
+    "coverageComplete": true,
+    "issues": [],
+    "clientFrameCounts": {
+      "15": 2,
+      "132": 2,
+      "1395": 4,
+      "1719": 0,
+      "1811": 1,
+      "16": 0
+    },
+    "anchors": [
+      {
+        "line": 257,
+        "kind": "dungeon_gate_ack",
+        "id": 15
+      },
+      {
+        "line": 262,
+        "kind": "dungeon_selection_return",
+        "id": 132
+      },
+      {
+        "line": 272,
+        "kind": "dungeon_gate_ack",
+        "id": 15
+      },
+      {
+        "line": 276,
+        "kind": "dungeon_selection_return",
+        "id": 132
+      }
+    ],
+    "uiFlushSamples": 4,
+    "uiRequestsAfterCompletion": 4,
+    "postReturnCloneVerified": true,
+    "postReturnCloneObservation": {
+      "traceVersion": 1,
+      "processId": 39224,
+      "runTick": 119854828,
+      "ordinal": 55,
+      "tick": 120052796,
+      "thread": 23252,
+      "cause": "native-flush",
+      "callerRva": 63400111,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "currentChannel": 22,
+      "currentOwner": 2,
+      "identityMatches": 1,
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "weakStrong": [
+        1,
+        1,
+        0
+      ],
+      "actorKind": [
+        5,
+        5,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "controllerWire": [
+        65535,
+        65535,
+        -1
+      ],
+      "controllerBound": [
+        1,
+        1,
+        -1
+      ]
+    },
+    "lifecycleRecords": 71,
+    "allSamples": "identity/available/consistent=1; weakAlive=2; kind=[5,5,-1]; controllerId/controllerWire=[65535,65535,-1]; weak-binding=[1,1,-1]; dropped/limit=0",
+    "normalExitObserved": true,
+    "battleVerified": false,
+    "captureSummarySha256": "721553dd8e8ede8720a862c4c87a75df4ed70c7cd300f6b7f3bfedfc31124f2c",
+    "lifecycleSha256": "b214b5fc5e6a58d0afec2bb6a73ba803f26760d35ecd185d701d1485368f2877",
+    "limits": "Only sampled points and actual ordinary selection/cancel. No battle, all-time survival, other exits, story/Odyssey/special-party validation."
+  },
+  "nextWork": "Static evidence first: type5 registration identity allocation/holder membership and attack/kill consumers. Keep battle gate until complete; do not assign playerwire2 to all clone controllers.",
+  "confirmedReturnValidation": {
+    "build": 0,
+    "vet": 0,
+    "test": 0,
+    "passed": 3733,
+    "skipped": 279,
+    "failures": [],
+    "baselineFailures": [],
+    "newFailures": [],
+    "remote": "gud/main",
+    "base": "55099b2a35b85cf051f99a545fbf3bbc7b7fc475",
+    "originAndFork": "not configured; attempted fetch reports absent; existinggud fetched andHEADmatches",
+    "environmentFix": "Copied existing frozen ignored wireprobe-pvf.exe to isolated checkout; no tracked profile edit, no default publication",
+    "hygiene": "isolated -All passed47paths",
+    "commit": "local source closure; hash recorded in ignored confirmation-delivery.json and git log",
+    "remoteMerge": "Fast-forward merged55099b2a; three-way reapplied16owned tracked files; CHANGELOG preserves both sections; no new code conflicts",
+    "runtimeCandidateChanged": false
+  },
+  "priorTownRecoveryManual": {
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_172355_230248_next37",
+    "processId": 85712,
+    "runTick": 117671734,
+    "candidateServer": "3f773468c146af529408fde182f379a2505b4ce770e757209e609de1d4f10518",
+    "dllVersion": "0.3.1",
+    "anchors": {
+      "events.jsonl:182": "single N1754",
+      "events.jsonl:184-189": "single CMD1811, accepted, N1382, N1879",
+      "native:11": "readerSuccess=1, weakAlive=2, weakStrong=[1,1,-1]",
+      "events.jsonl:192-195": "CMD36 town38 area2 -> area0, ordinary town area; not selection",
+      "events.jsonl:208-211": "two CMD1395 UI queries",
+      "events.jsonl:230": "normal exit"
+    },
+    "clientFrameCounts": {
+      "15": 0,
+      "132": 0,
+      "1395": 2,
+      "1811": 1,
+      "35": 7,
+      "36": 1
+    },
+    "coverageComplete": true,
+    "selectionReturnVerified": false,
+    "battleVerified": false,
+    "observationLimit": "Latest notification is N1879. No independent post-area-change or post-return weak-ref sample exists in v0.3.1."
+  },
+  "latestManual": {
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_180054_958631_next37",
+    "processId": 39224,
+    "runTick": 119854828,
+    "userFeedback": {
+      "2": "正常",
+      "3": "副本显示没有发生变化",
+      "4": "正常"
+    },
+    "candidateValid": true,
+    "coverageComplete": true,
+    "issues": [],
+    "clientFrameCounts": {
+      "15": 2,
+      "132": 2,
+      "1395": 4,
+      "1719": 0,
+      "1811": 1,
+      "16": 0
+    },
+    "anchors": [
+      {
+        "line": 257,
+        "kind": "dungeon_gate_ack",
+        "id": 15
+      },
+      {
+        "line": 262,
+        "kind": "dungeon_selection_return",
+        "id": 132
+      },
+      {
+        "line": 272,
+        "kind": "dungeon_gate_ack",
+        "id": 15
+      },
+      {
+        "line": 276,
+        "kind": "dungeon_selection_return",
+        "id": 132
+      }
+    ],
+    "uiFlushSamples": 4,
+    "uiRequestsAfterCompletion": 4,
+    "postReturnCloneVerified": true,
+    "postReturnCloneObservation": {
+      "traceVersion": 1,
+      "processId": 39224,
+      "runTick": 119854828,
+      "ordinal": 55,
+      "tick": 120052796,
+      "thread": 23252,
+      "cause": "native-flush",
+      "callerRva": 63400111,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "currentChannel": 22,
+      "currentOwner": 2,
+      "identityMatches": 1,
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "weakStrong": [
+        1,
+        1,
+        0
+      ],
+      "actorKind": [
+        5,
+        5,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "controllerWire": [
+        65535,
+        65535,
+        -1
+      ],
+      "controllerBound": [
+        1,
+        1,
+        -1
+      ]
+    },
+    "lifecycleRecords": 71,
+    "allSamples": "identity/available/consistent=1; weakAlive=2; kind=[5,5,-1]; controllerId/controllerWire=[65535,65535,-1]; weak-binding=[1,1,-1]; dropped/limit=0",
+    "normalExitObserved": true,
+    "battleVerified": false,
+    "captureSummarySha256": "721553dd8e8ede8720a862c4c87a75df4ed70c7cd300f6b7f3bfedfc31124f2c",
+    "lifecycleSha256": "b214b5fc5e6a58d0afec2bb6a73ba803f26760d35ecd185d701d1485368f2877",
+    "limits": "Only sampled points and actual ordinary selection/cancel. No battle, all-time survival, other exits, story/Odyssey/special-party validation."
+  },
+  "preMergeConfirmedReturnValidation": {
+    "build": 0,
+    "vet": 0,
+    "test": 0,
+    "passed": 3733,
+    "skipped": 279,
+    "failures": [],
+    "baselineFailures": [],
+    "newFailures": [],
+    "remote": "gud/main",
+    "base": "55099b2a35b85cf051f99a545fbf3bbc7b7fc475",
+    "originAndFork": "not configured; attempted fetch reports absent; existinggud fetched andHEADmatches",
+    "environmentFix": "Copied existing frozen ignored wireprobe-pvf.exe to isolated checkout; no tracked profile edit, no default publication",
+    "hygiene": "isolated -All passed47paths",
+    "commit": "local source closure; hash recorded in ignored confirmation-delivery.json and git log",
+    "remoteMerge": "Fast-forward merged55099b2a; three-way reapplied16owned tracked files; CHANGELOG preserves both sections; no new code conflicts",
+    "runtimeCandidateChanged": false
+  }
+}

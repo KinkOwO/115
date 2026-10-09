@@ -92,7 +92,9 @@ type AttunementRewards struct {
 	Archive pvf.ArchiveSnapshot `json:"archive"`
 	Tables  []attunementDungeon `json:"tables"`
 
-	byDungeon map[uint32]*attunementDungeon
+	quantityMultiplier     uint32
+	rarityWeightMultiplier uint32
+	byDungeon              map[uint32]*attunementDungeon
 }
 
 // LoadAttunementRewards reads the generated table and checks every invariant the
@@ -372,6 +374,13 @@ func (a *AttunementRewards) ValidateBoxes(src RewardBoxSource) (empties, unopena
 		}
 		for _, pool := range box.Pools {
 			for _, c := range pool.Candidates {
+				// 源里的 `-1`（catalog.BoosterNoDropTemplate）不是模板，是
+				// 「本次没有」这份概率的占位符 —— 它不该被当成「一个目录里
+				// 查不到的奖品」报出来，否则日志里的空面会从「表读错了」
+				// 退化成一句无从判断的 4294967295。见 booster_import.go。
+				if catalog.IsBoosterNoDrop(c.Template) {
+					continue
+				}
 				if err := walk(c.Template, depth+1); err != nil {
 					return err
 				}
@@ -419,21 +428,24 @@ func (a *AttunementRewards) Roll(seed, dungeon, maze uint32) ([]Award, uint32, e
 		return nil, seed, nil
 	}
 	rng := RNG{seed}
+	quantity, rarity := a.rewardMultipliers(dungeon)
 	var out []Award
 	if fixed, ok := t.fixedFor(maze); ok {
-		e, err := pickAttunement(&rng, fixed.Entries)
-		if err != nil {
-			return nil, seed, err
+		for i := uint32(0); i < quantity; i++ {
+			e, err := pickAttunementBoosted(&rng, fixed.Entries, rarity)
+			if err != nil {
+				return nil, seed, err
+			}
+			out = append(out, Award{Template: e.Item, Amount: 1})
 		}
-		out = append(out, Award{Template: e.Item, Amount: 1})
 	}
 	if len(t.Additional) > 0 {
-		branch, err := pickAttunementBranch(&rng, t.Additional)
+		branch, err := pickAttunementBranchBoosted(&rng, t.Additional, rarity)
 		if err != nil {
 			return nil, seed, err
 		}
-		for i := uint32(0); i < branch.DropCount; i++ {
-			e, err := pickAttunement(&rng, branch.Entries)
+		for i := uint32(0); i < branch.DropCount*quantity; i++ {
+			e, err := pickAttunementBoosted(&rng, branch.Entries, rarity)
 			if err != nil {
 				return nil, seed, err
 			}

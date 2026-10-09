@@ -82,6 +82,25 @@
       "Name": "LAN 16"
     },
     {
+      "Area": "[none]",
+      "ID": 21,
+      "Name": "Free PvP",
+      "SourceValues": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Type": 13
+    },
+    {
       "ID": 45,
       "Name": "DNF Tournament",
       "Type": 45,
@@ -861,7 +880,7 @@
       ]
     }
   ],
-  "CompatibilityNote": "local35: 9 ordinary channels plus all 41 current PVF special channel types, 50 rows total. Apocalypse is single-channel CH.119; Ispins is single-channel CH.86. Explicit Type, Area, and SourceValues fields take precedence over PVF.",
+  "CompatibilityNote": "PKC 单频道档（2026-10-08 业主：回到「只有一个 PKC 频道」的状态）：**保留 ID 21 = Free PvP / type 13（CHANNEL_INTEGRATED_FREEPVP）** —— 业主实测该频道可以进入（15:47~16:39 各次会话均可）；**已移除 ID 8 = Arena / type 8（CHANNEL_INTEGRATED_PVP）** —— 17:37 只留它时业主进不去。其余频道不变。",
   "DungeonTitles": {
     "[apocalypse]": "Apocalypse",
     "[ispins_legion]": "Ispins"

@@ -14,10 +14,18 @@ package main
 //	天平死亡（结算那一刻）  noteOmenSettlement 写回 held；满档结算额外置 pending
 //	通关确认              clearOmenOrthaier  清 pending（掉线不该吞掉这次机会）
 //
-// 为什么隐藏 BOSS 挂在「满档结算」上（业主 2026-09-27 定调 B1）：官方四档里只有第 4 档
-// 是 100% 必给，也只有「集齐四档」这件事代表一轮走完了。奥尔泰尔代表太初，挂在通关
-// 场次上（旧的 N=5 保底）既没有出处，也让「稀有」变成一个与玩法无关的计数。
-// 旧规则退化成诊断开关（-oath-progress-clears）。
+// ⚠️ 2026-10-07 变更：**隐藏 BOSS 不再由征兆驱动**。
+//
+// 业主 2026-10-07 指出「征兆是独立系统，不该与天平的掉率耦合」；客户端脚本
+// （`primer_proc.act` 的 `nox_index_checker`）也证实：两个隐藏 BOSS 只看 2838 的两个档位
+//
+//	oath_max == 45                   -> 奥尔特尔（太初级誓约那条线）
+//	oath_max < 45 && primer_max == 45 -> 监视者（太初级星蕴石那条线）
+//
+// ⇒ 所以 BOSS 由 internal/loot 预掷的档位自然决定（见 attunement_plan.go）。
+//
+// 下面这套 `orthaire_pending` 是 2026-09-27「B1」留下的**惰性状态**：读写都还在（存档列
+// 保留，§0.4 存档兼容不删列），但**已经没有任何决策读它**。待后续清理时再一并摘除。
 
 import (
 	"context"
@@ -70,27 +78,11 @@ func (w *worldSession) omenStateEnabled(dungeon uint32) bool {
 // 读错误**往上抛**，不回落成 0：静默归零会让玩家的征兆无声清零、隐藏 BOSS 无声消失，
 // 那是比启动时报错难查得多的行为变更（与 oath_progress.go 同一条）。
 func (w *worldSession) loadOmenRunState(dungeonID uint32) error {
-	w.omenHeldRun, w.omenOrthaierDue, w.omenHeldReady = 0, false, false
+	w.omenHeldRun, w.omenOrthaierDue, w.omenMissesRun, w.omenHeldReady = 0, false, 0, false
 	if !w.omenStateEnabled(dungeonID) {
 		return nil
 	}
 	stages := w.omenStagesCount(dungeonID)
-
-	// 诊断入口 -omen-hold：把玩家直接放到指定阶段，省掉刷场次。每个会话只应用一次，
-	// 之后交回正常的累积/结算路径；但**写回存档**，否则重启后这次摆放就白摆了。
-	if w.omenHold >= 0 && !w.omenHoldApplied {
-		w.omenHoldApplied = true
-		held := w.omenHold
-		if held > stages-1 {
-			held = stages - 1
-		}
-		if err := w.saveOmenHeld(dungeonID, uint32(held)); err != nil {
-			return err
-		}
-		w.omenHeldRun, w.omenHeldReady = uint32(held), true
-		log.Printf("omen state: diagnostic -omen-hold pinned dungeon %d to stage %d", dungeonID, held)
-		return nil
-	}
 
 	store := w.omenStore()
 	if store == nil {
@@ -102,10 +94,45 @@ func (w *worldSession) loadOmenRunState(dungeonID uint32) error {
 	if err != nil {
 		return fmt.Errorf("omen state read: %w", err)
 	}
-	if st.Held > stages-1 {
-		st.Held = stages - 1
+	held, misses := st.Held, st.Misses
+	if held > stages-1 {
+		held = stages - 1
 	}
-	w.omenHeldRun, w.omenOrthaierDue, w.omenHeldReady = uint32(st.Held), st.OrthaierPending, true
+
+	// 诊断入口：把玩家直接放到指定的（阶段 / 未触发计数），省掉刷场次。两个开关各自
+	// 独立、各自只应用一次，且都**写回存档**，否则重启后这次摆放就白摆了。诊断路径
+	// 故意**不**读 orthaire_pending —— 那条线（隐藏 BOSS）与征兆是两回事，见文件头。
+	diagnostic := false
+	if w.omenHold >= 0 && !w.omenHoldApplied {
+		w.omenHoldApplied = true
+		diagnostic = true
+		held = w.omenHold
+		if held > stages-1 {
+			held = stages - 1
+		}
+		if err := w.saveOmenHeld(dungeonID, uint32(held)); err != nil {
+			return err
+		}
+		log.Printf("omen state: diagnostic -omen-hold pinned dungeon %d to stage %d", dungeonID, held)
+	}
+	if w.omenMisses >= 0 && !w.omenMissesApplied {
+		w.omenMissesApplied = true
+		diagnostic = true
+		misses = w.omenMisses
+		if misses > loot.OmenPityMisses-1 {
+			misses = loot.OmenPityMisses - 1
+		}
+		if err := w.saveOmenMisses(dungeonID, misses); err != nil {
+			return err
+		}
+		log.Printf("omen state: diagnostic -omen-misses pinned dungeon %d to %d misses (pity fires on the next missed clear)",
+			dungeonID, misses)
+	}
+	if diagnostic {
+		w.omenHeldRun, w.omenMissesRun, w.omenHeldReady = uint32(held), uint32(misses), true
+		return nil
+	}
+	w.omenHeldRun, w.omenOrthaierDue, w.omenMissesRun, w.omenHeldReady = uint32(held), st.OrthaierPending, uint32(misses), true
 	return nil
 }
 
@@ -119,6 +146,20 @@ func (w *worldSession) saveOmenHeld(dungeonID uint32, held uint32) error {
 	defer cancel()
 	if err := store.SaveOmenHeld(ctx, w.role.ID, int64(dungeonID), int(held)); err != nil {
 		return fmt.Errorf("omen held save: %w", err)
+	}
+	return nil
+}
+
+// saveOmenMisses 把「连续未触发」计数写回存档（见 loot.OmenPityMisses）。
+func (w *worldSession) saveOmenMisses(dungeonID uint32, misses int) error {
+	store := w.omenStore()
+	if store == nil {
+		return fmt.Errorf("omen misses save: no store")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), omenStateTimeout)
+	defer cancel()
+	if err := store.SaveOmenMisses(ctx, w.role.ID, int64(dungeonID), misses); err != nil {
+		return fmt.Errorf("omen misses save: %w", err)
 	}
 	return nil
 }
@@ -159,6 +200,10 @@ func (w *worldSession) noteOmenSettlement(outcome loot.OmenOutcome) error {
 	if err := w.saveOmenHeld(dungeonID, outcome.After); err != nil {
 		return err
 	}
+	// 保底计数同样落库：它是角色存档的一部分，不能只活在内存账本里。
+	if err := w.saveOmenMisses(dungeonID, int(outcome.MissesAfter)); err != nil {
+		return err
+	}
 	full := omenSettlementIsFull(outcome, w.omenStagesCount(dungeonID))
 	if full {
 		if err := w.saveOmenOrthaier(dungeonID, true); err != nil {
@@ -169,6 +214,7 @@ func (w *worldSession) noteOmenSettlement(outcome loot.OmenOutcome) error {
 	}
 	// 内存账本已经往前走了，会话里的快照跟着走，免得同一场里再读一次旧值。
 	w.omenHeldRun = outcome.After
+	w.omenMissesRun = outcome.MissesAfter
 	return nil
 }
 

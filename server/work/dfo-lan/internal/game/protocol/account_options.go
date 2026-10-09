@@ -47,4 +47,3 @@ func FillAccountHotkeys(block []byte, hotkeys, hotkeysExt map[uint16]uint16) err
 	}
 	return nil
 }
-

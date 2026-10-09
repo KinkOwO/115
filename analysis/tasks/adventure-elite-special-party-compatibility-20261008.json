@@ -1,0 +1,123 @@
+{
+  "task": "冒险团账号 APC 全副本方案：特殊频道、军团、攻坚战兼容边界",
+  "scope": "保留原始副本频道/队伍/阶段玩法；解除账号同伴100级二觉门槛；不改PVF。仅静态兼容性分析，未修改运行代码或发包。",
+  "conclusion": "特殊队伍机制不构成绝对障碍，但全地图资格放行不等于全内容兼容。军团、征讨、原生精锐小队和多队攻坚战需要按入口/阶段/房间/退出分别适配，尚未证明生产或实机闭环。",
+  "evidence": [
+    {
+      "source": "server/work/dfo-lan/cmd/wireprobe/ispins_flow.go:106",
+      "finding": "Type81独立待机区队伍；名单为当前真人，容量语义单独处理；通用精锐频道门未包含81。"
+    },
+    {
+      "source": "server/work/dfo-lan/cmd/wireprobe/ispins_flow.go:360",
+      "finding": "阶段进图直接dungeon.Select；构造阶段通知与N28/N29，并于467写activeDungeon。只在prepareDungeonEntry挂钩会漏此入口。"
+    },
+    {
+      "source": "server/work/dfo-lan/cmd/wireprobe/card_flow.go:118",
+      "finding": "伊斯CMD72不走通用翻牌/结算；必须在阶段退场与战役结束之间区分APC房间对象回收和同伴选择会话生命周期。"
+    },
+    {
+      "source": "server/work/dfo-lan/cmd/wireprobe/black_purgatory_flow.go:190",
+      "finding": "原生黑鸦小队开场已有loadAdventureElite调用，但现有代码不证明APC实机已成功。"
+    },
+    {
+      "source": "server/work/dfo-lan/cmd/wireprobe/azure_main_flow.go:506",
+      "finding": "蔚蓝号征服队专有名册/队伍Mode31 Route37，战斗入场复用prepareDungeonEntry；独立名册仍需要保留。"
+    },
+    {
+      "source": "IDA client/DFO.exe.i64",
+      "finding": "1445074F0优先142E60CF0=true返回资料mode2；再1459AC4A0(a2=0)返回mode3；实际1459AC4A0只判断频道76（a2!=0时也含78），不能泛称所有Raid分类函数。不可全局覆写而宣称军团/攻坚所有路径兼容。"
+    },
+    {
+      "source": "https://www.dfoneople.com/news/updates/2021/Sirocco-Squad-Mode",
+      "finding": "官方历史设计明确希洛克攻坚单人Squad可带最多3精锐，证明特殊攻坚队形式能与账号APC共存；不作为当前115所有Raid兼容证明。"
+    },
+    {
+      "source": "https://www.dfoneople.com/news/updates/3600/The-Machine-Revolution%3A-Bakal-Raid-Hard-Mode/Bakal-Raid-Hard-Mode-Addition",
+      "finding": "官方巴卡尔困难历史设计最多12玩家，击杀计数逐队员；作为多队攻坚编排与队员结算独立职责的线索，不替代当前115native证据。"
+    }
+  ],
+  "design": [
+    "共享账号快照、原生模板/职业AI、实体创建与回收；每种副本状态机实现会话准备、战斗场景就绪、阶段转移、退场和最终结束的适配。",
+    "原特殊队伍名册及频道Mode/Route维持 native 语义；APC作为当前真人所在战斗队的同伴实体，不追加成虚假真人网络连接或替换攻坚队名册。",
+    "APC随玩家所在战斗场景行动。1真人+3同伴不自动提供其他队伍独立作战、占点、跨场同步或攻坚地图推进。",
+    "人数语义需按消费者拆开：真人网络人数、战斗人数、机制参与者、难度缩放、奖励资格不可统一套用真人+APC总数。",
+    "支持出现/攻击不等于能处理站位、分工、随机点名、同步触发、队长技能或多队机关；原生精锐AI是否满足特定机制需逐机制核对与手动live验证。",
+    "多人共享同伴还需身份权威、各客户端实体一致和伤害上报去重；不属于已证明的本地单真人能力。"
+  ],
+  "compatibility_matrix": [
+    {
+      "kind": "原生精锐Squad内容",
+      "assessment": "有原生接入基础；继续闭环当前115创建战斗流程"
+    },
+    {
+      "kind": "军团/征讨单真人挑战",
+      "assessment": "可设计接入；独立队伍/阶段/结算适配尚未完成"
+    },
+    {
+      "kind": "多队攻坚中玩家当前队带APC",
+      "assessment": "可行性待native实体/人数/队伍机制验证，不能宣称已兼容"
+    },
+    {
+      "kind": "APC替代整支攻坚队/各队自主作战",
+      "assessment": "超出精锐跟随系统，需独立战役调度和特定机制AI"
+    }
+  ],
+  "records": {
+    "native76predicate": {
+      "addr": "0x1459AC4A0",
+      "code": "bool __fastcall sub_1459AC4A0(__int64 a1, char a2)\n{\n  int v2; // eax\n\n  v2 = *(_DWORD *)(a1 + 4528); /*0x1459ac4a0*/\n  return v2 == 76 || a2 != 0 && v2 == 78; /*0x1459ac4b6*/\n}",
+      "line_count": 7,
+      "total_lines": 7,
+      "truncated": false,
+      "cursor": {
+        "done": true
+      }
+    },
+    "profileMode": {
+      "addr": "0x1445074F0",
+      "code": "__int64 sub_1445074F0()\n{\n  unsigned int v0; // ebx\n  __int64 v2; // rax\n  _LocaleUpdate *v3; // rcx\n  __int64 v4; // [rsp+48h] [rbp+10h]\n\n  v0 = 0; /*0x1445074ff*/\n  if ( qword_14E66C090 == nullptr ) /*0x144507508*/\n    return 0; /*0x14450750a*/\n  if ( qword_14E638EF8 == nullptr ) /*0x14450751c*/\n  {\n    v2 = sub_146E8BA20(a1: 2704); /*0x144507523*/\n    v4 = v2; /*0x144507528*/\n    __wind /*0xf1c000000000001c*/\n    {\n      if ( v2 != 0 ) /*0x144507530*/\n        v3 = (_LocaleUpdate *)sub_142E58CC0(a1: v2); /*0x14450753a*/\n      else\n        v3 = nullptr; /*0x14450753f*/\n    }\n    __unwind\n    {\n      j_j_scalable_free(a1: v4, a2: 2704); /*0x148d73e12*/\n    }\n    qword_14E638EF8 = v3; /*0x144507542*/\n    (**(void (__fastcall ***)(_LocaleUpdate *))v3)(a1: v3); /*0x14450754c*/\n  }\n  if ( sub_142E60CF0() != 0 ) /*0x14450755c*/\n    return 2; /*0x144507563*/\n  if ( (unsigned __int8)sub_1459AC4A0(a1: qword_14E66C090, a2: 0) != 0 ) /*0x144507580*/\n    return 3; /*0x144507580*/\n  return v0; /*0x14450750c*/\n}",
+      "line_count": 34,
+      "total_lines": 34,
+      "truncated": false,
+      "cursor": {
+        "done": true
+      },
+      "refs": [
+        {
+          "addr": "0x14e66c090",
+          "name": "qword_14E66C090"
+        },
+        {
+          "addr": "0x146e8ba20",
+          "name": "sub_146E8BA20"
+        },
+        {
+          "addr": "0x142e58cc0",
+          "name": "sub_142E58CC0"
+        },
+        {
+          "addr": "0x146e9f3a0",
+          "name": "j_j_scalable_free"
+        },
+        {
+          "addr": "0x14e638ef8",
+          "name": "qword_14E638EF8"
+        },
+        {
+          "addr": "0x142e60cf0",
+          "name": "sub_142E60CF0"
+        },
+        {
+          "addr": "0x1459ac4a0",
+          "name": "sub_1459AC4A0"
+        }
+      ]
+    }
+  },
+  "verification": {
+    "static": "rg/Get-Content源码检索与IDA两函数完整反编译；外部官方资料检索",
+    "live": "无",
+    "build_vet_test": "未执行，无运行代码改动",
+    "c2s_attempts": 0
+  }
+}

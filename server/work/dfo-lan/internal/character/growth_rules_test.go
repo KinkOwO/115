@@ -2,10 +2,28 @@ package character
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/testfixture"
 	"testing"
 )
+
+func TestDisabledDungeonExperienceOverridesRepeatedWeights(t *testing.T) {
+	d := catalog.DungeonDefinition{Script: catalog.ScriptRecord{Cells: []pvf.Token{
+		{Type: 3, Text: "[disable exp]"},
+		{Type: 3, Text: "[experience increasing point]"}, {Type: 0, Value: 0},
+		{Type: 3, Text: "[experience increasing point]"}, {Type: 2, Number: 0.83},
+	}}}
+	m := protocol.DungeonMonster{Template: 109014482, Level: 115}
+	if gain, err := GrowthMonsterGain(catalog.Progression{}, GrowthRules{}, d, m, 115, 0); err != nil || gain != 0 {
+		t.Fatal("disabled source requires no experience tables", gain, err)
+	}
+	d.Script.Cells = d.Script.Cells[1:]
+	c := catalog.Progression{DifficultyRates: []float32{1}, MonsterRates: []float32{1}, MonsterExperience: map[uint16]uint64{115: 100}}
+	if _, err := GrowthMonsterGain(c, GrowthRules{}, d, m, 115, 0); err == nil {
+		t.Fatal("ordinary ambiguous weight was silently accepted")
+	}
+}
 
 func TestCurrentSourceWithExplicitReferenceRules(t *testing.T) {
 	c, e := catalog.LoadProgression(testfixture.ProgressionPath(t))

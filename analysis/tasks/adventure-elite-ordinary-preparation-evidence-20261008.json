@@ -1,0 +1,102 @@
+{
+  "base": "54ee3b56883aa951b080f414225b2696d58b1b99",
+  "build": 0,
+  "vet": 0,
+  "test": 0,
+  "testCounts": {
+    "run": 3913,
+    "output": 8621,
+    "skip": 280,
+    "pass": 3633
+  },
+  "oldFailureSet": [],
+  "failureSet": [],
+  "artifacts": {
+    "client-patchs/adventure-elite/dist/AdventureElite.dll": {
+      "bytes": 185344,
+      "sha256": "102ef6584f9120cb6bdbd7fc5f64f4cb37a3d3e4ecdcb6e56f41659da5a70ec1"
+    },
+    "server/work/dfo-lan/bin/wireprobe-handoff-source.exe": {
+      "bytes": 30322176,
+      "sha256": "a117ad4a807d4f9dab50f18f2df75c2e3eac0487e92e2b10684a3b5fd83674be"
+    },
+    "server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe": {
+      "bytes": 16969728,
+      "sha256": "94296f900bba7495ee1f7dba3209dcbf74b9c977a0a418a70ee7d39378719232"
+    },
+    "client-patchs/adventure-elite/dist/adventure-elite-eligibility-0.3.0.zip": {
+      "bytes": 102572,
+      "sha256": "d06b8306e4a8b6cf596998e3a7586a5096342b9d89b9531284497265217576cc"
+    }
+  },
+  "sourceNativeTest": "TestAdventureElitePreparationNativeChannelSources: PASS; all ordinary PVF rows, existing local override, Odyssey role and special/unknown exclusions",
+  "archiveChecksum": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+  "contentChain": [
+    "etc/channel_info.etc [server] -> catalog.ImportChannelInfo -> gatewayRuntime.channelInfo -> source ordinary row by server+published ID",
+    "etc/clientchannelinfo.etc [channelType]/party flags + etc/channelslotinfo.etc panel -> ImportChannelDirectory -> gatewayRuntime.channelDirectory -> exclusion precedence"
+  ],
+  "clientTransactions": {
+    "selection": "N1754 142E5A4C0; scoped mode calls 142E5A59D/142E5AAE5 only native 0->2",
+    "request": "native CMD1811 u16 mode at 142E5AEC9..142E5AEEB; exact flush 146D75AF0 marks pending on actual call",
+    "info": "N1382 1444FCF90; exact predicates 1444FD014/1444FD1CA/1444FDB42 -> type2/skip-human-merge/build slots",
+    "done": "N1879 142E5B060; fallback predicate 1444FAC66; original clone/skills path unchanged",
+    "identity": "channel manager +4528 and native current-controller getter 145F0BA60 -> holder weak payload[19] +112 wire ID; thread/owner/channel/deadline matched; no retained APC naked pointers",
+    "hook": "MinHook v1.3.4, pinned source/license; three queued trampoline hooks after eleven byte-context checks; original outputs preserved outside callbacks"
+  },
+  "mechanismTests": [
+    "eligibility",
+    "notification observer",
+    "preparation state",
+    "RIP/CALL trampoline relocation+native forwarding+TLS+concurrent enable/disable restoration"
+  ],
+  "abiPackage": "six env cases, no-game host rejection, own-directory logs/status, schema2 SHA/size/license PASS",
+  "runtimeAttempt": "ordinary transaction adaptation attempt 2/3; no new packet layout; not live yet",
+  "confirmedScope": "low-level save and re-enter list only",
+  "candidateScope": "ordinary/Odyssey town preparation only; frozen session blocks dungeon admission",
+  "unverified": [
+    "live hook installation/current controller/current channel identity",
+    "CMD1811 -> N1382 -> N1879 completion/three-slot weak references",
+    "type5 battle registration/attack/kill/summon owner",
+    "room transitions/death/re-entry/resource lifetime/story/Odyssey battle"
+  ],
+  "storage": "existing SQLite schema/account IDs unchanged; filtered packet view never changes saved list",
+  "duplicateRules": "channel.local34/35 ordinary Type/Area/SourceValues compatibility overrides retained as existing publishing route; source [server] row controls ordinary membership; new task introduces no runtime content list",
+  "hygiene": "isolated default bin/wireprobe-pvf.exe missing, requires previously requested explicit second confirmation; no staging/commit",
+  "otherWritersIncluded": false,
+  "backups": {
+    "client-patchs/adventure-elite/dist/AdventureElite.dll": {
+      "path": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\preparation-backup\\AdventureElite-d5c5aee47a58a2da53c4ac5b44f94abb8c34a16a1cb6d6498e20c9633c7a43f7.dll",
+      "sha256": "d5c5aee47a58a2da53c4ac5b44f94abb8c34a16a1cb6d6498e20c9633c7a43f7",
+      "bytes": 169472
+    },
+    "server/work/dfo-lan/bin/wireprobe-handoff-source.exe": {
+      "path": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\preparation-backup\\wireprobe-handoff-source-4662e3e39ca913dad42cc771ec7cdc1c92a49f099171cc1d2856afdee01fcce0.exe",
+      "sha256": "4662e3e39ca913dad42cc771ec7cdc1c92a49f099171cc1d2856afdee01fcce0",
+      "bytes": 29571584
+    },
+    "server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe": {
+      "path": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\preparation-backup\\dfolauncher-adventure-elite-454fd6e2a4865e868fad65ea2c9ef42bf945550383b6a6082652f8257d2aa4b5.exe",
+      "sha256": "454fd6e2a4865e868fad65ea2c9ef42bf945550383b6a6082652f8257d2aa4b5",
+      "bytes": 16537088
+    }
+  },
+  "deliveredTo": "F:/projects/agents/reverse/115us",
+  "clientRunningAtDelivery": false,
+  "finalChecks": {
+    "sharedHygiene": 0,
+    "sharedDiffCheck": 0,
+    "integrationDiffCheck": 0,
+    "integrationHygiene": "pending second confirmation; missing default bin/wireprobe-pvf.exe",
+    "exports": [
+      "ModName",
+      "ModStart",
+      "ModStartInjected"
+    ],
+    "imports": [
+      "KERNEL32.dll"
+    ],
+    "cppMechanismExit": 0,
+    "sourceNativeTestExit": 0,
+    "clientStarted": false
+  }
+}

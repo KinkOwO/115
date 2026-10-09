@@ -51,6 +51,7 @@ type DungeonDefinition struct {
 	// 14614E440 在 dungeon+0xC70!=0 时必须该标志才播放开门动画）。
 	// 见 cmd/wireprobe dungeon_flow 死亡确认处的发送点。
 	BossEntranceConditionIDs []uint32
+
 	// AttunementBoss 是「调律之边界」玩法（[dungeon type] boundary of attunement）的源领主模板。
 	// 该玩法单人、不发 CMD117，所以只有这只领主的死亡确认能结束本次挑战 ——
 	// 见 internal/dungeon/completion.go 的 tryComplete。
@@ -89,6 +90,35 @@ type DungeonDefinition struct {
 	// Tower is attached only after a tower's source floor/map rules are verified.
 	// Entry and progress are shared; reward packets remain tower specific.
 	Tower *TowerRuntime `json:"-"`
+}
+
+// DungeonType 读副本脚本自己的 [dungeon type] 值（`boundary of attunement` /
+// `endkeeper of order` / `stolen land ispins` …）。
+//
+// 它是**玩法的源声明**：同一条服务端逻辑要按玩法分流时（例如 noti 2859
+// 「BOUNDARY_OF_ATTUNEMENT_REWARD」只属于调律之边界），判据取这里，
+// 而不是按副本号硬编一份名单 —— 源里加了新副本，这里自动跟上。
+//
+// 取值可能是 type 6（字面量）或 type 8（引用），两种都读；没有声明时返回空串。
+// 一次声明多次出现时按源顺序取第一个（当前两个深渊各只声明一次）。
+func DungeonType(d DungeonDefinition) string {
+	for i, c := range d.Script.Cells {
+		if c.Type != 3 || c.Text != "[dungeon type]" {
+			continue
+		}
+		for j := i + 1; j < len(d.Script.Cells); j++ {
+			switch d.Script.Cells[j].Type {
+			case 6:
+				return d.Script.Cells[j].Text
+			case 8:
+				return d.Script.Cells[j].Reference
+			case 3:
+				return ""
+			}
+		}
+		return ""
+	}
+	return ""
 }
 
 type TowerRuntime struct {
@@ -357,12 +387,27 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	if cards := sectionCells(s.Cells, "[reward card]"); len(cards) == 1 && cards[0].Type == 0 && cards[0].Value >= 0 {
 		d.RewardCard = uint32(cards[0].Value)
 	}
-	minimum := sectionCells(s.Cells, "[minimum required level]")
+	// Raid scripts include maze-local copies of level fields. Read the
+	// dungeon header separately so those copies cannot replace its gate.
+	header := s.Cells
+	for i, c := range s.Cells {
+		if c.Type == 3 && c.Text == "[maze info]" {
+			header = s.Cells[:i]
+			break
+		}
+	}
+	minimum := consistentHellPartySection(header, "[minimum required level]")
+	if len(minimum) == 0 && len(sectionCells(header, "[minimum required level]")) == 0 {
+		minimum = consistentHellPartySection(s.Cells, "[minimum required level]")
+	}
 	if len(minimum) != 1 || minimum[0].Type != 0 || minimum[0].Value < 1 {
 		return d, fmt.Errorf("invalid [minimum required level]")
 	}
 	d.MinimumLevel = uint32(minimum[0].Value)
-	basis := sectionCells(s.Cells, "[basis level]")
+	basis := consistentHellPartySection(header, "[basis level]")
+	if len(basis) == 0 && len(sectionCells(header, "[basis level]")) == 0 {
+		basis = consistentHellPartySection(s.Cells, "[basis level]")
+	}
 	hasBasis := false
 	for _, c := range s.Cells {
 		hasBasis = hasBasis || c.Type == 3 && c.Text == "[basis level]"

@@ -36,6 +36,21 @@ import "fmt"
 //
 // 结算后持有归零由官方第 ② 条「结算征兆**并重置**」直接给出，不再是推断。
 
+// OmenPityMisses 是小深渊征兆的保底：**连续 OmenPityMisses 次通关都没有触发征兆**时，
+// 这一场直接补 1 阶（官方设定，业主 2026-10-08 提供）。
+//
+// 计数按**角色**记（存档 character_omen_state.misses），规则取自业主原话：
+//
+//	记录玩家没触发征兆的次数，一旦有征兆了就归 0，即便征兆当轮不结算；
+//	直到征兆被结算后，重新计数。
+//
+// 落到代码里就是三句：计数只在「这一场开始前一个征兆都没有」时 +1；
+// 遇到「获得一个征兆」或「结算」都归 0；到 30 就直接补一阶并归 0。
+//
+// 只有带 [coupon drop table] 的副本会推进它（当前只有小深渊 100005014）——
+// 没有征兆表的副本在 AdvanceOmen 开头就原样返回了，连计数都不碰。
+const OmenPityMisses = 30
+
 // OmenStage 是征兆表的一行。
 type OmenStage struct {
 	// Index 是行号，也是结算这一行时玩家结算前持有的征兆数。
@@ -136,6 +151,15 @@ type OmenOutcome struct {
 	Held uint32
 	// After 是这一场结束后持有的征兆数。
 	After uint32
+	// Misses 是这一场开始前「连续未触发」的计数（见 OmenPityMisses）。
+	Misses uint32
+	// MissesAfter 是这一场结束后的计数。和 Held/After 一样拆成两个：落库发生在
+	// **发布**那一刻（见 omen_ledger.go 的 commit），发布前要能验证这本账有没有
+	// 在期间被别人动过。
+	MissesAfter uint32
+	// Pity 表示这一场的一阶是**保底补的**，不是掷出来的（日志与实机验收要用）。
+	Pity bool
+
 	// Gained 表示这一场获得了一个征兆。
 	Gained bool
 	// Paid 表示这一场结算了阶段奖励。
@@ -155,8 +179,8 @@ type OmenOutcome struct {
 //
 // 没有征兆表的副本、或表里没有行的副本，原样返回种子与持有数：这条线对其它
 // 副本是惰性的，和禁用的章节掉落一样。
-func (a *AttunementRewards) AdvanceOmen(seed, dungeon, held uint32) (OmenOutcome, error) {
-	out := OmenOutcome{Dungeon: dungeon, Held: held, After: held, Seed: seed}
+func (a *AttunementRewards) AdvanceOmen(seed, dungeon, held, misses uint32) (OmenOutcome, error) {
+	out := OmenOutcome{Dungeon: dungeon, Held: held, After: held, Misses: misses, MissesAfter: misses, Seed: seed}
 	stages := a.OmenStages(dungeon)
 	if len(stages) == 0 {
 		return out, nil
@@ -179,6 +203,7 @@ func (a *AttunementRewards) AdvanceOmen(seed, dungeon, held uint32) (OmenOutcome
 			return out, err
 		}
 		out.After = 0
+		out.MissesAfter = 0
 		out.Seed = rng.Seed
 		return out, nil
 	}
@@ -189,16 +214,35 @@ func (a *AttunementRewards) AdvanceOmen(seed, dungeon, held uint32) (OmenOutcome
 		if int(out.After)+1 < len(stages) {
 			out.After++
 		}
+		// 有征兆了就归 0（官方口径）：不管这一场结不结算。
+		out.MissesAfter = 0
 	case roll < stage.ObtainProb+stage.DropProb:
 		out.Paid = true
 		if err := a.payOmenStages(&rng, stages, out.Held, &out); err != nil {
 			return out, err
 		}
 		out.After = 0
+		// 结算之后重新计数（官方口径）。
+		out.MissesAfter = 0
+	default:
+		// 无事发生。只有「本来就一个征兆都没有」的那些通关才算「没触发」：
+		// 持有 ≥1 时按口径要等这次征兆结算之后才重新计数，所以这里不动它。
+		if out.Held == 0 {
+			out.MissesAfter = out.Misses + 1
+			if out.MissesAfter >= OmenPityMisses {
+				// 保底：这一场直接补 1 阶，不掷骰、也不额外消耗随机数。
+				out.MissesAfter = 0
+				out.Gained, out.Pity = true, true
+				if int(out.After)+1 < len(stages) {
+					out.After++
+				}
+			}
+		}
 	}
 	out.Seed = rng.Seed
 	return out, nil
 }
+
 
 // payOmenStages 结算**已激活的每一档**：官方「奖励可以兼得」——
 // 持有 held 个征兆时结算，就对行 1..held 各抽一次 [drop list]，各出一件。

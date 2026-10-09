@@ -1,6 +1,9 @@
 package loot
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 // OmenLedger 按角色保存征兆累积数。
 //
@@ -16,6 +19,7 @@ type OmenLedger struct {
 
 	mu   sync.Mutex
 	held map[int64]uint32
+	misses map[int64]uint32
 	last map[int64]OmenOutcome
 	seq  uint64
 }
@@ -25,6 +29,7 @@ func NewOmenLedger(reward *AttunementRewards) *OmenLedger {
 	return &OmenLedger{
 		reward: reward,
 		held:   map[int64]uint32{},
+		misses: map[int64]uint32{},
 		last:   map[int64]OmenOutcome{},
 	}
 }
@@ -53,13 +58,31 @@ func (o *OmenLedger) Held(character int64) uint32 {
 }
 
 // Set 直接写持有数（诊断用：把玩家放到指定阶段，省掉刷场次）。
+//
+// 计数一并归 0：把玩家摆到某个阶段，语义上等价于「刚拿到那个征兆的那一刻」。
 func (o *OmenLedger) Set(character int64, held uint32) {
+	o.SetState(character, held, 0)
+}
+
+// SetState 直接写这本书的两个数：进本装载存档（loadOmenRunState）与诊断都走它。
+func (o *OmenLedger) SetState(character int64, held, misses uint32) {
 	if o == nil {
 		return
 	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.held[character] = held
+	o.misses[character] = misses
+}
+
+// Misses 报告角色当前「连续未触发」的计数（0 表示刚拿到过征兆）。
+func (o *OmenLedger) Misses(character int64) uint32 {
+	if o == nil {
+		return 0
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.misses[character]
 }
 
 // Last 返回角色最近一次结算，供调用方记事件。
@@ -83,13 +106,52 @@ func (o *OmenLedger) Advance(character int64, dungeon, seed uint32) (OmenOutcome
 	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	out, err := o.reward.AdvanceOmen(seed, dungeon, o.held[character])
+	out, err := o.reward.AdvanceOmen(seed, dungeon, o.held[character], o.misses[character])
 	if err != nil {
 		return out, nil, err
 	}
 	o.seq++
 	out.Seq = o.seq
 	o.held[character] = out.After
+	o.misses[character] = out.MissesAfter
 	o.last[character] = out
 	return out, out.Awards, nil
+}
+
+// preview computes a candidate without consuming a ledger sequence or state.
+func (o *OmenLedger) preview(character int64, dungeon, seed uint32) (OmenOutcome, []Award, error) {
+	if o == nil || o.reward == nil {
+		return OmenOutcome{Dungeon: dungeon, Seed: seed}, nil, nil
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	out, err := o.reward.AdvanceOmen(seed, dungeon, o.held[character], o.misses[character])
+	return out, out.Awards, err
+}
+
+// commit rejects concurrent changes rather than overwriting another clear.
+func (o *OmenLedger) commit(character int64, out OmenOutcome) error {
+	if o == nil || o.reward == nil {
+		return nil
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	// AdvanceOmen clamps invalid held values; compare using that same rule.
+	held := o.held[character]
+	if n := o.reward.OmenStagesCount(out.Dungeon); n > 0 && int(held) >= n {
+		held = uint32(n - 1)
+	}
+	if held != out.Held {
+		return fmt.Errorf("omen state changed before drop publication")
+	}
+	// 计数同理：预览之后、发布之前没人该动过它。
+	if misses := o.misses[character]; misses != out.Misses {
+		return fmt.Errorf("omen miss counter changed before drop publication")
+	}
+	o.seq++
+	out.Seq = o.seq
+	o.held[character] = out.After
+	o.misses[character] = out.MissesAfter
+	o.last[character] = out
+	return nil
 }

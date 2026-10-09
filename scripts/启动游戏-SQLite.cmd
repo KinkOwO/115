@@ -11,6 +11,8 @@ rem cmd -> powershell -Command decodes the UTF-8 bytes as GBK, so the elevated c
 rem for a mojibake path, found nothing and the window closed instantly (2026-10-05).
 rem The window stays open on any failure so the reason is readable.
 
+set DFO_ADVENTURE_ELITE=1
+
 powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\storage-route.ps1" game-sqlite %*
 set "RC=%ERRORLEVEL%"
 if not "%RC%"=="0" (

@@ -15,11 +15,14 @@
 //	mods\zz_mods_gen.go:9:2: package dfolan/mods/<mod-id> is not in std
 //
 // （模块里找不到该导入路径时，Go 会把它当标准库候选去 GOROOT 找，报错因此长得不像"缺文件"。）
-// 所以：**别把本机那份（它写着你这台机器装了哪些 mod）提交/推上去**。真要提交某个 mod，就把
-// 它的源码一起入库（`git ls-files server/work/dfo-lan/mods/<mod-id>` 要有结果）；否则先在
-// 启动器里卸载该 mod / 清空本加载器，再提交干净形态。server/Build-Server.ps1 编译前会机械
-// 拦这一条（有 git 时中止并报错，没有 git 的解包目录只告警）。
+// 所以：**别把本机那份（它写着你这台机器装了哪些 mod）提交/推上去**。
+// 2026-10-07 业主定调：mod 一律不入库 —— 本目录其余内容（已装 mod、enabled.json、
+// 规则脚本）与仓库根 mods/ 全部不跟踪，分发只走 mod 包（zip）+「导入 mod…」；
+// 库里只留这份干净形态加载器，保证全新 clone 编得过。
 package mods
 
-// 当前没有已安装的服务端 mod：干净形态，RegisterMods() 什么都不注册。
-func RegisterMods() {}
+// RegisterMods 按稳定顺序调用每个 mod 的注册入口。
+// 服务端在完成配置与存储初始化之后、开始监听之前调用它。
+// 干净形态：不注册任何 mod。
+func RegisterMods() {
+}

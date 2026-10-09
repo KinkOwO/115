@@ -94,6 +94,14 @@ const VenusSelectionSeconds uint32 = 15
 // Venus_1..3Phase ([dungeon timeout] 600 in the phase DGNs) and 900s for the
 // descent 4th phase (2026-10-05 用户口径；G0721b 原生向量同样覆盖 99 的
 // 600/900 秒起点)。30 秒临时测试值已于 2026-10-05 验收后改回正式值。
+//
+// 第四十四轮（2026-10-07）实机结论：这两个值**不能超过客户端本地 DGN 的
+// [dungeon timeout] 上限（600/900）**——HUD 按「结束秒−同步服务器秒」再与
+// 当前 DGN 上限取较小值（1474 规格文档 G0728b 逆向结论），发 1800/3600 会被
+// 钳死在 10:00/15:00 冻结不走秒（业主实测）。第四十三轮曾按业主口径放宽到
+// 1800/1800/1800/3600，实测显示冻结后于第四十四轮回退。苏醒之森 60 分钟
+// 显示正常是因为森林 DGN 源上限本就是 3600（ForestStageLimits 与之一致），
+// 并非客户端不钳制。改这里之前先核对对应 phase DGN 的 [dungeon timeout]。
 var VenusPhaseLimits = [4]uint32{600, 600, 600, 900}
 
 // CmdVenusPhaseRevive is CMD2059 (ENUM_CMDPACKET_PLAYER_REVIVE_WHEN_PHASE_

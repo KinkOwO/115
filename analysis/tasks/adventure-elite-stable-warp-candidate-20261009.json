@@ -1,0 +1,168 @@
+{
+  "status": "candidate-ready-awaiting-manual-validation",
+  "attempt": "projection lifecycle2/3",
+  "humanReport": "前面有，后续传送或重进后消失",
+  "predecessor": "analysis/tasks/adventure-elite-projection-reload-candidate-20261009.json",
+  "failedSession": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261009_051649_922170_next37",
+  "processId": 21152,
+  "runTick": 160431046,
+  "actualServerVersion": "0.3.16",
+  "actualDLLVersion": "0.3.10",
+  "finding": "Original stale-preparation rejection resolved; first two entries registered all three native APCs and combat source observed. Later empty/restored N1754 raced CMD15; native CMD1811 was refused during selection, leading to the third loader with weakAlive0.",
+  "evidenceLines": {
+    "events": {
+      "successfulReload": 218,
+      "hiddenView": 491,
+      "CMD15BeforeRestoredView": 496,
+      "restoredWhileSelecting": 499,
+      "rejectedWhileSelecting": 501
+    },
+    "entryNativeRegistrationResults": [
+      5,
+      6,
+      7,
+      18,
+      19,
+      20
+    ],
+    "entryThirdRejected": [
+      24
+    ]
+  },
+  "nativeIDA": {
+    "function": "142E5A4C0",
+    "clearMap": "142E5A6DD",
+    "compare": "142E5ABFC",
+    "release": "142E5AE64",
+    "automaticLoadRequest": "142E5AED6",
+    "sameReadChainAs0316": true
+  },
+  "source": {
+    "archiveSHA256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+    "path": "contents/2026/aradodyssey/dungeon/05_darkelf/darkelf.dgn",
+    "SHA256": "ec5d4a37dcf0912e0480b5a93d25c2e33fabd019968670062cc63431d0cb5c4c",
+    "id": 100004939,
+    "firstMap": 100016019,
+    "minimumPlayerLevel": 38,
+    "designatedDifficulty": 2,
+    "chain": "same PVF -> journal.cos -> Source.Dungeons -> existing Select/admission -> state/storage execution"
+  },
+  "implementation": "Separate ordinaryEliteRosterVisible from ordinaryEliteSelectionVisible: account view stable during ordinary town warp; preparation/battle gates still reject specialWarpPending. Actual unsupported channel/tutorial/mine scope changes retain0316 invalidation.",
+  "regression": "Old0316 failed six1/2/3-APC polling/selection-order cases. New tests cover two cycles each, no destructive1754, retained prepared identity, refused unsettled/duplicate loading, correct admission and unchanged saved roster/skills.",
+  "validation": {
+    "build": {
+      "command": [
+        "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+        "build",
+        "./..."
+      ],
+      "exitCode": 0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\stable-warp-build.log"
+    },
+    "vet": {
+      "command": [
+        "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+        "vet",
+        "./..."
+      ],
+      "exitCode": 0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\stable-warp-vet.log"
+    },
+    "test": {
+      "command": [
+        "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+        "test",
+        "-json",
+        "./...",
+        "-count=1"
+      ],
+      "exitCode": 0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\stable-warp-test.log",
+      "passed": 3943,
+      "skipped": 269,
+      "failures": [],
+      "baselineFailures": [],
+      "newFailures": []
+    },
+    "binary": {
+      "command": [
+        "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+        "build",
+        "-trimpath",
+        "-o",
+        "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\stable-warp-candidate.exe",
+        "./cmd/wireprobe"
+      ],
+      "exitCode": 0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\stable-warp-binary.log"
+    },
+    "source": {
+      "command": [
+        "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+        "test",
+        "./cmd/wireprobe",
+        "-run",
+        "^TestEliteOdysseyCurrentPVFJournalSourceAdmission$",
+        "-count=1",
+        "-v"
+      ],
+      "exitCode": 0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\stable-warp-source.log"
+    }
+  },
+  "captureFixtures": "Prior capture fixtures plus0317 compatibility passed; offline data does not certify live behavior.",
+  "delivery": {
+    "version": "0.3.17",
+    "sha256": "1ee81eaf3c844317baaefadd40ce1f9453e6c18f45b3bc62600671b0cd347461",
+    "bytes": 30555136,
+    "backup": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\stable-warp-delivery-backup",
+    "DLLChanged": false,
+    "defaultSha256Unchanged": "a6f269603887f18fa8bb60814a655641f12c5eeaf1a07f89d840e166a393be6c",
+    "resourcesChanged": false,
+    "schemaChanged": false,
+    "playerStoreModified": false
+  },
+  "unchanged": [
+    "DLL",
+    "client EXE",
+    "PVF",
+    "default server",
+    "SQLite schema/player save",
+    "packet layout",
+    "source content rules"
+  ],
+  "unclosed": [
+    "New stable-warp live behavior",
+    "All Odyssey maps and special party modes",
+    "Native object release and complete death coverage"
+  ],
+  "duplicationLedger": "Existing Type22/ID10 vs PVF [server] and creature names/experience rules remain in the prior ledger, unchanged in this fix.",
+  "runtimeClientIdentity": {
+    "configuredClientDir": "F:\\wip\\dof\\115US",
+    "configPath": "server/launcher.local.json",
+    "resources": [
+      {
+        "name": "DFO.exe",
+        "path": "F:\\wip\\dof\\115US\\DFO.exe",
+        "sha256": "eb3e04a2f07f2eeb69919c3830e9b631c017b3110049ae109efcb9d3d979d552",
+        "referenceSHA256": "1d3948784e5e0f77ed744017bf82bf0c50de9421423f9e59f6f70aed609d8ffa",
+        "sameAsRepositoryReference": false
+      },
+      {
+        "name": "Script.pvf",
+        "path": "F:\\wip\\dof\\115US\\Script.pvf",
+        "sha256": "e18cd1c5a91e158138880e29d0c78f425b833f39a2e6f138b4e5c4d000d7a961",
+        "referenceSHA256": "5dd03873edf2c1df7aea16db5ad146a776fb8461a947be73042cabd932e66f0a",
+        "sameAsRepositoryReference": false
+      },
+      {
+        "name": "sk.dat",
+        "path": "F:\\wip\\dof\\115US\\sk.dat",
+        "sha256": "59d78371335d22dae0eaeca2a827939576e85a5f5ede4ba286f0438d2fbc6eaf",
+        "referenceSHA256": "59d78371335d22dae0eaeca2a827939576e85a5f5ede4ba286f0438d2fbc6eaf",
+        "sameAsRepositoryReference": true
+      }
+    ],
+    "scope": "Configured runtime client differs from repository analysis/reference copies for EXE and outer PVF. Do not certify these copies as runtime inputs. Existing DLL startup byte checks and live native logs are from PID65932 in the configured client."
+  }
+}

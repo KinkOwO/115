@@ -29,10 +29,11 @@ class DefaultPVFLaunchTests(unittest.TestCase):
     def test_explicit_pvf_profile_uses_current_default_scope(self):
         binary, required, env = launch.gateway_configuration(arguments(pvf_mode=True), {'server_binary': 'legacy.exe'})
         _, configured, profile = launch.load_profile(launch.DEFAULT_PVF_PROFILE, launch.PROJECT)
-        self.assertEqual(binary, launch.PROJECT / 'bin/wireprobe-pvf.exe')
+        self.assertEqual(binary, launch.PROJECT / 'bin/wireprobe-bakal-weekly-quota-candidate.exe')
         self.assertEqual(env, profile)
         self.assertEqual(required, configured)
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 55)
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 56)
+        self.assertIn('bakal-raid', env['DFO_PVF_CATALOGS'].split(','))
         self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))
         with mock.patch.dict(os.environ, {'DFO_ODYSSEY_MODE': '0'}, clear=True):
             self.assertEqual(launch.launch_environment(arguments(), env)['DFO_ODYSSEY_MODE'], '0')
@@ -71,8 +72,8 @@ class DefaultPVFLaunchTests(unittest.TestCase):
             arguments(source_build=True, pvf_mode=True), {'server_binary': 'legacy.exe'})
         self.assertEqual(binary, launch.PROJECT / 'bin/wireprobe-handoff-source.exe')
         self.assertIn(binary, required)
-        self.assertNotIn(launch.PROJECT / 'bin/wireprobe-pvf.exe', required)
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 55)
+        self.assertNotIn(launch.PROJECT / 'bin/wireprobe-bakal-map-reset-candidate.exe', required)
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 56)
 
     def test_source_build_json_mode_does_not_inherit_pvf_profile(self):
         binary, required, profile_env = launch.gateway_configuration(

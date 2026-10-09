@@ -1,0 +1,625 @@
+{
+  "status": "confirmed-ordinary-town-reentry-three-runs",
+  "userConfirmation": "确认通过，多次进本APC均出现",
+  "scope": "three ordinary solo non-story entries in same connection after manual town returns; not direct move/death/release/story/Odyssey",
+  "sourceCommit": "658f3ffac2884b3578e0b1502e851b28eabbe1f1",
+  "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_234621_294907_next37",
+  "processId": 100828,
+  "runTick": 140574984,
+  "artifacts": [
+    {
+      "path": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+      "exists": true,
+      "match": true,
+      "sha256": "941656906dac3e0f7c8c1e9430ca390eac8d88013dd528539d35661aa689e005"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+      "exists": true,
+      "match": true,
+      "sha256": "5ca6128aaf37a674a63e5a0997a14f9f98271201e588fa098b53e605ff2d1384"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe",
+      "exists": true,
+      "match": true,
+      "sha256": "aed177c46cb700afbb77d75d2f8aa3b5061dde82ac3f629901436722d3752a79"
+    }
+  ],
+  "resources": [
+    {
+      "path": "client/DFO.exe",
+      "exists": true,
+      "sha256": "1d3948784e5e0f77ed744017bf82bf0c50de9421423f9e59f6f70aed609d8ffa",
+      "sameAsBuildInput": true
+    },
+    {
+      "path": "client/Script.pvf",
+      "exists": true,
+      "sha256": "5dd03873edf2c1df7aea16db5ad146a776fb8461a947be73042cabd932e66f0a",
+      "sameAsBuildInput": true
+    },
+    {
+      "path": "client/sk.dat",
+      "exists": true,
+      "sha256": "59d78371335d22dae0eaeca2a827939576e85a5f5ede4ba286f0438d2fbc6eaf",
+      "sameAsBuildInput": true
+    },
+    {
+      "path": "server/work/client-build/Script.inner.pvf",
+      "exists": true,
+      "sha256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+      "sameAsBuildInput": true
+    }
+  ],
+  "runs": [
+    {
+      "runId": "9eb88a813d47592929eb777749844e31",
+      "entrySerial": 1,
+      "dungeon": 3,
+      "sourceScript": "dungeon/act1/mirkwood.dgn",
+      "sourceSha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "entryCommitted": true,
+      "ownedDeaths": 4,
+      "deaths": 4,
+      "moves": 0,
+      "pickups": 1,
+      "results": 0,
+      "cards": 0,
+      "returnCommitted": true,
+      "refusals": []
+    },
+    {
+      "runId": "d2fedadec147cd1dbda980764a285101",
+      "entrySerial": 2,
+      "dungeon": 3,
+      "sourceScript": "dungeon/act1/mirkwood.dgn",
+      "sourceSha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "entryCommitted": true,
+      "ownedDeaths": 7,
+      "deaths": 9,
+      "moves": 1,
+      "pickups": 1,
+      "results": 0,
+      "cards": 0,
+      "returnCommitted": true,
+      "refusals": []
+    },
+    {
+      "runId": "e9d4fa5bc6066220ca3e5b2464e99f44",
+      "entrySerial": 3,
+      "dungeon": 3,
+      "sourceScript": "dungeon/act1/mirkwood.dgn",
+      "sourceSha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "entryCommitted": true,
+      "ownedDeaths": 9,
+      "deaths": 9,
+      "moves": 1,
+      "pickups": 0,
+      "results": 0,
+      "cards": 0,
+      "returnCommitted": true,
+      "refusals": []
+    }
+  ],
+  "nativeEntryCycles": [
+    {
+      "loaderOrdinal": 1,
+      "endOrdinal": 7,
+      "thread": 63832,
+      "managerActive": 0,
+      "companions": 2,
+      "nativeResults": 2,
+      "activeAdaptations": 0,
+      "allRegistered": true,
+      "adapterValid": true
+    },
+    {
+      "loaderOrdinal": 8,
+      "endOrdinal": 15,
+      "thread": 63832,
+      "managerActive": 1,
+      "companions": 2,
+      "nativeResults": 2,
+      "activeAdaptations": 1,
+      "allRegistered": true,
+      "adapterValid": true
+    },
+    {
+      "loaderOrdinal": 20,
+      "endOrdinal": 27,
+      "thread": 63832,
+      "managerActive": 1,
+      "companions": 2,
+      "nativeResults": 2,
+      "activeAdaptations": 1,
+      "allRegistered": true,
+      "adapterValid": true
+    }
+  ],
+  "activeAdaptations": [
+    {
+      "line": 12,
+      "traceVersion": 1,
+      "processId": 100828,
+      "runTick": 140574984,
+      "ordinal": 12,
+      "tick": 140731656,
+      "thread": 63832,
+      "phase": "registration-active-reentry",
+      "callerRva": 95572440,
+      "loaderCallerRva": 114467303,
+      "freshDungeonEntry": 1,
+      "nativeResult": 1,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 1,
+      "scene": 6891034112,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 1,
+      "sceneVectorMatches": [
+        0,
+        0,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2
+      ],
+      "registrationPlayerRef": [
+        6162914144,
+        4953424432
+      ],
+      "registrationNativePlayerRef": [
+        6162914144,
+        4953424432
+      ],
+      "battleEnabled": false
+    },
+    {
+      "line": 24,
+      "traceVersion": 1,
+      "processId": 100828,
+      "runTick": 140574984,
+      "ordinal": 24,
+      "tick": 140749156,
+      "thread": 63832,
+      "phase": "registration-active-reentry",
+      "callerRva": 95572440,
+      "loaderCallerRva": 114467303,
+      "freshDungeonEntry": 1,
+      "nativeResult": 1,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 1,
+      "scene": 6895885568,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 1,
+      "sceneVectorMatches": [
+        0,
+        0,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2
+      ],
+      "registrationPlayerRef": [
+        6162914144,
+        4953424432
+      ],
+      "registrationNativePlayerRef": [
+        6162914144,
+        4953424432
+      ],
+      "battleEnabled": false
+    }
+  ],
+  "sourceEntryAnchors": [
+    {
+      "line": 233,
+      "accepted": true,
+      "attempt": "1/3",
+      "battle_enabled": false,
+      "candidate_stage": "ordinary-reentry",
+      "channel_type": 22,
+      "character_id": 2,
+      "dungeon": 3,
+      "entry_probe_used": true,
+      "entry_serial": 1,
+      "frozen_preparation": {
+        "Channel": 22,
+        "Owner": 2,
+        "Selected": [
+          1,
+          3,
+          0
+        ],
+        "Settings": [
+          64,
+          202,
+          13,
+          22,
+          54,
+          131,
+          26,
+          112,
+          73,
+          50,
+          197,
+          154,
+          242,
+          68,
+          182,
+          173,
+          54,
+          251,
+          30,
+          42,
+          12,
+          249,
+          78,
+          154,
+          171,
+          128,
+          53,
+          206,
+          186,
+          127,
+          248,
+          0
+        ]
+      },
+      "kind": "adventure_elite_entry_probe",
+      "map": 58548,
+      "maze": 0,
+      "monsters": 4,
+      "owned_combat_candidate": true,
+      "owner_wire_id": 2,
+      "reentry_attempt": "1/3",
+      "run_id": "9eb88a813d47592929eb777749844e31",
+      "source_script": "dungeon/act1/mirkwood.dgn",
+      "source_sha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "time": "2026-10-08T15:49:08.6261414Z"
+    },
+    {
+      "line": 327,
+      "accepted": true,
+      "attempt": "1/3",
+      "battle_enabled": false,
+      "candidate_stage": "ordinary-reentry",
+      "channel_type": 22,
+      "character_id": 2,
+      "dungeon": 3,
+      "entry_probe_used": true,
+      "entry_serial": 2,
+      "frozen_preparation": {
+        "Channel": 22,
+        "Owner": 2,
+        "Selected": [
+          1,
+          3,
+          0
+        ],
+        "Settings": [
+          64,
+          202,
+          13,
+          22,
+          54,
+          131,
+          26,
+          112,
+          73,
+          50,
+          197,
+          154,
+          242,
+          68,
+          182,
+          173,
+          54,
+          251,
+          30,
+          42,
+          12,
+          249,
+          78,
+          154,
+          171,
+          128,
+          53,
+          206,
+          186,
+          127,
+          248,
+          0
+        ]
+      },
+      "kind": "adventure_elite_entry_probe",
+      "map": 58548,
+      "maze": 0,
+      "monsters": 4,
+      "owned_combat_candidate": true,
+      "owner_wire_id": 2,
+      "reentry_attempt": "1/3",
+      "run_id": "d2fedadec147cd1dbda980764a285101",
+      "source_script": "dungeon/act1/mirkwood.dgn",
+      "source_sha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "time": "2026-10-08T15:49:20.1971246Z"
+    },
+    {
+      "line": 481,
+      "accepted": true,
+      "attempt": "1/3",
+      "battle_enabled": false,
+      "candidate_stage": "ordinary-reentry",
+      "channel_type": 22,
+      "character_id": 2,
+      "dungeon": 3,
+      "entry_probe_used": true,
+      "entry_serial": 3,
+      "frozen_preparation": {
+        "Channel": 22,
+        "Owner": 2,
+        "Selected": [
+          1,
+          3,
+          0
+        ],
+        "Settings": [
+          64,
+          202,
+          13,
+          22,
+          54,
+          131,
+          26,
+          112,
+          73,
+          50,
+          197,
+          154,
+          242,
+          68,
+          182,
+          173,
+          54,
+          251,
+          30,
+          42,
+          12,
+          249,
+          78,
+          154,
+          171,
+          128,
+          53,
+          206,
+          186,
+          127,
+          248,
+          0
+        ]
+      },
+      "kind": "adventure_elite_entry_probe",
+      "map": 58548,
+      "maze": 0,
+      "monsters": 4,
+      "owned_combat_candidate": true,
+      "owner_wire_id": 2,
+      "reentry_attempt": "1/3",
+      "run_id": "e9d4fa5bc6066220ca3e5b2464e99f44",
+      "source_script": "dungeon/act1/mirkwood.dgn",
+      "source_sha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "time": "2026-10-08T15:49:37.6843479Z"
+    }
+  ],
+  "returnAnchors": [
+    {
+      "line": 312,
+      "after": {
+        "active": false,
+        "cards_active": false,
+        "completion_sent": false,
+        "death_sent_count": 0,
+        "drops_active": false,
+        "entry_serial": 1,
+        "level": 7,
+        "pending_town_arrival": false,
+        "result_sent": false,
+        "selecting_dungeon": false
+      },
+      "candidate_stage": "ordinary-reentry",
+      "entry_serial": 1,
+      "id": 42,
+      "kind": "adventure_elite_dispatch_committed",
+      "origin_run_id": "9eb88a813d47592929eb777749844e31",
+      "time": "2026-10-08T15:49:17.7964517Z"
+    },
+    {
+      "line": 471,
+      "after": {
+        "active": false,
+        "cards_active": false,
+        "completion_sent": false,
+        "death_sent_count": 0,
+        "drops_active": false,
+        "entry_serial": 2,
+        "level": 7,
+        "pending_town_arrival": false,
+        "result_sent": false,
+        "selecting_dungeon": false
+      },
+      "candidate_stage": "ordinary-reentry",
+      "entry_serial": 2,
+      "id": 42,
+      "kind": "adventure_elite_dispatch_committed",
+      "origin_run_id": "d2fedadec147cd1dbda980764a285101",
+      "time": "2026-10-08T15:49:35.2832356Z"
+    },
+    {
+      "line": 622,
+      "after": {
+        "active": false,
+        "cards_active": false,
+        "completion_sent": false,
+        "death_sent_count": 0,
+        "drops_active": false,
+        "entry_serial": 3,
+        "level": 7,
+        "pending_town_arrival": false,
+        "result_sent": false,
+        "selecting_dungeon": false
+      },
+      "candidate_stage": "ordinary-reentry",
+      "entry_serial": 3,
+      "id": 42,
+      "kind": "adventure_elite_dispatch_committed",
+      "origin_run_id": "e9d4fa5bc6066220ca3e5b2464e99f44",
+      "time": "2026-10-08T15:49:50.764089Z"
+    }
+  ],
+  "nativeRegistrationResultLines": [
+    5,
+    6,
+    13,
+    14,
+    25,
+    26
+  ],
+  "captureIssuesAtCollection": [
+    "缺少服务端会话文件：run.json"
+  ],
+  "normalExitAtCollection": false,
+  "captureState": "client PID100828 still running at collection; run.json and final exit summary pending; user-visible reentry confirmation and all three run returns already observed; do not claim full archival coverage or normal client exit",
+  "fullCaptureCertified": false,
+  "schemaChanged": false,
+  "pvfChanged": false,
+  "defaultPublished": false,
+  "remaining": [
+    "direct retry/next dungeon",
+    "APC HP/MP/cooldown/death continuity",
+    "weak reference release",
+    "story/Odyssey/special party",
+    "modkit install/uninstall"
+  ],
+  "logDigests": [
+    {
+      "file": "events.jsonl",
+      "bytes": 335143,
+      "sha256": "1eb281db7049b8d4142f4048d7b7659164be625906c558dee6cd802ec0fb63b8"
+    },
+    {
+      "file": "adventure-elite-entry-100828-140574984.jsonl",
+      "bytes": 26950,
+      "sha256": "0ca1fe819b3ee6bd2be4b41f6264d915f5a11f7e04285ea95571086763ea6258"
+    },
+    {
+      "file": "adventure-elite-combat-100828-140574984.jsonl",
+      "bytes": 88445,
+      "sha256": "70929c16dce406c1794b08e555a8fcd3774fa0340f0735f53328592484b8817c"
+    },
+    {
+      "file": "client.log",
+      "bytes": 749,
+      "sha256": "4d7a5e2fb2ccffce674d028aadc265d30d79330ad6336a97f45e6f5e4b38bc11"
+    }
+  ]
+}

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"dfolan/internal/adventureelite"
 )
 
 // This file is Stage 1 of the Python-orchestration migration (see
@@ -171,7 +173,7 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 
 	binary := ""
 	switch {
-	case opts.SourceBuild:
+	case opts.SourceBuild || adventureelite.Enabled():
 		binary = filepath.Join(module, "bin", "wireprobe-handoff-source.exe")
 	default:
 		if settings.ServerBinary == nil || *settings.ServerBinary == "" {
@@ -198,7 +200,7 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 		profile = loaded
 		report.ProfilePath = loaded.Path
 		report.ProfileEnv = loaded.Env
-		if opts.SourceBuild && opts.RepairProfile == "" {
+		if (opts.SourceBuild && opts.RepairProfile == "") || adventureelite.Enabled() {
 			// --source-build keeps the source binary and swaps it into the required list,
 			// so the profile's binary is neither launched nor required.
 			profile.Required = replacePath(profile.Required, loaded.Binary, binary)

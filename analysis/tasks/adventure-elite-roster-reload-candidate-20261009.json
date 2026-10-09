@@ -1,0 +1,582 @@
+{
+  "status": "confirmed-by-user",
+  "attempt": "new-role compatibility3/3; evidence-backed town-save state correction, not packet/layout guess",
+  "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261009_034552_507908_next37",
+  "sourceCommitBeforeChange": "a5cf9f3a0b210ccc801acf9850680c976b875c9c",
+  "userReport": "带3名修复了，但是只带1名无法进入副本",
+  "confirmedScope": "Three-member first and second entry already accepted separately in adventure-elite-three-roster-confirmed-20261009.json; one-member change remains unconfirmed",
+  "serverAnchors": [
+    {
+      "line": 1287,
+      "kind": "adventure_elite_transaction_decision",
+      "id": 1719,
+      "accepted": true,
+      "character_id": 4,
+      "frozen_preparation": {
+        "Channel": 22,
+        "Owner": 4,
+        "Selected": [
+          1,
+          3,
+          2
+        ],
+        "Settings": [
+          57,
+          208,
+          227,
+          211,
+          218,
+          129,
+          154,
+          118,
+          51,
+          60,
+          196,
+          85,
+          197,
+          107,
+          180,
+          168,
+          199,
+          204,
+          132,
+          24,
+          113,
+          213,
+          247,
+          183,
+          208,
+          61,
+          94,
+          205,
+          98,
+          48,
+          223,
+          27
+        ]
+      }
+    },
+    {
+      "line": 1292,
+      "kind": "adventure_elite_transaction_decision",
+      "id": 1811,
+      "accepted": false,
+      "reason": "精锐资料已经准备，请勿重复加载",
+      "character_id": 4,
+      "frozen_preparation": {
+        "Channel": 22,
+        "Owner": 4,
+        "Selected": [
+          1,
+          3,
+          2
+        ],
+        "Settings": [
+          57,
+          208,
+          227,
+          211,
+          218,
+          129,
+          154,
+          118,
+          51,
+          60,
+          196,
+          85,
+          197,
+          107,
+          180,
+          168,
+          199,
+          204,
+          132,
+          24,
+          113,
+          213,
+          247,
+          183,
+          208,
+          61,
+          94,
+          205,
+          98,
+          48,
+          223,
+          27
+        ]
+      }
+    },
+    {
+      "line": 1307,
+      "kind": "adventure_elite_entry_probe",
+      "accepted": false,
+      "reason": "精锐助战尚未完成战斗接入；首房取证拒绝：准备身份或源频道不一致",
+      "character_id": 4,
+      "frozen_preparation": {
+        "Channel": 22,
+        "Owner": 4,
+        "Selected": [
+          1,
+          3,
+          2
+        ],
+        "Settings": [
+          57,
+          208,
+          227,
+          211,
+          218,
+          129,
+          154,
+          118,
+          51,
+          60,
+          196,
+          85,
+          197,
+          107,
+          180,
+          168,
+          199,
+          204,
+          132,
+          24,
+          113,
+          213,
+          247,
+          183,
+          208,
+          61,
+          94,
+          205,
+          98,
+          48,
+          223,
+          27
+        ]
+      }
+    },
+    {
+      "line": 1406,
+      "kind": "adventure_elite_transaction_decision",
+      "id": 1719,
+      "accepted": true,
+      "character_id": 4,
+      "frozen_preparation": null
+    },
+    {
+      "line": 1474,
+      "kind": "adventure_elite_transaction_decision",
+      "id": 1811,
+      "accepted": true,
+      "character_id": 4,
+      "frozen_preparation": {
+        "Channel": 22,
+        "Owner": 4,
+        "Selected": [
+          1,
+          2,
+          0
+        ],
+        "Settings": [
+          175,
+          211,
+          112,
+          106,
+          238,
+          177,
+          116,
+          228,
+          148,
+          23,
+          40,
+          119,
+          195,
+          47,
+          152,
+          215,
+          241,
+          221,
+          81,
+          241,
+          180,
+          3,
+          25,
+          191,
+          155,
+          59,
+          99,
+          245,
+          61,
+          200,
+          50,
+          24
+        ]
+      }
+    },
+    {
+      "line": 1540,
+      "kind": "adventure_elite_transaction_decision",
+      "id": 1719,
+      "accepted": true,
+      "character_id": 4,
+      "frozen_preparation": {
+        "Channel": 22,
+        "Owner": 4,
+        "Selected": [
+          1,
+          2,
+          0
+        ],
+        "Settings": [
+          175,
+          211,
+          112,
+          106,
+          238,
+          177,
+          116,
+          228,
+          148,
+          23,
+          40,
+          119,
+          195,
+          47,
+          152,
+          215,
+          241,
+          221,
+          81,
+          241,
+          180,
+          3,
+          25,
+          191,
+          155,
+          59,
+          99,
+          245,
+          61,
+          200,
+          50,
+          24
+        ]
+      }
+    },
+    {
+      "line": 1545,
+      "kind": "adventure_elite_transaction_decision",
+      "id": 1811,
+      "accepted": false,
+      "reason": "精锐资料已经准备，请勿重复加载",
+      "character_id": 4,
+      "frozen_preparation": {
+        "Channel": 22,
+        "Owner": 4,
+        "Selected": [
+          1,
+          2,
+          0
+        ],
+        "Settings": [
+          175,
+          211,
+          112,
+          106,
+          238,
+          177,
+          116,
+          228,
+          148,
+          23,
+          40,
+          119,
+          195,
+          47,
+          152,
+          215,
+          241,
+          221,
+          81,
+          241,
+          180,
+          3,
+          25,
+          191,
+          155,
+          59,
+          99,
+          245,
+          61,
+          200,
+          50,
+          24
+        ]
+      }
+    },
+    {
+      "line": 1552,
+      "kind": "adventure_elite_entry_probe",
+      "accepted": false,
+      "reason": "精锐助战尚未完成战斗接入；首房取证拒绝：准备身份或源频道不一致",
+      "character_id": 4,
+      "frozen_preparation": {
+        "Channel": 22,
+        "Owner": 4,
+        "Selected": [
+          1,
+          2,
+          0
+        ],
+        "Settings": [
+          175,
+          211,
+          112,
+          106,
+          238,
+          177,
+          116,
+          228,
+          148,
+          23,
+          40,
+          119,
+          195,
+          47,
+          152,
+          215,
+          241,
+          221,
+          81,
+          241,
+          180,
+          3,
+          25,
+          191,
+          155,
+          59,
+          99,
+          245,
+          61,
+          200,
+          50,
+          24
+        ]
+      }
+    }
+  ],
+  "nativeEvidence": {
+    "database": "client/DFO.exe.i64",
+    "session": "c1000f62",
+    "reader": "142E5A4C0",
+    "comparison": "142E5ABFC compares three old/new slots. Identical slots and valid native backing actors preserve companions;142E653A0 updates skills. Changed slots reach142E5AE64 release loop and142E5AED6 original1811 request.142E60D40 validates backing actor indexes, not skill usage.",
+    "live": "N1754 scope-closed releases all three weak refs after nonempty one-member save; two independent1811 duplicate rejections followed by16 settings identity rejection in the same session."
+  },
+  "change": "After successful durable save and payload generation, clear stale session preparation when effective mode2 identities change/empty; identical identities retain original preparation and synchronize settings hash. Reject ordinary saves during active dungeon/selection/town-arrival/mine/warp before storage mutation. Existing1811 duplicate guard, original1754/1719/1382/1879 packets and combat/entry checks retained.",
+  "sourceChain": "Existing PVF mycharacters_apc_contents.etc contents key2 and source channel/dungeon readers -> existing mode2 save/load handlers -> existing account transaction and session preparation -> native1754 automatic1811 -> original1382/1879. No content/eligibility policy or packet layout change.",
+  "knownDuplicateRules": "Existing Type22/publishedID10 versus etc/channel_info.etc [server] and pet name/experience duplication remain in prior ledger; this state fix neither expands nor migrates them.",
+  "verification": {
+    "oldRegression": {
+      "command": "go test ./cmd/wireprobe -run TestAdventureElite(RosterSave|SameRoster) -count=1",
+      "exitCode": 1,
+      "failingCases": 10,
+      "log": ".tmp/adventure-elite/roster-reload-old-regression.log"
+    },
+    "fixedRegression": {
+      "sameCommand": true,
+      "exitCode": 0,
+      "subcases": 13,
+      "cases": [
+        "three-to-one",
+        "two-to-one with middle slot preserved",
+        "one-to-two",
+        "two-to-three",
+        "three reordered",
+        "empty",
+        "same roster resaved",
+        "skills changed on same roster",
+        "active/selection/arrival/warp refused",
+        "invalid skill refused; frozen preparation and SQLite account unchanged"
+      ]
+    },
+    "fullGoGates": {
+      "root-build": {
+        "phase": "fixed",
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\roster-reload-fixed-root-build.log"
+      },
+      "root-vet": {
+        "phase": "fixed",
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "vet",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\roster-reload-fixed-root-vet.log"
+      },
+      "root-test": {
+        "phase": "fixed",
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "test",
+          "-json",
+          "./...",
+          "-count=1"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\roster-reload-fixed-root-test.log",
+        "passed": 3926,
+        "skipped": 269,
+        "failures": [],
+        "baselineFailures": [],
+        "newFailures": []
+      },
+      "owned-build": {
+        "phase": "fixed",
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\roster-reload-fixed-owned-build.log"
+      },
+      "owned-vet": {
+        "phase": "fixed",
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "vet",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\roster-reload-fixed-owned-vet.log"
+      },
+      "owned-test": {
+        "phase": "fixed",
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "test",
+          "-json",
+          "./...",
+          "-count=1"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\roster-reload-fixed-owned-test.log",
+        "passed": 3869,
+        "skipped": 282,
+        "failures": [],
+        "baselineFailures": [],
+        "newFailures": []
+      }
+    },
+    "collector": {
+      "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-adventure-elite-capture.ps1",
+      "exitCode": 0,
+      "fixtures": 88
+    },
+    "DLLRebuilt": false
+  },
+  "sourceChanged": [
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite.go",
+      "sha256": "cae423cafc36853235895c5863fae4047ab1e2370f550237643135dc1f85b7cf"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_roster_reload_test.go",
+      "sha256": "c5e643858493efbb96296aefa4212cb3701a6a3bde255b998ff552b0bd6300a0"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_combat_diagnostic.go",
+      "sha256": "74a598a318f0db1fb35cf9ce04ded809d0851caa6ed2a7cfc1b03ffeb15eb819"
+    },
+    {
+      "path": "scripts/collect-adventure-elite.ps1",
+      "sha256": "c3c9b208f2a3726b746161c278b372510569577a7c9c9c4b9be3bde2e4e45c0e"
+    },
+    {
+      "path": "scripts/test-adventure-elite-capture.ps1",
+      "sha256": "4be6bf870ef927f75c6ad940473cd0ec468d26027f18417449f1a5e497fd9697"
+    }
+  ],
+  "buildDependenciesNotCommitted": [
+    {
+      "path": "server/work/dfo-lan/internal/catalog/buffer_rental.go",
+      "sha256": "29149d89b9543e0c51fc68bd8fe2db826d161d7f0d6004610a8de1f6a0252539",
+      "purpose": "read-only local build dependency copy for upstream tracked references; owned by other task; MUST NOT STAGE"
+    },
+    {
+      "path": "server/work/dfo-lan/internal/gamedata/buffer_rental.go",
+      "sha256": "f54cebd2cab93726499d0769597cf88dbc052a4a139ea0b8cc727ea6babe8ac6",
+      "purpose": "read-only local build dependency copy for upstream tracked references; owned by other task; MUST NOT STAGE"
+    }
+  ],
+  "artifact": {
+    "serverVersion": "0.3.15",
+    "bytes": 30657536,
+    "sha256": "12b064f76120a828e5c75fd7d883a5af158e78eb19da176b8fd7d4be1c61bbd9",
+    "buildFrom": "shared root e4cc3ba1 with task sources and two prior untracked build dependencies; full shared/owned gates pass",
+    "dllVersion": "0.3.10",
+    "dllSha256": "a46493c61f54fef1ec52852cd8e02383722a10d53587db343a96fc09b6f89099"
+  },
+  "manualPlan": "One launch --source-build; existing role, current one-member roster enter/check then town save2 enter/check, town save3 enter/check, town save1 enter/check. No boss/new role needed. Stop on first failure, normal exit; collect native selection/request/info/done, lifecycle, registration/result/scene refs and server decisions in one session.",
+  "remaining": [
+    "Manual switched1/2/3 roster admission and APC appearance",
+    "Backing actor index changes during same connection are not newly sampled",
+    "Special raid/legion parties, full native death coverage and pet progression remain separate gaps"
+  ],
+  "PVFChanged": false,
+  "schemaChanged": false,
+  "playerStoreModifiedByAgent": false,
+  "defaultPublished": false,
+  "deliveryRollback": ".tmp/adventure-elite/roster-reload-delivery-backup",
+  "userAcceptance": {
+    "status": "confirmed-by-user",
+    "userStatement": "确认已修复，可以提交了",
+    "serverVersion": "0.3.15",
+    "serverSha256": "12b064f76120a828e5c75fd7d883a5af158e78eb19da176b8fd7d4be1c61bbd9",
+    "dllVersion": "0.3.10",
+    "dllSha256": "a46493c61f54fef1ec52852cd8e02383722a10d53587db343a96fc09b6f89099",
+    "candidateCommit": "52b778b94bc69083630294b04d499efacf962c2c",
+    "acceptanceScope": "Saving a changed one/two/three-member roster in town clears stale session preparation, allows the existing client reload path and dungeon entry; identical roster keeps its loaded companions while skills/settings save. User confirmed the prepared roster-count fix.",
+    "liveCapture": "No new post-confirmation live capture is available in the workspace: collector reported no manual game session. This record relies on the owners explicit acceptance; it does not invent individual run counts or native event anchors.",
+    "dllSourceCommit": "87b6760546c23fa4eb04ddfcb0db35affea00e35",
+    "dllSourcePaths": [
+      "client-patchs/adventure-elite/src/native-trace.h",
+      "client-patchs/adventure-elite/src/native-completion-test.cpp",
+      "client-patchs/adventure-elite/src/adventure-elite.cpp",
+      "client-patchs/adventure-elite/build-mod.py"
+    ],
+    "goGatesFromCandidate": {
+      "root-build": 0,
+      "root-vet": 0,
+      "root-test": 0,
+      "owned-build": 0,
+      "owned-vet": 0,
+      "owned-test": 0
+    },
+    "manualLogCollectorNoSession": true,
+    "PVFChanged": false,
+    "schemaChanged": false,
+    "playerStoreModifiedByAgent": false,
+    "knownGaps": [
+      "Special raid/legion parties, full native death coverage and pet progression remain separate gaps"
+    ]
+  },
+  "acceptanceNotes": [
+    "User confirmation recorded directly in this candidate record; no post-confirmation client logs are available, so no per-run counts are claimed."
+  ]
+}

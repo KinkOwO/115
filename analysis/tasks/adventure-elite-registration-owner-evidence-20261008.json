@@ -1,0 +1,144 @@
+{
+  "authority": "client/DFO.exe.i64",
+  "database": "c1000f62",
+  "stage": "object-owner-scene-diagnostics-awaiting-manual",
+  "sourceCommit": "5e22436da9c1c6f90b8319e9a332ad39ef02e68b",
+  "candidateVersion": "0.3.3",
+  "pvfChanged": false,
+  "goChanged": false,
+  "schemaChanged": false,
+  "battleVerified": false,
+  "static": {
+    "objectIdentity": {
+      "getter": "145B8C670",
+      "setter": "145B99610",
+      "type": 352,
+      "identityWords": [
+        356,
+        360
+      ],
+      "transform": "u32((encoded ^ 0x1F2A025C) - 4)",
+      "checksum": "u32(encoded + decoded + 196); strict nonzero equality for diagnostic identity",
+      "transformFunction": "146E920A0",
+      "compositeGetter": "145B8B0A0",
+      "composite": "(kind << 16) | (objectID & 65535)"
+    },
+    "cloneIdentity": {
+      "function": "142E5CD00",
+      "freshID": "14520C690 -> 145B99610",
+      "ownerSetterVirtualOffset": 4864,
+      "currentSwordVtable": "14AD21370",
+      "slotAddress": "14AD22670",
+      "setter": "145C77BB0",
+      "ownerReferenceWords": [
+        25264,
+        25272,
+        25280
+      ],
+      "currentHumanSource": "145EFAFB0",
+      "setterCalls": [
+        "142E5CE9A",
+        "142E5D714"
+      ],
+      "scopeLimit": "Sword constructor vtable inspected; runtime alias equality still pending. No claim all 17 class tables independently verified."
+    },
+    "registration": {
+      "caller": "145B22F50",
+      "call": "145B25298",
+      "callee": "145DE4360 -> 145DE4AF0",
+      "kind": 5,
+      "parent": 0,
+      "key": "kind + native objectID",
+      "sceneBacklinkGetter": "145CE24B0 -> 145B8B120",
+      "sceneWeakWords": [
+        400,
+        408
+      ],
+      "sceneBacklinkMeaning": "live scene weak reference, not proof of scene map membership or battle",
+      "attackOwner": "145DE64C0(parent=0,actor) uses actor itself",
+      "ownerWeakGetter": "145C6D9D0 also validates registry membership; observer does not execute that lookup"
+    },
+    "controller": {
+      "defaultConstructor": "145EFA4B0 -> 145EFD6B0(65535)",
+      "derivedConstructor": "145EFA8D0",
+      "actorBinding": "145F04E30",
+      "idOffset": 112,
+      "actorControllerIdOffset": 74020,
+      "actorBindingWords": [
+        2072,
+        2080,
+        2088
+      ],
+      "conclusion": "Controller ID and scene object identity are separate. Do not force 65535 to current human wire ID."
+    },
+    "deathReport": {
+      "function": "145DC86D0",
+      "envelope": "CMD39 entity u32 then killer u16",
+      "entityWrite": "145DC9BF4",
+      "killerWrite": "145DC9C05",
+      "killerSourceActorOffset": 26784,
+      "fieldSetter": "145C3E8A0",
+      "limit": "APC/summon owner to final killer record not yet closed; no server acceptance change."
+    }
+  },
+  "observer": {
+    "hooksAdded": 0,
+    "packetsAdded": 0,
+    "callsNativeGetter": false,
+    "retainsRawPointersAcrossFrames": false,
+    "mutatesObjects": false,
+    "nativeChecksAdded": 3,
+    "lifecycleTraceVersion": 2,
+    "sampleLimit": 256,
+    "logDirectory": "DLL module directory",
+    "currentPlayerBinding": "Cached current controller CRef control/alias equals APC owner CRef; reread after sample; no reference acquisition",
+    "identityLimit": "Strict checksum observation only, no new transport codec or live battle identity conclusion"
+  },
+  "attemptCounters": {
+    "preparation": "3/3 closed for native town load",
+    "nativeLayout": "1/3",
+    "selectionLifecycle": "1/3 confirmed at sampled return points",
+    "thisCandidate": "read-only diagnostic extension, no packet/layout/mode/entry branch change"
+  },
+  "manual": {
+    "needed": true,
+    "purpose": "Obtain actual clone object identity and exact current-human owner CRef equality before registration adaptation",
+    "steps": [
+      "Start once using existing DFO_ADVENTURE_ELITE=1 candidate route",
+      "Enter original character town and view existing elite roster",
+      "Exit normally"
+    ],
+    "saveAgain": false,
+    "repeatSelection": false,
+    "enterDungeon": false
+  },
+  "ignoredRawProof": ".tmp/adventure-elite/registration-owner-native-proof.json",
+  "unclosed": [
+    "Runtime clone object IDs/owner equality",
+    "Native registration guard adaptation without changing dungeon condition flags",
+    "APC and summon attack/kill ownership",
+    "Room/exit recovery, ordinary/story/Odyssey battle acceptance"
+  ],
+  "verification": {
+    "cppBuild": 0,
+    "cppMechanismTests": 7,
+    "collectorFixtures": 21,
+    "collectorTests": 0,
+    "diskContexts": 8,
+    "formatterRecords": 257,
+    "nonGameSmokeEnvironments": 6,
+    "goBuild": 0,
+    "goVet": 0,
+    "goTest": {
+      "exitCode": 0,
+      "pass": 3733,
+      "skip": 279,
+      "failures": [],
+      "baselineFailures": [],
+      "newFailures": []
+    },
+    "remote": "gud/main at 55099b2a35b85cf051f99a545fbf3bbc7b7fc475; up to date",
+    "clientStartedByAgent": false,
+    "manualConfirmed": false
+  }
+}

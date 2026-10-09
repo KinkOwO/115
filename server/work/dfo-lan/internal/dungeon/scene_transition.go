@@ -574,3 +574,43 @@ func (s *Session) terminalSceneRevisit(c catalog.DungeonCatalog, r protocol.Dung
 	}
 	return false
 }
+
+// [MERGE-20261007] 上游重写本文件时把这个方法删掉了（且未产生冲突）：按「保留双方意图」原样补回。
+// 场景房点门（CMD38）出口依赖它，见 cmd/wireprobe/dungeon_flow.go 的 SceneExit 分支与 dungeon 的场景层测试。
+// ExitSceneRoom 处理「场景房点门」的出口。
+//
+// 与 layerSequenceAdvance 是**两条语义相反**的路，别再合并：
+//   - 场景房点门（客户端只发 CMD38）→ **回 base**。实机 100004944 的 100016083_scene_0、
+//     100004968 的贵族机要场景房都走这条。
+//   - 序列末尾换图（客户端主动发 CMD45）→ 前进。实机 100004777 的 100008950 走这条。
+//
+// [MERGE-20260928-START-LAYER-EXIT] 但**层图格就是迷宫起点**时例外：回 base 等于回到
+// 起点自己，客户端进这一格时本来就会自动播那张层图 → 又放一次剧情 → 再点门 → 再回
+// base，循环到黑屏闪退（实机 2026-09-28「晦月湖」100004777 的 (0,0)：base 100008953
+// 既是 Start 又挂着层图 [100015633]，进图 3 秒必闪退）。这种格必须**前进**。
+//
+// 同样不能走 Session.Move（RoomCleared 会拦住剧情层图的布景怪）。
+func (s *Session) ExitSceneRoom(c catalog.DungeonCatalog, pos [2]byte) (*Session, error) {
+	// CMD38 is native USE_SKILL. The Lotus finale's display actors make it
+	// look like an ordinary cinematic room, but ACT14948/CMT14949 owns its
+	// closing CMD45. A skill must not synthesize a return to boss map 53543:
+	// live 20261002_212301 did so mid-cinematic and crashed during boss cleanup
+	// (145c34e0c). Keep the exact native closing path in MoveScene instead.
+	if s.Definition.ID == 26 && s.Maze.Index == 3 && s.Room.Map == 100008697 {
+		return nil, fmt.Errorf("Lotus finale requires the native closing scene transition")
+	}
+	if s.LayerAtStart(pos) {
+		if next, err := s.layerSequenceAdvance(c, pos); err == nil {
+			return next, nil
+		}
+	}
+	base, ok := s.layerExitBase(pos)
+	if !ok {
+		s.noteSceneDiagnostic("%s | scene exit: no base at %v", s.sceneDiagnostic, pos)
+		return nil, fmt.Errorf("scene room has no base at %v", pos)
+	}
+	room := s.Room
+	room.Map = base
+	s.noteSceneDiagnostic("%s | scene exit: %v layer=%d -> base=%d", s.sceneDiagnostic, pos, s.Room.Map, base)
+	return s.enterRoom(c, room)
+}

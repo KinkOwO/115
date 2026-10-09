@@ -629,6 +629,25 @@ CREATE INDEX IF NOT EXISTS gm_mail_to_char_idx ON gm_mail(to_character_id, statu
 
 -- end migration
 
+-- migration: 0038_omen_pity.sql
+-- "Consecutive clears without an omen" counter for the small abyss (endkeeper of
+-- order). Official rule: 30 clears in a row that never trigger an omen grant one
+-- omen stage as a floor guarantee.
+--
+-- Why ADD COLUMN instead of folding it into 0030_omen_state.sql's CREATE TABLE:
+-- migrateSQLite keys its ledger on each section's checksum, so editing an applied
+-- section fails with "migration 0030_omen_state.sql checksum differs" and refuses to
+-- open an existing save. A new section is applied exactly once and works for an
+-- existing save (adds the column) and a fresh one (0030 creates the table, then this
+-- adds the column).
+--
+-- Only the small abyss writes it: only dungeon 100005014 carries any
+-- [coupon drop table] row (see configs/attunement-rewards.generated.json), and the
+-- three large-abyss dungeons carry none. Default 0 = never missed yet.
+ALTER TABLE character_omen_state ADD COLUMN misses INTEGER NOT NULL DEFAULT 0 CHECK(misses>=0);
+
+-- end migration
+
 -- migration: 0039_character_slots_bonus.sql
 -- Cash-shop Character Slot Extension Kit (product 3000152 / template 2660239)
 -- takes effect at purchase: account-level extra character slots, +1 per kit.

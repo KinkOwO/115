@@ -125,6 +125,23 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 	}
 	if m.Equipment != nil {
 		item := *m.Equipment
+		// [FIX-20261007 时装孔] 邮件时装附件孔为空时按 PVF 默认孔补孔，
+		// 覆盖系统/GM/玩家邮件（附件生成侧未必写 avatar_options，领取入包即带孔）。
+		//
+		// ⚠ **只对时装物品补**（`[equipment type]` 以 " avatar]" 结尾，容器 space 1）。
+		// DefaultAvatarSockets 对任何模板都会返回 30 字节块（定义里没有
+		// `[avatar type select]` / `[emblem socket default]` 时是全零），无条件补孔
+		// 就会把这 30 字节塞进宠物装备（`[artifact *]`）、宠物本体（`[creature]`）
+		// 和普通装备的实例。而这些物品在原生 reader sub_1452C1540 里**没有头像格**：
+		// 槽 26~29 / 32 的头像块会让登录追加包（protocol.DetailedEquipment）与队友包
+		// （protocol.TagEquipment）以 "avatar blob on non-avatar detailed row" 拒绝整包。
+		//
+		// 实机 2026-10-07：GM 按 mods/newchar_kit.lua 发「宠物装备」10 件（走 send_mail）
+		// → 领邮件（本条无条件补孔）→ 穿上槽 27/28/29 → 该角色此后登不进选人界面
+		// （存档里那三行 30 字节全零的 avatar_options）。
+		if len(item.AvatarOptions) == 0 && equipment.IsAvatarBagItem(item.Template) {
+			item.AvatarOptions = equipment.DefaultAvatarSockets(item.Template)
+		}
 		if m.Space == 1 {
 			if equipment == nil || equipment.Source.Checksum != r.Source {
 				return b, fmt.Errorf("时装邮件目录版本无效")

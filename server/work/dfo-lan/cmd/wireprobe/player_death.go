@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/legion"
 	"encoding/hex"
 	"fmt"
 	"time"
@@ -110,6 +111,18 @@ func (c *gameConnection) deathLeave(reason byte, sendFailClear bool) {
 	d := w.pilotDeath
 	if d == nil || !d.Dead || w.activeDungeon == nil {
 		return
+	}
+	// 维纳斯军团口径（2026-10-07 业主要求）：死亡被请离副本后，再次进入同关
+	// 必须重置关卡倒计时——清掉该阶段的冻结开始时刻，重进后从满额时限重新
+	// 起算（第三十八轮「死亡重载复用原值」的口径就此作废）。进度/难度锁/
+	// 遗物保留不变；复活币复活（不请离）不受影响，超时判定照常。
+	if w.venus != nil && w.venus.entered {
+		if stage, err := legion.VenusStageOfDungeon(w.activeDungeon.Definition.ID); err == nil &&
+			stage >= 0 && stage < len(w.venus.stageClock) {
+			w.venus.stageClock[stage] = time.Time{}
+			c.event(map[string]any{"kind": "venus_death_stage_timer_reset", "character_id": w.role.ID,
+				"stage": stage})
+		}
 	}
 	// [AZURE-DEATH-AFTER-CLEAR] 结算已经走完的**只回城、不补 FAIL_CLEAR**：
 	// 补了会把一场已经通关并发了奖的挑战标成失败。

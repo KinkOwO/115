@@ -117,9 +117,9 @@ func TestOathGradeTableGrades(t *testing.T) {
 
 func TestLoadOathGradeTableRejectsBadInput(t *testing.T) {
 	bad := []map[string]OathGradeEntry{
-		{"1": {Family: "oath", Rarity: 5}},     // rarity 5 无档位
-		{"1": {Family: "weapon", Rarity: 8}},   // 家族不认识
-		{"x": {Family: "oath", Rarity: 8}},     // id 不是十进制
+		{"1": {Family: "oath", Rarity: 5}},   // rarity 5 无档位
+		{"1": {Family: "weapon", Rarity: 8}}, // 家族不认识
+		{"x": {Family: "oath", Rarity: 8}},   // id 不是十进制
 	}
 	for i, entries := range bad {
 		if _, err := LoadOathGradeTable(writeOathTable(t, entries)); err == nil {

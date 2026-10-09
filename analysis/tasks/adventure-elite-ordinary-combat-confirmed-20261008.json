@@ -1,0 +1,713 @@
+{
+  "version": "0.3.8",
+  "sourceCommit": "7bd1ea054acd8ab5da66b45533e185ee3786ca13",
+  "status": "confirmed-ordinary-single-run-five-room-flow",
+  "userConfirmation": "已完成通关流程，APC能跟随过门，能拾取，能打boss、能结算",
+  "scope": "This observed ordinary solo run only; not all dungeons, repeated entry, summon source, story, Odyssey or special parties.",
+  "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_223704_525989_next37",
+  "processId": 93772,
+  "runTick": 136444046,
+  "candidateValid": true,
+  "pidMatch": true,
+  "normalExitObserved": true,
+  "captureIssues": [],
+  "artifacts": [
+    {
+      "path": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+      "exists": true,
+      "match": true,
+      "sha256": "772bd1e029cf77cce8f755a023708fbcdd709adab9f42161d2755732aa14a6bb"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+      "exists": true,
+      "match": true,
+      "sha256": "3449b055c41c84e1508b38008862e8116cdc66efccad7f66c75b5e6e359229ac"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe",
+      "exists": true,
+      "match": true,
+      "sha256": "aed177c46cb700afbb77d75d2f8aa3b5061dde82ac3f629901436722d3752a79"
+    }
+  ],
+  "resources": [
+    {
+      "path": "client/DFO.exe",
+      "exists": true,
+      "sha256": "1d3948784e5e0f77ed744017bf82bf0c50de9421423f9e59f6f70aed609d8ffa",
+      "sameAsBuildInput": true
+    },
+    {
+      "path": "client/Script.pvf",
+      "exists": true,
+      "sha256": "5dd03873edf2c1df7aea16db5ad146a776fb8461a947be73042cabd932e66f0a",
+      "sameAsBuildInput": true
+    },
+    {
+      "path": "client/sk.dat",
+      "exists": true,
+      "sha256": "59d78371335d22dae0eaeca2a827939576e85a5f5ede4ba286f0438d2fbc6eaf",
+      "sameAsBuildInput": true
+    },
+    {
+      "path": "server/work/client-build/Script.inner.pvf",
+      "exists": true,
+      "sha256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+      "sameAsBuildInput": true
+    }
+  ],
+  "batchCoverage": {
+    "deaths": 27,
+    "pickups": 1,
+    "moves": 4,
+    "results": 1,
+    "cards": 3,
+    "exits": 1,
+    "refusals": [],
+    "roomLoadCycles": 5,
+    "nativeRoomSerials": [
+      {
+        "Name": "1",
+        "Count": 21
+      },
+      {
+        "Name": "2",
+        "Count": 25
+      },
+      {
+        "Name": "3",
+        "Count": 25
+      },
+      {
+        "Name": "4",
+        "Count": 26
+      },
+      {
+        "Name": "5",
+        "Count": 40
+      }
+    ]
+  },
+  "nativeRecords": 12,
+  "lifecycleRecords": 158,
+  "entryRecords": 23,
+  "combatRecords": 137,
+  "combatPhases": {
+    "killer-write": 54,
+    "source-assignment": 56,
+    "death-send": 27
+  },
+  "nativeOwnedWrites": 54,
+  "freshOwnedDeaths": 27,
+  "unownedDeaths": 0,
+  "retransmittedDeaths": 0,
+  "processedRequests": 43,
+  "requestCounts": {
+    "37": 5,
+    "39": 27,
+    "45": 4,
+    "117": 1,
+    "46": 1,
+    "69": 1,
+    "70": 1,
+    "71": 1,
+    "43": 1,
+    "72": 1
+  },
+  "sourceEntry": {
+    "eventsLine": 224,
+    "accepted": true,
+    "attempt": "1/3",
+    "battle_enabled": false,
+    "candidate_stage": "ordinary-owned-combat",
+    "channel_type": 22,
+    "character_id": 2,
+    "dungeon": 3,
+    "entry_probe_used": true,
+    "frozen_preparation": {
+      "Channel": 22,
+      "Owner": 2,
+      "Selected": [
+        1,
+        3,
+        0
+      ],
+      "Settings": [
+        64,
+        202,
+        13,
+        22,
+        54,
+        131,
+        26,
+        112,
+        73,
+        50,
+        197,
+        154,
+        242,
+        68,
+        182,
+        173,
+        54,
+        251,
+        30,
+        42,
+        12,
+        249,
+        78,
+        154,
+        171,
+        128,
+        53,
+        206,
+        186,
+        127,
+        248,
+        0
+      ]
+    },
+    "kind": "adventure_elite_entry_probe",
+    "map": 58548,
+    "maze": 0,
+    "monsters": 4,
+    "owned_combat_candidate": true,
+    "owner_wire_id": 2,
+    "source_script": "dungeon/act1/mirkwood.dgn",
+    "source_sha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+    "time": "2026-10-08T14:38:32.1334962Z"
+  },
+  "deathRooms": {
+    "58548": 4,
+    "58549": 5,
+    "58551": 5,
+    "58552": 5,
+    "58553": 8
+  },
+  "deathPacketNames": {
+    "monster_death_ack": 27,
+    "monster_death_confirmed": 27,
+    "monster_experience_updated": 27
+  },
+  "flowAnchors": [
+    {
+      "eventsLine": 236,
+      "id": 37,
+      "map": 58548,
+      "pendingMap": null,
+      "completedAfter": false,
+      "packets": [
+        "dungeon_loading_ack",
+        "dungeon_actor_state",
+        "dungeon_loading_complete",
+        "oath_system_grades",
+        "dungeon_experience_restored",
+        "dungeon_fatigue_updated",
+        "dungeon_worn_equipment_restored",
+        "dungeon_worn_visuals_restored",
+        "dungeon_skin_cargo_damage_font_restored",
+        "dungeon_oath_selection_restored",
+        "dungeon_buff_enhancement_restored"
+      ]
+    },
+    {
+      "eventsLine": 286,
+      "id": 45,
+      "map": 58548,
+      "pendingMap": 58549,
+      "completedAfter": false,
+      "packets": [
+        "dungeon_move_ack",
+        "dungeon_next_map_sent"
+      ]
+    },
+    {
+      "eventsLine": 291,
+      "id": 37,
+      "map": 58549,
+      "pendingMap": null,
+      "completedAfter": false,
+      "packets": [
+        "dungeon_loading_ack",
+        "dungeon_actor_state",
+        "dungeon_loading_complete",
+        "oath_system_grades",
+        "dungeon_experience_restored",
+        "dungeon_fatigue_updated",
+        "dungeon_worn_equipment_restored",
+        "dungeon_worn_visuals_restored",
+        "dungeon_skin_cargo_damage_font_restored",
+        "dungeon_oath_selection_restored",
+        "dungeon_buff_enhancement_restored"
+      ]
+    },
+    {
+      "eventsLine": 348,
+      "id": 45,
+      "map": 58549,
+      "pendingMap": 58551,
+      "completedAfter": false,
+      "packets": [
+        "dungeon_move_ack",
+        "dungeon_next_map_sent"
+      ]
+    },
+    {
+      "eventsLine": 353,
+      "id": 37,
+      "map": 58551,
+      "pendingMap": null,
+      "completedAfter": false,
+      "packets": [
+        "dungeon_loading_ack",
+        "dungeon_actor_state",
+        "dungeon_loading_complete",
+        "oath_system_grades",
+        "dungeon_experience_restored",
+        "dungeon_fatigue_updated",
+        "dungeon_worn_equipment_restored",
+        "dungeon_worn_visuals_restored",
+        "dungeon_skin_cargo_damage_font_restored",
+        "dungeon_oath_selection_restored",
+        "dungeon_buff_enhancement_restored"
+      ]
+    },
+    {
+      "eventsLine": 408,
+      "id": 45,
+      "map": 58551,
+      "pendingMap": 58552,
+      "completedAfter": false,
+      "packets": [
+        "dungeon_move_ack",
+        "dungeon_next_map_sent"
+      ]
+    },
+    {
+      "eventsLine": 413,
+      "id": 37,
+      "map": 58552,
+      "pendingMap": null,
+      "completedAfter": false,
+      "packets": [
+        "dungeon_loading_ack",
+        "dungeon_actor_state",
+        "dungeon_loading_complete",
+        "oath_system_grades",
+        "dungeon_experience_restored",
+        "dungeon_fatigue_updated",
+        "dungeon_worn_equipment_restored",
+        "dungeon_worn_visuals_restored",
+        "dungeon_skin_cargo_damage_font_restored",
+        "dungeon_oath_selection_restored",
+        "dungeon_buff_enhancement_restored"
+      ]
+    },
+    {
+      "eventsLine": 468,
+      "id": 45,
+      "map": 58552,
+      "pendingMap": 58553,
+      "completedAfter": false,
+      "packets": [
+        "dungeon_move_ack",
+        "dungeon_next_map_sent"
+      ]
+    },
+    {
+      "eventsLine": 473,
+      "id": 37,
+      "map": 58553,
+      "pendingMap": null,
+      "completedAfter": false,
+      "packets": [
+        "dungeon_loading_ack",
+        "dungeon_actor_state",
+        "dungeon_loading_complete",
+        "oath_system_grades",
+        "dungeon_experience_restored",
+        "dungeon_fatigue_updated",
+        "dungeon_worn_equipment_restored",
+        "dungeon_worn_visuals_restored",
+        "dungeon_skin_cargo_damage_font_restored",
+        "dungeon_oath_selection_restored",
+        "dungeon_buff_enhancement_restored"
+      ]
+    },
+    {
+      "eventsLine": 549,
+      "id": 117,
+      "map": 58553,
+      "pendingMap": null,
+      "completedAfter": true,
+      "packets": [
+        "map_clear_quest_triggers",
+        "boss_check_confirmed",
+        "dungeon_clear_enabled"
+      ]
+    },
+    {
+      "eventsLine": 557,
+      "id": 46,
+      "map": 58553,
+      "pendingMap": null,
+      "completedAfter": true,
+      "packets": [
+        "dungeon_play_result",
+        "dungeon_clear_experience",
+        "dungeon_clear_reward",
+        "eplp_rechallenge",
+        "skill_state_restored",
+        "clear_available_quests"
+      ]
+    },
+    {
+      "eventsLine": 570,
+      "id": 69,
+      "map": 58553,
+      "pendingMap": null,
+      "completedAfter": true,
+      "packets": [
+        "card_scroll_ack"
+      ]
+    },
+    {
+      "eventsLine": 573,
+      "id": 70,
+      "map": 58553,
+      "pendingMap": null,
+      "completedAfter": true,
+      "packets": [
+        "card_layout_ack"
+      ]
+    },
+    {
+      "eventsLine": 576,
+      "id": 71,
+      "map": 58553,
+      "pendingMap": null,
+      "completedAfter": true,
+      "packets": [
+        "card_inventory_committed",
+        "card_selection_ack"
+      ]
+    },
+    {
+      "eventsLine": 583,
+      "id": 43,
+      "map": 58553,
+      "pendingMap": null,
+      "completedAfter": true,
+      "packets": [
+        "pickup_ack",
+        "pickup_scene_removed",
+        "pickup_inventory_updated"
+      ]
+    },
+    {
+      "eventsLine": 589,
+      "id": 72,
+      "map": 58553,
+      "pendingMap": null,
+      "completedAfter": true,
+      "packets": [
+        "settlement_exit_ack",
+        "town_actor_state",
+        "dungeon_return_area",
+        "dungeon_return_users",
+        "town_actor_appearance_restored",
+        "town_worn_visuals_restored",
+        "town_buff_enhancement_restored"
+      ]
+    }
+  ],
+  "entryRoomAfter": [
+    {
+      "line": 7,
+      "roomSerial": null,
+      "sceneVectorMatches": [
+        1,
+        1,
+        -1
+      ],
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ]
+    },
+    {
+      "line": 11,
+      "roomSerial": null,
+      "sceneVectorMatches": [
+        0,
+        0,
+        -1
+      ],
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ]
+    },
+    {
+      "line": 15,
+      "roomSerial": null,
+      "sceneVectorMatches": [
+        0,
+        0,
+        -1
+      ],
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ]
+    },
+    {
+      "line": 19,
+      "roomSerial": null,
+      "sceneVectorMatches": [
+        0,
+        0,
+        -1
+      ],
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ]
+    },
+    {
+      "line": 23,
+      "roomSerial": null,
+      "sceneVectorMatches": [
+        0,
+        0,
+        -1
+      ],
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ]
+    }
+  ],
+  "lastLifecycle": {
+    "line": 158,
+    "traceVersion": 2,
+    "processId": 93772,
+    "runTick": 136444046,
+    "ordinal": 158,
+    "tick": 136549015,
+    "thread": 43004,
+    "cause": "native-flush",
+    "callerRva": 85444668,
+    "traceDropped": 0,
+    "traceLimit": 0,
+    "currentChannel": 22,
+    "currentOwner": 2,
+    "identityMatches": 1,
+    "available": 1,
+    "consistent": 1,
+    "weakAlive": 2,
+    "weakStrong": [
+      1,
+      1,
+      0
+    ],
+    "actorKind": [
+      5,
+      5,
+      -1
+    ],
+    "controllerId": [
+      65535,
+      65535,
+      -1
+    ],
+    "controllerWire": [
+      65535,
+      65535,
+      -1
+    ],
+    "controllerBound": [
+      1,
+      1,
+      -1
+    ],
+    "identityWords": [
+      [
+        522846808,
+        522847004
+      ],
+      [
+        522846809,
+        522847006
+      ],
+      [
+        0,
+        0
+      ]
+    ],
+    "identityValid": [
+      1,
+      1,
+      -1
+    ],
+    "objectId": [
+      0,
+      1,
+      -1
+    ],
+    "ownerStrong": [
+      1,
+      1,
+      -1
+    ],
+    "ownerKind": [
+      5,
+      5,
+      -1
+    ],
+    "ownerObjectId": [
+      2,
+      2,
+      -1
+    ],
+    "ownerControllerId": [
+      2,
+      2,
+      -1
+    ],
+    "ownerIdentityValid": [
+      1,
+      1,
+      -1
+    ],
+    "sceneAttached": [
+      0,
+      0,
+      -1
+    ],
+    "ownerMatchesCurrentPlayer": [
+      1,
+      1,
+      -1
+    ]
+  },
+  "runtimeFlagsMeaning": "ordinaryReady=false/battleVerified=false are conservative global completeness flags in the existing candidate/collector; user acceptance plus this evidence confirms only this flow. Raw capture unchanged.",
+  "noNewAttempt": true,
+  "schemaChanged": false,
+  "pvfChanged": false,
+  "defaultProgramPublished": false,
+  "remaining": [
+    "Repeated entry in same connection still refused",
+    "Other ordinary dungeons and modes not certified",
+    "Native summon attribution not certified",
+    "Town preloaded refs remain: no release proof",
+    "Story and Odyssey not integrated",
+    "Legion/raid and special party channels not integrated",
+    "modkit installation/uninstallation not jointly tested"
+  ],
+  "logDigests": [
+    {
+      "path": "server\\work\\dfo-lan\\runtime\\adventure-elite-captures\\roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_223704_525989_next37\\events.jsonl",
+      "bytes": 318807,
+      "sha256": "5294762b799042e2a6aa069f0a3d9996ffcbdf5aa9a6fb34ad26fce10de3399f"
+    },
+    {
+      "path": "server\\work\\dfo-lan\\runtime\\adventure-elite-captures\\roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_223704_525989_next37\\adventure-elite-combat-93772-136444046.jsonl",
+      "bytes": 110132,
+      "sha256": "3dd6879dc5b03c316cf5fc016c2f6ed0b402cff6fedc258929377dfb2de76e0d"
+    },
+    {
+      "path": "server\\work\\dfo-lan\\runtime\\adventure-elite-captures\\roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_223704_525989_next37\\adventure-elite-entry-93772-136444046.jsonl",
+      "bytes": 18767,
+      "sha256": "c624b7ea15f0450ce6b122e81f1fe6b3eea3e681d82f25354b73fc724a83a185"
+    },
+    {
+      "path": "server\\work\\dfo-lan\\runtime\\adventure-elite-captures\\roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_223704_525989_next37\\adventure-elite-lifecycle-93772-136444046.jsonl",
+      "bytes": 113390,
+      "sha256": "2dbaa35e670a463bc72b3e9f93ef0b89af6788e3c80e4a931a73ca014c00a9fe"
+    }
+  ],
+  "sentEventCounts": {
+    "monster_death_ack": 27,
+    "monster_death_confirmed": 27,
+    "monster_experience_updated": 27,
+    "dungeon_next_map_sent": 4,
+    "boss_check_confirmed": 1,
+    "dungeon_clear_enabled": 1,
+    "dungeon_play_result": 1,
+    "dungeon_clear_experience": 1,
+    "dungeon_clear_reward": 1,
+    "card_inventory_committed": 1,
+    "card_selection_ack": 1,
+    "pickup_ack": 1,
+    "pickup_inventory_updated": 1,
+    "settlement_exit_ack": 1
+  },
+  "pickupInterpretation": "Confirmed pickup works during squad-assisted play, with player CMD43 and inventory update; no separate evidence of autonomous APC looting.",
+  "closureChecks": {
+    "buildExit": 0,
+    "vetExit": 0,
+    "testExit": 0,
+    "passed": 3789,
+    "skipped": 279,
+    "baselineFailures": [],
+    "newFailures": [],
+    "runtimeCodeChanged": false
+  }
+}

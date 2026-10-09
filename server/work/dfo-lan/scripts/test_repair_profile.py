@@ -31,7 +31,7 @@ class RepairProfileTests(unittest.TestCase):
         binary, required, env = load_profile(project / 'configs/pvf-default.json', project)
         self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 56)
         self.assertEqual(env['DFO_PVF_VERIFY_BASELINES'], '0')
-        self.assertEqual(binary, project / 'bin/wireprobe-pvf.exe')
+        self.assertEqual(binary, project / 'bin/wireprobe-bakal-weekly-quota-candidate.exe')
         self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))
 
     def test_native_character_profile_preserves_save_source_and_policy_only_paths(self):

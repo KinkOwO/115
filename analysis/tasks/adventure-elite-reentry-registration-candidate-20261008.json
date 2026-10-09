@@ -1,0 +1,1350 @@
+{
+  "status": "candidate-awaiting-manual-test",
+  "attempt": "reentry 2/3",
+  "failedAttempt": "reentry 1/3",
+  "userObservation": "第二次进入副本只有血条，APC不见了",
+  "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_231554_017721_next37",
+  "processId": 32220,
+  "runTick": 138774906,
+  "captureIssues": [],
+  "normalExit": true,
+  "runs": [
+    {
+      "runId": "5b25e8ad833a7e702597859f62b53521",
+      "entrySerial": 1,
+      "dungeon": 3,
+      "sourceScript": "dungeon/act1/mirkwood.dgn",
+      "sourceSha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "entryCommitted": true,
+      "ownedDeaths": 13,
+      "deaths": 27,
+      "moves": 4,
+      "pickups": 7,
+      "results": 1,
+      "cards": 3,
+      "returnCommitted": true,
+      "refusals": []
+    },
+    {
+      "runId": "c6782e7c156b68988c71b884d03e57a0",
+      "entrySerial": 2,
+      "dungeon": 3,
+      "sourceScript": "dungeon/act1/mirkwood.dgn",
+      "sourceSha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "entryCommitted": true,
+      "ownedDeaths": 0,
+      "deaths": 0,
+      "moves": 0,
+      "pickups": 0,
+      "results": 0,
+      "cards": 0,
+      "returnCommitted": true,
+      "refusals": []
+    }
+  ],
+  "nativeEntryAnchors": [
+    {
+      "line": 1,
+      "traceVersion": 1,
+      "processId": 32220,
+      "runTick": 138774906,
+      "ordinal": 1,
+      "tick": 138797125,
+      "thread": 5004,
+      "phase": "loader-before",
+      "callerRva": 114467303,
+      "nativeResult": -1,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 0,
+      "scene": 0,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 0,
+      "sceneVectorMatches": [
+        -1,
+        -1,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "registrationPlayerRef": [
+        0,
+        0
+      ],
+      "registrationNativePlayerRef": [
+        0,
+        0
+      ],
+      "battleEnabled": false
+    },
+    {
+      "line": 3,
+      "traceVersion": 1,
+      "processId": 32220,
+      "runTick": 138774906,
+      "ordinal": 3,
+      "tick": 138797140,
+      "thread": 5004,
+      "phase": "registration-scope-allowed",
+      "callerRva": 95572398,
+      "nativeResult": 1,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 0,
+      "scene": 4688920832,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 1,
+      "sceneVectorMatches": [
+        0,
+        0,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2
+      ],
+      "registrationPlayerRef": [
+        6152039648,
+        4830972016
+      ],
+      "registrationNativePlayerRef": [
+        6152039648,
+        4830972016
+      ],
+      "battleEnabled": false
+    },
+    {
+      "line": 5,
+      "traceVersion": 1,
+      "processId": 32220,
+      "runTick": 138774906,
+      "ordinal": 5,
+      "tick": 138797140,
+      "thread": 5004,
+      "phase": "native-registration-result",
+      "callerRva": 95572637,
+      "nativeResult": 1,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 0,
+      "scene": 4688920832,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 1,
+      "sceneVectorMatches": [
+        1,
+        0,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2
+      ],
+      "registrationPlayerRef": [
+        6152039648,
+        4830972016
+      ],
+      "registrationNativePlayerRef": [
+        6152039648,
+        4830972016
+      ],
+      "battleEnabled": false
+    },
+    {
+      "line": 6,
+      "traceVersion": 1,
+      "processId": 32220,
+      "runTick": 138774906,
+      "ordinal": 6,
+      "tick": 138797140,
+      "thread": 5004,
+      "phase": "native-registration-result",
+      "callerRva": 95572637,
+      "nativeResult": 1,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 1,
+      "scene": 4688920832,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 1,
+      "sceneVectorMatches": [
+        1,
+        1,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2
+      ],
+      "registrationPlayerRef": [
+        6152039648,
+        4830972016
+      ],
+      "registrationNativePlayerRef": [
+        6152039648,
+        4830972016
+      ],
+      "battleEnabled": false
+    },
+    {
+      "line": 7,
+      "traceVersion": 1,
+      "processId": 32220,
+      "runTick": 138774906,
+      "ordinal": 7,
+      "tick": 138797140,
+      "thread": 5004,
+      "phase": "loader-after",
+      "callerRva": 114467303,
+      "nativeResult": -1,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 1,
+      "scene": 4688920832,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 1,
+      "sceneVectorMatches": [
+        1,
+        1,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2
+      ],
+      "registrationPlayerRef": [
+        6152039648,
+        4830972016
+      ],
+      "registrationNativePlayerRef": [
+        6152039648,
+        4830972016
+      ],
+      "battleEnabled": false
+    },
+    {
+      "line": 24,
+      "traceVersion": 1,
+      "processId": 32220,
+      "runTick": 138774906,
+      "ordinal": 24,
+      "tick": 138862593,
+      "thread": 5004,
+      "phase": "loader-before",
+      "callerRva": 114467303,
+      "nativeResult": -1,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 1,
+      "scene": 0,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 0,
+      "sceneVectorMatches": [
+        -1,
+        -1,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "registrationPlayerRef": [
+        0,
+        0
+      ],
+      "registrationNativePlayerRef": [
+        0,
+        0
+      ],
+      "battleEnabled": false
+    },
+    {
+      "line": 26,
+      "traceVersion": 1,
+      "processId": 32220,
+      "runTick": 138774906,
+      "ordinal": 26,
+      "tick": 138862593,
+      "thread": 5004,
+      "phase": "registration-scope-rejected",
+      "callerRva": 95572398,
+      "nativeResult": 0,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 1,
+      "scene": 6889980160,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 1,
+      "sceneVectorMatches": [
+        0,
+        0,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        2
+      ],
+      "registrationPlayerRef": [
+        6152039648,
+        4830972016
+      ],
+      "registrationNativePlayerRef": [
+        6152039648,
+        4830972016
+      ],
+      "battleEnabled": false
+    },
+    {
+      "line": 27,
+      "traceVersion": 1,
+      "processId": 32220,
+      "runTick": 138774906,
+      "ordinal": 27,
+      "tick": 138862593,
+      "thread": 5004,
+      "phase": "loader-after",
+      "callerRva": 114467303,
+      "nativeResult": -1,
+      "traceDropped": 0,
+      "traceLimit": 0,
+      "worldRead": 1,
+      "conditionRead": 1,
+      "condition6264": 0,
+      "condition8056": 128,
+      "managerRead": 1,
+      "manager576": 1,
+      "scene": 6889980160,
+      "playerScene": 0,
+      "playerStable": 1,
+      "sceneVectorReadable": 1,
+      "sceneVectorMatches": [
+        0,
+        0,
+        -1
+      ],
+      "available": 1,
+      "consistent": 1,
+      "weakAlive": 2,
+      "objectId": [
+        0,
+        1,
+        -1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        -1
+      ],
+      "controllerId": [
+        65535,
+        65535,
+        -1
+      ],
+      "vtable": [
+        5550248816,
+        5536749984,
+        0
+      ],
+      "ownerGetter": [
+        5465627088,
+        5465627088,
+        0
+      ],
+      "combatGetter": [
+        5370072096,
+        5370072096,
+        0
+      ],
+      "registrationChecks": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        2
+      ],
+      "registrationPlayerRef": [
+        6152039648,
+        4830972016
+      ],
+      "registrationNativePlayerRef": [
+        6152039648,
+        4830972016
+      ],
+      "battleEnabled": false
+    }
+  ],
+  "serverAnchors": [
+    {
+      "line": 206,
+      "accepted": true,
+      "attempt": "1/3",
+      "battle_enabled": false,
+      "candidate_stage": "ordinary-reentry",
+      "channel_type": 22,
+      "character_id": 2,
+      "dungeon": 3,
+      "entry_probe_used": true,
+      "entry_serial": 1,
+      "frozen_preparation": {
+        "Channel": 22,
+        "Owner": 2,
+        "Selected": [
+          1,
+          3,
+          0
+        ],
+        "Settings": [
+          64,
+          202,
+          13,
+          22,
+          54,
+          131,
+          26,
+          112,
+          73,
+          50,
+          197,
+          154,
+          242,
+          68,
+          182,
+          173,
+          54,
+          251,
+          30,
+          42,
+          12,
+          249,
+          78,
+          154,
+          171,
+          128,
+          53,
+          206,
+          186,
+          127,
+          248,
+          0
+        ]
+      },
+      "kind": "adventure_elite_entry_probe",
+      "map": 58548,
+      "maze": 0,
+      "monsters": 4,
+      "owned_combat_candidate": true,
+      "owner_wire_id": 2,
+      "reentry_attempt": "1/3",
+      "run_id": "5b25e8ad833a7e702597859f62b53521",
+      "source_script": "dungeon/act1/mirkwood.dgn",
+      "source_sha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "time": "2026-10-08T15:17:05.6400601Z"
+    },
+    {
+      "line": 216,
+      "after": {
+        "active": true,
+        "cards_active": false,
+        "combat_alive": 4,
+        "completed": false,
+        "completion_sent": false,
+        "death_sent_count": 0,
+        "drops_active": false,
+        "dungeon": 3,
+        "entry_serial": 1,
+        "level": 6,
+        "loaded": false,
+        "map": 58548,
+        "pending_town_arrival": false,
+        "result_sent": false,
+        "room_cleared": false,
+        "run_id": "5b25e8ad833a7e702597859f62b53521",
+        "selecting_dungeon": false,
+        "source_script": "dungeon/act1/mirkwood.dgn",
+        "source_sha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52"
+      },
+      "candidate_stage": "ordinary-reentry",
+      "entry_serial": 1,
+      "id": 16,
+      "kind": "adventure_elite_dispatch_committed",
+      "origin_run_id": null,
+      "time": "2026-10-08T15:17:05.640594Z"
+    },
+    {
+      "line": 698,
+      "after": {
+        "active": false,
+        "cards_active": false,
+        "completion_sent": false,
+        "death_sent_count": 0,
+        "drops_active": false,
+        "entry_serial": 1,
+        "level": 7,
+        "pending_town_arrival": false,
+        "result_sent": false,
+        "selecting_dungeon": false
+      },
+      "candidate_stage": "ordinary-reentry",
+      "entry_serial": 1,
+      "id": 72,
+      "kind": "adventure_elite_dispatch_committed",
+      "origin_run_id": "5b25e8ad833a7e702597859f62b53521",
+      "time": "2026-10-08T15:18:07.238341Z"
+    },
+    {
+      "line": 717,
+      "accepted": true,
+      "attempt": "1/3",
+      "battle_enabled": false,
+      "candidate_stage": "ordinary-reentry",
+      "channel_type": 22,
+      "character_id": 2,
+      "dungeon": 3,
+      "entry_probe_used": true,
+      "entry_serial": 2,
+      "frozen_preparation": {
+        "Channel": 22,
+        "Owner": 2,
+        "Selected": [
+          1,
+          3,
+          0
+        ],
+        "Settings": [
+          64,
+          202,
+          13,
+          22,
+          54,
+          131,
+          26,
+          112,
+          73,
+          50,
+          197,
+          154,
+          242,
+          68,
+          182,
+          173,
+          54,
+          251,
+          30,
+          42,
+          12,
+          249,
+          78,
+          154,
+          171,
+          128,
+          53,
+          206,
+          186,
+          127,
+          248,
+          0
+        ]
+      },
+      "kind": "adventure_elite_entry_probe",
+      "map": 58548,
+      "maze": 0,
+      "monsters": 4,
+      "owned_combat_candidate": true,
+      "owner_wire_id": 2,
+      "reentry_attempt": "1/3",
+      "run_id": "c6782e7c156b68988c71b884d03e57a0",
+      "source_script": "dungeon/act1/mirkwood.dgn",
+      "source_sha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "time": "2026-10-08T15:18:11.09772Z"
+    },
+    {
+      "line": 728,
+      "after": {
+        "active": true,
+        "cards_active": false,
+        "combat_alive": 4,
+        "completed": false,
+        "completion_sent": false,
+        "death_sent_count": 0,
+        "drops_active": false,
+        "dungeon": 3,
+        "entry_serial": 2,
+        "level": 7,
+        "loaded": false,
+        "map": 58548,
+        "pending_town_arrival": false,
+        "result_sent": false,
+        "room_cleared": false,
+        "run_id": "c6782e7c156b68988c71b884d03e57a0",
+        "selecting_dungeon": false,
+        "source_script": "dungeon/act1/mirkwood.dgn",
+        "source_sha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52"
+      },
+      "candidate_stage": "ordinary-reentry",
+      "entry_serial": 2,
+      "id": 16,
+      "kind": "adventure_elite_dispatch_committed",
+      "origin_run_id": null,
+      "time": "2026-10-08T15:18:11.0982472Z"
+    },
+    {
+      "line": 760,
+      "after": {
+        "active": false,
+        "cards_active": false,
+        "completion_sent": false,
+        "death_sent_count": 0,
+        "drops_active": false,
+        "entry_serial": 2,
+        "level": 7,
+        "pending_town_arrival": false,
+        "result_sent": false,
+        "selecting_dungeon": false
+      },
+      "candidate_stage": "ordinary-reentry",
+      "entry_serial": 2,
+      "id": 42,
+      "kind": "adventure_elite_dispatch_committed",
+      "origin_run_id": "c6782e7c156b68988c71b884d03e57a0",
+      "time": "2026-10-08T15:18:51.2158956Z"
+    }
+  ],
+  "captureHashes": {
+    "adventure-elite-build.json": "0ae643341144f1653105308ae6e7232daa237bd54336494e5579007285fca510",
+    "adventure-elite-combat-32220-138774906.jsonl": "a6bf4752b587a8a1e09df3eb9ebd787877a3ea2e7a78724b3e3cba9d1b96aeab",
+    "adventure-elite-entry-32220-138774906.jsonl": "4c4fa58f47dc69e24ebedaed8ccf7d6bb3b95000686831b128507d75d4fa6155",
+    "adventure-elite.status.json": "74b3cd0839ceb1e673dd24069121f012d0e2c6757497b8238dba1bd734d61ff6",
+    "client.log": "d341cc4c15ab1ee404ef8200693f8dd7889846d541f3311eb70dd9cb710ae99c",
+    "events.jsonl": "3d06e4fe23e4757c81f4e4ea2dc3f5c8887c76a1c8a13768259a816122176869"
+  },
+  "nativeEvidence": {
+    "image": "client/DFO.exe.i64",
+    "databaseSession": "c1000f62",
+    "activeGetter": "142E60CE0 reads byte manager+576",
+    "activeSetter": "142E64210; 145B25393 sets1 after native registration",
+    "cleanup": "145B38A7D sets0 only under native6264/channel/active gates; ordinary condition6264 remains0",
+    "freshEntry": "146D2A1E2 call145B22F50; exactreturn146D2A1E7; args a4=0,a5=1,a6=0,a7=0,a8=1; observed both runs",
+    "roomMove": "146CE14BC call145B22F50; return146CE14C1; observed four room moves",
+    "activeConsumer": "145B251D3 call142E60CE0; exactreturn145B251D8; active!=0 skips registration",
+    "guards": {
+      "0x2E60CE0": "0fb68140020000c3",
+      "0x6D2A1BB": "c644243801c6442430004c89742428c6442420014533c9448b86280500008b9624050000498bcfe8698ddffe"
+    }
+  },
+  "diagnosis": "Both weak clones and owner bindings persist. Second fresh entry passes nine reference/scope checks but manager576=1 blocks scope and native registration; second run has no kills. In-room calls share busy state but confirmed carried APCs, so never clear flag globally.",
+  "adaptation": "Only exact fresh entry TLS with all native identity/unique/owner/bound/not-in-new-scene checks permits active1. Only exact native registration getter consumer for the checked manager sees idle0; physical manager576 and CRefs never written. Revalidate scope at consumer. Other caller/manager/room/result/identity paths forward native unchanged.",
+  "serverChanged": false,
+  "serverCandidateSha256": "5ca6128aaf37a674a63e5a0997a14f9f98271201e588fa098b53e605ff2d1384",
+  "launcherChanged": false,
+  "schemaChanged": false,
+  "resourcesChanged": false,
+  "defaultPublished": false,
+  "contentChain": "Same PVF Source -> channel/dungeon readers -> Select/ordinary combat/SQLite execution; existing Type22/published10 compatibility policy unchanged and still tracked; no new content table.",
+  "officialContext": "https://www.dfoneople.com/news/updates/1910/Arad-Adventure (context only; current ABI exclusively IDA/live)",
+  "pending": [
+    "manual second and third entry appearance/combat",
+    "ordinary alternate dungeon coverage",
+    "clone release",
+    "story",
+    "Odyssey",
+    "legion/raid",
+    "modkit install/uninstall"
+  ],
+  "verification": {
+    "go": {
+      "build": {
+        "kind": "build",
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\reentry-registration-gate-build.log"
+      },
+      "vet": {
+        "kind": "vet",
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\reentry-registration-gate-vet.log"
+      },
+      "test": {
+        "kind": "test",
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\reentry-registration-gate-test.jsonl",
+        "passed": 3792,
+        "skipped": 279,
+        "failures": [],
+        "baselineFailures": [],
+        "newFailures": []
+      }
+    },
+    "native": {
+      "dllSha256": "941656906dac3e0f7c8c1e9430ca390eac8d88013dd528539d35661aa689e005",
+      "dllBytes": 225792,
+      "startupFixtureBothImages": true,
+      "guardBytesBothImages": [
+        {
+          "client": "F:\\projects\\agents\\reverse\\115us\\client\\DFO.exe",
+          "rva": "0x5DD0070",
+          "bytes": "40574883ec5048c7442420feffffff48895c246848896c24704889742478488b"
+        },
+        {
+          "client": "F:\\projects\\agents\\reverse\\115us\\client\\DFO.exe",
+          "rva": "0x5C3E8A0",
+          "bytes": "8991a0680000c3"
+        },
+        {
+          "client": "F:\\projects\\agents\\reverse\\115us\\client\\DFO.exe",
+          "rva": "0x5DC86D0",
+          "bytes": "405556574154415541564157488dac24e0feffff4881ec2002000048c785d000"
+        },
+        {
+          "client": "F:\\projects\\agents\\reverse\\115us\\client\\DFO.exe",
+          "rva": "0x5DD01EC",
+          "bytes": "743d488bcbe87ac4dbff898704890000488b03488bcbff90c00700004885c0741e488b03488bcbff90c0070000488bc8e83f26f1ff8bd0488bcfe875e6e6ff488b5c24"
+        },
+        {
+          "client": "F:\\projects\\agents\\reverse\\115us\\client\\DFO.exe",
+          "rva": "0x5DC9BCD",
+          "bytes": "e82ea4fa00ba27000000488bc8e801abfa00e81ca4fa00488bf8488bcbe8812adcff8bd0488bcfe8e7c0fa00e802a4fa00410fb7d7488bc8e876c5fa00"
+        },
+        {
+          "client": "F:\\projects\\agents\\reverse\\115us\\client\\DFO.exe",
+          "rva": "0x2E60CE0",
+          "bytes": "0fb68140020000c3"
+        },
+        {
+          "client": "F:\\projects\\agents\\reverse\\115us\\client\\DFO.exe",
+          "rva": "0x6D2A1BB",
+          "bytes": "c644243801c6442430004c89742428c6442420014533c9448b86280500008b9624050000498bcfe8698ddffe"
+        },
+        {
+          "client": "F:\\projects\\agents\\reverse\\115us\\client\\DFO.exe",
+          "rva": "0x14CC20",
+          "bytes": "488bc1c3"
+        },
+        {
+          "client": "F:\\wip\\dof\\115US\\DFO.exe",
+          "rva": "0x5DD0070",
+          "bytes": "40574883ec5048c7442420feffffff48895c246848896c24704889742478488b"
+        },
+        {
+          "client": "F:\\wip\\dof\\115US\\DFO.exe",
+          "rva": "0x5C3E8A0",
+          "bytes": "8991a0680000c3"
+        },
+        {
+          "client": "F:\\wip\\dof\\115US\\DFO.exe",
+          "rva": "0x5DC86D0",
+          "bytes": "405556574154415541564157488dac24e0feffff4881ec2002000048c785d000"
+        },
+        {
+          "client": "F:\\wip\\dof\\115US\\DFO.exe",
+          "rva": "0x5DD01EC",
+          "bytes": "743d488bcbe87ac4dbff898704890000488b03488bcbff90c00700004885c0741e488b03488bcbff90c0070000488bc8e83f26f1ff8bd0488bcfe875e6e6ff488b5c24"
+        },
+        {
+          "client": "F:\\wip\\dof\\115US\\DFO.exe",
+          "rva": "0x5DC9BCD",
+          "bytes": "e82ea4fa00ba27000000488bc8e801abfa00e81ca4fa00488bf8488bcbe8812adcff8bd0488bcfe8e7c0fa00e802a4fa00410fb7d7488bc8e876c5fa00"
+        },
+        {
+          "client": "F:\\wip\\dof\\115US\\DFO.exe",
+          "rva": "0x2E60CE0",
+          "bytes": "0fb68140020000c3"
+        },
+        {
+          "client": "F:\\wip\\dof\\115US\\DFO.exe",
+          "rva": "0x6D2A1BB",
+          "bytes": "c644243801c6442430004c89742428c6442420014533c9448b86280500008b9624050000498bcfe8698ddffe"
+        },
+        {
+          "client": "F:\\wip\\dof\\115US\\DFO.exe",
+          "rva": "0x14CC20",
+          "bytes": "488bc1c3"
+        }
+      ],
+      "nonGameEnvironmentSmokes": [
+        {
+          "value": "",
+          "injectedReturn": 203,
+          "pluginReturn": 0,
+          "status": {
+            "version": "0.3.9",
+            "stage": "ordinary-owned-combat-candidate",
+            "ready": true,
+            "enabled": false,
+            "ordinaryReady": false,
+            "ordinaryPrepareReady": false,
+            "nativeTraceReady": false,
+            "traceVersion": 2,
+            "traceLimitSelection": 128,
+            "traceLimitInfoDone": 64,
+            "processId": 110744,
+            "runTick": 140037515,
+            "nativeTraceFile": "adventure-elite-native-110744-140037515.jsonl",
+            "nativeTraceFailureSite": "not-started",
+            "preparationFailureSite": "not-started",
+            "hookStatus": 0,
+            "changedBytes": 0,
+            "rejectReason": "disabled",
+            "ordinaryLifecycleReady": false,
+            "lifecycleTraceVersion": 2,
+            "lifecycleTraceLimit": 1024,
+            "lifecycleTraceFile": "adventure-elite-lifecycle-110744-140037515.jsonl",
+            "ordinaryEntryTraceReady": false,
+            "entryTraceFile": "adventure-elite-entry-110744-140037515.jsonl",
+            "entryFailureSite": "not-started",
+            "ordinaryRegistrationReady": false,
+            "registrationFailureSite": "not-started",
+            "ordinaryCombatTraceReady": false,
+            "combatTraceVersion": 2,
+            "combatTraceLimit": 4096,
+            "combatTraceFile": "adventure-elite-combat-110744-140037515.jsonl",
+            "combatFailureSite": "not-started"
+          }
+        },
+        {
+          "value": "0",
+          "injectedReturn": 203,
+          "pluginReturn": 0,
+          "status": {
+            "version": "0.3.9",
+            "stage": "ordinary-owned-combat-candidate",
+            "ready": true,
+            "enabled": false,
+            "ordinaryReady": false,
+            "ordinaryPrepareReady": false,
+            "nativeTraceReady": false,
+            "traceVersion": 2,
+            "traceLimitSelection": 128,
+            "traceLimitInfoDone": 64,
+            "processId": 37544,
+            "runTick": 140037593,
+            "nativeTraceFile": "adventure-elite-native-37544-140037593.jsonl",
+            "nativeTraceFailureSite": "not-started",
+            "preparationFailureSite": "not-started",
+            "hookStatus": 0,
+            "changedBytes": 0,
+            "rejectReason": "disabled",
+            "ordinaryLifecycleReady": false,
+            "lifecycleTraceVersion": 2,
+            "lifecycleTraceLimit": 1024,
+            "lifecycleTraceFile": "adventure-elite-lifecycle-37544-140037593.jsonl",
+            "ordinaryEntryTraceReady": false,
+            "entryTraceFile": "adventure-elite-entry-37544-140037593.jsonl",
+            "entryFailureSite": "not-started",
+            "ordinaryRegistrationReady": false,
+            "registrationFailureSite": "not-started",
+            "ordinaryCombatTraceReady": false,
+            "combatTraceVersion": 2,
+            "combatTraceLimit": 4096,
+            "combatTraceFile": "adventure-elite-combat-37544-140037593.jsonl",
+            "combatFailureSite": "not-started"
+          }
+        },
+        {
+          "value": "1",
+          "injectedReturn": 13,
+          "pluginReturn": 13,
+          "status": {
+            "version": "0.3.9",
+            "stage": "ordinary-owned-combat-candidate",
+            "ready": false,
+            "enabled": false,
+            "ordinaryReady": false,
+            "ordinaryPrepareReady": false,
+            "nativeTraceReady": false,
+            "traceVersion": 2,
+            "traceLimitSelection": 128,
+            "traceLimitInfoDone": 64,
+            "processId": 16284,
+            "runTick": 140037687,
+            "nativeTraceFile": "adventure-elite-native-16284-140037687.jsonl",
+            "nativeTraceFailureSite": "not-started",
+            "preparationFailureSite": "not-started",
+            "hookStatus": 0,
+            "changedBytes": 0,
+            "rejectReason": "context-mismatch",
+            "ordinaryLifecycleReady": false,
+            "lifecycleTraceVersion": 2,
+            "lifecycleTraceLimit": 1024,
+            "lifecycleTraceFile": "adventure-elite-lifecycle-16284-140037687.jsonl",
+            "ordinaryEntryTraceReady": false,
+            "entryTraceFile": "adventure-elite-entry-16284-140037687.jsonl",
+            "entryFailureSite": "not-started",
+            "ordinaryRegistrationReady": false,
+            "registrationFailureSite": "not-started",
+            "ordinaryCombatTraceReady": false,
+            "combatTraceVersion": 2,
+            "combatTraceLimit": 4096,
+            "combatTraceFile": "adventure-elite-combat-16284-140037687.jsonl",
+            "combatFailureSite": "not-started"
+          }
+        },
+        {
+          "value": "true",
+          "injectedReturn": 203,
+          "pluginReturn": 0,
+          "status": {
+            "version": "0.3.9",
+            "stage": "ordinary-owned-combat-candidate",
+            "ready": true,
+            "enabled": false,
+            "ordinaryReady": false,
+            "ordinaryPrepareReady": false,
+            "nativeTraceReady": false,
+            "traceVersion": 2,
+            "traceLimitSelection": 128,
+            "traceLimitInfoDone": 64,
+            "processId": 59192,
+            "runTick": 140037765,
+            "nativeTraceFile": "adventure-elite-native-59192-140037765.jsonl",
+            "nativeTraceFailureSite": "not-started",
+            "preparationFailureSite": "not-started",
+            "hookStatus": 0,
+            "changedBytes": 0,
+            "rejectReason": "disabled",
+            "ordinaryLifecycleReady": false,
+            "lifecycleTraceVersion": 2,
+            "lifecycleTraceLimit": 1024,
+            "lifecycleTraceFile": "adventure-elite-lifecycle-59192-140037765.jsonl",
+            "ordinaryEntryTraceReady": false,
+            "entryTraceFile": "adventure-elite-entry-59192-140037765.jsonl",
+            "entryFailureSite": "not-started",
+            "ordinaryRegistrationReady": false,
+            "registrationFailureSite": "not-started",
+            "ordinaryCombatTraceReady": false,
+            "combatTraceVersion": 2,
+            "combatTraceLimit": 4096,
+            "combatTraceFile": "adventure-elite-combat-59192-140037765.jsonl",
+            "combatFailureSite": "not-started"
+          }
+        },
+        {
+          "value": "01",
+          "injectedReturn": 203,
+          "pluginReturn": 0,
+          "status": {
+            "version": "0.3.9",
+            "stage": "ordinary-owned-combat-candidate",
+            "ready": true,
+            "enabled": false,
+            "ordinaryReady": false,
+            "ordinaryPrepareReady": false,
+            "nativeTraceReady": false,
+            "traceVersion": 2,
+            "traceLimitSelection": 128,
+            "traceLimitInfoDone": 64,
+            "processId": 19816,
+            "runTick": 140037843,
+            "nativeTraceFile": "adventure-elite-native-19816-140037843.jsonl",
+            "nativeTraceFailureSite": "not-started",
+            "preparationFailureSite": "not-started",
+            "hookStatus": 0,
+            "changedBytes": 0,
+            "rejectReason": "disabled",
+            "ordinaryLifecycleReady": false,
+            "lifecycleTraceVersion": 2,
+            "lifecycleTraceLimit": 1024,
+            "lifecycleTraceFile": "adventure-elite-lifecycle-19816-140037843.jsonl",
+            "ordinaryEntryTraceReady": false,
+            "entryTraceFile": "adventure-elite-entry-19816-140037843.jsonl",
+            "entryFailureSite": "not-started",
+            "ordinaryRegistrationReady": false,
+            "registrationFailureSite": "not-started",
+            "ordinaryCombatTraceReady": false,
+            "combatTraceVersion": 2,
+            "combatTraceLimit": 4096,
+            "combatTraceFile": "adventure-elite-combat-19816-140037843.jsonl",
+            "combatFailureSite": "not-started"
+          }
+        },
+        {
+          "value": " 1",
+          "injectedReturn": 203,
+          "pluginReturn": 0,
+          "status": {
+            "version": "0.3.9",
+            "stage": "ordinary-owned-combat-candidate",
+            "ready": true,
+            "enabled": false,
+            "ordinaryReady": false,
+            "ordinaryPrepareReady": false,
+            "nativeTraceReady": false,
+            "traceVersion": 2,
+            "traceLimitSelection": 128,
+            "traceLimitInfoDone": 64,
+            "processId": 99468,
+            "runTick": 140037921,
+            "nativeTraceFile": "adventure-elite-native-99468-140037921.jsonl",
+            "nativeTraceFailureSite": "not-started",
+            "preparationFailureSite": "not-started",
+            "hookStatus": 0,
+            "changedBytes": 0,
+            "rejectReason": "disabled",
+            "ordinaryLifecycleReady": false,
+            "lifecycleTraceVersion": 2,
+            "lifecycleTraceLimit": 1024,
+            "lifecycleTraceFile": "adventure-elite-lifecycle-99468-140037921.jsonl",
+            "ordinaryEntryTraceReady": false,
+            "entryTraceFile": "adventure-elite-entry-99468-140037921.jsonl",
+            "entryFailureSite": "not-started",
+            "ordinaryRegistrationReady": false,
+            "registrationFailureSite": "not-started",
+            "ordinaryCombatTraceReady": false,
+            "combatTraceVersion": 2,
+            "combatTraceLimit": 4096,
+            "combatTraceFile": "adventure-elite-combat-99468-140037921.jsonl",
+            "combatFailureSite": "not-started"
+          }
+        }
+      ],
+      "combatBudgetRows": 4097,
+      "collectorFixtureCases": 71,
+      "cppTestGroups": 12,
+      "clientLaunched": false
+    },
+    "serverBuildSourceCommit": "87b9fd7641f7c67924953a2b715232f067e1e627",
+    "schemaChanged": false,
+    "defaultPublished": false
+  }
+}

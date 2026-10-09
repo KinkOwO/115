@@ -578,9 +578,26 @@ func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppe
 			bySlot[inventory.WeaponSlot] = bag.WeaponSkin
 		}
 	}
+	// 强化/增幅等级投影（强化特效逻辑说明.md §4）：从穿戴装备实例的 record[10]
+	// 低 5 位读取等级，写进每个外观行的 Flags。客户端 reader 145639840 把该字节
+	// 拆成 [actor+slot*8+0x34]=v>>1（效果等级）与 [actor+slot*4+0x334]=v&1，
+	// 据此重建武器/增幅光效。等级 0..31 打包为 level<<1（最大 62），只使用高 7 位，
+	// 超过 127 拒绝避免回绕。换装/强化刷新走这条路径，不补会让光效在刷新后丢失。
+	levelBySlot := map[uint16]byte{}
+	for _, w := range bag.Worn {
+		if len(w.Record) > 10 {
+			levelBySlot[w.Slot] = w.Record[10] & 0x1f
+		}
+	}
 	rows := make([]protocol.EquippedAppearance, 0, len(bySlot))
 	for slot, model := range bySlot {
 		row := protocol.EquippedAppearance{Slot: byte(slot), Model: model}
+		if lv := levelBySlot[uint16(slot)]; lv > 0 {
+			if int(lv)<<1 > 127 {
+				return nil, fmt.Errorf("强化等级 %d 超出外观行打包字段（>127）", lv)
+			}
+			row.Flags = lv << 1
+		}
 		// 原生 145639840 将首个 u32 保存到 slot*8+48；145BEFD60 经
 		// 145BD63D0、145BEE6C0 用它查找城镇模型的装备模板，不能填 0。
 		// 2026-09-25 的武器互换修复只填了主副手槽（12/24），其余槽位

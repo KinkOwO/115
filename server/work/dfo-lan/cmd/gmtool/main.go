@@ -759,3 +759,12 @@ func (s *server) handleGrant(w http.ResponseWriter, r *http.Request) {
 }
 
 var _ = strings.TrimSpace
+
+// handleUnavailableAPI answers the management routes this source distribution does
+// not implement: the response is still authenticated and always 501, so a caller
+// never mistakes an unavailable operation for a successful one.
+func (s *server) handleUnavailableAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusNotImplemented)
+	_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": "management API not implemented in this source distribution"})
+}

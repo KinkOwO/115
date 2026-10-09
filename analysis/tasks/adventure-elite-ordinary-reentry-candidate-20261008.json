@@ -1,0 +1,95 @@
+{
+  "status": "candidate-awaiting-user-manual-reentry-batch",
+  "attempt": "reentry 1/3",
+  "baseCommit": "097d100346100a3162280a826a58fc25a0ebcdee",
+  "dllVersion": "0.3.8",
+  "dllChanged": false,
+  "serverCandidateStage": "ordinary-reentry",
+  "priorConfirmedSession": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_223704_525989_next37",
+  "scope": "ordinary solo non-story entry after town return; reuse frozen preparation; no new native object writes or packets",
+  "source": {
+    "path": "dungeon/act1/mirkwood.dgn",
+    "sha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+    "observedQuest": 0,
+    "observedMode": 0,
+    "observedParty": 65535,
+    "runtimeRuleChain": "same gamedata.Source -> existing channel/dungeon readers -> dungeon.Select -> existing entry/death/loot/fatigue/settlement handlers -> SQLite",
+    "existingUnresolvedPolicy": "Type22/published10 source-channel compatibility retained, not expanded"
+  },
+  "ida": {
+    "database": "client/DFO.exe.i64",
+    "session": "c1000f62",
+    "setter": "142E64210 writes manager+576=a2",
+    "registerCall": "145B25393 calls setter(manager,1) after native type5 registration",
+    "nativeClear": "145B38A7D calls setter(manager,0), guarded by 145F0C980, world+6792 non-null, dungeon+6264!=0 and 142E60CE0(manager)!=0",
+    "ordinaryClearNotProven": true,
+    "loader": "145B22F50 unchanged; existing hook increments native room serial and clears TLS branch permission at each boundary"
+  },
+  "changes": [
+    "Remove only entryProbeUsed from ordinary selection admission rejection; keep frozen/source/active/pending/selection checks",
+    "Session-only entry serial increments after successful source session and entry plan creation; role reload resets",
+    "Read-only committed snapshots after all plan sends and existing dispatch transitions",
+    "Collector splits accepted runs by unique RunID and increasing entry serial, checks clean entry and town return and owned deaths per run",
+    "Bound registration channel/results to nearest same-thread loader-after; future run cannot fill a missing earlier sample"
+  ],
+  "unmodified": [
+    "DLL native hooks/guards/registration policy/ownership adaptation",
+    "C2S/S2C layouts",
+    "APC controller/owner/CRef lifetime/manager576/dungeon6264",
+    "PVF/sk.dat/SQLite schema/player saves",
+    "default server binary"
+  ],
+  "manualBatch": [
+    "ordinary clear/cards/town",
+    "same ordinary dungeon first room APC combat then manual abort/town",
+    "ordinary reentry APC combat/follow then abort/town; different accessible ordinary map optional",
+    "normal client exit"
+  ],
+  "remaining": [
+    "native repeated-run APC reuse vs registration not dynamically verified",
+    "weak-ref release not proven",
+    "story/Odyssey/summon/special party channels not integrated"
+  ],
+  "clientLaunchedByAgent": false,
+  "webContext": [
+    {
+      "url": "https://www.dfoneople.com/news/updates/2021/Sirocco-Squad-Mode",
+      "authority": "historical feature context only; no current protocol inference"
+    }
+  ],
+  "verification": {
+    "go": {
+      "build": {
+        "kind": "build",
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\reentry-gate-build.log"
+      },
+      "vet": {
+        "kind": "vet",
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\reentry-gate-vet.log"
+      },
+      "test": {
+        "kind": "test",
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\reentry-gate-test.jsonl",
+        "passed": 3792,
+        "skipped": 279,
+        "failures": [],
+        "baselineFailures": [],
+        "newFailures": []
+      }
+    },
+    "collectorFixtureCases": 62,
+    "collectorExit": 0,
+    "candidateServer": {
+      "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+      "bytes": 30497280,
+      "sha256": "5ca6128aaf37a674a63e5a0997a14f9f98271201e588fa098b53e605ff2d1384",
+      "selfDescription": "server events candidate_stage=ordinary-reentry; attempt=reentry 1/3; DLL version0.3.8"
+    },
+    "dllSha256": "772bd1e029cf77cce8f755a023708fbcdd709adab9f42161d2755732aa14a6bb",
+    "schemaChanged": false,
+    "defaultPublished": false
+  }
+}

@@ -141,11 +141,11 @@ func TestParseEquipmentTransformSystemSample(t *testing.T) {
 // 缺段 / 形状不对必须报错，不能静默给出半张表。
 func TestParseEquipmentTransformSystemRejectsBroken(t *testing.T) {
 	cases := map[string]string{
-		"缺 need materials":       "[need primer materials]\n [info]\n  [condition] 115 `rare`\n  [cost]\n   [group] 1\n    0 1\n   [/group]\n  [/cost]\n [/info]\n[/need primer materials]\n",
-		"缺 refund materials":     "[need materials]\n [info]\n  [condition] 115 `rare`\n  [cost]\n   [group] 1\n    0 1\n   [/group]\n  [/cost]\n [/info]\n[/need materials]\n[need primer materials]\n [info]\n  [condition] 115 `rare`\n  [cost]\n   [group] 1\n    0 1\n   [/group]\n  [/cost]\n [/info]\n[/need primer materials]\n",
-		"缺 condition":            "[need materials]\n [info]\n  [cost]\n   [group] 1\n    0 1\n   [/group]\n  [/cost]\n [/info]\n[/need materials]\n",
-		"组行不是模板+数量":            "[need materials]\n [info]\n  [condition] 115 `rare`\n  [cost]\n   [group] 1\n    0\n   [/group]\n  [/cost]\n [/info]\n[/need materials]\n",
-		"返还行件数与模板数不符":          "[need materials]\n [info]\n  [condition] 115 `rare`\n  [cost]\n   [group] 1\n    0 1\n   [/group]\n  [/cost]\n [/info]\n[/need materials]\n[refund materials]\n 115 `rare` 0 2 10361512 1\n[/refund materials]\n",
+		"缺 need materials":   "[need primer materials]\n [info]\n  [condition] 115 `rare`\n  [cost]\n   [group] 1\n    0 1\n   [/group]\n  [/cost]\n [/info]\n[/need primer materials]\n",
+		"缺 refund materials": "[need materials]\n [info]\n  [condition] 115 `rare`\n  [cost]\n   [group] 1\n    0 1\n   [/group]\n  [/cost]\n [/info]\n[/need materials]\n[need primer materials]\n [info]\n  [condition] 115 `rare`\n  [cost]\n   [group] 1\n    0 1\n   [/group]\n  [/cost]\n [/info]\n[/need primer materials]\n",
+		"缺 condition":        "[need materials]\n [info]\n  [cost]\n   [group] 1\n    0 1\n   [/group]\n  [/cost]\n [/info]\n[/need materials]\n",
+		"组行不是模板+数量":          "[need materials]\n [info]\n  [condition] 115 `rare`\n  [cost]\n   [group] 1\n    0\n   [/group]\n  [/cost]\n [/info]\n[/need materials]\n",
+		"返还行件数与模板数不符":        "[need materials]\n [info]\n  [condition] 115 `rare`\n  [cost]\n   [group] 1\n    0 1\n   [/group]\n  [/cost]\n [/info]\n[/need materials]\n[refund materials]\n 115 `rare` 0 2 10361512 1\n[/refund materials]\n",
 	}
 	for name, text := range cases {
 		if _, e := ParseEquipmentTransformSystem(text); e == nil {

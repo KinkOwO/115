@@ -160,3 +160,22 @@ func materialDeleteReply(rows []MaterialDelete, success bool, reason byte) []byt
 	p := add32(header, uint32(len(body)))
 	return append(p, body...)
 }
+
+// 官服副本内 CMD18 应答样本（巴卡尔抓包 32B，FINISH_ITEMTRADE 同号 NOTI）：
+//	01 16000000 0800 120708ef0210011805 18ffffffffffffffffff01 5f3ae0df3b
+// 2026-10-07 按此复刻的应答实测令客户端卡死闪退——形状/字段语义与我们 115
+// 客户端的解析不兼容（或 kind 应为 1），已回退为第三十轮实测稳定的轻量形状
+//（19B ack，副本内不跟随任何库存快照）。勿再按官服样本复刻此应答。
+
+// VenusDirectMoveAck is the official in-dungeon reply to CMD2062
+// (ENUM_CMDPACKET_DUNGEON_DIRECT_MOVE), verbatim from the巴卡尔 capture:
+//
+//	01 b2ce8d5940 00000000 00000000  (16B, 恒定)
+//
+// 官方对副本内直进请求（包括战斗进行中的同关直进，21:44:34 会话帧）一律回
+// 这个 16B 成功包，客户端收到后自行完成过门、停止每 5 秒的强制取消重发。
+// 拒绝（任何错误码）会让客户端留在门矩形内每 5 秒吞一次当前动作
+//（092734/113830 会话实证：拒绝期间 12+ 次重发、技能反复被吞）。
+func VenusDirectMoveAck() []byte {
+	return []byte{1, 0xB2, 0xCE, 0x8D, 0x59, 0x40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+}

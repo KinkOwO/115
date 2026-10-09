@@ -74,6 +74,8 @@ type ClientHostOptions struct {
 	Args []string
 	// Env：客户端环境（nil = 继承当前进程）。
 	Env []string
+	// AdventureEliteDLL: opt-in eligibility plugin, independent of localization.
+	AdventureEliteDLL string
 	// Console：把同一行日志回显到启动器控制台；nil = 不回显。
 	Console interface{ Write([]byte) (int, error) }
 	// Wrapper / WrapperDLL：汉化启动宿主（localization-host.exe + localization.dll）。
@@ -206,6 +208,11 @@ func startHostedClient(options ClientHostOptions, isolate bool) (*HostedClient, 
 	if err != nil {
 		return nil, exitClientHostWrapperError, err
 	}
+	if options.AdventureEliteDLL != "" {
+		if _, err := eliteModStartRVA(options.AdventureEliteDLL); err != nil {
+			return nil, exitClientHostWrapperError, fmt.Errorf("精锐 DLL 预检：%w", err)
+		}
+	}
 
 	log := newProbeStyleLog(options.LogPath, options.Console)
 	defer log.close()
@@ -327,6 +334,18 @@ func startHostedClient(options ClientHostOptions, isolate bool) (*HostedClient, 
 			log.line(fmt.Sprintf("WRAPPER_ATTACH_ERROR %v", attachErr))
 		}
 		log.line(fmt.Sprintf("WRAPPER_READY client_pid=%d", pid))
+	}
+	if options.AdventureEliteDLL != "" {
+		if err := injectAdventureElite(hosted.Pid, options.AdventureEliteDLL, target, uintptr(process.job)); err != nil {
+			log.line("ADVENTURE_ELITE_INJECT_ERROR " + err.Error())
+			process.terminateAndWait(2 * time.Second)
+			process.closeAll()
+			if result.Installed && result.Handle != nil {
+				_ = result.Handle.Close()
+			}
+			return hosted, exitClientHostWrapperError, fmt.Errorf("精锐资格注入失败：%w", err)
+		}
+		log.line("ADVENTURE_ELITE_READY dll=" + options.AdventureEliteDLL)
 	}
 	// probe.cpp L145-L146 的两行：启动链只会走到 normal（没有调试器）。
 	log.line("NORMAL_RUN no_debugger no_breakpoints")

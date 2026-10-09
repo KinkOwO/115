@@ -677,3 +677,10 @@ address	name	description
 0x1476b3c60	Skill_GetOrInsertProtectedStaticParameter115	Signed index lower_bound exact lookup/insert40-byte node; returns protected pair+32; called by minimum static data reader1476BE8A5; wholePE/IDB65 instructions includingpadding,IDA64; static20261005.
 0x147162630	Skill_ClearProtectedStaticParameterTree115	Clears/free40-byte nodes then root/self links and tree count+8=0; static values reader uses clearedcount for sequential index; minimum reader uses explicit pairs; currentPE/IDB29 instructions; static20261005.
 0x14014f0e0	NativeProtectedParameterTreeInsert115	Atentry increments tree count+8, then links/rebalances40-byte node; used by static implicit-index reader1476BEA3D and minimum insert1476B3D31; currentPE/IDBwhole183 instructions,176-line completepseudocode; no content IDs/runtime rule; static20261005.
+0x14026a4e0	BufferRental_GetManager	Allocates3320B and constructs1402AF470 when singleton14E6344B8 missing; static20261008.
+0x1402b23c0	BufferRental_CreateSupportVirtualCharacter	Allocates0x2660;145BB3500 virtual character path;sets state29+mode via145BF10A0 and binds rental appearance;not proven APC AI,static20261008.
+0x1402b7520	BufferRental_OnSupportCastMessage307	Called by game dispatcher case307 at146657C34;creates virtual support actor,emits PO109134503,applies appendages;static20261008,no native vector/live yet.
+0x1402b2160	BufferRental_EmitVirtualCharacterEffectPO	Passive creation context ID109134503 with destroy/awakening/job args;current list/passiveobject.lst binds MercenaryGroup VirtualCharacterEffectObject.obj;static20261008.
+0x1402b0770	BufferRental_ApplySupportAppendages	Source-linked skill config,iterates native character slots,creates appendage kind978 and attaches with key30113735+mode via145C01600;static20261008,full formula pending.
+0x1402baba0	BufferRental_SendSupportCastMessage307	Game message307 mode byte and5u32 from rental record;not TCP CMD307;transport/vector pending,static20261008.
+0x1402b34a0	BufferRental_UpdateSupportCastTimersAndAnimations	Manager vtable+224;checks source channels,rental identity,timers/key;emits support cast and completion effects;static20261008.

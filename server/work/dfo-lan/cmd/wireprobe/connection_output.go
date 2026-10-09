@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"dfolan/internal/servermod"
 	"fmt"
 	"io"
 	"net"
@@ -24,6 +25,12 @@ func newConnectionOutput(conn net.Conn, keys []byte, peer string, event func(map
 }
 
 func (o *connectionOutput) send(kind byte, id uint16, payload []byte) error {
+	// server 层 mod 的 protocol.response 观察点。它**只读**：拿到的是即将发给
+	// 客户端的载荷副本，没有任何返回值能改写它——协议改写必须走服务端自身代码
+	// 路径，不能从 mod 侧旁路（否则协议取证链就断了）。没有登记观察者时零开销。
+	if servermod.HasObservers() {
+		servermod.ObserveResponse(o.peer, id, payload)
+	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	prepared, err := preparePackets(o.keys, []outboundPacket{{"response", kind, id, payload}})

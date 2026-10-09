@@ -34,7 +34,7 @@ func TestEntrySendsNoUnsolicitedMigrationOrRaidFrames(t *testing.T) {
 
 // weeklyDungeonInfoTable 的 0x2de 是「本周完成 ≥2 场」标记（next79 §18 二轮，
 // 2026-10-03）：s1 表（10-02 战前，已完成 1 场仍能创建队伍）与 switch 表
-//（10-03，已完成 2 场）逐字节 diff 仅此一处——s1=0x00、switch=0x01。早前
+// （10-03，已完成 2 场）逐字节 diff 仅此一处——s1=0x00、switch=0x01。早前
 // 一轮曾误当「奖励可领槽位」改成 0x01，把「完成 2 场」状态回放给从未作战
 // 的私服角色，实测待机区创建队伍仍弹「本周奖励已全部领取」。必须保持
 // s1 战前原值 0x00；0x29f..0x2e2 其余 67 字节保持 01。

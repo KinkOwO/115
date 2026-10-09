@@ -206,6 +206,12 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 	if opts.ServerOnly || opts.StorageOnly {
 		return fmt.Errorf("内部错误：LaunchClient 只处理 interactive / --client-only")
 	}
+	// Validate the opt-in injection before starting any service or client.
+	featureEnv := newChildEnv(BuildServerEnv(CurrentEnv(), nil, false))
+	eliteDLL, err := adventureEliteDLL(root, featureEnv)
+	if err != nil {
+		return err
+	}
 	opts.Check = false
 	opts.DryRun = false
 
@@ -273,6 +279,10 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 	if err != nil {
 		return err
 	}
+	eliteDLL, err = adventureEliteDLL(root, run.Env)
+	if err != nil {
+		return err
+	}
 	wrapper := route.Wrapper
 	// tryGoHost：只有 DFO_FORCE_PROBE_EXE 会在这里直接挡掉 Go 路径（它和包装变量同时出现时
 	// planClientLaunch 已经报错了）；能不能装隔离要等 startHostedClient 试过才知道
@@ -283,17 +293,18 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 	var hostCode int
 	if tryGoHost {
 		hostAttempt, hostCode, hostErr = startHostedClient(ClientHostOptions{
-			ClientDir:       clientDir,
-			LogPath:         filepath.Join(out, "client.log"),
-			Seconds:         55,
-			UIMode:          probeUIMode(mode),
-			BreakpointsFile: filepath.Join(out, "breakpoints.txt"),
-			Args:            []string{payload},
-			Env:             run.Env.List(),
-			Console:         probeOut,
-			Wrapper:         wrapper.Host,
-			WrapperDLL:      wrapper.DLL,
-			ErrorLog:        probeErr,
+			ClientDir:         clientDir,
+			LogPath:           filepath.Join(out, "client.log"),
+			Seconds:           55,
+			UIMode:            probeUIMode(mode),
+			BreakpointsFile:   filepath.Join(out, "breakpoints.txt"),
+			Args:              []string{payload},
+			Env:               run.Env.List(),
+			AdventureEliteDLL: eliteDLL,
+			Console:           probeOut,
+			Wrapper:           wrapper.Host,
+			WrapperDLL:        wrapper.DLL,
+			ErrorLog:          probeErr,
 		}, true)
 		if hostErr == nil {
 			// 客户端已经退出、Job 已收、隔离已拆。pid 与退出码照实上报。
@@ -312,6 +323,9 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 		}
 	}
 	if clientPID == 0 && clientExit != exitClientHostMissingExe {
+		if eliteDLL != "" {
+			return fmt.Errorf("精锐资格已启用，Go 宿主失败，不能回退到不注入的 probe.exe：%w", hostErr)
+		}
 		if wrapper.Enabled() {
 			// 启用汉化时只有"Go 宿主 + 汉化启动宿主"这一条路（probe.exe 注入不了 dll），
 			// 所以这里**不**回退：回退只会静默给出一个没汉化的客户端，而那正是本次要消灭的现象。

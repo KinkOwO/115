@@ -24,6 +24,16 @@ mod 的地方"已过时）：
 > 规则脚本为什么不放服务端模块里：它**不参与编译**，只要服务端启动时读得到就行；
 > 与各 mod 库目录同级平铺最好找，也方便「MOD 工具」页统一管理。
 
+> **库条目的识别判据 = `mods/<id>/mod.json`**（启动器仓 `internal/modlib/store.go:15,275-276`
+> 的 `scanModDirs`：**只列"含 `mod.json` 的目录"**，且某个目录自己有 `mod.json` 就**不再往里钻**，
+> 免得把 mod 内部的样例当独立 mod）。
+> 两条容易踩的推论：
+> 1. **分享目录（形如 `mods/*-分享/`）里不能放 `mod.json`** —— 放了它就会被「MOD 工具」页当成
+>    一个可安装的 mod 列出来（还会连带把里面的东西当 mod 内容）；
+> 2. 反过来的剪枝规则：**一旦某个目录自己有 `mod.json`，就不再往里钻**（`store.go:275-276`）——
+>    所以放在一个"自身已是 mod"的目录**内部**的样例/备用清单不会另算一个 mod，
+>    而挂在库根下面、自己带 `mod.json` 的目录会各算一个。
+
 装 mod 用的是**打好的 zip 包**，不是把示例目录拷过去：
 
 ```powershell
@@ -53,6 +63,11 @@ $mod = "<某个 mod 的 zip>"
 源码在 [`../client-patchs/`](../client-patchs/)（连 DLL 一起改的规则见
 [`../client-patchs/AGENTS.md`](../client-patchs/AGENTS.md)）。
 
+> ⚠️ **如果往本目录下新建"分享目录"**（例如 `mods/xxx-分享/` 放要发给别人的 zip/文档），
+> **千万不要在里面放 `mod.json`**：库条目的识别判据就是 `mods/<id>/mod.json`
+> （启动器仓 `internal/modlib/store.go:15,275-276`），放了它，这个分享目录会被「MOD 工具」页
+> 当成一个可安装的 mod 列出来 —— 而它并不是。zip 本身不受影响（识别看的是目录+`mod.json`）。
+
 ## 示例
 
 ### `examples/hello-verify/` —— 四层结构的可验证样例
@@ -63,6 +78,9 @@ $mod = "<某个 mod 的 zip>"
 server/mod.go          server 层：server.boot + console.command 钩子
 pvf/check-pvf.ps1      pvf 层：只读校验 Script.pvf / sk.dat 成对（需 PowerShell 7）
 client/…txt            client 层：一个无害的整文件标记（装/卸逐字节可还原）
+client/*.md            包内说明文档：**只是 zip 里的普通文件，不生成任何 manifest op** ——
+                       modkit 不会按它落位任何东西（`client-mods` 之外的 mod 也照此办理，
+                       例：`odyssey-hardcore/client/PATCH-NOTES.md` 由 `build-mod.py` 的 doc 阶段拷进包）
 build-mod.py           打包：算 size/sha256 → 生成 mod.json → 打包 → 自证 verify
 build-mod.cmd          ASCII 启动器（自动找 Python）
 ```

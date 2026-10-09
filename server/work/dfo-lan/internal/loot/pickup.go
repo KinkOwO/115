@@ -33,6 +33,13 @@ type Service struct {
 	// 是包装本身，玩家该拿到的是包装里的东西，所以展开发生在掉落时；见
 	// OpenRewardBoxes。为 nil 时包装原样落地，启动期会拦下这个组合。
 	RewardBoxes RewardBoxSource
+	// InstantlyOpenBoxes 是「调律之边界」**专用**的包装源：只把源里带 `[instantly open]`
+	// 的 booster 交给服务端代开，其余 booster 原样落地让玩家自己在客户端开
+	// （源标记判据见 catalog.BoosterDefinition.InstantlyOpen 与 next176 §19.3）。
+	//
+	// 与 RewardBoxes 分开是**故意的**：这条规则先在调律之边界验证，其它玩法沿用旧行为；
+	// 为 nil 时一律用 RewardBoxes。
+	InstantlyOpenBoxes RewardBoxSource
 	// Omen 是千海之空深渊的征兆系统累积账（见 omen.go）。为 nil 时通关不推进。
 	Omen *OmenLedger
 }

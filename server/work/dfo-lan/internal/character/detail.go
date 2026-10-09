@@ -156,8 +156,22 @@ func (s *Service) entryAdditionWithStats(role Character, state State, stats prot
 				dw.Template = item.Template
 				dw.Durability = item.Durability
 				dw.Record = item.Record
-				dw.AvatarOptions = item.AvatarOptions
-				dw.AvatarSockets = item.AvatarSockets
+				// 头像扩展（孔/徽章）**只有时装行有格子**：槽 ≤ 11 走 avatar 分支，
+				// 槽 12..25 不投影，槽 26~29 / 32 走原生 sub_1452C1540 的
+				// creature/普通分支，行里根本没有 u32len+blob 两格。
+				// 所以这里只给时装槽下传头像块；存档里若混进了这种块（2026-10-07
+				// 邮件补孔缺陷就写入过 30 字节全零块），丢掉它而不是让整包被拒 ——
+				// 同 ReadBag 的既有口径：一份坏数据不能让角色登不进去。
+				if item.Slot <= 11 {
+					dw.AvatarOptions = item.AvatarOptions
+					if len(dw.AvatarOptions) == 0 && s.Equipment != nil {
+						// 老存档时装未带孔扩展：下发视图按 PVF 默认孔就地补上，
+						// 客户端才能显示孔（镶嵌路径 UseEmblems 同样会补，这里只
+						// 改下发视图、不写回存档）。
+						dw.AvatarOptions = s.Equipment.DefaultAvatarSockets(item.Template)
+					}
+					dw.AvatarSockets = item.AvatarSockets
+				}
 				dw.Period = item.Period
 				if item.Slot <= 11 && item.Group == 0 {
 					dw.HeaderTemplateA = b.CloneAvatarLook(item)

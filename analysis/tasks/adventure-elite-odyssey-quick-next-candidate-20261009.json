@@ -1,0 +1,310 @@
+{
+  "status": "presence-confirmed-on-0.3.12; direct-move0.3.13-candidate-awaits-live",
+  "attempt": "odyssey3/3; native2062 entry1/3",
+  "failureSession": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261009_013718_578732_next37",
+  "userConfirmation": "APC出现了；打完boss后快速进入下一副本失败，切换场景仍在原地，只能回城",
+  "confirmedScope": "One glow APC appeared in source Odyssey Mirkwood; quick-next is explicitly FAILED and not accepted. No all-modes/full-death claim.",
+  "acceptedArtifact": {
+    "serverVersion": "0.3.12",
+    "serverSha256": "b1fa9d74dba7d7f20277305a04b7aff85394d3c0182e03344b758dc05fd83e3f",
+    "DLLVersion": "0.3.9",
+    "DLLSha256": "941656906dac3e0f7c8c1e9430ca390eac8d88013dd528539d35661aa689e005",
+    "processId": 64800,
+    "runTick": 147257500
+  },
+  "observations": {
+    "normalExit": true,
+    "candidateValid": true,
+    "pidMatch": true,
+    "nativeFreshRegistrationCycles": [
+      {
+        "loaderOrdinal": 1,
+        "endOrdinal": 6,
+        "thread": 73904,
+        "managerActive": 0,
+        "companions": 1,
+        "nativeResults": 1,
+        "activeAdaptations": 0,
+        "allRegistered": true,
+        "adapterValid": true
+      }
+    ],
+    "ownedFreshDeaths": 8,
+    "combatRequestsByOpcode": {
+      "37": 5,
+      "39": 25,
+      "43": 5,
+      "45": 4,
+      "117": 1,
+      "46": 1,
+      "69": 1,
+      "70": 1,
+      "72": 1
+    },
+    "retainedCaptureIssues": [
+      "原生死亡发送与服务端 CMD39 数量不一致，不能声称覆盖完整。"
+    ]
+  },
+  "failureAnchors": [
+    {
+      "line": 619,
+      "kind": "client_frame",
+      "id": 2062,
+      "plain_hex": "5400000000000000ffffffffff47f4f505020000000000000001000000a0000000c8000000140000000a000000000000"
+    },
+    {
+      "line": 620,
+      "kind": "adventure_elite_combat_request",
+      "id": 2062,
+      "reason": "精锐普通战斗候选尚未接入专用传送/直进副本",
+      "before": {
+        "active": true,
+        "cards_active": true,
+        "combat_alive": 0,
+        "completed": true,
+        "completion_sent": true,
+        "death_sent_count": 25,
+        "drops_active": true,
+        "dungeon": 100004934,
+        "entry_serial": 1,
+        "level": 15,
+        "loaded": true,
+        "map": 100016502,
+        "odyssey": true,
+        "pending_town_arrival": false,
+        "quest": 0,
+        "result_sent": true,
+        "room_cleared": true,
+        "run_id": "dbee71437392ce9619d3a2ed175885cd",
+        "selecting_dungeon": false,
+        "source_designated_difficulty": 2,
+        "source_hunt_boss": 109019257,
+        "source_odyssey": true,
+        "source_script": "contents/2026/aradodyssey/dungeon/00_mirkwood/mirkwood.dgn",
+        "source_sha256": "a29874ec7ace62688f258168b00f267c08c487e7c2a57a137b225dca33185c34",
+        "source_story_layers": 0
+      },
+      "after": {
+        "active": true,
+        "cards_active": true,
+        "combat_alive": 0,
+        "completed": true,
+        "completion_sent": true,
+        "death_sent_count": 25,
+        "drops_active": true,
+        "dungeon": 100004934,
+        "entry_serial": 1,
+        "level": 15,
+        "loaded": true,
+        "map": 100016502,
+        "odyssey": true,
+        "pending_town_arrival": false,
+        "quest": 0,
+        "result_sent": true,
+        "room_cleared": true,
+        "run_id": "dbee71437392ce9619d3a2ed175885cd",
+        "selecting_dungeon": false,
+        "source_designated_difficulty": 2,
+        "source_hunt_boss": 109019257,
+        "source_odyssey": true,
+        "source_script": "contents/2026/aradodyssey/dungeon/00_mirkwood/mirkwood.dgn",
+        "source_sha256": "a29874ec7ace62688f258168b00f267c08c487e7c2a57a137b225dca33185c34",
+        "source_story_layers": 0
+      },
+      "candidate_version": "0.3.12"
+    },
+    {
+      "line": 621,
+      "kind": "dungeon_request_refused",
+      "id": 2062,
+      "reason": "精锐普通战斗候选尚未接入专用传送/直进副本"
+    }
+  ],
+  "failure": "2062 decoded native target100004935/difficulty2, but elite-specific request gate rejects before directMoveDungeon. No new dungeon data or pending run was produced.",
+  "candidate": "Completed, loaded, result-sent ordinary Odyssey run with unchanged frozen owner/channel/settings; source Odyssey target only. Validate before dedicated stage handlers, retain original DecodeDungeonDirectMove -> fatigue/acceptedQuestIDs -> dungeon.Select -> directMoveEntryPlan -> existing dispatch. Increment elite entry serial once only after selection/plan success. Native packet shapes unchanged.",
+  "sourceProof": {
+    "archive": "server/work/client-build/Script.inner.pvf",
+    "sha256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+    "journal": "contents/2026/aradodyssey/etc/aradodysseyjournal.cos",
+    "target": "contents/2026/aradodyssey/dungeon/01_grakqarak/grakqarak.dgn",
+    "targetSha256": "ddeafda700fbc6c44bb8be28a5d50f6445e0d2c7eb808a9187c4d1469fd1572b",
+    "minimumPlayerLevel": 15,
+    "designatedDifficulty": 2,
+    "startMap": 100016503,
+    "testLog": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-real-pvf.log",
+    "interpretation": "Existing native packet decoder and PVF source tests; not client acceptance."
+  },
+  "IDA": {
+    "database": "client/DFO.exe.i64",
+    "session": "c1000f62",
+    "loader": "0x146D29700",
+    "nativeCall": "0x146D2A1E2 ->145B22F50; return146D2A1E7",
+    "parameters": "a4=0,a5=1,a6=0,a7=0,a8=1",
+    "interpretation": "Existing DLL fresh-entry adapter consumes same native loader; no new hook or mode3 override. Static path does not prove native direct-next APC registration.",
+    "rawReadonlyExport": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-native-loader.json"
+  },
+  "verification": {
+    "owned": {
+      "build": {
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-owned-build.log"
+      },
+      "vet": {
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "vet",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-owned-vet.log"
+      },
+      "test": {
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "test",
+          "-json",
+          "./...",
+          "-count=1"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-owned-test.log",
+        "passed": 3824,
+        "skipped": 282,
+        "failures": [],
+        "baselineFailures": [],
+        "newFailures": []
+      },
+      "binary": {
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "-o",
+          "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-owned-candidate.exe",
+          "./cmd/wireprobe"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-owned-binary.log"
+      }
+    },
+    "root": {
+      "build": {
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-root-build.log"
+      },
+      "vet": {
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "vet",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-root-vet.log"
+      },
+      "test": {
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "test",
+          "-json",
+          "./...",
+          "-count=1"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-root-test.log",
+        "passed": 3676,
+        "skipped": 207,
+        "failures": [],
+        "baselineFailures": [],
+        "newFailures": []
+      },
+      "binary": {
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "-o",
+          "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-root-candidate.exe",
+          "./cmd/wireprobe"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-root-binary.log"
+      }
+    }
+  },
+  "collectorFixtures": 85,
+  "collectorChanges": "Count2062 accepted entry and successful pending-run commit; check completed origin, source target,15/27/16/28/29 original plan, next generation and clean new run. Keep town return distinct from direct move; pair existing native fresh loader and retain invalid/duplicate/dirty evidence gaps.",
+  "artifacts": {
+    "owned": {
+      "sha256": "f46da41aea8bf85da5d37043e8328ef08446df31dcb78963946fb0d27dd58816",
+      "bytes": 30638080
+    },
+    "root": {
+      "sha256": "85a3ff4bc4d9dccfb663b7003c47a0b1ef014d2f6497e694af5d9f1765dd028b",
+      "bytes": 29683200
+    }
+  },
+  "changedSources": [
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_entry_probe.go",
+      "ownedSha256": "db5c56a56dfcea04f33bc04a3f83f765224c74c73f15f6aa47981da90c98b19a",
+      "sharedSha256": "db5c56a56dfcea04f33bc04a3f83f765224c74c73f15f6aa47981da90c98b19a"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/dungeon_flow.go",
+      "ownedSha256": "52fac3363674450ccf13b9ae6e3b901ae6e49a4cd2bc0059b08b357c358b2c15",
+      "sharedSha256": "c793bcaa0f0296445d37b70997f43fcfbcd0780b397c4469964535880bd729f0"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_combat_diagnostic.go",
+      "ownedSha256": "0afd7a3cde6435d3ee282893c6066a0ae3a72684f1c6b6541152abdad2a7e953",
+      "sharedSha256": "0afd7a3cde6435d3ee282893c6066a0ae3a72684f1c6b6541152abdad2a7e953"
+    },
+    {
+      "path": "scripts/collect-adventure-elite.ps1",
+      "ownedSha256": "6ad5160007c304516fd5817bda004cbeb06e0924a29bf6f065fc1e7b4b09f762",
+      "sharedSha256": "6ad5160007c304516fd5817bda004cbeb06e0924a29bf6f065fc1e7b4b09f762"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_direct_move_test.go",
+      "ownedSha256": "59354ae11e7fc007ea61fba4b11b6a49cd9a33e207e1639b9218c797dbe45ec5",
+      "sharedSha256": "59354ae11e7fc007ea61fba4b11b6a49cd9a33e207e1639b9218c797dbe45ec5"
+    },
+    {
+      "path": "scripts/test-adventure-elite-capture.ps1",
+      "ownedSha256": "516f5fad8d3b40e0c42287f6718f25f46cab9b0591b7869584d580287760eb4d",
+      "sharedSha256": "516f5fad8d3b40e0c42287f6718f25f46cab9b0591b7869584d580287760eb4d"
+    }
+  ],
+  "sharedOtherChanges": "Root dungeon_flow differs from isolated baseline; applied exact two directMove hunks only, preserving all unrelated differences. Root full gates and own commit are separate.",
+  "remote": "Fetched actual gud; no new remote commits after merged76115fcd. Only gud configured.",
+  "nativeRuntimeChanged": false,
+  "PVFChanged": false,
+  "schemaChanged": false,
+  "playerStoreModified": false,
+  "defaultPublished": false,
+  "quickNextLiveAccepted": false,
+  "knownDuplicateRule": "Type22/publishedID10 compatibility in channel_identity.go overlaps etc/channel_info.etc [server]; original migration ledger retained, no new content list or strategy expansion.",
+  "rollback": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\ordinary-odyssey-quick-next-delivery-backup",
+  "nextManual": "Existing source-build route, same Odyssey role and saved roster. Clear one Odyssey dungeon, use quick-next once; observe target dungeon/APC/attack/door. If good, clear target and quick-next once more, then town and exit. If first transition fails, stop and retain one session; no repeated resave/retry.",
+  "unclosed": [
+    "2062 native APC re-registration and consecutive target transitions",
+    "Full native death-call/send coverage (one retained gap)",
+    "Other special teams / option5 / mode3 / clone release/state continuity"
+  ]
+}

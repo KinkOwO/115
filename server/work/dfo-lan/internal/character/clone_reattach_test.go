@@ -64,7 +64,14 @@ func TestCloneReattachPacketsDetachThenAssignCover(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			attached, err := protocol.DetailedEquipment([]protocol.DetailedWorn{{Slot: 3, Template: 517500000, HeaderTemplateA: tc.cover}})
+			// 下发视图现在会按 PVF 默认孔给时装**就地补孔**（上游 90896789 在
+			// `entryAdditionWithStats` 里加了 `len(dw.AvatarOptions)==0` 时填
+			// `Equipment.DefaultAvatarSockets(item.Template)`）。期望值必须带上同样的孔，
+			// 否则比的是"补孔前"的形状 —— 这是期望值过时，不是实现坏了。
+			attached, err := protocol.DetailedEquipment([]protocol.DetailedWorn{{
+				Slot: 3, Template: 517500000, HeaderTemplateA: tc.cover,
+				AvatarOptions: s.Equipment.DefaultAvatarSockets(517500000),
+			}})
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -345,151 +345,167 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 		var pending *dungeon.Session
 		var townArrivalLoading bool
 		var e error
-		switch requestData.frame.ID {
-		case 16:
-			pending, plan, e = client.worldState.selectDungeon(requestData.plaintext)
-		case 1852:
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			pending, plan, e = client.worldState.startBlackPurgatory(ctx, requestData.plaintext)
-			cancel()
-		case 37:
-			if client.worldState.activeDungeon == nil && client.worldState.pendingTownArrival != nil {
-				scene := client.worldState.townArrivalScenes[client.worldState.pendingTownArrival.Definition.ID]
-				if client.worldState.state.Position.Town != scene.Town || client.worldState.state.Position.Area != scene.Area {
-					client.worldState.pendingTownArrival = nil
-					e = fmt.Errorf("town arrival scene origin changed before loading")
-					break
+		eliteBefore := client.worldState.eliteCombatState(requestData.frame.ID, requestData.plaintext)
+		if probeErr := client.worldState.eliteEntryProbeRequest(requestData.frame.ID); probeErr != nil {
+			e = probeErr
+		} else {
+			switch requestData.frame.ID {
+			case 16:
+				pending, plan, e = client.worldState.selectDungeon(requestData.plaintext)
+				if client.worldState.adventureElitePrepared != nil {
+					diagnostic := eliteEntryProbeDiagnostic(client.worldState, pending, e)
+					if request, decodeErr := protocol.DecodeDungeonSelection(requestData.plaintext); decodeErr == nil {
+						diagnostic["requested_dungeon"] = request.ID
+						diagnostic["requested_quest"] = request.Quest
+						diagnostic["requested_mode"] = request.Mode
+						diagnostic["requested_party"] = request.Party
+					}
+					client.event(diagnostic)
 				}
-				client.worldState.activeDungeon = client.worldState.pendingTownArrival
-				townArrivalLoading = true
-			}
-			plan, e = client.worldState.finishDungeonLoading(requestData.plaintext)
-			if e != nil && townArrivalLoading {
-				client.worldState.activeDungeon = nil
-				townArrivalLoading = false
-			}
-		case 38:
-			// C2S38 = ENUM_CMDPACKET_USE_SKILL。官服抓包 2026-10-05（贵族机要段
-			// 连续上百条 38）证实：官服对它不回包、不换房。此前把 38 当「点门」
-			// 走 interactDoor，导致演出层图里每次放技能都合成跳房（实机
-			// 2026-10-05 100004968 贵族机要，放技能即从 100016356 弹到 100016357）。
-			// 换房的真实路径是客户端踩门后原生发 CMD45（见下面的 case 45）。
-			// 帧本身仍由 client_frame 事件记录，这里不响应。
-		case 39:
-			client.worldState.completionErr = nil
-			plan, e = client.worldState.monsterDeath(requestData.plaintext, client.event)
-			// 蔚蓝号：本房间打空时补一帧 N2621（官服 #488 的位置 —— 最后一怪确认
-			// 死亡之后、下一张 N29 之前）。这是蔚蓝号唯一「进图后」的进度帧；缺了它
-			// 客户端清场后不发 CMD45（实机 2026-10-04 10:25）。
-			if e == nil {
-				if info, ok := client.worldState.azureRoomClearedInfo(time.Now()); ok {
-					plan = append(plan, info)
+			case 1852:
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				pending, plan, e = client.worldState.startBlackPurgatory(ctx, requestData.plaintext)
+				cancel()
+			case 37:
+				if client.worldState.activeDungeon == nil && client.worldState.pendingTownArrival != nil {
+					scene := client.worldState.townArrivalScenes[client.worldState.pendingTownArrival.Definition.ID]
+					if client.worldState.state.Position.Town != scene.Town || client.worldState.state.Position.Area != scene.Area {
+						client.worldState.pendingTownArrival = nil
+						e = fmt.Errorf("town arrival scene origin changed before loading")
+						break
+					}
+					client.worldState.activeDungeon = client.worldState.pendingTownArrival
+					townArrivalLoading = true
 				}
-			}
-		case 2329:
-			plan, e = client.worldState.scaleStatus(requestData.plaintext, client.event)
-		case 40:
-			plan, e = client.worldState.playerDeath(requestData.plaintext, requestData.frame.Raw)
-			if e == nil && client.worldState.bleedingMineStart == nil {
-				// [MERGE-20260928-DEATH-FAIL-TIMEOUT] 原生「倒计时结束 → 挑战失败」
-				// 由服务端推进：客户端进复活 UI 后只会等，不会发请求。死亡后等待
-				// deathFailTimeout，期间没复活就下发 NOTI33 (FAIL_CLEAR_DUNGEON)，
-				// 驱动失败结算与回城。此前只有 Elvenmere(100003126) 会发，其它副本
-				// 死亡后永远停在 Dead 界面（实机 2026-09-28：倒计时结束不回城，
-				// 剧情叠在死亡界面上卡死）。
-				//
-				// 奥德赛禁复活时不等这 10 秒（业主 2026-10-06：死亡即回城）——
-				// 判负与回城各只有一条出口，动作与下面定时器**同一份代码**。
-				w := client.worldState
-				if w.odysseyImmediateDeathFail() {
-					// 奥德赛禁复活：回城但不做失败结算（否则客户端进虚弱状态）。
-					client.deathGiveUpLeave()
-				} else {
-					select {
-					case <-client.connection.done:
-					default:
-						time.AfterFunc(deathFailTimeout, func() { client.deathFailLeave(deathFailTimeoutReason) })
+				plan, e = client.worldState.finishDungeonLoading(requestData.plaintext)
+				if e != nil && townArrivalLoading {
+					client.worldState.activeDungeon = nil
+					townArrivalLoading = false
+				}
+			case 38:
+				// C2S38 = ENUM_CMDPACKET_USE_SKILL。官服抓包 2026-10-05（贵族机要段
+				// 连续上百条 38）证实：官服对它不回包、不换房。此前把 38 当「点门」
+				// 走 interactDoor，导致演出层图里每次放技能都合成跳房（实机
+				// 2026-10-05 100004968 贵族机要，放技能即从 100016356 弹到 100016357）。
+				// 换房的真实路径是客户端踩门后原生发 CMD45（见下面的 case 45）。
+				// 帧本身仍由 client_frame 事件记录，这里不响应。
+			case 39:
+				client.worldState.completionErr = nil
+				plan, e = client.worldState.monsterDeath(requestData.plaintext, client.event)
+				// 蔚蓝号：本房间打空时补一帧 N2621（官服 #488 的位置 —— 最后一怪确认
+				// 死亡之后、下一张 N29 之前）。这是蔚蓝号唯一「进图后」的进度帧；缺了它
+				// 客户端清场后不发 CMD45（实机 2026-10-04 10:25）。
+				if e == nil {
+					if info, ok := client.worldState.azureRoomClearedInfo(time.Now()); ok {
+						plan = append(plan, info)
 					}
 				}
-			}
-		case 43:
-			plan, e = client.worldState.pickup(requestData.plaintext)
-		case 117:
-			plan, e = client.worldState.bossCheck(requestData.plaintext)
-		case 45:
-			if client.worldState.pilotDeath != nil && client.worldState.activeDungeon != nil && client.worldState.pilotDeath.Run == client.worldState.activeDungeon.RunID && client.worldState.pilotDeath.Dead {
-				e = fmt.Errorf("room movement requires living player")
-			} else {
-				pending, plan, e = client.worldState.moveDungeonRoom(requestData.plaintext)
-			}
-		case 1654:
-			// 蔚蓝号的「清关信息应答」（配 s2c 1658）。官服尾段：N1658(空) → 客户端
-			// CMD1654 → N2621 阶段 4/5。
-			//
-			// ⚠️ 非蔚蓝号会话**必须保持原来的"什么都不做"** —— 伊斯大陆也发 CMD1654
-			// （见 internal/game/protocol/ispins_settlement.go），它此前落进采样分支照样能用；
-			// 这里若回 Refusal 会把伊斯大陆的结算打坏。所以 else 分支只留注释、不发包。
-			if client.worldState.channelType == azureMainChannelType {
-				plan = client.worldState.azureClearInfo()
-			}
-		case 46:
-			plan, e = client.worldState.dungeonResult(requestData.plaintext)
-		case 69, 70:
-			plan, e = client.worldState.cardStage(requestData.frame.ID, requestData.plaintext)
-		case 71:
-			plan, e = client.worldState.cardPick(requestData.plaintext)
-		case 72:
-			pending, plan, e = client.worldState.settlementExit(requestData.plaintext)
-		case 449:
-			plan, e = client.worldState.tournamentSelectState(requestData.plaintext)
-		case 450:
-			plan, e = client.worldState.tournamentSelect(requestData.plaintext)
-		case 132:
-			plan, e = client.worldState.returnFromDungeonSelection(requestData.plaintext)
-		case 2319:
-			plan, e = client.worldState.giveUpBleedingMine(requestData.plaintext)
-		case 1461:
-			plan, e = client.worldState.bleedingMineDeath(requestData.plaintext)
-		case 2320:
-			plan, e = client.worldState.settleBleedingMineStage(requestData.plaintext)
-		case 2321:
-			plan, e = client.worldState.finishBleedingMine(requestData.plaintext)
-		case 2325:
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			plan, e = client.worldState.composeBleedingMineRewards(ctx, requestData.plaintext, requestData.frame.Raw)
-			cancel()
-		case 2322, 2323:
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			if requestData.frame.ID == 2322 {
-				plan, e = client.worldState.claimBleedingMineRewards(ctx, requestData.plaintext)
-			} else {
-				plan, e = client.worldState.openBleedingMineRewards(ctx, requestData.plaintext)
-			}
-			cancel()
-		case 2327:
-			plan, e = client.worldState.reviveBleedingMine(requestData.plaintext, requestData.frame.Raw, time.Now())
-		case 42:
-			if len(requestData.plaintext) != 0 {
-				e = fmt.Errorf("unexpected give-up body")
-			} else if client.worldState.bleedingMineStart != nil {
-				plan, e = client.worldState.endBleedingMine()
-				if e == nil {
-					plan = append([]outboundPacket{{"dungeon_leave_ack", 1, 42, []byte{1}}}, plan...)
+			case 2329:
+				plan, e = client.worldState.scaleStatus(requestData.plaintext, client.event)
+			case 40:
+				plan, e = client.worldState.playerDeath(requestData.plaintext, requestData.frame.Raw)
+				if e == nil && client.worldState.bleedingMineStart == nil {
+					// [MERGE-20260928-DEATH-FAIL-TIMEOUT] 原生「倒计时结束 → 挑战失败」
+					// 由服务端推进：客户端进复活 UI 后只会等，不会发请求。死亡后等待
+					// deathFailTimeout，期间没复活就下发 NOTI33 (FAIL_CLEAR_DUNGEON)，
+					// 驱动失败结算与回城。此前只有 Elvenmere(100003126) 会发，其它副本
+					// 死亡后永远停在 Dead 界面（实机 2026-09-28：倒计时结束不回城，
+					// 剧情叠在死亡界面上卡死）。
+					//
+					// 奥德赛禁复活时不等这 10 秒（业主 2026-10-06：死亡即回城）——
+					// 判负与回城各只有一条出口，动作与下面定时器**同一份代码**。
+					w := client.worldState
+					if w.odysseyImmediateDeathFail() {
+						// 奥德赛禁复活：回城但不做失败结算（否则客户端进虚弱状态）。
+						client.deathGiveUpLeave()
+					} else {
+						select {
+						case <-client.connection.done:
+						default:
+							time.AfterFunc(deathFailTimeout, func() { client.deathFailLeave(deathFailTimeoutReason) })
+						}
+					}
 				}
-			} else {
-				plan, e = client.worldState.leaveDungeon()
+			case 43:
+				plan, e = client.worldState.pickup(requestData.plaintext)
+			case 117:
+				plan, e = client.worldState.bossCheck(requestData.plaintext)
+			case 45:
+				if client.worldState.pilotDeath != nil && client.worldState.activeDungeon != nil && client.worldState.pilotDeath.Run == client.worldState.activeDungeon.RunID && client.worldState.pilotDeath.Dead {
+					e = fmt.Errorf("room movement requires living player")
+				} else {
+					pending, plan, e = client.worldState.moveDungeonRoom(requestData.plaintext)
+				}
+			case 1654:
+				// 蔚蓝号的「清关信息应答」（配 s2c 1658）。官服尾段：N1658(空) → 客户端
+				// CMD1654 → N2621 阶段 4/5。
+				//
+				// ⚠️ 非蔚蓝号会话**必须保持原来的"什么都不做"** —— 伊斯大陆也发 CMD1654
+				// （见 internal/game/protocol/ispins_settlement.go），它此前落进采样分支照样能用；
+				// 这里若回 Refusal 会把伊斯大陆的结算打坏。所以 else 分支只留注释、不发包。
+				if client.worldState.channelType == azureMainChannelType {
+					plan = client.worldState.azureClearInfo()
+				}
+			case 46:
+				plan, e = client.worldState.dungeonResult(requestData.plaintext)
+			case 69, 70:
+				plan, e = client.worldState.cardStage(requestData.frame.ID, requestData.plaintext)
+			case 71:
+				plan, e = client.worldState.cardPick(requestData.plaintext)
+			case 72:
+				pending, plan, e = client.worldState.settlementExit(requestData.plaintext)
+			case 449:
+				plan, e = client.worldState.tournamentSelectState(requestData.plaintext)
+			case 450:
+				plan, e = client.worldState.tournamentSelect(requestData.plaintext)
+			case 132:
+				plan, e = client.worldState.returnFromDungeonSelection(requestData.plaintext)
+			case 2319:
+				plan, e = client.worldState.giveUpBleedingMine(requestData.plaintext)
+			case 1461:
+				plan, e = client.worldState.bleedingMineDeath(requestData.plaintext)
+			case 2320:
+				plan, e = client.worldState.settleBleedingMineStage(requestData.plaintext)
+			case 2321:
+				plan, e = client.worldState.finishBleedingMine(requestData.plaintext)
+			case 2325:
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				plan, e = client.worldState.composeBleedingMineRewards(ctx, requestData.plaintext, requestData.frame.Raw)
+				cancel()
+			case 2322, 2323:
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				if requestData.frame.ID == 2322 {
+					plan, e = client.worldState.claimBleedingMineRewards(ctx, requestData.plaintext)
+				} else {
+					plan, e = client.worldState.openBleedingMineRewards(ctx, requestData.plaintext)
+				}
+				cancel()
+			case 2327:
+				plan, e = client.worldState.reviveBleedingMine(requestData.plaintext, requestData.frame.Raw, time.Now())
+			case 42:
+				if len(requestData.plaintext) != 0 {
+					e = fmt.Errorf("unexpected give-up body")
+				} else if client.worldState.bleedingMineStart != nil {
+					plan, e = client.worldState.endBleedingMine()
+					if e == nil {
+						plan = append([]outboundPacket{{"dungeon_leave_ack", 1, 42, []byte{1}}}, plan...)
+					}
+				} else {
+					plan, e = client.worldState.leaveDungeon()
+				}
+			case 2015:
+				plan, e = client.worldState.elvenmereTeleport(requestData.plaintext)
+			case 2059:
+				// 维纳斯阶段本的 phase-change 免费复活（CMD2059）由 venusPhaseRevive
+				// 应答；其余副本该命令从未出现，保持静默。
+				if plan = client.worldState.venusPhaseRevive(requestData.plaintext); len(plan) == 0 {
+					return dispatchHandled
+				}
+			case 2062:
+				pending, plan, e = client.worldState.directMoveDungeon(requestData.plaintext)
 			}
-		case 2015:
-			plan, e = client.worldState.elvenmereTeleport(requestData.plaintext)
-		case 2059:
-			// 维纳斯阶段本的 phase-change 免费复活（CMD2059）由 venusPhaseRevive
-			// 应答；其余副本该命令从未出现，保持静默。
-			if plan = client.worldState.venusPhaseRevive(requestData.plaintext); len(plan) == 0 {
-				return dispatchHandled
-			}
-		case 2062:
-			pending, plan, e = client.worldState.directMoveDungeon(requestData.plaintext)
 		}
+		client.worldState.noteEliteCombatRequest(requestData.frame.ID, requestData.plaintext, eliteBefore, pending, plan, e, client.event)
 		if e != nil {
 			client.event(map[string]any{"kind": "dungeon_request_refused", "id": requestData.frame.ID, "reason": e.Error()})
 			if requestData.frame.ID == 69 || requestData.frame.ID == 70 {
@@ -746,6 +762,7 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 				}
 			}
 		}
+		client.worldState.noteEliteCommittedState(requestData.frame.ID, requestData.plaintext, eliteBefore, client.event)
 		return dispatchHandled
 	}
 
