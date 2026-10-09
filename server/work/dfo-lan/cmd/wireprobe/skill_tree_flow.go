@@ -72,7 +72,23 @@ func (w *worldSession) changeAnotherSkillTree(p []byte) ([]outboundPacket, error
 	if !applied {
 		name = "skill_tree_switch_replayed"
 	}
-	return []outboundPacket{{name, 1, 260, acked}}, nil
+	plan := []outboundPacket{{name, 1, 260, acked}}
+	// 只回 ACK 的话页签切了、内容还是上一页的：客户端不会在切页后自己重新拉
+	// 进化／突破，面板就停在上一页的配置上（业主 2026-10-10 00:04 反馈）。
+	// 这里补一帧 id=29（当前存档 = 切换后的那一页的 VP），与公共出口
+	// skillMutationResponsePlan 的做法一致。
+	//
+	// ⚠️ **故意不发 NOTI19**：NOTI19 会让客户端重建技能窗口并把当前页重置为 0
+	// （2026-10-09 多轮实测的既有行为），那等于把刚切好的页签又打回第一页。
+	// VP 帧不是角色重建帧，没有 mode0/mode1 与 S→C CMD260 那两次 0xC0000005 的风险。
+	variation, e := w.characters.VariationRestore(saved)
+	if e != nil {
+		return nil, e
+	}
+	if len(variation) > 0 {
+		plan = append(plan, outboundPacket{"skill_variation_response", 1, 29, variation})
+	}
+	return plan, nil
 }
 
 // ⛔⛔ 不要再往技能命令里注入任何"纠正客户端当前页"的帧。两次实测都失败：
