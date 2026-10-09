@@ -8,12 +8,15 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/inventory"
+	"dfolan/internal/legion"
 	"dfolan/internal/loot"
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -44,10 +47,17 @@ type moonSoloState struct {
 	claimed   bool
 	readySent bool
 	recovered bool
+	// revivesLeft 是本局的**剩余复活币次数**，写进 N2622 的 p[16]。
+	// 上限取自副本脚本 [coin limit]（沉月湖两层都是 8，见 next188）——此前没有上限，
+	// 客户端显示的是持有量（业主实机看到 38）。
+	revivesLeft uint32
 	// autoPickAt 是「翻牌布局已发出、玩家一直没选」的兜底计时：到点替他选第一张免费牌。
 	// 与通用副本的 worldSession.cardAutoPickAt 同义，但**不能复用那一条** —— 那一条走
 	// w.cardPlan + grantFreeCard，沉月湖走的是 w.moon.plan + moonClaim。
 	autoPickAt time.Time
+	// resuming 表示「撤退回城后点了 Continue、正在重推入场序列」。
+	// 它只影响 CMD37：那一次必须走**完整**加载路径，见 case 37 与 moonResumeRun。
+	resuming bool
 }
 
 // defaultMoonSoloConfig 从**直读**推导沉月湖单人配置，取代原先"必须手工提供 JSON 配置档"
@@ -213,6 +223,62 @@ func moonRewardChoicesFromDungeon(second catalog.DungeonDefinition, svc *loot.Se
 // （见 交付说明：这是显式测试规则，不是可消耗的官服周账），所以由代码常量给出。
 const moonSoloTestRemaining byte = 255
 
+// moonTimerSeconds 是**征讨类副本的整局时限：3600 秒 = 1 小时**。
+//
+// 依据（业主 2026-10-09）：**最新减负优化后，所有征讨地下城的倒计时统一为 3600**；
+// 与官服解密抓包里 N1474 样本的 u32[0] 也**一致**（13 帧里 11 帧是 0x0e10 = 3600，
+// 另 2 帧是 300 —— 那 2 帧属另一场景）。沉月湖与蔚蓝号同属这一类。
+//
+// 为什么不从源读：沉月湖/蔚蓝号的 .dgn 里**没有任何副本时限声明**
+// （`[max time]` 不是它 —— 那个在 `[hp gauge control]` 块内，是 Boss 血条参数）。
+// 军团本的阶段时限同样是代码常量（legion.VenusPhaseLimits 等），照这个先例走。
+const moonTimerSeconds = 3600
+
+// moonTimerLimit 返回本帧要写进 N1474 的**时限秒**。
+//
+// 默认 = moonTimerSeconds（征讨类统一 3600 = 1 小时，业主 2026-10-09 口径）。
+//
+// `DFO_MOON_TIMER_LIMIT=<秒>` 是**取证开关**（默认不设 ⇒ 行为与本轮之前完全一致）。
+// 为什么要它：客户端把那条倒计时算成
+//
+//	文本 = max( [RaidMgr+0x200] - 当前秒 , 0 )    // 除 3600 得小时、除 60 得分钟
+//
+// （IDA 实证：取值口 sub_142AB4570、格式化 sub_141C2AC70 / sub_141D31260 / sub_141D43500、
+// 时钟写入 sub_142AC2760 的调用方只有 N1474 —— 见 analysis/tasks/next189）
+// 所以临时把 limit 设成 43200（12 小时）跑一次，右上角那格的取值能一次性分辨四种可能：
+//
+//	12:00:00        ⇒ 时钟对驱动且时间基一致（那 3600 本该显示 01:00:00）
+//	04:00:00        ⇒ 客户端"现在"比服务端时间快 8 小时（时间基偏差）
+//	仍 00:00        ⇒ 那个格子不读这个时钟对（转查场景计时器 [scene_vtbl+0x88]，收到的是毫秒）
+//	从 00:00 往上走 ⇒ 那是"已用时"正计时，不是倒计时
+func moonTimerLimit() uint32 {
+	if raw := strings.TrimSpace(os.Getenv("DFO_MOON_TIMER_LIMIT")); raw != "" {
+		if n, err := strconv.ParseUint(raw, 10, 32); err == nil && n > 0 {
+			return uint32(n)
+		}
+	}
+	return moonTimerSeconds
+}
+
+// moonTimerSync 组月湖的**整局时限**帧（N1474 ENUM_NOTIPACKET_DUNGEON_TIMEOUT_TIME）。
+//
+// 形态**逐字段照官服**（2026-10-09 从 13 帧解密抓包解出，全部 16 字节、S2C）：
+//
+//	u32[0] = 时限秒（征讨类统一 3600；官服 13 帧里 11 帧 0x0E10）
+//	u32[1] = **发帧那一刻**的 Unix 秒（官服样本与该帧抓包时间逐秒吻合，不是进本时刻）
+//	u32[2] / u32[3] = 每帧都不同，语义**未解**（疑似 seed / 序号）—— 先补 0 占位
+//
+// ⚠️ 本仓原来的 LegionDungeonTimeout115 只写 8 字节（[limit][start]），与官服的 16 字节不符；
+// 这里**不复用**它，避免顺带改动军团本三族的行为。
+//
+// 时机也照官服：`mid=37`(loading ack) → **1474** → `mid=30`(loading complete)，
+// 所以调用方要把它插到 30 之前（见 case 37）。
+func moonTimerSync(now time.Time) []outboundPacket {
+	body := make([]byte, 16)
+	binary.LittleEndian.PutUint32(body[0:], moonTimerLimit())
+	binary.LittleEndian.PutUint32(body[4:], uint32(now.Unix()))
+	return []outboundPacket{{"moon_timer_sync", 0, legion.NotiDungeonTimeoutTime, body}}
+}
 
 // moonContext 返回本连接的频道上下文（2 字节）。
 //
@@ -232,6 +298,7 @@ func (w *worldSession) moonInfo(phase uint32, success bool) outboundPacket {
 		at = w.moon.owner.Session().StartedAt
 	}
 	p := protocol.MoonLakeBootstrap115(phase, at)
+	p, _ = protocol.MoonLakeRevives115(p, w.moon.revivesLeft)
 	if phase != 14 && (w.moon.owner != nil || phase == 1 && w.dungeons != nil) {
 		var x dungeon.MoonProgress
 		if w.moon.owner != nil {
@@ -538,6 +605,17 @@ func (w *worldSession) moonHandle(id uint16, p []byte, now time.Time, event func
 		// legionsystem.cos 的内容表里），所以绝不能落进普通 [dungeon gate] 的成功
 		// 分支 —— 那条会回「gate_ack + 空选图 N27」，客户端去开一个没有内容的
 		// 选图面板，场景上下文切换失败，实机 2026-10-02 18:23:50 整屏黑屏后连接被强关。
+		//
+		// ★ 2026-10-09：「**撤退回城后点 Continue**」发的也是这一帧（客户端把 Continue 当
+		// 「续进现有局」）。此时服务端**还有 owner** ⇒ 绝不能走「新一局」的 moonPortalStart
+		// （它要求 owner == nil，必然拒绝 ⇒ 玩家点了没反应，见 next190 §S）。改走续进。
+		if w.moon.owner != nil {
+			out, e := w.moonResumeRun()
+			if e != nil {
+				return fail(e)
+			}
+			return true, out, nil
+		}
 		return w.moonPortalStart(now)
 	case 2284:
 		mode, e := protocol.DecodeSemiRaidStart115(p)
@@ -587,18 +665,44 @@ func (w *worldSession) moonHandle(id uint16, p []byte, now time.Time, event func
 	r := w.moon.owner
 	s := r.Session()
 	switch id {
-	case 16, 117:
+	case 16:
+		// 「撤退回城后点 Continue」的第二帧（普通副本那对「门 + 选图」的后半）。
+		out, e := w.moonResumeRun()
+		if e != nil {
+			return fail(e)
+		}
+		return true, out, nil
+	case 117:
 		return fail(fmt.Errorf("Moon uses content start and real boss death, not ordinary selection/check"))
 	case 37:
-		if s.Loaded {
+		// ⚠️ 2026-10-09：`s.Loaded` 为真**不等于**「客户端那边也载完了」。撤退回城后点
+		// Continue 的那一次入场拿回的是**同一个** Session（Loaded 还是进房间时置上的
+		// true），但客户端此刻已经把副本场景拆掉重进 —— 只回 repeat ack 它会一直停在
+		// 加载界面。所以 `resuming` 那一次强制走完整路径（N30 + 房间内容）。
+		//
+		// 现场证据（`roles_persist_*_20261009_175429_822516_next37/events.jsonl`）：
+		//   #758 C> CMD15（点 Continue）→ #759-768 服务端整套入场
+		//   #769 C> CMD16（同一对的后半）→ #770-779 又整套（**双发**，见下）
+		//   #787 C> CMD37 → #788 `moon_loaded_repeat` ⇒ 客户端拿不到 N30 ⇒ 卡加载
+		//     → #789 客户端强断连接。修掉 37 这条即解卡加载。
+		// ⚠️ CMD15/16 各回一整套入场序列这件事本身**未修**：本次日志里客户端在双发后
+		// 仍继续走到 CMD37（没崩），所以先只修 37。要收敛成「15 只回门头、16 回入场」
+		// 得先有官服 Continue 抓包定形状，否则是猜。
+		if s.Loaded && !w.moon.resuming {
 			return true, []outboundPacket{{"moon_loaded_repeat", 1, 37, []byte{1}}}, nil
 		}
+		w.moon.resuming = false
 		out, e := w.finishDungeonLoading(p)
 		if e != nil {
 			return fail(e)
 		}
 		if e = r.Loaded(now); e != nil {
 			return fail(e)
+		}
+		// 本局复活币上限：源 [coin limit]（沉月湖两层都是 8）。
+		// 只在开局那一次赋值，之后由复活扣减。
+		if s.Definition.CoinLimit > 0 && w.moon.revivesLeft == 0 {
+			w.moon.revivesLeft = s.Definition.CoinLimit
 		}
 		rows, e := r.MoonEnterRoom(r.Stamp(), w.role.WireID, now)
 		if e != nil {
@@ -611,6 +715,8 @@ func (w *worldSession) moonHandle(id uint16, p []byte, now time.Time, event func
 			}
 			out = append(out, outboundPacket{"moon_room_dynamic", 0, 2194, body})
 		}
+		// 时限帧要**插在 mid=30（loading complete）之前** —— 官服就是 37ack → 1474 → 30。
+		out = insertBorderBeforeLoaded(out, moonTimerSync(now))
 		return true, append(out, w.moonInfo(2, false)), nil
 	case 39:
 		death, e := protocol.DecodeMonsterDeath(p)
@@ -848,6 +954,20 @@ func (w *worldSession) moonHandle(id uint16, p []byte, now time.Time, event func
 				// option 1 是"留在选图流程"。月湖没有选图卡片（它不在 legionsystem.cos
 				// 的内容表里），所以这条只能拒绝；玩家要再开就点 NPC/走红门。
 				return fail(fmt.Errorf("Moon has no dungeon-selection flow"))
+			case 2:
+				// 副本内「撤退」：**征讨地下城的设定是"撤退回城后还能继续"**（军团本同理）——
+				// NPC 的 Continue 按钮就是干这个的。所以这里只发**回城帧**、**保留本局**：
+				// 不重置 w.moon（owner/plan/claimed 全留着），客户端据此仍认为"有一局可续"，
+				// 点 Continue 就走 moonResumeRun 续进。
+				//
+				// ⚠️ 2026-10-09 实机对帧：这条 option 原先没接，落到**通用 settlementExit**，
+				// 那会把本局收掉 ⇒ NPC 变回 Start；而死亡回城那条服务端什么都不做、本局留着
+				// ⇒ NPC 是 Continue。两条路的"收没收本局"不一致，就是这个按钮差异的根因。
+				out, e := w.moonLeaveKeepRun()
+				if e != nil {
+					return fail(e)
+				}
+				return true, append([]outboundPacket{{"settlement_exit_ack", 1, 72, protocol.SettlementExitSuccess(req)}}, out...), nil
 			}
 		}
 		var out []outboundPacket
@@ -909,6 +1029,47 @@ func (w *worldSession) moonStartPreflight() error {
 		return w.loot.ValidateMoonSourcePolicy(w.moonConfig.SourceRewards)
 	}
 	return w.loot.ValidateMoonRewards(w.moonConfig.Rewards)
+}
+
+// moonResumeRun 处理「撤退回城后点 Continue」：服务端**还拥有本局**时，为它重推一次
+// 当前层的入场序列 —— 这是**续进**，不是新一局。
+//
+// 依据（next190 §S，实机取证）：撤退回城后客户端把 NPC 按钮改成 Continue，点它发的是普通
+// 副本那对「门（CMD15）+ 选图（CMD16）」；而本仓两个入口都只认「新一局」
+// （`moonPortalStart`/`moonStartPreflight` 要求 `owner == nil`、`case 16,117` 直接拒绝）
+// ⇒ 点下去必然没反应。
+//
+// 帧序照 `moonRechallenge` 的先例：**先补一帧门头 `gate_ack(15,{1})`**，再推入场序列 ——
+// 那条注释记着「不补门头直接推入场序列会落到已拆卸场景 ⇒ 0xC0000005」。区别是本例里人还在
+// **城镇**（不是副本内），是否还需要额外的场景/位置切换帧**待实机确认**（见 §S5 第 2 点）。
+//
+// 不新建 run、不重置局内状态（`moon.prepared` / `plan` / `claimed` 一个都不动）。
+func (w *worldSession) moonResumeRun() ([]outboundPacket, error) {
+	if w.moon.owner == nil {
+		return nil, fmt.Errorf("Moon resume without owned run")
+	}
+	s := w.moon.owner.Session()
+	if s.Completed() {
+		// 已通关 ⇒ 那是「再挑战」（CMD72 选项 0/5）的语义，不走续进。
+		return nil, fmt.Errorf("Moon resume after clear belongs to rechallenge")
+	}
+	log.Printf("月湖续进：服务端仍拥有本局，重推当前层入场序列（副本=%d 挑战=%s）", s.Definition.ID, s.RunID)
+	// ★ 装回 activeDungeon：撤退回城时 moonLeaveTail 按「人已经在城镇」把它清成了 nil，
+	// 而随后客户端会发 CMD37，`finishDungeonLoading` 的第一句就是
+	// `w.activeDungeon == nil` ⇒ `loading without dungeon session` ⇒ 续进当场失败。
+	// 死亡/怪物死亡/换层这些路径也都按 activeDungeon 认本局。
+	w.activeDungeon = s
+	// 与 moonRechallenge（无缝再挑战）同序：人从城镇再进副本，先把本人从城镇名单摘掉。
+	w.leaveScene()
+	// 客户端回城时已经把副本场景拆了，所以这一次 CMD37 要走完整加载路径。
+	w.moon.resuming = true
+	out := []outboundPacket{{"moon_resume_gate_ack", 1, 15, []byte{1}}}
+	enter, e := w.moonEnterPackets(false)
+	if e != nil {
+		w.moon.resuming = false
+		return nil, e
+	}
+	return append(out, enter...), nil
 }
 
 // moonPortalStart 处理等候区红门的 C15（业主 2026-10-02 的口径：未满足条件先给提示，
@@ -978,6 +1139,24 @@ func (w *worldSession) moonRechallenge(now time.Time) ([]outboundPacket, error) 
 	return append([]outboundPacket{{"moon_rechallenge_gate", 1, 15, []byte{1}}}, enter...), nil
 }
 
+// afterMoonCoinRevive 在沉月湖里为「用币复活成功」扣一次额度，并把 N2622 重新刷出去。
+//
+// 与蔚蓝号的 afterAzureCoinRevive 同形，但载体不同：蔚蓝号写 N2621 的 [32:36]，
+// 沉月湖写 N2622 的 p[16]（协议原注释即 "the host supplies the actual upstream-owned
+// revival balance"）。上限来自副本脚本 [coin limit]（两层都是 8，见 next188）——
+// 此前沉月湖**完全没有上限**，客户端显示的是持有量（业主实机看到 38）。
+//
+// 只在真的复活成功（plan 非空、无错）时扣；扣到 0 之后仍回帧，客户端据此把入口灰掉。
+func (w *worldSession) afterMoonCoinRevive(plan []outboundPacket) []outboundPacket {
+	if w == nil || w.moon.owner == nil || w.activeDungeon == nil || len(plan) == 0 {
+		return plan
+	}
+	if w.moon.revivesLeft == 0 {
+		return plan
+	}
+	w.moon.revivesLeft--
+	return append(plan, w.moonInfo(2, false))
+}
 
 // autoPickMoonCard 是沉月湖的「翻牌倒计时到点自动选第一张」。
 //
@@ -1044,7 +1223,9 @@ func (w *worldSession) moonClaim(index byte) ([]outboundPacket, error) {
 	}
 	return []outboundPacket{{"moon_reward_inventory", 0, 13, body}, {"card_selection_ack", 1, 71, card}, w.moonInfo(5, true)}, nil
 }
-func (w *worldSession) moonReturn(success bool) ([]outboundPacket, error) {
+// moonLeaveFrames 组「离开副本回城」那一串**帧**（N2622 + 23/24/3/2/2/14），
+// **不含任何状态收尾** —— 收尾分两个变体：moonReturn（收局）与 moonLeaveKeepRun（保留本局）。
+func (w *worldSession) moonLeaveFrames(success bool) ([]outboundPacket, error) {
 	ua, e := w.userAreaPayload()
 	if e != nil {
 		return nil, e
@@ -1069,12 +1250,17 @@ func (w *worldSession) moonReturn(success bool) ([]outboundPacket, error) {
 	if success {
 		phase = 5
 	}
-	out := []outboundPacket{{"dungeon_leave_ack", 1, 42, []byte{1}}, w.moonInfo(phase, success), {"dungeon_return_area", 0, 23, ua}, {"dungeon_return_users", 0, 24, area}, {"moon_town_state", 0, 3, state}, {"moon_town_actor", 0, 2, basic}, {"moon_town_attributes", 0, 2, more}}
+	out := []outboundPacket{w.moonInfo(phase, success), {"dungeon_return_area", 0, 23, ua}, {"dungeon_return_users", 0, 24, area}, {"moon_town_state", 0, 3, state}, {"moon_town_actor", 0, 2, basic}, {"moon_town_attributes", 0, 2, more}}
 	worn, e := inventory.WornSpaceUpdate(w.role.State)
 	if e != nil {
 		return nil, e
 	}
-	out = append(out, outboundPacket{"moon_worn", 0, 14, worn})
+	return append(out, outboundPacket{"moon_worn", 0, 14, worn}), nil
+}
+
+// moonLeaveTail 是「离开副本」的**通用收尾**（两个变体共用）：清 activeDungeon、复位每局标志、
+// 回到城镇区域；`pilotDeath` 的复活通知附在返回的帧后面。**不动 w.moon**。
+func (w *worldSession) moonLeaveTail(out []outboundPacket) []outboundPacket {
 	w.activeDungeon = nil
 	w.selectingDungeon = false
 	if w.pilotDeath != nil && w.pilotDeath.Dead {
@@ -1090,6 +1276,37 @@ func (w *worldSession) moonReturn(success bool) ([]outboundPacket, error) {
 	w.completionSent, w.resultSent = false, false
 	w.resetCards()
 	w.enterArea()
+	return out
+}
+
+// moonLeaveKeepRun 发「回城帧」但**保留本局**（w.moon.owner 不动）—— 副本内「撤退」走这条。
+//
+// 依据：征讨地下城（含军团本）的设定是**撤退回城后还能继续**，NPC 的 Continue 就是这个意思。
+//
+// ★ 2026-10-09 实机对帧：只发回城帧（内含 N2622 phase14「关闭态」）时 NPC 按钮仍是 Start —— phase14 本身就等于告诉客户端「这一局已经结束了」。
+// 军团（末世录 107）的做法是**两帧**：先 `ApocalypseClosedInfo()`（State0，清旧副本/界面），再 `apocalypseInfo()`（State2 + 原 Choice/Stage + **目标索引标记**），客户端才会把 NPC 挂成 Continue（见 card_flow.go 的 `apocalypse_retreat_cleared` / `apocalypse_retreat_restored`）。
+// ★ 军团那段注释里的要害：**只发 Stage/Marks 而不发「目标索引标记」那一段，客户端仍认为一关都没打** —— 月湖的对应物就是 N2622 的进度段（floor / 第一层计数 / 网格 / 命名记录的 Dead+ResultIndex / 量表 / 已清 / Zermio），而 `moonInfo` 在 `GridReady` 时已全部带上（由 `MoonProgress()` 提供）。
+//
+// 刻意**不重置** w.moon（owner / plan / claimed 全留着）⇒ 点 Continue 走 moonResumeRun。
+func (w *worldSession) moonLeaveKeepRun() ([]outboundPacket, error) {
+	out, e := w.moonLeaveFrames(false)
+	if e != nil {
+		return nil, e
+	}
+	// 回城帧里的 N2622(phase14) 是「清界面」（= 末世录 State0）；这一帧才是「恢复进行中 + 原进度」（= State2）。
+	// 顺序必须 state0 → state2，与军团一致。已通关的局不恢复（那属于结算离场，不是撤退）。
+	if !w.moon.owner.Session().Completed() {
+		out = append(out, w.moonInfo(2, false))
+	}
+	return w.moonLeaveTail(out), nil
+}
+
+func (w *worldSession) moonReturn(success bool) ([]outboundPacket, error) {
+	out, e := w.moonLeaveFrames(success)
+	if e != nil {
+		return nil, e
+	}
+	out = append([]outboundPacket{{"dungeon_leave_ack", 1, 42, []byte{1}}}, w.moonLeaveTail(out)...)
 	created := w.moon.created
 	w.moon = moonSoloState{created: created, readySent: true, recovered: true}
 	return out, nil

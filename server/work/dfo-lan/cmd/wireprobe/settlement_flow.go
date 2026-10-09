@@ -112,7 +112,21 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 		return nil, e
 	}
 	rewards := protocol.ClearRewardState{BaseExperience: receipt.Base, ScoreExperience: receipt.Score, MonsterExperience: receipt.MonsterExperience}
-	if w.loot != nil && w.loot.CardPolicy != nil && !w.isBoostGuideRun() {
+	// 蔚蓝号（征讨族）：奖单改走**源声明驱动**，与沉月湖同一套产出模型（azure_flip.go）。
+	// 判据是策略自己记的结算层（= 频道 [guide dungeon index]），不是频道号 ——
+	// 这个频道里出现别的副本时照旧走通用翻牌。
+	azureSource := w.azureFlipActive()
+	if !azureSource && w.channelType == azureMainChannelType && w.azureFlipCfg == nil {
+		// 走到这里说明蔚蓝号结算用的是**通用翻牌**（1..4 件随机装备）——源驱动策略
+		// 没装配或没注入。启动日志里应当有 `蔚蓝号翻牌（源驱动）：结算层=…` 那一行；
+		// 没有就是装配/注入断了。宁可日志刺眼，也不要静默降级（D4）。
+		log.Printf("warning: 蔚蓝号结算走了通用翻牌（源驱动策略未装配/未注入）副本=%d", w.activeDungeon.Definition.ID)
+	}
+	if azureSource {
+		if e = w.azureFreezeReward(); e != nil {
+			return nil, e
+		}
+	} else if w.loot != nil && w.loot.CardPolicy != nil && !w.isBoostGuideRun() {
 		if w.cardPlan == nil {
 			var seed uint32
 			if e = binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
@@ -134,7 +148,14 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 			}
 		}
 	}
-	reward, e := protocol.ClearReward(rewards)
+	var reward []byte
+	if azureSource {
+		// 蔚蓝号的 .dgn 同样带 [disable clear reward]，N35 走征讨形态
+		// （ConquestClearRewardBody115），与沉月湖逐字节同源。
+		reward, e = w.azureClearRewardBody()
+	} else {
+		reward, e = protocol.ClearReward(rewards)
+	}
 	if e != nil {
 		return nil, e
 	}

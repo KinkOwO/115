@@ -35,6 +35,10 @@ type worldSession struct {
 	fameInitialized     bool
 	moonConfig          *moonSoloConfig
 	moon                moonSoloState
+	// azureFlipCfg 是蔚蓝号（征服频道 102）的**源驱动翻牌策略**，与 moonConfig 同一
+	// 装配与注入口径（bootstrap 装配 → gatewayRuntime → 会话）。nil = 未装配，
+	// 蔚蓝号退回原先的通用翻牌（FreezeAzureMainCards）。
+	azureFlipCfg *azureFlipConfig
 	// azure 是蔚蓝号（Azure Main，channelType 102）的会话状态。
 	// 它不像 moonConfig 那样需要注入对象才生效 ——
 	// 分派直接按 w.channelType == azureMainChannelType 门控（见 azure_main_flow.go）。

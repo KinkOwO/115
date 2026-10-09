@@ -47,6 +47,7 @@ type gatewayRuntime struct {
 	channelDirectory      *catalog.ChannelDirectory
 	channelTowns          map[uint32]catalog.TownArea
 	channelGuides         map[uint32]uint32
+	azureFlip             *azureFlipConfig
 	channelInfo           *catalog.ChannelInfo
 	// raidEntrances 是 PVF 解析的入口规则；巴卡尔状态由本地 legion 实现管理。
 	raidEntrances map[uint32]catalog.RaidEntrance
@@ -1675,6 +1676,20 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		// 源驱动翻牌的装配结果打进启动日志：实机对账先看这一行（块 / 组 / 池大小 / 条目数）。
 		log.Printf("月湖单人翻牌（源驱动）：%s", moonConfig.RewardPool)
 	}
+	// 蔚蓝号（征服频道 102）：同一套源驱动翻牌，结算层取该频道的 [guide dungeon index]。
+	// 装配失败**不致命** —— 蔚蓝号还有原先那条通用翻牌可用，但日志必须刺眼
+	// （D4：宁缺勿编，不许静默降级）。
+	var azureFlip *azureFlipConfig
+	if dungeonCatalog != nil && lootService != nil && pvfCatalogs.ChannelDirectory != nil {
+		guide := channelGuidesFromDirectory(pvfCatalogs.ChannelDirectory)[azureMainChannelType]
+		cfg, azErr := azureFlipPolicy(lootService, dungeonCatalog, guide, boosterCatalog)
+		if azErr != nil {
+			log.Printf("warning: 蔚蓝号源驱动翻牌未装配（退回通用翻牌）：%v", azErr)
+		} else {
+			azureFlip = cfg
+			log.Printf("蔚蓝号翻牌（源驱动）：结算层=%d %s", cfg.Policy.SettlementDungeon, cfg.Note)
+		}
+	}
 	if itemService != nil {
 		itemService.Catalog = lootService.Catalog
 		itemService.BagRules = lootService.BagRules
@@ -1750,6 +1765,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		lootService:           lootService,
 		lotteryPools:          lotteryPools,
 		moonConfig:            moonConfig,
+		azureFlip:             azureFlip,
 		oathGradePair:         oathGradePair,
 		oathGradeTable:        oathGradeTable,
 		oathInjectSpecs:       oathInjectSpecs,
