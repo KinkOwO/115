@@ -88,6 +88,40 @@ type BoosterDefinition struct {
 	ClientOpenPath bool `json:"client_open_path,omitempty"`
 }
 
+// parseFixedAvatarPool projects the legacy avatar body observed in native
+// fixed outfit boxes: 1, (template, weight, count, 1, 0)... . The final two
+// avatar fields belong to the record, not another reward or padding. Keep
+// them while recognising the layout; only the confirmed 1/0 variant is
+// supported here. Unsupported records must not become a partial outfit.
+func parseFixedAvatarPool(cells []pvf.Token) (BoosterRewardPool, bool) {
+	var empty BoosterRewardPool
+	if len(cells) < 6 || (len(cells)-1)%5 != 0 || cells[0].Type != 0 || cells[0].Value != 1 {
+		return empty, false
+	}
+	// Length alone overlaps ordinary triples. Identify the confirmed record
+	// by its first 1/0 suffix; unknown variants keep their existing behavior,
+	// including any other rewards in a mixed package.
+	if cells[4].Type != 0 || cells[4].Value != 1 || cells[5].Type != 0 || cells[5].Value != 0 {
+		return empty, false
+	}
+	pool := BoosterRewardPool{DrawCount: 1}
+	for i := 1; i < len(cells); i += 5 {
+		for _, c := range cells[i : i+5] {
+			if c.Type != 0 {
+				return empty, true
+			}
+		}
+		if cells[i].Value <= 0 || cells[i+1].Value <= 0 || cells[i+2].Value <= 0 ||
+			cells[i+3].Value != 1 || cells[i+4].Value != 0 {
+			return empty, true
+		}
+		pool.Candidates = append(pool.Candidates, BoosterRewardCandidate{
+			Template: uint32(cells[i].Value), Weight: uint32(cells[i+1].Value), Count: uint32(cells[i+2].Value),
+		})
+	}
+	return pool, true
+}
+
 func parseBoosterInfo(cells []pvf.Token) []BoosterRewardPool {
 	var pools []BoosterRewardPool
 	for i := 0; i < len(cells); i++ {
@@ -109,6 +143,16 @@ func parseBoosterInfo(cells []pvf.Token) []BoosterRewardPool {
 							nums = append(nums, boosterNumber(cells[k].Value))
 						}
 						k++
+					}
+					if tag.Text == "[avatar]" {
+						if pool, handled := parseFixedAvatarPool(cells[j+1 : k]); handled {
+							if k == len(cells) || len(pool.Candidates) == 0 {
+								return nil
+							}
+							pools = append(pools, pool)
+							j = k
+							continue
+						}
 					}
 					if len(nums) > 0 {
 						drawCount := uint32(1)
@@ -367,7 +411,7 @@ func ImportBoosters(a *pvf.Archive, index ItemIndex) (map[uint32]BoosterDefiniti
 					Pools:         pools,
 					InstantlyOpen: declaresSection(cells, "[instantly open]"),
 					ClientOpenPath: declaresSection(cells, "[oath item booster]") ||
-					declaresSection(cells, "[lottery ani info]"),
+						declaresSection(cells, "[lottery ani info]"),
 				}
 			} else if hasInfo && !isBooster {
 				result[id] = BoosterDefinition{Template: id, Type: item.StackableType}
