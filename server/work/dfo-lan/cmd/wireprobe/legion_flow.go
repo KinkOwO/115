@@ -43,6 +43,18 @@ type legionSession struct {
 	// recorded, never enforced: refusing a legion packet on a channel the
 	// client accepts would look like a dropped packet rather than a decision.
 	channelType uint32
+
+	// apocalypse is the 末世录 (content 107 / channel Type 119) run tracker. It
+	// is separate from session because the two families share the envelope but
+	// not the meaning: the capture shows the apocalypse family driving its own
+	// difficulty byte, stage marks and role counter through NOTI2895, while
+	// Venus drives NOTI2655. See apocalypse_run.go for the field evidence.
+	apocalypse *legion.ApocalypseRunState
+
+	// world is the connection's world session. The apocalypse run pointer is
+	// mirrored onto it because CMD2062 DUNGEON_DIRECT_MOVE is dispatched by the
+	// dungeon layer, which has no legionSession of its own.
+	world *worldSession
 }
 
 // legionResult is one handled command: the packets to send plus the events that
@@ -72,13 +84,36 @@ type legionResult struct {
 func sideOf(id uint16) string {
 	switch id {
 	case legion.CmdRoleSelect:
-		return "dungeon"
+		// 末世录（内容107）的 CMD2355 与其它军团不同：抓包 20261008-105227 里
+		// 它在攻坚房间（CMD2062 载入的副本）内由客户端在进图后立刻发出两次，
+		// 而那个时点服务端的 activeDungeon 尚未建立（CMD2045 只负责确认作战，
+		// 不建会话）。把这一族判成 dungeon-only 会让它必被拒绝。角色分配本身
+		// 与「当前在城里还是在副本里」无关，故放宽为 either，由处理函数按
+		// 本场是否已 CMD2045 入场来把关。
+		return "either"
 	case legion.CmdFail, legion.CmdRewardEnd:
 		return "either"
 	default:
 		return "town"
 	}
 }
+
+// apocalypseChannelType is the channel Type of the 末世录 directory row
+// (configs/channel.local35.json: Apocalypse, area [apocalypse], Type 119). The
+// apocalypse family shares its envelope with Venus but not its state, so the
+// connection's channel type is what selects the right tracker.
+const apocalypseChannelType uint32 = 119
+
+// isApocalypse reports whether this connection speaks the 末世录 flow: either it
+// arrived on the Type 119 directory row, or a run was already opened on this
+// connection (the flag keeps the run working if a future channel layout moves
+// the content onto another row).
+func (s *legionSession) isApocalypse() bool {
+	return s.channelType == apocalypseChannelType || s.apocalypse != nil
+}
+
+// apocalypseRan reports whether this connection ever opened an apocalypse run.
+func (s *legionSession) apocalypseRan() bool { return s.apocalypse != nil }
 
 // handle answers one legion command. A nil packet list with no events means
 // "recognised but intentionally not answered".
@@ -104,6 +139,14 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 	arrivingSide := "town"
 	if inDungeon {
 		arrivingSide = "dungeon"
+	}
+
+	// 末世录（内容107/频道 Type119）走自己的玩法层：同一套信封，但难度、
+	// 阶段与角色状态都落在 NOTI2895 上，与维纳斯的 NOTI2655 不通用。
+	if s.isApocalypse() {
+		if result, handled, err := s.handleApocalypse(w, p, id, arrivingSide); handled {
+			return result, err
+		}
 	}
 
 	switch id {

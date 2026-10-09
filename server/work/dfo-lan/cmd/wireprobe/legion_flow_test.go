@@ -27,6 +27,13 @@ func dungeonSession(characterID int64) *worldSession {
 // deliberately answer "either": their call sites have not been read, and
 // accepting them while logging the arriving side is what turns the first live
 // run into the evidence (next64 §6.2, P5).
+//
+// CMD2355 answers "either" for the same reason, with live evidence: the
+// apocalypse capture 20261008-105227 shows the client sending it twice inside
+// the waiting room the client itself loaded with CMD2062, at a moment when the
+// server has no activeDungeon because CMD2045 only confirms the operation. A
+// dungeon-only guard rejects both packets (see apocalypseRole in
+// apocalypse_run.go), which is a live bug, not a stricter check.
 func TestLegionSideClassification(t *testing.T) {
 	cases := []struct {
 		id   uint16
@@ -35,7 +42,7 @@ func TestLegionSideClassification(t *testing.T) {
 		{legion.CmdStart, "town"},
 		{legion.CmdOperationSelect, "town"},
 		{legion.CmdEnterDungeon, "town"},
-		{legion.CmdRoleSelect, "dungeon"},
+		{legion.CmdRoleSelect, "either"},
 		{legion.CmdFail, "either"},
 		{legion.CmdRewardEnd, "either"},
 	}

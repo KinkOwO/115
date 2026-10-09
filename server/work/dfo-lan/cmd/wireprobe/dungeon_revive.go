@@ -184,7 +184,22 @@ func (w *worldSession) useCoinRevive(ctx context.Context, store ceraReviveStore,
 			return nil, err
 		}
 	}
+	// 末世录（内容 107 / 频道 Type 119）：复活币由**所选作战的 `[allow coin]`** 决定，
+	// 且按**关卡**计数 —— PVF `apocalypse.ctp` 的 `[operation data set]` 里只有作战①
+	// （难度1）带该列、值 `-1, 8`，作战②/③/④ 都没有该列。业主 2026-10-08 定调：
+	// **最后一个数 = 每关上限；无该列 = 禁止复活**。
+	//
+	// 此前该字段只被解析进 plan.AllowCoin 并写进日志事件，**从未执行**，实机表现就是
+	// 业主报的「难度1 能用掉全部 99 个币、难度2 也照样能用」。
+	// 与巴卡尔团本同型：先判预算，复活真的成功后再扣。
+	apocalypse, apocalypseErr := w.apocalypseCheckCoinBudget()
+	if apocalypseErr != nil {
+		return nil, apocalypseErr
+	}
 	plan, err := w.resolveCoinRevive(ctx, store, p, frame, pilotEnabled)
+	if apocalypse && err == nil && len(plan) > 0 {
+		w.apocalypseSpendCoinBudget()
+	}
 	if raid && err == nil && len(plan) > 0 {
 		w.bakal.SpendCoinBudget()
 		plan = append(plan, outboundPacket{"bakal_revive_budget", 0, 2285, w.bakal.PartyFrame(w.bakalLocation, time.Now())})

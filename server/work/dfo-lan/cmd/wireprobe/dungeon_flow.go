@@ -458,6 +458,17 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 		stackableLimit = []outboundPacket{{"forest_stackable_dungeon_limit", 0, 1584, protocol.StackableDungeonLimit(8, seed)}}
 	} else if w.venus != nil && legion.IsVenusStageDungeon(sel.ID) {
 		stackableLimit = []outboundPacket{{"venus_stackable_dungeon_limit", 0, 1584, protocol.StackableDungeonLimit(8, seed)}}
+	} else if w.apocalypse != nil && legion.IsApocalypseStageDungeon(sel.ID) {
+		// 末世录与维纳斯/苏醒之森同口径：每关消耗品上限 8（US-Local 现役 exe
+		// 就是靠这一帧让副本内能用药）。
+		//
+		// ⚠️ 2026-10-09 回滚记录：本轮曾按「2号 全场不发 N1584」改成难度2/3 不发该帧，
+		// 理由是怀疑它导致难度2 死亡出现复活提示。业主实机复测**未解决**该症状，
+		// 且明确指示「2号 自身有大量 BUG，不要拿它当参照」
+		// ⇒ 已回滚为每关都发 8（与维纳斯/苏醒之森一致）。
+		// N1584 的真源语义是「本关允许使用几个可叠加消耗品」（@0），
+		// 与复活币闸门（`[allow coin]`，由 apocalypseCoinLimit 判定）**是两件事**。
+		stackableLimit = []outboundPacket{{"apocalypse_stackable_dungeon_limit", 0, 1584, protocol.StackableDungeonLimit(8, seed)}}
 	}
 	// ⚠️ 2026-10-07 19:48 实机**证伪**：无缝续刷一度试过不发 NOTI28（进入副本信息），
 	// 客户端在 `ENUM_NOTIPACKET_START_MAP` 之后立刻 0xC0000005。
@@ -523,6 +534,23 @@ func (w *worldSession) acceptedQuestIDs(ctx context.Context) (map[uint16]bool, e
 func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outboundPacket, error) {
 	if w == nil || w.dungeons == nil || w.role.ID == 0 {
 		return nil, nil, fmt.Errorf("dungeon catalog or character unavailable")
+	}
+	// 末世录（内容107/频道 Type119）的攻坚房间与后续五关都由客户端用 CMD2062
+	// 载入：CMD2045 只确认作战、刻意不建会话（US-Local 实录的
+	// apocalypse_navigation_prepared 之后才出现 dungeon_session_started），所以
+	// 下面「没有 activeDungeon 就拒绝」的通用守卫必须在这里先让路，否则玩家点
+	// 开始攻坚后一直停在城镇（实机反馈：创建队伍后无法直接进入开始攻坚房间）。
+	// 判据只看本连接是否开过末世录 run，避免影响其它内容的 2062。
+	if w.apocalypse != nil && w.legion != nil && w.legion.apocalypseRan() {
+		move, e := protocol.DecodeDungeonDirectMove(p)
+		if e != nil {
+			return nil, nil, e
+		}
+		result, e := w.legion.ApocalypseDirectMove(w, move.ID)
+		if e != nil {
+			return nil, nil, e
+		}
+		return w.activeDungeon, result.Packets, nil
 	}
 	if w.adventureElitePrepared != nil {
 		r, err := protocol.DecodeDungeonDirectMove(p)
@@ -829,6 +857,7 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	plan := []outboundPacket{{"dungeon_loading_ack", 1, 37, []byte{1}}, {"dungeon_actor_state", 0, 3, state}}
 	plan = append(plan, w.venusStageTimer(time.Now())...)
 	plan = append(plan, w.forestStageTimer(time.Now())...)
+	plan = append(plan, w.apocalypseStageTimer(time.Now())...)
 	plan = append(plan, outboundPacket{"dungeon_loading_complete", 0, 30, protocol.DungeonLoaded()})
 	// 常驻状态：把两个档位在客户端读 getter 之前下发（见 oath_info.go）。
 	grades, e := w.oathInfoPackets()
@@ -1421,7 +1450,7 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 		// 军团本（维纳斯/伊斯/苏醒之森）BOSS 击杀不掉落任何物品：官服口径只有翻牌
 		// 界面给奖励，地面金币/装备掉落是普通副本机制。在此入口整体排除，
 		// 避免 w.drops.Death 为军团 BOSS roll 出地面掉落。
-		if w.loot != nil && (!unowned || blackBoss) && w.venus == nil && w.ispins == nil && w.forest == nil {
+		if w.loot != nil && (!unowned || blackBoss) && w.venus == nil && w.ispins == nil && w.forest == nil && w.apocalypse == nil {
 			// 掉落会话的创建只有一处（ensureDropSession，见 border_reward_flow.go）：
 			// 调律之边界在**加载应答阶段**就要用它冻结奖单，所以这里通常是取回同一实例。
 			w.ensureDropSession()
@@ -1610,7 +1639,7 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 	return append(plan, w.autoPickupDrops(newDrops)...), nil
 }
 
-func (w *worldSession) bossCheck(p []byte) ([]outboundPacket, error) {
+func (w *worldSession) bossCheck(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	r, err := protocol.DecodeBossCheck(p)
 	if err != nil {
 		return nil, err
@@ -1618,7 +1647,20 @@ func (w *worldSession) bossCheck(p []byte) ([]outboundPacket, error) {
 	if err = w.activeDungeon.BossCheck(r, w.role.WireID); err != nil {
 		return nil, err
 	}
-	return w.completeDungeon()
+	// 末世录的阶段投影就挂在这里（不是死亡确认那一批）：客户端在 CMD117 被受理
+	// 之后才认权威 N2895 并去发 CMD2062 直进下一间。参考抓包 47.51 N38 →
+	// 47.53 CMD117 → 47.54 N2895 → 47.56 CMD2062，顺序就是这个。
+	// 详见 monsterDeath 里那段注释。
+	report := event
+	if report == nil {
+		report = func(map[string]any) {}
+	}
+	plan := w.apocalypseStageProjection(report)
+	completed, err := w.completeDungeon()
+	if err != nil {
+		return plan, err
+	}
+	return append(plan, completed...), nil
 }
 
 func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
@@ -1650,6 +1692,12 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	// 不走通用结算，也没有维纳斯式 CMD2062 直进。
 	if w.forest != nil && w.activeDungeon != nil && legion.IsForestStageDungeonAny(w.activeDungeon.Definition.ID) {
 		return w.completeForestStage()
+	}
+	// 末世录阶段本：清掉的是攻坚房间还是某一关，由 activeDungeon 的副本号判定。
+	// 攻坚房间（100005112）清空即导航，不结算；五个战斗关清空即推进；
+	// 难度1 第 3 关 / 难度2 第 5 关清空才挂起终局翻牌链（N14→N2895→N2252→N2253）。
+	if w.apocalypse != nil && w.activeDungeon != nil && legion.IsApocalypseStageDungeon(w.activeDungeon.Definition.ID) {
+		return w.completeApocalypseStage()
 	}
 	if w.channelType == azureMainChannelType {
 		return w.completeAzureMain()

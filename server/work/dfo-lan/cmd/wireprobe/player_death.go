@@ -124,6 +124,29 @@ func (c *gameConnection) deathLeave(reason byte, sendFailClear bool) {
 				"stage": stage})
 		}
 	}
+	// 末世录军团口径（2026-10-08 实机）：死亡被判负请离副本后，run 必须标记为
+	// **挂起**，否则玩家点右上角面板的「进入」时服务端会把续关请求当成**首次入场**
+	// 而拒绝 —— 实测 events.jsonl：
+	//
+	//	{"id":2045,"kind":"legion_refused",
+	//	 "reason":"apocalypse first entry carries stage 2, want 0",
+	//	 "request_hex":"…6b00000002000000000000"}
+	//
+	// 也就是客户端**正确**地带着保存阶段（stage=2）发 CMD2045，而
+	// `apocalypseEnter` 只在 `run.Suspended` 为真时才走续关分支（规格 2045
+	// G0452：「已暂停的同一作战走 ResumeApocalypse：阶段须等于保存值」）。
+	// 这条死亡链原先只为维纳斯清了阶段时钟，漏了末世录的挂起标记 ⇒
+	// 症状正是业主报的「点进入没有任何反应」。
+	//
+	// 保留 Stage / Cleared / Choice / RunID 全部不动，只置 Suspended；
+	// 该关倒计时由 apocalypseEnter 按 ResumeStage 重置（第 546 行）。
+	// 复活币复活（不请离）不走本函数，不受影响。
+	if w.apocalypse != nil && !w.apocalypse.Suspended {
+		run := w.apocalypse
+		run.Suspended = true
+		c.event(map[string]any{"kind": "apocalypse_death_suspended", "character_id": w.role.ID,
+			"stage": run.Stage, "resume_stage": run.ContinueStage(), "choice": run.Choice})
+	}
 	// [AZURE-DEATH-AFTER-CLEAR] 结算已经走完的**只回城、不补 FAIL_CLEAR**：
 	// 补了会把一场已经通关并发了奖的挑战标成失败。
 	if sendFailClear && !w.resultSent {

@@ -169,6 +169,32 @@ func (client *gameConnection) dispatchSpecialContent(requestData *clientRequest)
 }
 
 func (client *gameConnection) dispatchLegion(requestData *clientRequest) dispatchAction {
+	if requestData.frame.Type == 1 && client.bootstrapped && requestData.verified && client.worldState != nil && (requestData.frame.ID == 12 || requestData.frame.ID == 13) {
+		// 末世录待机区（频道 Type 119）建队/离队。CMD12/13 **不属于军团家族命令**
+		// （legion.Requests 只认 2043/2044/2045/2046/2354/2355），所以这段必须放在
+		// 家族门禁之前 —— 2026-10-08 两次实机会话里它被写在门禁内部，CMD12 永远
+		// 进不来，events.jsonl 只有 client_frame、没有应答也没有拒绝事件，客户端表现
+		// 就是「输入队名点确定没反应」。apocalypse_party_probe 记录三个判定输入。
+		client.event(map[string]any{
+			"kind":         "apocalypse_party_probe",
+			"id":           requestData.frame.ID,
+			"channel_type": client.worldState.channelType,
+			"character_id": client.selectedCharacterID,
+			"plain_bytes":  len(requestData.plaintext),
+			"plain_hex":    hex.EncodeToString(requestData.plaintext),
+		})
+		handled, packets, e := client.worldState.apocalypseStandbyPartyHandle(requestData.frame.ID, requestData.plaintext)
+		if handled {
+			if e != nil {
+				client.event(map[string]any{"kind": "apocalypse_party_request_rejected", "id": requestData.frame.ID, "channel_type": client.worldState.channelType, "error": e.Error(), "plain_hex": hex.EncodeToString(requestData.plaintext)})
+				packets = []outboundPacket{{"末世录待机区队伍请求拒绝应答", 1, requestData.frame.ID, protocol.Refusal(8)}}
+			}
+			if client.sendPlan(packets, client.logCharacterResponseBody) != nil {
+				return dispatchClose
+			}
+			return dispatchHandled
+		}
+	}
 	if requestData.frame.Type == 1 && legion.Requests(requestData.frame.ID) && client.bootstrapped && requestData.verified && client.worldState != nil {
 		// Legion / apocalypse family. CMD2043/2354/2045 are handled in
 		// town and CMD2355 inside the dungeon; the rest of the family is
@@ -429,7 +455,7 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 			case 43:
 				plan, e = client.worldState.pickup(requestData.plaintext)
 			case 117:
-				plan, e = client.worldState.bossCheck(requestData.plaintext)
+				plan, e = client.worldState.bossCheck(requestData.plaintext, client.event)
 			case 45:
 				if client.worldState.pilotDeath != nil && client.worldState.activeDungeon != nil && client.worldState.pilotDeath.Run == client.worldState.activeDungeon.RunID && client.worldState.pilotDeath.Dead {
 					e = fmt.Errorf("room movement requires living player")
@@ -770,6 +796,27 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 }
 
 func (client *gameConnection) dispatchWorldAndQuests(requestData *clientRequest) dispatchAction {
+	// 末世录终局通关视频：CMD191（剧情暂停/恢复）在 FinalDone 期间由末世录
+	// 专属应答处理 —— **必须排在通用 191 处理器之前**，否则「视频播完」这一刻
+	// 不会发 leave 态 N2895，结算窗与右上角面板就收不干净（与维纳斯同款分工）。
+	if requestData.frame.ID == 191 && client.worldState != nil &&
+		client.worldState.apocalypse != nil && client.worldState.apocalypse.FinalDone {
+		plan, notes, e := client.worldState.apocalypseStoryPause(requestData.plaintext)
+		if e != nil {
+			client.event(map[string]any{
+				"kind": "apocalypse_story_refused", "id": requestData.frame.ID, "reason": e.Error(),
+			})
+			return dispatchHandled
+		}
+		for _, note := range notes {
+			note["id"] = requestData.frame.ID
+			client.event(note)
+		}
+		if e = client.sendPlan(plan, client.logWorldResponseBody); e != nil {
+			return dispatchClose
+		}
+		return dispatchHandled
+	}
 	if client.worldState != nil && client.bootstrapped && requestData.frame.ID == 191 && requestData.verified {
 		r, e := protocol.DecodeStoryPause(requestData.plaintext)
 		if e != nil || client.worldState.activeDungeon == nil || client.worldState.role.ID == 0 {

@@ -861,14 +861,17 @@ func (client *gameConnection) dispatchForest(requestData *clientRequest) dispatc
 			// 若客户端以 105 开战（未来形状），同样按 hard 连战处理。
 			return client.dispatchForestStart(requestData, true)
 		default:
-			// 观测：内容号与队伍模式不匹配（含 hard 的其它内容号）——记录后
-			// 回共享 ACK，禁止把未知内容喂给任一流程。
-			client.event(map[string]any{"kind": "forest_start_unmatched", "id": requestData.frame.ID,
+			// 不是苏醒之森的内容号（104/105）：**必须放行**给后面的派发层。
+			//
+			// 实机教训（2026-10-08 13:57 会话，末世录）：这里原本记一条事件并回
+			// 共享 ACK，于是内容 107（末世录）的 CMD2043 被苏醒之森吃掉 ——
+			// 客户端收到 ACK 以为开战成功，服务端却从未进入 channel（日志里
+			// 只有 `forest_start_unmatched`，没有 `legion_entered_channel`），
+			// 后续 CMD2354 因为「还没有 CMD2043」被拒，开团流程整条卡死。
+			// 内容号是各内容互不相认的标签，不属于本内容的请求不能代答。
+			client.event(map[string]any{"kind": "forest_start_foreign_content", "id": requestData.frame.ID,
 				"content": content, "hard": hard, "request_hex": fmt.Sprintf("%x", requestData.plaintext)})
-			if client.sendPlan([]outboundPacket{{"forest_start_unmatched_ack", 1, legion.CmdStart, legion.StartAck()}}, client.logWorldResponseBody) != nil {
-				return dispatchClose
-			}
-			return dispatchHandled
+			return dispatchNext
 		}
 	}
 	// 家族命令：CMD2226 就绪/确认音符、CMD2045 进图、CMD2046 终局。
