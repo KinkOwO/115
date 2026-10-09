@@ -1662,7 +1662,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, errors.New("Moon 需要频道目录的 PVF 直读投影（preparePVFChannels 未装载）")
 		}
 		var moonErr error
-		moonConfig, moonErr = defaultMoonSoloConfig(pvfCatalogs.ChannelDirectory, pvfCatalogs.ChannelTowns, dungeonCatalog, lootService)
+		moonConfig, moonErr = defaultMoonSoloConfig(pvfCatalogs.ChannelDirectory, pvfCatalogs.ChannelTowns, dungeonCatalog, lootService, boosterCatalog)
 		if moonErr != nil {
 			return nil, nil, moonErr
 		}
@@ -1672,6 +1672,8 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		if err = worldService.ValidatePosition(255, false, moonConfig.Entry); err != nil {
 			return nil, nil, errors.New(fmt.Sprint("Moon source entry: ", err))
 		}
+		// 源驱动翻牌的装配结果打进启动日志：实机对账先看这一行（块 / 组 / 池大小 / 条目数）。
+		log.Printf("月湖单人翻牌（源驱动）：%s", moonConfig.RewardPool)
 	}
 	if itemService != nil {
 		itemService.Catalog = lootService.Catalog

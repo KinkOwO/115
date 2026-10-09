@@ -13,6 +13,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 )
@@ -24,6 +25,11 @@ type moonSoloConfig struct {
 	Channel       uint32                 `json:"channel"`
 	Remaining     byte                   `json:"test_remaining"`
 	Rewards       loot.MoonRewardPolicy  `json:"rewards"`
+	// SourceRewards 是**源声明驱动**的翻牌策略（唯一权威来源，见
+	// internal/loot/moon_source_rewards.go）：装配时从副本的 [difficulty dropitem group list]
+	// 直读，见 cmd/wireprobe/moon_source_config.go。`Rewards` 只为**旧的 JSON 配置档**保留，
+	// 运行时不再从它出发。
+	SourceRewards loot.MoonSourcePolicy `json:"-"`
 	Entry         database.WorldPosition `json:"entry"`
 	// RewardPool 是翻牌池的**直读来源描述**（组号与模板@权重），只用于启动日志：
 	// 池的成员与权重全部从源推导，不是配置项，也没有对应的 JSON 档。
@@ -38,6 +44,10 @@ type moonSoloState struct {
 	claimed   bool
 	readySent bool
 	recovered bool
+	// autoPickAt 是「翻牌布局已发出、玩家一直没选」的兜底计时：到点替他选第一张免费牌。
+	// 与通用副本的 worldSession.cardAutoPickAt 同义，但**不能复用那一条** —— 那一条走
+	// w.cardPlan + grantFreeCard，沉月湖走的是 w.moon.plan + moonClaim。
+	autoPickAt time.Time
 }
 
 // defaultMoonSoloConfig 从**直读**推导沉月湖单人配置，取代原先"必须手工提供 JSON 配置档"
@@ -59,6 +69,7 @@ func defaultMoonSoloConfig(
 	towns map[uint32]catalog.TownArea,
 	dungeons *catalog.DungeonCatalog,
 	lootService *loot.Service,
+	booster *catalog.BoosterCatalog,
 ) (*moonSoloConfig, error) {
 	if dir == nil || dungeons == nil || lootService == nil {
 		return nil, fmt.Errorf("Moon 需要直读的频道目录、副本目录与掉落服务")
@@ -78,16 +89,25 @@ func defaultMoonSoloConfig(
 	if !ok {
 		return nil, fmt.Errorf("源里没有月湖第二层副本 100004137")
 	}
-	if first, ok := dungeons.Dungeons[100004136]; !ok {
+	// 一层要提到外层作用域：装备的**四个品级组**是它声明的（见 moon_source_config.go 的说明）。
+	first, ok := dungeons.Dungeons[100004136]
+	if !ok {
 		return nil, fmt.Errorf("源里没有月湖第一层副本 100004136")
-	} else if first.BasisLevel == 0 {
+	}
+	if first.BasisLevel == 0 {
 		return nil, fmt.Errorf("月湖第一层 100004136 没有 [basis level]")
 	}
 	draws := second.RewardCard
 	if draws == 0 || draws > 16 {
 		return nil, fmt.Errorf("月湖第二层 [reward card] = %d，超出可用范围", draws)
 	}
-	choices, pool, err := moonRewardChoicesFromDungeon(second, lootService)
+	// 产出模型**直读源**：块选择、固定产物、装备池、誓约池全部从 .dgn 的声明装配
+	// （D1 只换产出模型：领取事务 / 入库 / 恢复路径一个字节都不动）。
+	family := conquestFamily(dungeons, conquestFamilyDungeons)
+	if len(family) == 0 {
+		return nil, fmt.Errorf("征讨族里一个副本都不在目录里")
+	}
+	source, pool, err := conquestFlipPolicy(lootService, family, second, booster)
 	if err != nil {
 		return nil, err
 	}
@@ -101,19 +121,8 @@ func defaultMoonSoloConfig(
 			X:    x,
 			Y:    y,
 		},
-		Rewards: loot.MoonRewardPolicy{
-			Source:  lootService.Catalog.Source.SaveIdentity(),
-			Draws:   draws,
-			Choices: choices,
-			Equipment: loot.MoonEquipmentPolicy{
-				Min:     moonSoloEquipmentMin,
-				Max:     moonSoloEquipmentMax,
-				Weights: moonSoloEquipmentWeights,
-				Level:   byte(second.MinimumLevel),
-				Rank:    moonSoloEquipmentRank,
-			},
-		},
-		RewardPool: pool,
+		SourceRewards: source,
+		RewardPool:    pool,
 	}
 	_ = attrs
 	return cfg, nil
@@ -203,6 +212,7 @@ func moonRewardChoicesFromDungeon(second catalog.DungeonDefinition, svc *loot.Se
 // moonSoloTestRemaining 是月湖单人的**测试用剩余次数**。源里没有"周账本/剩余次数"这种东西
 // （见 交付说明：这是显式测试规则，不是可消耗的官服周账），所以由代码常量给出。
 const moonSoloTestRemaining byte = 255
+
 
 // moonContext 返回本连接的频道上下文（2 字节）。
 //
@@ -734,10 +744,26 @@ func (w *worldSession) moonHandle(id uint16, p []byte, now time.Time, event func
 		}
 		if w.moon.plan == nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			plan, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).FreezeMoonReward(ctx, w.role, s, w.moonConfig.Rewards)
+			var plan loot.MoonRewardPlan
+			var audit loot.MoonSourcePlan
+			var e error
+			if w.moonConfig != nil && w.moonConfig.SourceRewards.Source != "" {
+				plan, audit, e = (&workflow.LootService{Store: w.store, Loot: w.loot}).FreezeMoonSourceReward(ctx, w.role, s, w.moonConfig.SourceRewards)
+			} else {
+				// 只有旧 JSON 配置档（已被 defaultMoonSoloConfig 取代）才走这条。
+				plan, e = (&workflow.LootService{Store: w.store, Loot: w.loot}).FreezeMoonReward(ctx, w.role, s, w.moonConfig.Rewards)
+			}
 			cancel()
 			if e != nil {
 				return fail(e)
+			}
+			// 源驱动那一份把"源声明了什么 / 实发什么 / 跳过了什么"记进日志，便于实机对账。
+			// D4：宁缺勿编 —— 发不出去的要写明原因，而不是静默丢掉。
+			if audit.Summary != "" {
+				log.Printf("月湖翻牌（源驱动）：%s 角色=%d 挑战=%s", audit.Summary, w.role.ID, s.RunID)
+				for _, sk := range audit.Skipped {
+					log.Printf("月湖翻牌跳过：%s / %s / %s", sk.What, sk.Reason, sk.Detail)
+				}
 			}
 			w.moon.plan = &plan
 			w.moon.resultAt = now.Add(3 * time.Second)
@@ -757,6 +783,12 @@ func (w *worldSession) moonHandle(id uint16, p []byte, now time.Time, event func
 		if !w.cardScrolled {
 			return fail(fmt.Errorf("Moon card layout before scroll"))
 		}
+		// 布局发出后给玩家 3 秒选牌；到点还没选就替他选第一张（见 autoPickMoonCard）。
+		//
+		// 沉月湖的翻牌走 dispatchSpecialContent -> moonHandle，**不经过**
+		// dispatchDungeon 里那段「card_layout_ack 时置 cardAutoPickAt」的后处理，
+		// 所以这里要自己置一次计时器；否则客户端停在「一张都没翻」。
+		w.moon.autoPickAt = now.Add(3 * time.Second)
 		w.cardLayoutSent = true
 		return true, []outboundPacket{{"card_layout_ack", 1, 70, protocol.CardLayout()}}, nil
 	case 71, 1426:
@@ -870,6 +902,12 @@ func (w *worldSession) moonStartPreflight() error {
 	if _, e := dungeon.MoonInitialProgress(*w.dungeons); e != nil {
 		return e
 	}
+	// 源驱动策略是现在唯一在用的那份；只有走旧的 JSON 配置档时才退回老校验。
+	// ⚠️ 2026-10-09 回归教训：策略从 Rewards 搬到 SourceRewards 时漏改了这一行，
+	// 结果 `ValidateMoonRewards(空策略)` 必失败 ⇒ NPC/红门**一律进不去**。
+	if w.moonConfig.SourceRewards.Source != "" {
+		return w.loot.ValidateMoonSourcePolicy(w.moonConfig.SourceRewards)
+	}
 	return w.loot.ValidateMoonRewards(w.moonConfig.Rewards)
 }
 
@@ -938,6 +976,50 @@ func (w *worldSession) moonRechallenge(now time.Time) ([]outboundPacket, error) 
 		return nil, e
 	}
 	return append([]outboundPacket{{"moon_rechallenge_gate", 1, 15, []byte{1}}}, enter...), nil
+}
+
+
+// autoPickMoonCard 是沉月湖的「翻牌倒计时到点自动选第一张」。
+//
+// 与通用副本的 autoPickSettlementCard 同形，但**不能复用那一条**：那一条走
+// w.cardPlan + grantFreeCard，沉月湖走的是 w.moon.plan + moonClaim。
+//
+// 实机 BUG（2026-10-08）：倒计时结束后服务端什么都不发，玩家一张牌都翻不到 ——
+// 根因是沉月湖的翻牌走 dispatchSpecialContent -> moonHandle，绕过了 dispatchDungeon
+// 里那段「card_layout_ack 时置 cardAutoPickAt」的后处理。由 client_connection 的
+// tick 调用（见那里对 w.moon.plan 的说明）。
+//
+// ⚠️ 2026-10-09 事故后**按 moon_autopick_test.go（完好）+ 通用版 autoPickSettlementCard
+// 重写**：这份文件在拆分脚本里被截成 0 字节，原文丢失，函数体是按它的门禁测试复原的。
+func (w *worldSession) autoPickMoonCard(now time.Time) ([]outboundPacket, error) {
+	if w == nil || w.moon.autoPickAt.IsZero() || now.Before(w.moon.autoPickAt) {
+		return nil, nil
+	}
+	// 没有本局（人已经回城/换场）：什么都不做，也不 panic。
+	if w.moon.owner == nil {
+		return nil, nil
+	}
+	// 奖单还没冻结（case 46 还没跑）：清掉计时器，免得每个 tick 空转。
+	if !w.resultSent || w.moon.plan == nil {
+		w.moon.autoPickAt = time.Time{}
+		return nil, nil
+	}
+	// 已经领过（玩家自己选了）：不能再替他选一张。
+	if w.moon.claimed {
+		return nil, nil
+	}
+	// 布局还没发出去：不发，否则会在玩家还没看到牌的时候就定死第一张。
+	if !w.cardLayoutSent {
+		return nil, nil
+	}
+	packets, err := w.moonClaim(0)
+	if err != nil {
+		// 未提交则保留奖单，稍后重试；不吞奖。
+		w.moon.autoPickAt = now.Add(5 * time.Second)
+		return nil, err
+	}
+	w.moon.autoPickAt = time.Time{}
+	return packets, nil
 }
 
 func (w *worldSession) moonClaim(index byte) ([]outboundPacket, error) {

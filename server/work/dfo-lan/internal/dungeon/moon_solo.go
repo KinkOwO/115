@@ -114,10 +114,27 @@ func (r *MoonSoloOwner) Move(c catalog.DungeonCatalog, request protocol.DungeonR
 	if e != nil {
 		return e
 	}
+	// 走回头路（目标格**在移动前就已经**在本局的 Visited 里）⇒ 这一轮进房间是
+	// **复用**客户端缓存的房间，而不是重建。判据必须取移动前的快照：moveMoonSecondFloor
+	// 会重建 Visited，移动后每个格子在 Visited 里都成立，拿它判会恒真。
+	//
+	// 不发 ReuseRoom 的后果（实机 2026-10-08，会话 20261008_231250）：往回走时
+	// StartMap 走「普通路径 + 0 活怪」，客户端既不重建也不复用，而它缓存里的那批
+	// 对象指针已经失效 ⇒ 30 条 `CNRDObjectManager::draw, not valid object pointer`
+	// ⇒ exit=0xC0000005。
+	//
+	// 这与普通副本的既有规则同源：cmd/wireprobe/dungeon_flow.go 里
+	// `Visited[next.Room.Map]` 命中 ⇒ `state.ReuseRoom = true` / `Monsters = nil`；
+	// protocol.StartMap 的注释也写明 ReuseRoom 时 native1452b78f0 跳过建图行、
+	// 145b235b0 保留缓存的地图与一次性 ACT 触发器。同图往返（目标图 == 当前图）
+	// 同样命中 prev，被这条一并覆盖。
+	prev := r.session.Visited
 	next, e := r.session.moveMoonSecondFloor(c, request.Position)
 	if e != nil {
 		return e
 	}
+	_, revisited := prev[next.Room.Map]
+	r.reuseRoom = revisited
 	request.Record, request.Dungeon = record, next.Definition.ID
 	r.session = next
 	r.room++
@@ -136,6 +153,12 @@ func (r *MoonSoloOwner) StartMap() ([]byte, error) {
 		}
 	}
 	p := protocol.StartMapState{Position: [2]byte{s.Room.X, s.Room.Y}, Seed: r.seed, Map: s.Room.Map, Monsters: fixed}
+	if r.reuseRoom {
+		// 复用缓存房间：不带怪物行（protocol.StartMap 对 ReuseRoom + 非空 Monsters
+		// 会直接报错，这正是「缓存房间不能再初始化怪」的原生语义）。
+		p.ReuseRoom = true
+		p.Monsters = nil
+	}
 	if r.transition.Dungeon == s.Definition.ID {
 		p.Transition = &r.transition.Record
 	}

@@ -99,14 +99,39 @@ func LoadBagRules(p string, source ...string) (BagRules, error) {
 			seen[uint16(n)] = true
 		}
 	}
+	// ⚠️ 2026-10-09：**允许两个类型共用同一段**（只拒绝"部分重叠"）。
+	//
+	// 依据：`internal/cashshop/pilot.go` 早就把 `[etc]` / `[waste]` / `[throw]` / `[hp]` …
+	// 一起落在 65..120（注释写明「`[etc]` 消耗品兜底、落 Use 页」）—— 共用一段是既有口径。
+	// 而 `Slots` 的消费方全是**正向**查表（`Slots[kind]` → 该类型可用的槽位区间：
+	// bag.Add / box_native / disjoint 都是这个方向），共用一段不会产生歧义；
+	// 真正会歧义的是**部分重叠**（区间交叉），所以那条仍然拒绝。
+	//
+	// 触发本改动的实例：沉月湖的誓约·星蕴石全是 `[etc]`，背包表里没有它 ⇒ 这一族永远发不出来。
 	for _, v := range r.Slots {
 		if v[0] == 0 || v[0] > v[1] || v[1] > 65534 {
 			return r, fmt.Errorf("invalid bag slot range")
 		}
-		for n := uint32(v[0]); n <= uint32(v[1]); n++ {
-			if seen[uint16(n)] {
-				return r, fmt.Errorf("overlapping bag ranges")
+		exact := false
+		for _, other := range r.Slots {
+			if other == v {
+				exact = true
+				break
 			}
+		}
+		for n := uint32(v[0]); n <= uint32(v[1]); n++ {
+			if !seen[uint16(n)] {
+				continue
+			}
+			if exact {
+				continue // 与别的类型整段相同：共用同一段槽位，合法
+			}
+			return r, fmt.Errorf("partially overlapping bag ranges")
+		}
+	}
+	// 校验通过后统一登记（放在这里，避免"自己和自己重叠"被误判）。
+	for _, v := range r.Slots {
+		for n := uint32(v[0]); n <= uint32(v[1]); n++ {
 			seen[uint16(n)] = true
 		}
 	}
