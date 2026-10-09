@@ -15,6 +15,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -557,7 +558,7 @@ func (w *worldSession) openBoosterItem(
 			// Destination 1: Avatar (kind == "avatar" or path contains "avatar" or option specified)
 			// 装扮目录有两种命名：avatar/ 与 at_avatar/；只认 "/avatar/" 会漏掉后者
 			// （实机诊断 selection_box_audit_test.go 时发现），让它落进装备分支。
-			isAvatar := kind == "avatar" || strings.Contains(itemPath, "avatar")
+			isAvatar := kind == "avatar" || (kind == "equipment" && strings.Contains(itemPath, "avatar"))
 			if !isAvatar && len(req.AvatarOptions) > 0 {
 				for _, ao := range req.AvatarOptions {
 					if ao.Template == g.Template {
@@ -599,10 +600,10 @@ func (w *worldSession) openBoosterItem(
 								sockOpts = w.characters.Equipment.DefaultAvatarSockets(g.Template)
 							}
 							b.Special[1] = append(b.Special[1], inventory.BagEquipment{
-								Slot:         s,
-								Template:     g.Template,
-								Durability:   dur,
-								Period:       per,
+								Slot:          s,
+								Template:      g.Template,
+								Durability:    dur,
+								Period:        per,
 								AvatarOptions: sockOpts,
 							})
 							foundSlot = true
@@ -787,7 +788,22 @@ func (w *worldSession) openBoosterItem(
 	plan = append(plan, outboundPacket{"booster_main_inventory_updated", 0, 14, mainUpdate})
 
 	if res.HasAvatars && len(finalBag.Special[1]) > 0 {
-		avatarPayload, err := inventory.EquipmentPayload(1, finalBag.Special[1], false)
+		// NOTI14 is an incremental update, not a snapshot. In particular, old
+		// saves may contain stackable avatar boxes in this container: the
+		// client only reads the trailing period for an actual avatar template
+		// (145A83FA0), so resending those unchanged rows corrupts its cursor.
+		previous := map[uint16]inventory.BagEquipment{}
+		for _, item := range curBag.Special[1] {
+			previous[item.Slot] = item
+		}
+		var changed []inventory.BagEquipment
+		for _, item := range finalBag.Special[1] {
+			old, exists := previous[item.Slot]
+			if !exists || !reflect.DeepEqual(old, item) {
+				changed = append(changed, item)
+			}
+		}
+		avatarPayload, err := inventory.EquipmentPayload(1, changed, false)
 		if err != nil {
 			return nil, err
 		}
