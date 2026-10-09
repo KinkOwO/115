@@ -1,5 +1,13 @@
 # 当前构建与第一阶段证据
 
+## 2026-10-09：商城购买分流修复已确认
+
+基于主线1511aaee，普通单件购买曾被角色栏扩展券处理中的模板回退误拦截；修复为先限定扩展券 SKU，再按请求商品 ID 精确查找，通用 findEntry 与报价、扣款、发货逻辑保持。用户确认 MOD 商品和原生商品“两种都购买成功”；此确认仅覆盖普通购买恢复，扩展券分流由回归测试验证。
+
+现用程序 wireprobe-pvf.exe 与候选 wireprobe-handoff-source.exe 的 SHA256 为125dcd57bf404c38a64d6840bb5016eb3d1a93283e7023f0058e67a671836aa5；原默认程序4238d6fa保存在本机 runtime/shop-routing-fix-20261009/wireprobe-pvf.exe.before。会话 roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261009_175552_071234_next37 记录商品3400489和3400490扣款3180/600及发货成功；MOD 商品购买以用户反馈为证。
+
+完整源码副本 build/vet/full test 通过，新增分流测试旧实现失败、新实现通过；现用安装目录活动包 vet、候选构建和真实 PVF 购买路径检查通过。charactercheck 仍报 quest source experience mismatch，还原生产代码后同样复现；安装目录 go ./... 还会扫描自动更新备份中的不完整旧源码而失败。两项不记作通过，不夹带修复；原日志、备份、程序均不入库。
+
 ## 2026-10-03：PVF 读取与测试数据收口方式已确认（源码范围）
 
 用户确认继续按“行为测试用小型输入，真实内容验证读 PVF，仅确有历史版本比较需求才保留完整快照”推进。5fffd84 已移除 loot/equipment-selection 的 JSON 运行回退及隐式 baseline，诊断/导出接统一 Source；新增整表 gzip 快照已撤回。三份装备/掉落 JSON 暂留给旧测试，配置顶层仍为 71 个。本次确认仅为源码整理与测试策略，不增加客户端实机验收范围。
