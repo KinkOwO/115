@@ -147,6 +147,20 @@ func (c *gameConnection) deathLeave(reason byte, sendFailClear bool) {
 		c.event(map[string]any{"kind": "apocalypse_death_suspended", "character_id": w.role.ID,
 			"stage": run.Stage, "resume_stage": run.ContinueStage(), "choice": run.Choice})
 	}
+	// 苏醒之森军团口径（2026-10-09 业主实机）：死亡被判负请离副本后，该关
+	// 倒计时必须重置（「死亡强制退出，右上角的倒计时没有刷新，正常情况应该
+	// 重置」）。与维纳斯同款做法：清掉冻结的起算时刻，重进按满额 60 分钟
+	// 重新起算；进度/通关状态保留。复位帧由调用方补发（deathLeave 里发完
+	// leave 链之后）—— 这里先把时钟清掉并记一条事件。
+	if w.forest != nil && w.activeDungeon != nil {
+		if stage := w.forestStageOfActiveRun(); stage >= 0 {
+			reset := w.forestStageTimerReset(time.Now(), stage, "death")
+			if c.sendPlan(reset, nil) != nil {
+				return
+			}
+			c.event(map[string]any{"kind": "forest_death_stage_timer_reset", "character_id": w.role.ID, "stage": stage})
+		}
+	}
 	// [AZURE-DEATH-AFTER-CLEAR] 结算已经走完的**只回城、不补 FAIL_CLEAR**：
 	// 补了会把一场已经通关并发了奖的挑战标成失败。
 	if sendFailClear && !w.resultSent {

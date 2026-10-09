@@ -51,10 +51,23 @@ func DecodeForestStandbyParty(p []byte) (ForestStandbyPartyRequest, error) {
 // 1452F2620 写入器布局）构造苏醒之森待机区建队应答：容量 4、模式 1，
 // 队伍类型回显请求自带的 0x18/0x19。语法层的闪退陷阱与字段依据见
 // ispins_party.go 的 IspinsStandbyPartyReply 注释。
+//
+// Extreme（0x19）额外把 q[55] 置 1：官服 2026-10-08 抓包的两份建队应答
+// （Normal 208B / Extreme 208B）逐字节对齐后，**只有两处不同** ——
+// 队伍类型字节（0x18/0x19）与 q[55]（0/1）。q[55] 的语义未定（疑似
+// 「困难模式」标志或等待区序号），但它是官服 Extreme 队伍的既定形状，
+// 按原样回放。
 func ForestStandbyPartyReply(name []byte, actor uint16, channel [2]byte, hard bool) ([]byte, error) {
 	partyType := ForestPartyTypeNormal
 	if hard {
 		partyType = ForestPartyTypeHard
 	}
-	return legionStandbyPartyReply(name, actor, channel, partyType)
+	body, err := legionStandbyPartyReply(name, actor, channel, partyType)
+	if err != nil {
+		return nil, err
+	}
+	if hard && len(body) > len(name)+55 {
+		body[len(name)+55] = 1
+	}
+	return body, nil
 }

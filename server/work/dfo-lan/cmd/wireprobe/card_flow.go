@@ -228,7 +228,17 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 	// 苏醒之森阶段本的 CMD72 不走通用翻牌/结算（维纳斯同款形状）。演出后
 	// 退场作废 run；未终局的退场（中途 ESC）保持 run（cleared 保留，重进
 	// 按已清关序列继续）。
-	if w.forest != nil && w.activeDungeon != nil && legion.IsForestStageDungeonAny(w.activeDungeon.Definition.ID) {
+	//
+	// ★ 2026-10-09（业主实机）：Extreme 终局演出结束后**由玩家点右上角
+	// 「返回城镇」**（官服 22:08:33.821 c2s CMD72 → 22:08:34.081 ACK），
+	// 而那时副本会话已在 forestResult（CMD46）收尾（activeDungeon 为空）。
+	// 只认 activeDungeon != nil 会让这一请求落到通用路径被 cardsReady 拒成
+	// 「cards before owned settlement」，按钮永远没反应 —— 与末世录
+	// 2026-10-08 那个「点击返回城镇没有任何反应」是同一类缺口。所以终局
+	// （forest.finalDone）也在这条分支里放行。
+	forestStageOpen := w.forest != nil && w.activeDungeon != nil && legion.IsForestStageDungeonAny(w.activeDungeon.Definition.ID)
+	forestFinale := w.forest != nil && w.forest.finalDone
+	if w.forest != nil && (forestStageOpen || forestFinale) {
 		ack := outboundPacket{"settlement_focus_ack", 1, 72, protocol.SettlementExitSuccess(r)}
 		if r.State == 2 {
 			return nil, []outboundPacket{ack}, nil
@@ -239,11 +249,19 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 		}
 		w.selectingDungeon = false
 		ack.Name = "settlement_exit_ack"
+		plan := append([]outboundPacket{ack}, route[1:]...)
 		if w.forest.finalDone {
+			// 终局（视频播完点「返回城镇」）：本局结束，作废 run。右上角面板由
+			// 随后离队时的 N2565 state0e 收起（官服 22:08:45.691）。
 			w.forest = nil
-			return nil, append([]outboundPacket{ack}, route[1:]...), nil
+			return nil, plan, nil
 		}
-		return nil, append([]outboundPacket{ack}, route[1:]...), nil
+		// 中途撤退：进度保留（cleared 留在 run 里），但右上角倒计时必须重置
+		//（业主 2026-10-09：「点击撤退出去…右上角的倒计时没有刷新」）。
+		if stage := w.forestStageOfActiveRun(); stage >= 0 {
+			plan = append(plan, w.forestStageTimerReset(time.Now(), stage, "retreat")...)
+		}
+		return nil, plan, nil
 	}
 	// 末世录阶段本的 CMD72 同样不走通用翻牌/结算。
 	//
@@ -475,4 +493,3 @@ func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, err
 	// 选项 0（普通重开）保持 relay = 0。
 	return s, append(dungeonSelectionHeadFor(copy.dungeonRelayFlag() != 0), entry...), nil
 }
-
