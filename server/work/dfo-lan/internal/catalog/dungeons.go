@@ -73,7 +73,14 @@ type DungeonDefinition struct {
 	// （沉月湖第二层 100004137 为 1）。这是源对通关结算的声明，不是本地策略 ——
 	// 沉月湖单人的抽牌次数就取它，见 cmd/wireprobe 的 moon 配置推导。
 	RewardCard uint32
-	HellParty  *DungeonHellParty `json:"hell_party,omitempty"`
+	// RewardDecls 是源 [difficulty dropitem group list] 每个难度块声明的翻牌内容：
+	// 产物列表页名([contents]) + [item index] + [normal group index] + 基础产物
+	// ([special setinfo reward]/[special custom reward info]) + 产出效率([reward multiple info])。
+	// 2026-10-09 直读 100004137/100004136/100004131 确立形状（见 analysis/tasks/next190）。
+	// **形状不符保持空** —— 别的副本的行为一个字节都不变。解析在 dungeon_reward_decl.go，
+	// 率的量纲尚未定案，这里只记原值。
+	RewardDecls []DungeonRewardBlock `json:"reward_decls,omitempty"`
+	HellParty   *DungeonHellParty    `json:"hell_party,omitempty"`
 	Mazes      []DungeonMaze     `json:"mazes"`
 	// MazeChanceRates 非空表示这张副本按源里的 [maze chance rate] 掷骰选图，
 	// 而不是「同 quest 里 index 最小者」。
@@ -387,6 +394,8 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	if cards := sectionCells(s.Cells, "[reward card]"); len(cards) == 1 && cards[0].Type == 0 && cards[0].Value >= 0 {
 		d.RewardCard = uint32(cards[0].Value)
 	}
+	// 翻牌声明（产物列表页 + 基础产物 + 产出效率）。形状不符返回空，此处不设默认值。
+	d.RewardDecls = rewardDeclarations(s.Cells)
 	// Raid scripts include maze-local copies of level fields. Read the
 	// dungeon header separately so those copies cannot replace its gate.
 	header := s.Cells

@@ -156,7 +156,13 @@ func (client *gameConnection) serve() {
 				if cardErr != nil {
 					client.event(map[string]any{"kind": "黑鸦自动翻牌待重试", "character_id": client.selectedCharacterID, "error": cardErr.Error()})
 				}
-				if client.sendPlan(cardPackets, client.logCharacterResponseBody) != nil {
+				// 沉月湖的翻牌走的是另一条领取路径（w.moon.plan + moonClaim），
+				// 上面那条通用自动选牌对它不适用 —— 见 autoPickMoonCard 的注释。
+				moonCardPackets, moonCardErr := client.worldState.autoPickMoonCard(now)
+				if moonCardErr != nil {
+					client.event(map[string]any{"kind": "月湖自动翻牌待重试", "character_id": client.selectedCharacterID, "error": moonCardErr.Error()})
+				}
+				if client.sendPlan(append(cardPackets, moonCardPackets...), client.logCharacterResponseBody) != nil {
 					return
 				}
 				quotaPackets, quotaErr := client.worldState.refreshBlackPurgatoryQuota(now)

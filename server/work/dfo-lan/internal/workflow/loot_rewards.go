@@ -334,3 +334,32 @@ func (s *LootService) RecoverBlackPurgatoryCards(ctx context.Context, role datab
 	}
 	return role, errors.Join(failures...)
 }
+// FreezeMoonSourceReward 与 FreezeMoonReward 同形，只是策略换成**源声明驱动**的
+// loot.MoonSourcePolicy（见 internal/loot/moon_source_rewards.go）。
+//
+// 落盘的东西完全一样（loot.MoonRewardPlan + 同一个模型标记），所以领取事务、
+// 入库、WireRows、重登恢复全部复用 —— 换的只是"这一局发什么"的决策来源。
+func (s *LootService) FreezeMoonSourceReward(ctx context.Context, role database.Character, run *dungeon.Session, p loot.MoonSourcePolicy) (loot.MoonRewardPlan, loot.MoonSourcePlan, error) {
+	var plan loot.MoonRewardPlan
+	var audit loot.MoonSourcePlan
+	if s == nil || s.Loot == nil || s.Store == nil {
+		return plan, audit, fmt.Errorf("Moon reward before owned final")
+	}
+	audit, e := s.Loot.PlanMoonRewardsFromSource(LootRole(role), run, p)
+	if e != nil {
+		return plan, audit, e
+	}
+	plan = audit.Plan
+	body, e := json.Marshal(plan)
+	if e != nil {
+		return plan, audit, e
+	}
+	_, _, e = s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, p.Source, "moon-clear:"+run.RunID, loot.MoonRewardModel, func(current database.Character) (json.RawMessage, json.RawMessage, error) {
+		return current.State, body, nil
+	})
+	if e != nil {
+		return plan, audit, e
+	}
+	saved, e := s.ReadMoonReward(ctx, role, run.RunID)
+	return saved, audit, e
+}
