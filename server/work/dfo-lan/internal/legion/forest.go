@@ -35,12 +35,14 @@ const (
 	// of NotiIspinsInfo 2255 / NotiVenusInfo 2655 / NotiLegionInfo 2895.
 	NotiForestInfo uint16 = 2563
 	// NotiForestHardInfo is the Extreme state snapshot（ENUM_NOTIPACKET_
-	// FOREST_OF_AWAKENING_HARD_INFO）。字节形状无官服样本——第十一轮以
-	// N2563 布局家族同构（136B），第 1/3 次尝试，错误尺寸预期被有界游标
-	// 丢弃（2655 文档口径）。
+	// FOREST_OF_AWAKENING_HARD_INFO）。**官服形状实锤**：正文 64B（帧 80B），
+	// 见 D:\115US-001\DFO-115US-zhuabao\official_20261008-220048_live 的
+	// session_s13（Extreme 三关全清）。此前的 136B 家族同构猜测（第 11/12 轮）
+	// 已被推翻。
 	NotiForestHardInfo uint16 = 2565
 	// NotiForestHardPhaseTick is ENUM_NOTIPACKET_FOREST_OF_AWAKENING_HARD_
-	// PHASE_CLEAR_TICK（2566）——过段推进包，形状未取证，暂未实现。
+	// PHASE_CLEAR_TICK（2566）：官服在同一场 Extreme 终局关清关时发一次，
+	// 正文 64B = 三关 N31 横幅 token（各 u32 + 4B 零）+ 尾部 nonce。
 	NotiForestHardPhaseTick uint16 = 2566
 	// CmdForestOperationSelect is the forest-specific operation window
 	// command (2226). Its request decode is the next evidence round: official
@@ -224,6 +226,103 @@ const (
 	forestClearStage2Hex = "26c2000005095b9d3300000000000000"
 )
 
+// ---------------------------------------------------------------------------
+// Extreme（ForestOfAwakeningHard，内容 105）官方向量
+//
+// 真源：官服 2026-10-08 22:00 抓包
+// `official_20261008-220048_live` 的 session_s13（TCP 50074 ↔ 52.23.96.246:10012），
+// 一场三关全清的 Extreme 挑战。全部按帧原文回放，**不做家族同构推断**
+// （第 11/12 轮的 N2563 同构猜测已被该抓包推翻：Extreme 的 N2565 正文是 64B，
+// 不是 136B）。
+//
+// 官服时序（时间戳来自 pcapng 的 TCP 段）：
+//
+//	22:05:24.914 c2s CMD12 建队（队伍类型 0x19 = Extreme）
+//	22:05:29.112 c2s CMD36 → town198 area3（Extreme 集结区，军团表
+//	                   ForestOfAwakeningHard.waiting_area = 198/3）
+//	22:05:37.983 c2s CMD2043（内容 105）
+//	22:05:38.308 s2c N2565 等待态（state1）+ CMD2043 ACK
+//	22:05:41.244 s2c N2565 作战窗（state2，三关副本号 @26/@38/@50）
+//	22:05:41.255 c2s CMD2045（内容 105，阶段 0）
+//	22:05:45.580 s2c 窗态副本 + N1584 + N28(100004079) + N29 + CMD2045 ACK
+//	22:06:06.567 c2s CMD39 首关 boss 死亡 → s2c N31(34510000…)
+//	22:06:06.839 c2s CMD46 → s2c N2565 清关 tick + 下一关窗态
+//	22:06:15.191 c2s CMD2062 → 100004080（第二关直进）
+//	22:06:44.102 c2s CMD39 → N31(2a6f0000…)；CMD46 → tick + 窗态
+//	22:06:46.183 c2s CMD2062 → 100003877（第三关直进）
+//	22:07:23.050 c2s CMD39 + CMD117 → s2c N31(f88c0000…) + N2566（三关 token）
+//	                     + N2252 + N2253 + N2254；CMD46 → N2565 tick2
+//	22:07:37.004 c2s CMD2046 → s2c N2565 终局态(state3) + CMD2046 ACK
+//	22:07:37.382 c2s CMD191(0) → N170；22:08:32 c2s CMD191(1) → N170
+//	22:08:33.372 s2c N2565 leave(state5) → c2s CMD72 回城
+//	22:08:45.691 s2c N2565 idle(state0e)（离队后复位）
+//
+// N2565 正文（64B）字段对照（逐帧 diff 得出，@54..58 为 5B nonce，按帧原样保留）：
+//
+//	@0..1  00 00（idle 态为 ff ff）
+//	@2     State：01 等待 / 02 进行 / 03 终局演出 / 05 演出结束 / 0e 复位
+//	@6     清关 tick 标记（普通 00，清关帧 03，终局/leave 01，复位 04）
+//	@10    当前关号（0/1/2；等待态 ff）
+//	@14    01 常量
+//	@22    首次清关之后的「已有过清关」标记（清关前 00，之后 01）
+//	@26/@38/@50  三关副本号（100004079 / 100004080 / 100003877）
+//	@30    01 常量
+//	@34    第 1 关状态：02 未开始 / 00 进行中 / 01 已清
+//	@42    02 常量
+//	@46    第 2 关状态：02 未开始 / 00 进行中 / 01 已清
+const (
+	// 22:05:38.308 —— CMD2043 后首个状态（等待态，三关字段全 ff）。
+	forestHardWaitingHex = "00000100000000000000ffffffff01000000ff000000ffffffffffffffffff00" +
+		"0000ffffffffffffffffff000000ffffffffffffffff3a807fde360000000000"
+	// 22:05:41.244 —— 首关作战窗（state2、@10=0、三关副本号齐）。
+	forestHardWindow0Hex = "0000020000000000000000000000010000000000000000000000eff0f5050100" +
+		"000002000000f0f0f505020000000200000025f0f5050516748e3b0000000000"
+	// 22:06:06.894 —— 首关清关 tick（@6=3、@22=1）。
+	forestHardClearTick0Hex = "0000020000000300000000000000010000000000000001000000eff0f5050100" +
+		"000002000000f0f0f505020000000200000025f0f5058da316bf330000000000"
+	// 22:06:06.894 —— 第二关作战窗（@10=1、第 1 关状态 0）。
+	forestHardWindow1Hex = "0000020000000000000001000000010000000000000001000000eff0f5050100" +
+		"000000000000f0f0f505020000000200000025f0f5055e91d2b8340000000000"
+	// 22:06:44.387 —— 第二关清关 tick（第 1 关状态 1、第 2 关状态 2）。
+	forestHardClearTick1Hex = "0000020000000300000001000000010000000000000001000000eff0f5050100" +
+		"000001000000f0f0f505020000000200000025f0f505c6e33d5e3c0000000000"
+	// 22:06:44.387 —— 第三关作战窗（@10=2、第 2 关状态 0）。
+	forestHardWindow2Hex = "0000020000000000000002000000010000000000000001000000eff0f5050100" +
+		"000001000000f0f0f505020000000000000025f0f50524ad6fc43c0000000000"
+	// 22:07:23.375 —— 第三关清关 tick（CMD46 应答）。
+	forestHardClearTick2Hex = "0000020000000300000002000000010000000000000001000000eff0f5050100" +
+		"000001000000f0f0f505020000000100000025f0f50580b55c723c0000000000"
+	// 22:07:37.264 —— CMD2046 终局态（state3，触发通关演出）。
+	forestHardFinalInfoHex = "0000030000000100000002000000010000000000000001000000eff0f5050100" +
+		"000001000000f0f0f505020000000100000025f0f50593402c89330000000000"
+	// 22:08:33.372 —— 演出结束（state5，收起右上角面板）。
+	forestHardLeaveInfoHex = "0000050000000100000002000000010000000000000001000000eff0f5050100" +
+		"000001000000f0f0f505020000000100000025f0f5051da9dbc9390000000000"
+	// 22:08:45.691 —— 离队后的复位态（state0e，三关字段全 ff）。
+	forestHardIdleInfoHex = "ffff0e00000004000000fffffffffffffffffff0ed7fffffffffffffffffff00" +
+		"a063ffffffffffffffffff000000ffffffffffffffff56c8bbc2380000000000"
+	// 22:07:23.311 —— N2566 过段 tick：三关 N31 横幅 token（u32+4B 零）+
+	// 尾部 nonce。三 token 与 22:06:06/22:06:44/22:07:23 的 N31 头 2B 逐一吻合。
+	forestHardPhaseClearTickHex = "34510000000000002a6f000000000000f88c0000000000000000000000000000" +
+		"00000000000000000000000000000000751e2594330000000000000000000000"
+	// N31 清关横幅（Extreme 三关各有自己的 token：0x5134 / 0x6f2a / 0x8cf8；
+	// 与 Normal 的 0xa79f / 0x9d3f / 0xc226 完全不同 —— N2252 @7760 必须回填
+	// 本模式该关的 token）。
+	forestHardClearStage0Hex = "34510000630492c13300000000000000"
+	forestHardClearStage1Hex = "2a6f00005e6ec6763c00000000000000"
+	forestHardClearStage2Hex = "f88c0000e6eb62ee3c00000000000000"
+	// CMD2045 进图 ACK（内容 105 + 阶段号，24B）：@9..12 = 阶段 u32。
+	forestHardEnterAck0Hex = "01000000006900000000000000016d3b1a17430000000000"
+	forestHardEnterAck1Hex = "0100000000690000000100000000421cd6b6360000000000"
+	forestHardEnterAck2Hex = "010000000069000000020000000062bc37eb3c0000000000"
+	// CMD2046 终局 ACK（内容 105 + 阶段 2，32B）。
+	forestHardRewardEndAckHex = "0100000000690000000200000002d05a2db73c00000000000000000000000000"
+	// CMD2043 开战 ACK（官服 16B；Normal 官服同帧逐字节相同）。
+	forestHardStartAckHex = "01000000003bfff77e43000000000000"
+	// N2568 PREPARE_LEGION_ENTER_DUNGEON（22:05:41.514，CMD2045 之后立即送达）。
+	forestHardPrepareEnterHex = "000000000100000004000000a8158106724db34742000000"
+)
+
 // ForestStageDungeons 是苏醒之森三阶段副本号（官服 N2563 作战窗 @27/@39/@51
 // 与 N28 交叉实证；军团表该内容缺 [dungeon info data]，channels.json 的
 // [forestofawakening]: [198] 为占位错误）。
@@ -312,6 +411,121 @@ func ForestStageOfDungeonAny(id uint32) (stage int, hard bool, err error) {
 	s, err := ForestHardStageOfDungeon(id)
 	return s, true, err
 }
+
+// ForestHardInfoSize 是 Extreme 状态包 N2565 的正文长度（官服 64B，
+// 帧 80B；**不是** N2563 的 136B）。
+const ForestHardInfoSize = 64
+
+// Extreme 状态值（N2565 @2，官方 2026-10-08 抓包逐帧 diff）。
+const (
+	ForestHardStateWaiting byte = 0x01 // 等待（CMD2043 应答）
+	ForestHardStateActive  byte = 0x02 // 进行中（作战窗 / 清关 tick）
+	ForestHardStateFinale  byte = 0x03 // 终局演出（CMD2046 应答）
+	ForestHardStateLeave   byte = 0x05 // 演出结束（收起面板）
+	ForestHardStateIdle    byte = 0x0e // 复位（离队后）
+)
+
+// ForestHardWaitingInfo 是 CMD2043 之后的等待态 N2565 正文（官服 22:05:38.308）。
+func ForestHardWaitingInfo() []byte { return forestInfo(forestHardWaitingHex) }
+
+// ForestHardWindowInfo 是第 stage 关的作战窗状态（state2；stage 0/1/2 各有
+// 一帧官服原文——@10 关号与各关状态位逐帧不同，不能互相套用）。
+func ForestHardWindowInfo(stage int) ([]byte, error) {
+	switch stage {
+	case 0:
+		return forestInfo(forestHardWindow0Hex), nil
+	case 1:
+		return forestInfo(forestHardWindow1Hex), nil
+	case 2:
+		return forestInfo(forestHardWindow2Hex), nil
+	}
+	return nil, fmt.Errorf("no official forest hard window vector for stage %d", stage)
+}
+
+// ForestHardClearTickInfo 是第 stage 关清关的 tick 状态（官方在 CMD46 应答
+// 时下发；@6=3、@10=stage）。
+func ForestHardClearTickInfo(stage int) ([]byte, error) {
+	switch stage {
+	case 0:
+		return forestInfo(forestHardClearTick0Hex), nil
+	case 1:
+		return forestInfo(forestHardClearTick1Hex), nil
+	case 2:
+		return forestInfo(forestHardClearTick2Hex), nil
+	}
+	return nil, fmt.Errorf("no official forest hard clear tick vector for stage %d", stage)
+}
+
+// ForestHardFinalInfo 是 CMD2046 终局态（state3，触发通关演出）。
+func ForestHardFinalInfo() []byte { return forestInfo(forestHardFinalInfoHex) }
+
+// ForestHardLeaveInfo 是演出结束态（state5，收起右上角面板）。
+func ForestHardLeaveInfo() []byte { return forestInfo(forestHardLeaveInfoHex) }
+
+// ForestHardIdleInfo 是离队后的复位态（state0e）。
+func ForestHardIdleInfo() []byte { return forestInfo(forestHardIdleInfoHex) }
+
+// ForestHardPhaseClearTick 是 N2566 过段 tick（三关 N31 token + 尾部 nonce）。
+func ForestHardPhaseClearTick() []byte { return forestInfo(forestHardPhaseClearTickHex) }
+
+// ForestHardStageClearEnabled 是 Extreme 第 stage 关的 N31 清关横幅（原文）。
+func ForestHardStageClearEnabled(stage int) ([]byte, error) {
+	switch stage {
+	case 0:
+		return forestInfo(forestHardClearStage0Hex), nil
+	case 1:
+		return forestInfo(forestHardClearStage1Hex), nil
+	case 2:
+		return forestInfo(forestHardClearStage2Hex), nil
+	}
+	return nil, fmt.Errorf("no official forest hard clear banner for stage %d", stage)
+}
+
+// ForestHardStageToken 取 Extreme 第 stage 关 N31 头 2B token（N2252 @7760
+// 必须与它一致，否则客户端翻牌面板不显示）。
+func ForestHardStageToken(stage int) ([2]byte, error) {
+	banner, err := ForestHardStageClearEnabled(stage)
+	if err != nil {
+		return [2]byte{}, err
+	}
+	return [2]byte{banner[0], banner[1]}, nil
+}
+
+// ForestHardStartAck 是 CMD2043 的官服 ACK（16B；Normal 官服同帧逐字节相同，
+// 但 Normal 路径已用短 5B 形态实机验证，故只给 Extreme 用官服原文）。
+func ForestHardStartAck() []byte { return forestInfo(forestHardStartAckHex) }
+
+// ForestHardEnterAck 是 CMD2045 的官服 ACK（24B：01 + 内容 105 + 阶段号 +
+// 尾部 nonce）。stage 0/1/2 各有官服样本，其它阶段拒绝。
+func ForestHardEnterAck(stage uint32) ([]byte, error) {
+	switch stage {
+	case 0:
+		return forestInfo(forestHardEnterAck0Hex), nil
+	case 1:
+		return forestInfo(forestHardEnterAck1Hex), nil
+	case 2:
+		return forestInfo(forestHardEnterAck2Hex), nil
+	}
+	return nil, fmt.Errorf("no official forest hard enter ack for stage %d", stage)
+}
+
+// ForestHardRewardEndAck 是 CMD2046 的官服 ACK（32B，内容 105 + 阶段 2）。
+func ForestHardRewardEndAck() []byte { return forestInfo(forestHardRewardEndAckHex) }
+
+// ForestHardPrepareEnterInfo 是 N2568 PREPARE_LEGION_ENTER_DUNGEON 的官服
+// 原文（22:05:41.514，24B）—— 客户端据此播「极·苏醒之森净化开始」横幅与演出。
+//
+// ⚠️ 必须与进图帧列**分两段发**（2026-10-09 实机两次校准）：
+//
+//	第一版把它和 N28/N29 放在同一批 → 客户端在演出中途收到进图帧，演出永不
+//	收尾，进第 1 关后**屏幕 UI 全部消失**（技能仍可用）；
+//	第二版干脆不发 → 业主首测发现「倒计时结束直接进图」，缺了官服那张
+//	「极·苏醒之森净化开始」横幅与演出。
+//
+// 官服两帧之间固定 4.066s（22:05:41.514 → 22:05:45.580）。所以正确用法是：
+// **先只发这一帧，等演出结束（~4.1s）再发进图帧列**，见 cmd/wireprobe 的
+// `forestEntryDue` / `forestPurifyBannerSeconds`。
+func ForestHardPrepareEnterInfo() []byte { return forestInfo(forestHardPrepareEnterHex) }
 
 // ForestOperationRequest is the decoded CMD2226 body: 13B opaque envelope +
 // u32 action @13（1=就绪 ping，2=确认音符）+ u32 value @17（就绪=ffff，
@@ -456,6 +670,16 @@ func ForestStageClearEnabled(stage int) ([]byte, error) {
 	return nil, fmt.Errorf("no official clear vector for stage %d", stage)
 }
 
+// ForestStageClearEnabledFor 按模式取 N31 清关横幅：Normal 与 Extreme 的
+// token 完全不同（0xa79f/0x9d3f/0xc226 vs 0x5134/0x6f2a/0x8cf8），
+// 用错模式的横幅会让翻牌面板（N2252 @7760 校验 token）对不上。
+func ForestStageClearEnabledFor(stage int, hard bool) ([]byte, error) {
+	if hard {
+		return ForestHardStageClearEnabled(stage)
+	}
+	return ForestStageClearEnabled(stage)
+}
+
 // ---------------------------------------------------------------------------
 // 第四轮：清关横幅链（N2252 翻牌 / N2253 第二排 / N1474 关卡倒计时）
 // ---------------------------------------------------------------------------
@@ -467,7 +691,12 @@ var ForestStageLimits = [3]uint32{3600, 3600, 3600}
 // ForestStageToken 取该关清关横幅（N31）头 2B token——N2252 @7760 必须与其
 // 呼应（军团家族契约，客户端只校验这两处一致）。
 func ForestStageToken(stage int) ([2]byte, error) {
-	banner, err := ForestStageClearEnabled(stage)
+	return ForestStageTokenFor(stage, false)
+}
+
+// ForestStageTokenFor 按模式取 N31 token（Extreme 的三关 token 与 Normal 不同）。
+func ForestStageTokenFor(stage int, hard bool) ([2]byte, error) {
+	banner, err := ForestStageClearEnabledFor(stage, hard)
 	if err != nil {
 		return [2]byte{}, err
 	}

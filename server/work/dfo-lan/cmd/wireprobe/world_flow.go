@@ -105,8 +105,14 @@ type worldSession struct {
 	notifyBoostMail func(int64)
 	// 下列字段由 origin 侧的非巴卡尔内容注入：苏醒之森（forest）、维纳斯
 	// （venus）、永夜之城频道刷新与槽位解锁状态。
-	forest                  *forestRun
-	forestPartyHard         bool
+	forest          *forestRun
+	forestPartyHard bool
+	// forestEntryPending 是「净化开始横幅（N2568）已发、进图帧列待发」的挂起项。
+	// 官服 N2568（22:05:41.514）与真正的进图帧列（22:05:45.580）之间隔着 4.066s
+	// 的「极·苏醒之森净化开始」横幅 + 演出。一次性连发会让客户端在演出中途收到
+	// N28/N29，演出永不收尾（2026-10-09 实机：进第 1 关后屏幕 UI 全丢）。
+	// 由 client_connection 的秒 tick 到期下发（与 apocalypsePending 同款）。
+	forestEntryPending      *forestStageEntryPending
 	lastVenusResetCharacter int64
 	pendingRelicReset       bool
 	// apocalypse 是末世录（内容号 107 / 频道 Type 119）本场攻坚的会话状态；
@@ -132,10 +138,10 @@ type worldSession struct {
 	apocalypsePending *apocalypseSettlement
 	// apocalypseGrant 是最近一次末世录终局结算的结果（入库明细 + 完成事件），
 	// 供日志与测试断言。nil = 本连接还没结算过。
-	apocalypseGrant *apocalypseGrant
-	channelSpawns   map[uint32]database.WorldPosition
-	blackPurgatory          blackPurgatoryState
-	adventureEliteSnapshot  [32]byte
+	apocalypseGrant        *apocalypseGrant
+	channelSpawns          map[uint32]database.WorldPosition
+	blackPurgatory         blackPurgatoryState
+	adventureEliteSnapshot [32]byte
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
 	// source level gate the world service applies: an Arad Odyssey character
 	// follows the client's [odyssey enter level] instead of [need level].
