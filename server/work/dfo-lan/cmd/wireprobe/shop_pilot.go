@@ -114,6 +114,32 @@ func (l preparedBagLedger) PurchaseCashToBag(ctx context.Context, o database.Cas
 	})
 }
 
+// PurchaseCashCharacterSlots grants the account-level character-slot bonus
+// (Character Slot Extension Kit, 购买即生效) inside the same cash transaction
+// and emits the purchase response packets (CERA debit + roster refresh). No bag
+// item is delivered; the wrapped ledger (Store) owns the atomicity.
+func (l preparedBagLedger) PurchaseCashCharacterSlots(ctx context.Context, o database.CashOrder, bonus int) (database.CashReceipt, bool, error) {
+	ledger, ok := l.ledger.(cashshop.CharacterSlotLedger)
+	if !ok {
+		return database.CashReceipt{}, false, fmt.Errorf("character slot ledger missing")
+	}
+	receipt, applied, err := ledger.PurchaseCashCharacterSlots(ctx, o, bonus)
+	if err != nil {
+		return receipt, applied, err
+	}
+	packets, e := shopPilotSpaces(l.pilot, receipt, 0, true)
+	if e != nil {
+		return database.CashReceipt{}, false, e
+	}
+	if len(l.keys) != wire.SessionKeyBytes {
+		return database.CashReceipt{}, false, fmt.Errorf("purchase cipher not initialized")
+	}
+	if _, e = preparePackets(l.keys, packets); e != nil {
+		return database.CashReceipt{}, false, e
+	}
+	return receipt, applied, nil
+}
+
 func newShopPilotSession() (*shopPilotSession, error) {
 	var b [16]byte
 	if _, e := rand.Read(b[:]); e != nil {
