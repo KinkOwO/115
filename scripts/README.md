@@ -8,6 +8,7 @@
 
 | 文件 | 作用 | 谁调用 |
 | --- | --- | --- |
+| `编译游戏.cmd` / `build-game.ps1` | 全量 build / vet / test 后分别构建并核对启动器与源码候选，备份旧文件后安装；保留默认服务端 | 双击 `编译游戏.cmd`；完成后手动运行 `scripts\启动游戏-SQLite.cmd --source-build` |
 | `build-adventure-elite.ps1` | 构建 x64 `/MT` 精锐资格 DLL、执行机制测试并打包 schema 2；`-WithServer` 另构建隔离服务端/启动器，不启动游戏 | [资格候选说明](../client-patchs/adventure-elite/README.md)，[普通/剧情/奥德赛计划](../docs/todo/adventure-elite-ordinary-plan.md) |
 | `test-adventure-elite-launch.ps1` | 验证精确开关、丢失环境后的提权传递、Unicode 参数及引号值；仅运行临时 PowerShell 测试入口 | 开发验证，不启动服务端或游戏 |
 | `build-bot-client.ps1 -Survey` | 集中观察候选，仅构建与离线测试；帧/通知/阶段/清理/角色事件共用一轮，输出到忽略目录 `build/survey` | [集中清单](../docs/todo/bot-client-v1-research.md)，不启动游戏 |
