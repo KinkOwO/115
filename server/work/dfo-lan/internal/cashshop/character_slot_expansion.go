@@ -26,7 +26,11 @@ func (p *Pilot) TryPurchaseCharacterSlotExpansion(ctx context.Context, ledger Ba
 		return CashReceipt{}, false, false, nil
 	}
 	line := cart[0]
-	entry, found := p.findEntry(line.Product, characterSlotTemplate)
+	if line.Product != characterSlotSKU {
+		return CashReceipt{}, false, false, nil
+	}
+	// findEntry permits template fallback; purchase routing must match the requested SKU.
+	entry, found := p.findEntry(line.Product, 0)
 	if !found || entry.Row[0].Value != characterSlotSKU || entry.Row[1].Value != characterSlotTemplate {
 		return CashReceipt{}, false, false, nil
 	}
