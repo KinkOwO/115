@@ -956,7 +956,19 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		if err != nil {
 			return nil, err
 		}
-		if enabled && !directEntry && !relay {
+		// Clone 重建**不受 relay 保护**（2026-10-09，会话 _213112_ 取证）。
+		//
+		// 入口那一步按 350-351 的约定跳过了 N14 sent，改由本函数 952 行的
+		// `dungeon_worn_visuals_restored` 补发 —— 那份补发对 relay 照样生效。
+		// 而 09-30 已实机确认「NOTI14 全量穿戴刷新会重建未变化的 Clone 对象」：
+		// 只补发 N14、却不重建 Clone，等于把 Clone 的覆盖外观冲掉又不修回来，
+		// 玩家看到的就是「点完再次挑战，Clone 部位立刻裸体」（业主 2026-10-09 复现）。
+		//
+		// 所以这里必须在 seamlessRetry 时也补上 detach/reattach。其余重喂块
+		// （13/105/102/1545/2839/随机属性）仍各自在 !relay 保护内不发；buff 注册
+		// （NOTI1361）由本函数尾部的 seamlessRetry 提前 return 跳过，
+		// 不会退回「再次挑战自动上 buff」那个老毛病。
+		if enabled && !directEntry {
 			sources, sourceErr := cloneAvatarSourcePackets(w.role.State)
 			if sourceErr != nil {
 				return nil, sourceErr
@@ -1052,7 +1064,7 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		w.seamlessRetry = false
 		// 对齐记录：官方再次挑战的帧列里没有这些「重建后重喂」帧（next178 §16），
 		// 所以这条路径上它们都被跳过 —— 若后面还要动，先看那份四方对照。
-		log.Printf("seamless retry: 已跳过重建后重喂块（13/105/102/1545×2/2839/随机属性/克隆）—— 对齐官服再次挑战")
+		log.Printf("seamless retry: 已跳过重建后重喂块（13/105/102/1545×2/2839/随机属性）—— 对齐官服再次挑战；Clone 重建除外（见 finishDungeonLoading 内注释）")
 		log.Printf("seamless retry: skip buff registration (NOTI1361) — 延续而不是重绑")
 		return plan, nil
 	}

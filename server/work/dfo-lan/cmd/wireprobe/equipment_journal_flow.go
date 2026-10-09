@@ -122,6 +122,107 @@ func (w *worldSession) equipmentJournalBoard(role database.Character) ([]outboun
 	return plan, nil
 }
 
+// logTransformCostPreview 打印并落盘一次「装备变换」的**成本预览**（纯诊断，不动存档）。
+//
+// [DIAG-20261009-TRANSFORM-COST] 只在 `-equipment-transform observe` 下调用。
+//
+// 背景：CMD2259 的应答只有「窗口 + 方法」两个字节，**没有失败与禁用语义**，变换按钮能不能
+// 点是客户端拿自己的成本×库存判的。当出现「客户端没禁用、服务端却以材料不足拒绝」时，服务端
+// 无法通知客户端 —— 只能先把**自己算的成本**摊开，拿去和变换界面显示的数字对账，判定分歧是
+// ① 按件 vs 按套（差 11 倍）② 魂的种类对不上 ③ 客户端读的材料仓与我们扣的仓不同。
+func (w *worldSession) logTransformCostPreview(r protocol.EquipmentCraftRequest, slots, templates []uint32, event func(map[string]any)) {
+	if w == nil || w.items == nil {
+		log.Printf("equipment craft TRANSFORM-COST: item service unavailable")
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	lines := w.items.InspectTransformCost(slots, templates, int(r.PayOption))
+	var account inventory.AccountMaterials
+	if w.store != nil {
+		raw, e := w.store.AccountMaterials(ctx, w.role.AccountID)
+		if e != nil {
+			log.Printf("equipment craft TRANSFORM-COST: read account materials: %v", e)
+		} else if m, e := inventory.ReadAccountMaterials(raw); e != nil {
+			log.Printf("equipment craft TRANSFORM-COST: decode account materials: %v", e)
+		} else {
+			account = m
+		}
+	}
+	bagGold := uint32(0)
+	if bag, e := inventory.ReadBag(w.role.State); e == nil {
+		bagGold = bag.Gold
+	}
+
+	describe := func(list []inventory.MaterialCost) string {
+		if len(list) == 0 {
+			return "-"
+		}
+		out := ""
+		for _, m := range list {
+			out += fmt.Sprintf("%d×%d ", m.Count, m.Template)
+		}
+		return out
+	}
+	// 累计口径：真正扣料是逐件累加的，所以"够不够"必须按累计量看（这正是
+	// PrepareEquipmentTransform 里那处判定与扣款不一致的缺陷所在）。
+	var goldTotal uint32
+	total, running, have, shortage := map[uint32]uint32{}, map[uint32]uint32{}, map[uint32]uint32{}, map[uint32]uint32{}
+	var singleGold uint32
+	singleAccount := map[uint32]uint32{}
+	for i, ln := range lines {
+		goldTotal += ln.Gold
+		if i == 0 {
+			singleGold = ln.Gold
+			for _, m := range ln.AccountMats {
+				singleAccount[m.Template] += m.Count
+			}
+		}
+		flags := ""
+		if ln.Unpriced {
+			flags += " unpriced(源[create cost]无此件)"
+		}
+		if ln.Problem != "" {
+			flags += " problem=" + ln.Problem
+		}
+		detail := ""
+		for _, m := range ln.AccountMats {
+			total[m.Template] += m.Count
+			running[m.Template] += m.Count
+			if have[m.Template] == 0 {
+				have[m.Template] = account.Count(m.Template)
+			}
+			detail += fmt.Sprintf("%d×%d(累计%d/有%d) ", m.Count, m.Template, running[m.Template], have[m.Template])
+		}
+		if detail == "" {
+			detail = "-"
+		}
+		log.Printf("equipment craft TRANSFORM-COST item: slot=%d template=%d rarity=%d(%s) gold=%d bag=%s account=%s%s",
+			ln.Slot, ln.Template, ln.Rarity, ln.RarityName, ln.Gold, describe(ln.BagMats), detail, flags)
+	}
+	for t, need := range total {
+		if h := account.Count(t); need > h {
+			shortage[t] = need - h
+		}
+	}
+	groups := make([]uint32, 0, len(r.Entries))
+	for _, en := range r.Entries {
+		groups = append(groups, en.Group)
+	}
+	log.Printf("equipment craft TRANSFORM-COST: requested=%d pay_option=%d groups=%v gold_total=%d bag_gold=%d account_need=%v account_have=%v shortage=%v",
+		len(lines), int(r.PayOption), groups, goldTotal, bagGold, total, have, shortage)
+	log.Printf("equipment craft TRANSFORM-COST: 单件口径 gold=%d account=%v —— 若界面按「一套只算一次」显示，应接近这一行",
+		singleGold, singleAccount)
+	if event != nil {
+		event(map[string]any{"kind": "equipment_craft_transform_cost_preview", "character_id": w.role.ID,
+			"requested": len(lines), "pay_option": int(r.PayOption), "groups": groups,
+			"lines": lines, "gold_total": goldTotal, "bag_gold": bagGold,
+			"account_need": total, "account_have": have, "shortage": shortage,
+			"single_piece_gold": singleGold, "single_piece_account": singleAccount})
+	}
+}
+
 // equipmentCraft 处理 CMD2259：装备库「制作 / 变换」。
 //
 // ★ 装备生成已于 2026-09-29 13:51 / 13:52 实机验收通过（两件都进了背包）。
@@ -204,6 +305,13 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 		if equipmentTransformApply == "observe" {
 			log.Printf("equipment craft TRANSFORM-PLAN (observe): requested=%d slots=%v templates=%v",
 				len(templates), slots, templates)
+			// [DIAG-20261009-TRANSFORM-COST] 把**服务端算的成本**摊开，拿去和变换界面显示的数字对账。
+			//
+			// 为什么必须这么做：2259 的应答只有「窗口 + 方法」两个字节，**没有失败与禁用语义**，
+			// 变换按钮由客户端拿自己的成本×库存判断。出现「客户端没禁用、服务端却以材料不足拒绝」
+			// 时，服务端无法通知客户端，只能先把自己的口径打出来，才能判定分歧在哪
+			// （按件 vs 按套 / 魂的种类 / 客户端读的仓）。纯日志，不动存档、不扣料。
+			w.logTransformCostPreview(r, slots, templates, event)
 			if event != nil {
 				event(map[string]any{"kind": "equipment_craft_transform_planned", "character_id": w.role.ID,
 					"requested": len(templates), "slots": slots, "templates": templates})
