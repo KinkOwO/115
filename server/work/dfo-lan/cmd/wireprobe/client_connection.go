@@ -250,6 +250,18 @@ func (client *gameConnection) serve() {
 				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
 					return
 				}
+				// 苏醒之森 Extreme 的「净化开始」横幅演完 → 下发挂起的进图帧列。
+				// 精确路径见 connection_session.scheduleForestBanner（N2568 自带
+				// delay[4]，进图帧列必须落在那个窗口内）；这里的 1 秒 tick 只是
+				// 定时器失效时的兜底（force=false 时按 fallback 期限判定）。
+				if entryPackets, entryEvents := client.worldState.forestEntryDue(now, false); len(entryPackets) > 0 || len(entryEvents) > 0 {
+					for _, note := range entryEvents {
+						client.event(note)
+					}
+					if client.sendPlan(entryPackets, client.logWorldResponseBody) != nil {
+						return
+					}
+				}
 				// 维纳斯难度选择窗倒计时归 0：推原生 close ACK 自动关窗。
 				packets = client.worldState.venusOperationClose(now, client.event)
 				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
@@ -271,6 +283,19 @@ func (client *gameConnection) serve() {
 				if client.sendPlan(packets, func(packet outboundPacket) {
 					client.event(map[string]any{"kind": packet.Name, "id": packet.ID})
 				}) != nil {
+					return
+				}
+			}
+			continue
+		case now := <-client.connection.forestBanner:
+			// 苏醒之森 Extreme「净化开始」横幅到期（N2568 自带 delay[4]）：
+			// 精确下发挂起的进图帧列。worldSession 只有主循环碰，无并发。
+			if client.bootstrapped && client.selectedCharacterID != 0 && client.worldState != nil {
+				packets, events := client.worldState.forestEntryDue(now, true)
+				for _, note := range events {
+					client.event(note)
+				}
+				if client.sendPlan(packets, client.logWorldResponseBody) != nil {
 					return
 				}
 			}

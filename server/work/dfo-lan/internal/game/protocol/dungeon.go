@@ -53,6 +53,32 @@ func EnterDungeonSelectionRelay() []byte {
 	return p
 }
 
+// EnterDungeonSelectionSeamless 是 NOTI27 的**无缝加载进图**形态（官服极难度
+// 第一关：2026-10-08 抓包 22:05:45.580，头四字节 `01 00 00 01`）。
+//
+// 与冷进场（`00 00 00 01`）只差 offset 0 —— 客户端读点 1453032f6。
+// 前情：这一关之前客户端刚收到 N2568 PREPARE_LEGION_ENTER_DUNGEON，进入
+// `[SEAMLESS LOADING] … delay[4]` 的无缝加载态；官服在这个状态下发的就是
+// 这个形态的 NOTI27（连同 N28 @30 = 05），本仓此前一直发冷进场形态。
+func EnterDungeonSelectionSeamless() []byte {
+	p := EnterDungeonSelection()
+	p[0] = 1
+	return p
+}
+
+// EnterDungeonSelectionStageContinue 是 NOTI27 的**连战过段直进**形态（官服
+// 极难度第二/三关：抓包 22:06:15.456 / 22:06:46.792，头四字节 `00 01 01 01`）。
+//
+// 与冷进场差 offset 1（`relay`）与 offset 2（`relay-extra`）两字节，值都是 1；
+// 与深渊「再次挑战」形态（`00 01 c3 01`，见 EnterDungeonSelectionRelay）在
+// offset 2 上不同 —— 两个内容各自取证，这里照极难度那一份写。
+func EnterDungeonSelectionStageContinue() []byte {
+	p := EnterDungeonSelection()
+	p[1] = 1
+	p[2] = 1
+	return p
+}
+
 type DungeonSelection struct {
 	ID         uint32
 	Difficulty byte
