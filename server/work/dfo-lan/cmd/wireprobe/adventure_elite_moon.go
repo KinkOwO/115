@@ -35,7 +35,7 @@ func (w *worldSession) eliteMoonEntryObservation() map[string]any {
 	}
 	row := eliteEntryProbeDiagnostic(w, w.activeDungeon, err)
 	row["candidate_stage"] = "moon-solo"
-	row["candidate_version"] = "0.3.18"
+	row["candidate_version"] = "0.3.19"
 	row["moon_attempt"] = "1/3"
 	row["entry_opcode"] = uint16(0) // server-pushed plan, not an invented CMD16
 	row["entry_path"] = "existing-moon-solo-plan"

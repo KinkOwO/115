@@ -561,3 +561,23 @@ Type22/发布ID10与PVF [server]、宠物名称/经验重复策略仍沿用既�
 现有 moon_solo_flow.go 的频道101及首/次层副本常量，和 internal/dungeon 的对应关联仍未迁移为 .cos 索引发现，本轮仅复用已装配的源配置，不新增生产内容ID或 JSON 回退。原 Type22/发布ID10 等既有重复策略也不在本轮收敛；不得将此候选解释为所有特殊频道通用支持。
 
 下一次只需一场手动会话：保持已保存名单，以 DFO_ADVENTURE_ELITE=1 和 scripts/启动游戏-SQLite.cmd --source-build 重启；原角色进入沉月湖，按原单人征讨流程创建队伍并入场，检查 APC/队伍栏与战斗。首次正常后可在同一场过门，条件允许则覆盖换层及撤退后 Continue；首次异常即停止，最后退出游戏。不要求重新保存名单。日志统一保留频道源、准备/加载、沉月湖入场与入场序号、过门/换层及原生引用/登记/攻击来源。未取得实机确认前，不更新 CHANGELOG 或 confirmed baseline 为成功，也不提交候选二进制。
+
+## 已支持特殊频道统一准入（服务端0.3.19，已获多频道确认）
+
+业主确认沉月湖“APC队友确认出现”，同时明确要求“给所有服务端支持的特殊频道副本允许”。沉月湖出场已按对应 confirmed baseline 收口；本节是新的服主准入策略，不把沉月湖、普通/剧情/奥德赛验收推广成所有特殊机制已实测。
+
+频道源链保持当前4d8c0c82归档的 etc/channel_info.etc 发布行，以及 etc/clientchannelinfo.etc、etc/channelslotinfo.etc 的频道属性。复用 catalog.ImportChannelInfo/ImportChannelDirectory，不再按 IsRaid、IsLegion、IsPreRaid、IsSemiRaid、GuideDungeon、Panel 或隔离城镇过滤 mode2 名单；未知且未发布的路线、来源Type不匹配仍拒绝。已有原生精锐频道保持原路径。没有新增频道/副本白名单，也没有为尚不支持的副本实现猜测入口。
+
+名单可见性与同伴加载许可继续分离：特殊转场不清名单，重复加载、副本内、未完成回城及赤红铁矿原生编队运行中仍禁止1811重载。训练/Boost的独立mode3保持原处理。普通战斗扩展的 Mode0/单人选图及奥德赛直进前置条件不再套用到源特殊入口，精锐身份/技能设置仍须匹配；实际组队、门票、难度、玩家等级、阶段、加载与结算继续由原黑鸦/铁矿/军团/攻坚/征讨/guide执行器决定。赤红铁矿仍使用原1381/1382编队资料，不改写其成员或把精锐当真人塞入N9。
+
+原生145F0C980单真人队伍门禁、DLL引用身份与kind5登记检查保持；多人真实队伍不能由服务端取消频道过滤自动获得兼容。官方 Sirocco Squad 文档也将精锐小队描述为单人内容（https://www.dfoneople.com/news/updates/2021/Sirocco-Squad-Mode），仅作历史背景，当前客户端和本次实机仍为事实依据。0.3.19 attempt source-special 1/3，不改变包字段、原生队伍成员或DLL。
+
+补充日志覆盖成功发送的N28/N29、特殊内容处理器及军团处理器的原请求前后状态。成功发送单独记为 adventure_elite_special_packet_sent，不伪造服务端入场接受、真实登记或战斗验收。采集新增 specialElitePacketObservations；0.3.19离线夹具验证新观察不会放宽原生证据认证标准。测试覆盖所有源特殊类别原低等级名单加载、转场不清引用、重复/场景加载拒绝、原内容规则仍能拒绝非法入场；真实PVF遍历全部发布频道行。实际门禁与候选哈希见 analysis/tasks/adventure-elite-special-candidate-20261010.json。
+
+实际门禁：go build ./...、go vet ./...、go test ./... -count=1退出0（4116通过/273跳过；既有及新增失败集合为空）；真实PVF全部发布频道行及完整采集夹具通过。候选7b14d95e（31142400B）已部署到隔离wireprobe-handoff-source.exe，原已确认沉月湖3d10ef01及清单备份于.tmp/adventure-elite/special-delivery-backup；DLL仍a46493c6，发布默认与39归档不动。只读CheckOnly预检退出0，不将历史PID状态当新版运行确认。此前旧奥德赛测试仍期待军团/隔离频道拒绝，其断言已按新授权更新，保留普通模式、角色/源与非法入场校验。
+
+内容源迁移缺口继续保留：沉月湖频道101/首次层ID常量（moon_solo_flow.go、internal/dungeon，对应moonlake.cos关联）和赤红铁矿路线/名望表（bleeding_mine_flow.go，对应bleedingmine.ctp与.dgn）尚未完全发现式解析。本轮只调整用户明确指定的精锐准入策略，复用既有执行器；建议后续按PVF台账收敛这些关联，不建立另一套精锐内容表。
+
+业主已确认“确认多个频道均有效，可以提交了”。本轮按此验收收口，保持DFO_ADVENTURE_ELITE=1与--source-build使用，无需再次操作。052039_400634_next37观察到Type22与Type99、venus_1phase的原N28/N29以及整场五个三名原生登记周期；候选和进程匹配、正常退出已观察。汇总仍有原通用入场/重进关联、日志上限和死亡覆盖缺口，未篡改为全场通过；不推断未说明的逐个频道/副本名单或真人多人兼容。详见analysis/tasks/adventure-elite-special-confirmed-20261010.json。没有改变PVF、SQLite/schema、存档、DLL或发布默认程序。
+
+独立拟提交源码另行完整build/vet/test退出0（4008通过/289跳过，失败及新增失败为空），只叠加本任务Go文件，保留原mods与本机login_ok.bin测试上下文；没有依赖或提交其他未跟踪源码。

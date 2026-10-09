@@ -114,10 +114,12 @@ func (client *gameConnection) dispatchSpecialContent(requestData *clientRequest)
 		return dispatchHandled
 	}
 	if requestData.frame.Type == 1 && client.bootstrapped && requestData.verified && client.worldState != nil && client.selectedCharacterID != 0 {
+		eliteBefore := client.worldState.eliteCombatState(requestData.frame.ID, requestData.plaintext)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		handled, packets, e := client.worldState.blackPurgatoryHandle(ctx, requestData.frame.ID, requestData.plaintext)
 		cancel()
 		if handled {
+			client.worldState.noteEliteCombatRequest(requestData.frame.ID, requestData.plaintext, eliteBefore, nil, packets, e, client.event)
 			if e != nil {
 				client.event(map[string]any{"kind": "黑鸦请求被拒绝", "id": requestData.frame.ID, "error": e.Error()})
 				packets = []outboundPacket{{"黑鸦请求拒绝应答", 1, requestData.frame.ID, protocol.Refusal(8)}}
@@ -139,6 +141,7 @@ func (client *gameConnection) dispatchSpecialContent(requestData *clientRequest)
 		// 对其它频道一律 return false（不影响普通频道与月湖）。
 		handled, packets, e = client.worldState.azureHandle(requestData.frame.ID, requestData.plaintext, time.Now(), client.event)
 		if handled {
+			client.worldState.noteEliteCombatRequest(requestData.frame.ID, requestData.plaintext, eliteBefore, nil, packets, e, client.event)
 			if e != nil {
 				client.event(map[string]any{"kind": "azure_main_request_rejected", "id": requestData.frame.ID, "error": e.Error()})
 				packets = nil
@@ -202,7 +205,9 @@ func (client *gameConnection) dispatchLegion(requestData *clientRequest) dispatc
 		// town and CMD2355 inside the dungeon; the rest of the family is
 		// routed here so an unimplemented packet is logged as an
 		// explicit refusal instead of vanishing.
+		eliteBefore := client.worldState.eliteCombatState(requestData.frame.ID, requestData.plaintext)
 		legionPlan, legionErr := client.legionState.handle(client.worldState, requestData.plaintext, requestData.frame.ID)
+		client.worldState.noteEliteCombatRequest(requestData.frame.ID, requestData.plaintext, eliteBefore, nil, legionPlan.Packets, legionErr, client.event)
 		// The request body is logged whether or not the opcode is
 		// answered. Settling X1 (next64 §6.2) — whether the caller's
 		// appended length already contains the 13-byte envelope — is
@@ -306,6 +311,9 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 			return dispatchHandled
 		}
 		if e = client.output.writePrepared(prepared, func(p preparedPacket) {
+			if note := client.worldState.eliteSpecialPacketObservation(p.Name, p.Kind, p.ID); note != nil {
+				client.event(note)
+			}
 			client.event(map[string]any{"kind": p.Name, "id": p.ID, "character_id": client.selectedCharacterID, "plain_hex": hex.EncodeToString(p.Payload)})
 		}); e != nil {
 			return dispatchClose

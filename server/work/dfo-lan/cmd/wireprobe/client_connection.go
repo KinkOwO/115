@@ -429,6 +429,9 @@ func (client *gameConnection) sendPlan(plan []outboundPacket, sent func(outbound
 		}
 	}
 	return sendPacketPlan(plan, client.output.send, func(p outboundPacket) {
+		if note := client.worldState.eliteSpecialPacketObservation(p.Name, p.Kind, p.ID); note != nil {
+			client.event(note)
+		}
 		if p.Name == "moon_dungeon" && moonEntry != nil {
 			client.event(moonEntry)
 		}

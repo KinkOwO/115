@@ -9,7 +9,7 @@ import (
 // Read-only snapshots around existing handlers. No DB queries, packets, content
 // rules or ownership fallback. Processing success is not client acceptance.
 func (w *worldSession) eliteCombatState(opcode uint16, body []byte) map[string]any {
-	if w == nil || !w.adventureEliteEntryProbeUsed || w.adventureElitePrepared == nil {
+	if w == nil || (!w.adventureEliteEntryProbeUsed && !w.eliteSourceSpecialChannel()) || w.adventureElitePrepared == nil {
 		return nil
 	}
 	row := map[string]any{"level": w.level, "completion_sent": w.completionSent, "active": w.activeDungeon != nil, "entry_serial": w.adventureEliteEntrySerial,
@@ -73,7 +73,7 @@ func (w *worldSession) noteEliteCombatRequest(opcode uint16, body []byte, before
 	if before == nil || event == nil {
 		return
 	}
-	row := map[string]any{"kind": "adventure_elite_combat_request", "candidate_version": "0.3.18", "attempt": "odyssey 3/3", "direct_move_attempt": "1/3", "projection_reload_attempt": "2/3", "moon_attempt": "1/3", "candidate_stage": w.eliteCandidateStage(), "entry_serial": w.adventureEliteEntrySerial, "id": opcode,
+	row := map[string]any{"kind": "adventure_elite_combat_request", "candidate_version": "0.3.19", "attempt": "odyssey 3/3", "direct_move_attempt": "1/3", "projection_reload_attempt": "2/3", "moon_attempt": "1/3", "special_channel_attempt": "1/3", "candidate_stage": w.eliteCandidateStage(), "entry_serial": w.adventureEliteEntrySerial, "id": opcode,
 		"character_id": w.role.ID, "owner_wire_id": w.role.WireID, "channel_type": w.channelType, "processed": err == nil, "client_acceptance": "pending",
 		"before": before, "after": w.eliteCombatState(opcode, body)}
 	if err != nil {

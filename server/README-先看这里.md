@@ -1,9 +1,11 @@
 # DFO 服务端源码与启动脚本交接包
 
 
-## 精锐普通与剧情助战：已确认范围
+## 精锐助战：已确认范围与特殊频道准入
 
 `DFO_ADVENTURE_ELITE=1`沿现有Go启动链启用隔离服务端及DLL注入。普通五房通关、多次回城后入场、再次挑战和结算重新选图已确认；普通剧情ID5/Quest3146的APC出现本轮已确认，两名原生登记成功。该剧情日志还记录五房、17个有精锐来源证据的普通击杀、任务3146物品/经验事务、后继3147及结算回城；原生死亡函数调用与实际CMD39存在一项采集缺口，不能称完整剧情覆盖。奥德赛/直进2062/特殊队伍与对象释放仍待证。实际剧情服务端1c9f5842、DLL94165690；默认程序/PVF/存档结构保持。详见[说明](../client-patchs/adventure-elite/README.md)、[计划](../docs/todo/adventure-elite-ordinary-plan.md)及[确认基线](work/dfo-lan/docs/protocol/next79-confirmed-baseline-20261003.md)。
+
+后续确认：奥德赛转场/重进名单保持与沉月湖特殊频道 APC 出场已分别收口。服务端0.3.19/7b14d95e已获业主“多个频道均有效”确认，统一取消精锐接入层的频道类别限制；原特殊副本入口负责队伍、难度、阶段与结算，已有真人队伍门禁和DLL0.3.10/a46493c6保持。以已保存名单、DFO_ADVENTURE_ELITE=1和`scripts/启动游戏-SQLite.cmd --source-build`重启即可使用；无需逐个副本重新保存名单。确认范围为已测试多个频道的APC使用；每个副本/阶段与多人真人队伍兼容仍待分别取证。完整build/vet/test通过（4116通过/273跳过），真实PVF全发布频道行及采集夹具通过；详见[多频道确认记录](../analysis/tasks/adventure-elite-special-confirmed-20261010.json)。
 
 ## Bot 独立通道候选（2026-10-06）
 

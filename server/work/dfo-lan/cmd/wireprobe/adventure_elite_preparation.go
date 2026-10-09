@@ -7,17 +7,15 @@ import (
 	"dfolan/internal/database"
 )
 
-// The extension uses the same PVF source directory as the gateway. Unknown
-// types and dedicated party/guide channels do not receive its mode-2 view,
-// except the separately bound PVF-backed Moon solo executor.
+// The owner explicitly permits companions on every existing special entry.
+// Channel categories do not hide the roster; source identity and the original
+// content handlers still decide whether a dungeon can actually be entered.
 func (w *worldSession) ordinaryEliteRosterVisible() bool {
 	if w == nil || !adventureelite.Enabled() || adventureEliteChannel(w.channelType) || w.eliteChannelDirectory == nil {
 		return false
 	}
 	a, known := w.eliteChannelDirectory.Attributes(w.channelType)
-	moonSolo := w.eliteMoonChannel()
-	if known && (a.Type != w.channelType || a.IsRaid || a.IsLegion || a.IsPreRaid ||
-		(!moonSolo && (a.IsSemiRaid || a.GuideDungeon != 0 || a.Panel != ""))) {
+	if known && a.Type != w.channelType {
 		return false
 	}
 	if !known {
@@ -31,8 +29,7 @@ func (w *worldSession) ordinaryEliteRosterVisible() bool {
 				if row.ID == w.eliteChannelID {
 					// Published ID is resolved by the existing channel route.
 					// Local Type overrides are not a second content directory.
-					source, special := w.eliteChannelDirectory.Attributes(row.Type)
-					ordinary = !special || !(source.IsRaid || source.IsLegion || source.IsPreRaid || source.IsSemiRaid || source.GuideDungeon != 0 || source.Panel != "")
+					ordinary = true
 					break
 				}
 			}
@@ -41,10 +38,7 @@ func (w *worldSession) ordinaryEliteRosterVisible() bool {
 			return false
 		}
 	}
-	if w.channelWorldIsolated && !moonSolo {
-		return false
-	}
-	if w.inTutorial || w.bleedingMineStart != nil {
+	if w.inTutorial {
 		return false
 	}
 	return w.boostup == nil || w.state.Position.Town != w.boostup.Town
@@ -62,7 +56,17 @@ func (w *worldSession) ordinaryEliteSelectionVisible() bool {
 func (w *worldSession) ordinaryElitePreparationAllowed() bool {
 	return w.ordinaryEliteSelectionVisible() && w.activeDungeon == nil &&
 		!w.selectingDungeon && w.pendingTownArrival == nil &&
+		w.bleedingMineStart == nil &&
 		(!w.eliteMoonChannel() || w.moon.owner == nil)
+}
+
+func (w *worldSession) eliteSourceSpecialChannel() bool {
+	if w == nil || w.eliteChannelDirectory == nil {
+		return false
+	}
+	a, ok := w.eliteChannelDirectory.Attributes(w.channelType)
+	return ok && a.Type == w.channelType && (w.channelWorldIsolated || a.IsRaid ||
+		a.IsLegion || a.IsPreRaid || a.IsSemiRaid || a.GuideDungeon != 0 || a.Panel != "")
 }
 
 // The account list can include the character now playing after a role switch.

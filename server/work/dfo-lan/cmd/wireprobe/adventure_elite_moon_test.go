@@ -25,7 +25,7 @@ func bindEliteMoonFixture(w *worldSession, channel uint32) {
 	w.channelWorldIsolated = true
 }
 
-func TestAdventureEliteMoonSourceBindingKeepsOtherSpecialChannelsClosed(t *testing.T) {
+func TestAdventureEliteMoonExecutorBindingRemainsDistinctFromChannelPermission(t *testing.T) {
 	t.Setenv(adventureelite.EnvKey, "1")
 	cases := map[string]func(*worldSession){
 		"unbound":         func(w *worldSession) { w.moonConfig = nil },
@@ -54,7 +54,7 @@ func TestAdventureEliteMoonSourceBindingKeepsOtherSpecialChannelsClosed(t *testi
 			bindEliteMoonFixture(w, 101)
 			mutate(w)
 			require.False(t, w.eliteMoonChannel())
-			require.False(t, w.ordinaryEliteRosterVisible())
+			require.Equal(t, name != "unknown-source", w.ordinaryEliteRosterVisible(), "channel permission does not fabricate a bound Moon executor")
 		})
 	}
 }
