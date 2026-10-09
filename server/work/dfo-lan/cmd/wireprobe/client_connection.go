@@ -124,6 +124,10 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 			}
 		}
 		client.worldState.channelGuideDungeon = client.gatewayRuntime.channelGuides[client.channelTypes[client.channel]]
+		// 蔚蓝号（征服频道 102）的源驱动翻牌策略（nil = 未装配 ⇒ 退回通用翻牌）。
+		// 真正生效还要 activeDungeon 的副本号等于策略记的结算层，见 azureFlipActive()。
+		// ⚠️ 漏了这一行不会报错、只会静默走老路（2026-10-09 实测代价：一轮实机白跑）。
+		client.worldState.azureFlipCfg = client.azureFlip
 		if client.moonConfig != nil && client.channel == client.moonConfig.Channel {
 			client.worldState.moonConfig = client.moonConfig
 		}

@@ -20,7 +20,15 @@ func (w *worldSession) resetCards() {
 	w.cardAutoPickAt = time.Time{}
 }
 func (w *worldSession) cardsReady() error {
-	if w == nil || w.loot == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || !w.resultSent || w.cardPlan == nil || w.cardPlan.Run != w.activeDungeon.RunID {
+	if w == nil || w.loot == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || !w.resultSent {
+		return fmt.Errorf("cards before owned settlement")
+	}
+	// 蔚蓝号（征讨族）的奖单是**源驱动**那一份：载体是 MoonRewardPlan 而不是 CardPlan
+	// （CardPlan.Items 只有 8 格，装不下源声明的整张单子），见 azure_flip.go。
+	if w.azureFlipOwned() {
+		return nil
+	}
+	if w.cardPlan == nil || w.cardPlan.Run != w.activeDungeon.RunID {
 		return fmt.Errorf("cards before owned settlement")
 	}
 	return nil
@@ -49,6 +57,14 @@ func (w *worldSession) cardStage(id uint16, p []byte) ([]outboundPacket, error) 
 	return []outboundPacket{{"card_layout_ack", 1, 70, protocol.CardLayout()}}, nil
 }
 func (w *worldSession) grantFreeCard(index byte) ([]outboundPacket, error) {
+	// 蔚蓝号的奖单在 MoonRewardPlan 上（源驱动），领取走 ClaimMoonReward ——
+	// 与沉月湖同一个事务（按 run 幂等）。通用 PickCard 读的是 CardPlan，
+	// 那条路对蔚蓝号已经不适用（单子装不进 8 格）。
+	if w.azureFlipOwned() {
+		// 重复调用由 azureClaim 内部幂等处理（只回选中帧、不重复发奖）——
+		// **不能在这里空手返回**：玩家点牌那条 CMD71 会因此拿不到任何应答。
+		return w.azureClaim(index)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	role, receipt, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).PickCard(ctx, w.role, w.activeDungeon, *w.cardPlan, index)

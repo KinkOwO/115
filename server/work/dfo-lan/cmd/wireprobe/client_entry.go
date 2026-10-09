@@ -1049,6 +1049,20 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		// 原因见 azure_main_flow.go 的 azureRewardSnapshot：缺它客户端会在
 		// 「创建攻坚队」时报「奖励已领完」。只对 102 生效。
 		if client.worldState != nil && client.worldState.channelType == azureMainChannelType {
+			// 满包时挂起的源驱动奖单在这里补发（见 azure_flip.go）。奖单模型与月湖共用，
+			// 而月湖的补发钩子挂在它自己的 250ms tick 上 —— 蔚蓝号频道没有那个 tick，
+			// 借这个既有进城钩子兜住，免得「满包那一次的奖励永远拿不到」。
+			if pending, pendingErr := client.worldState.azureRecoverPendingRewards(); pendingErr != nil {
+				client.event(map[string]any{"kind": "azure_pending_rewards_error", "error": pendingErr.Error()})
+			} else {
+				for _, pendingPacket := range pending {
+					if sendErr := client.output.send(pendingPacket.Kind, pendingPacket.ID, pendingPacket.Payload); sendErr != nil {
+						client.event(map[string]any{"kind": "azure_pending_rewards_send_error", "id": pendingPacket.ID, "error": sendErr.Error()})
+						break
+					}
+					client.event(map[string]any{"kind": pendingPacket.Name, "id": pendingPacket.ID})
+				}
+			}
 			azureRewards, azureErr := client.worldState.azureRewardSnapshot()
 			if azureErr != nil {
 				client.event(map[string]any{"kind": "azure_main_rewards_error", "error": azureErr.Error()})
