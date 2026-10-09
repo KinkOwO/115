@@ -33,6 +33,11 @@ type State struct {
 	AdventureEarnedExperience uint64                `json:"adventure_earned_experience,omitempty"`
 	SkillPoints               [2]uint16             `json:"skill_points,omitempty"`
 	TechniquePoints           [2]uint16             `json:"technique_points,omitempty"`
+	// SkillTreeType 是角色"技能类型"选择：0 = 第二技能页未解锁（零值，老存档
+	// 与漏赋值都保持锁定），1 = 技能类型 1（第一页），2 = 技能类型 2（第二页）。
+	// 由商城"技能类型扩展券"（PVF item 821 / product 3000150，购买即生效）解锁：
+	// 购买把 0 置为 1。下发映射见 protocol.EntryAdditionProbe.SkillTreeType。
+	SkillTreeType byte `json:"skill_tree_type,omitempty"`
 	CurrencySlot2             uint32                `json:"currency_slot2,omitempty"`
 	Advancement               byte                  `json:"advancement"`
 	Awakening                 byte                  `json:"awakening,omitempty"`
@@ -437,6 +442,7 @@ func (s *Service) EntryBasicProbe(role Character, channelContext [2]byte) ([]byt
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		BasePercent:   entryBasePercent,
+		SkillTreeType: state.SkillTreeType,
 		ActorServerID: role.WireID, Context: channelContext,
 		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags, GrowthEffectFlags: effectFlags},
 		// The explicit per-slot block must stay empty on the entry path. A
@@ -515,6 +521,7 @@ func (s *Service) AppearanceProbe(role Character, channelContext [2]byte) ([]byt
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		BasePercent:   entryBasePercent,
+		SkillTreeType: state.SkillTreeType,
 		ActorServerID: role.WireID, Context: channelContext,
 		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags, GrowthEffectFlags: effectFlags},
 		Appearance: rows,

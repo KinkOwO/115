@@ -59,6 +59,22 @@ type EntrySkill struct {
 	Level byte
 }
 
+// SkillTreeLocked is the "skill type" selector wire value that the client reads
+// as "the second skill page was never unlocked". 86JP
+// DfoServer.Game.Skills.SkillTreeExpansionState calls the same value
+// LockedWireValue; 0/1 mean unlocked and currently selected page.
+const SkillTreeLocked = 0xff
+
+// SkillTreeWireIndex 把 1-based 的技能类型选择（0=未解锁 / 1=类型1 / 2=类型2）
+// 投影成客户端原生选择字节（0xff / 0 / 1）。任何越界值都退回锁定，
+// 保证存档损坏或字段漏设时不会意外解锁第二页。
+func SkillTreeWireIndex(selection byte) byte {
+	if selection >= 1 && selection <= 2 {
+		return selection - 1
+	}
+	return SkillTreeLocked
+}
+
 // EntryAdditionProbe is the minimum current mode 1 layout with explicitly
 // absent optional equipment/collections. It must follow a matching mode 0.
 // Source base stats are connected to the detailed probe. Unknown fixed-prefix
@@ -80,6 +96,14 @@ type EntryAdditionProbe struct {
 	// width guard: the native field is one byte and a wider saved value is
 	// rejected while projecting rather than truncated here.
 	ExpandEquipFlags byte
+	// SkillTreeType 决定客户端显示哪一页技能：0 = 第二技能页从未解锁
+	// （零值，所以老存档以及任何忘记赋值的调用方都保持锁定），
+	// 1 = 技能类型 1（第一页），2 = 技能类型 2（第二页）。
+	// 下发时经 SkillTreeWireIndex 投影成原生选择字节：0 -> SkillTreeLocked，
+	// 1 -> 0，2 -> 1。86JP DfoServer.Game.Skills.SkillTreeExpansionState 用的是
+	// 同一组 wire 值。这个字节过去被硬编码成 SkillTreeLocked，所以任何角色都开
+	// 不了第二页。
+	SkillTreeType byte
 }
 
 func UserInfoAdditionProbe(s EntryAdditionProbe) ([]byte, error) {
@@ -111,7 +135,8 @@ func UserInfoAdditionProbe(s EntryAdditionProbe) ([]byte, error) {
 	p = append(p, equipment...)
 	p = append(add16(p, 0), 0) // 14563c1f0: switching-inventory ID + count
 	p = add32(add32(p, 0), 0)  // 14563d6dd / 14563d717
-	p = append(p, 0xff)        // native unset selected skill-tree byte
+	// 原生"技能类型"选择字节，见 EntryAdditionProbe.SkillTreeType。
+	p = append(p, SkillTreeWireIndex(s.SkillTreeType))
 	// 14563d9aa increments the outer tree index; both self and other branches
 	// consume TWO sets of count + skills + three pairs + five triples.
 	for _, tree := range s.SkillTrees {

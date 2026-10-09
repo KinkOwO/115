@@ -97,6 +97,10 @@ type EntryBasicProbe struct {
 	Fame          uint32
 	SeasonLevel   uint32
 	BasePercent   byte // 城镇队伍面板的状态比例；战斗血蓝另从场景角色读取。
+	// SkillTreeType 是"技能类型"选择（0=第二技能页未解锁 / 1=类型1 / 2=类型2），
+	// 见 EntryAdditionProbe.SkillTreeType。mode0 里它同样要下发：86JP
+	// UserInfoSubtype0Builder 也在 MoodValue 之后写 SkillTreeIndex。
+	SkillTreeType byte
 
 	// Appearance is the per-slot state the native 0x145639840 block carries,
 	// one entry per slot the packet speaks about. Slots the packet does not
@@ -223,7 +227,10 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 	p = append(p, s.Context[0])
 	p = append(add16(p, 0), 0) // 0x14563bdc0: u16 + u8
 	p = add16(p, 0)
-	p = append(p, 0xff) // 0x14563a4a0 native unset value
+	// 0x14563a4a0 读到的是"技能类型"选择字节：86JP UserInfoSubtype0Builder 就在
+	// MoodValue(u16) 之后紧跟写 SkillTreeIndex。原来写死 0xff = 永远"未解锁"，
+	// 所以商城买了扩展券客户端也不认。见 EntryBasicProbe.SkillTreeType。
+	p = append(p, SkillTreeWireIndex(s.SkillTreeType))
 	p = append(p, 0, 0, 0)
 	p = add32(p, 0)
 	p = add32(p, 0) // 0x14563c140: count, no nested u32 pairs

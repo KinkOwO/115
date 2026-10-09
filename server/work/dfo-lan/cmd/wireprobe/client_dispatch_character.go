@@ -288,7 +288,7 @@ func (client *gameConnection) dispatchCharacterSkills(requestData *clientRequest
 		}
 		return dispatchHandled
 	}
-	if client.characters != nil && client.bootstrapped && (requestData.frame.ID == 28 || requestData.frame.ID == 29 || requestData.frame.ID == 483 || requestData.frame.ID == 2179 || requestData.frame.ID == 2346 || requestData.frame.ID == 2347) {
+	if client.characters != nil && client.bootstrapped && (requestData.frame.ID == 28 || requestData.frame.ID == 29 || requestData.frame.ID == 260 || requestData.frame.ID == 483 || requestData.frame.ID == 2179 || requestData.frame.ID == 2346 || requestData.frame.ID == 2347) {
 		if !requestData.verified {
 			return dispatchHandled
 		}

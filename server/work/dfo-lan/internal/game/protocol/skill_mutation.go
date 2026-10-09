@@ -17,7 +17,9 @@ func DecodeSkillMove(p []byte) (SkillMove, error) {
 	if r.Tree == 255 {
 		r.Tree = 0
 	}
-	if r.Tree != 0 || int32(binary.LittleEndian.Uint32(p[3:])) != -1 {
+	// 放开 cmd28（手动拖放技能）—— 它与 cmd2179（批量重排）是两回事，
+	// 业主 2026-10-09 21:03 报"第二页无法调整快捷栏技能的位置"，那是被这里拒掉的。
+	if r.Tree > 1 || int32(binary.LittleEndian.Uint32(p[3:])) != -1 {
 		return r, fmt.Errorf("unsupported skill move context")
 	}
 	return r, digestRequestTail(p, 7, 16)
@@ -54,7 +56,11 @@ func DecodeSkillSlotTotal(p []byte) (SkillSlotTotal, error) {
 		// 0xff is the client's "no tree selected" sentinel and means tree 0.
 		r.Tree = 0
 	}
-	if r.Tree != 0 {
+	// ⚠️ 实验第六轮（21:5x）：**受理第二页布局并落库，ACK 的 tree 字节强制回 0**。
+	// 隔壁第五轮"只回 ACK 仍崩"用的是 tree=1 的 ACK；页1 全部响应帧 tree=0 从不崩，
+	// 页2 崩的全是 tree=1 的响应帧 ⇒ 崩点疑似"tree=1 的响应"。本轮验证 ACK tree=0
+	// 是否既能落库又不崩。配套：skill_flow case 2179 只回 ACK、零刷新帧。
+	if r.Tree > 1 {
 		return r, fmt.Errorf("unsupported skill slot total tree")
 	}
 	n := int(p[1])
@@ -115,7 +121,9 @@ func DecodeSkillPurchase(p []byte) (SkillPurchase, error) {
 	n := int(p[1])
 	end := 2 + n*4
 	// 1456cedb0/145ee8022 write four tail bytes (ordinary manual path all zero).
-	if r.Tree != 0 || n > 128 || len(p) < end+4 {
+	// ⚠️ 实验第二轮（2026-10-09 20:24 第一轮结果：只开 2179 ⇒ 不崩且"没加点"，
+	// 崩因锁定在 cmd29）。现在把 cmd29 也放开，cmd28（拖放）仍关着。
+	if r.Tree > 1 || n > 128 || len(p) < end+4 {
 		return r, fmt.Errorf("unsupported skill purchase")
 	}
 	for i := 2; i < end; i += 4 {
