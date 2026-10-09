@@ -69,6 +69,18 @@ type DungeonDefinition struct {
 	IndividualMapMovement bool
 	// TimeoutSeconds comes from [dungeon timeout] seconds and mode0.
 	TimeoutSeconds uint32
+	// CoinLimit 是副本脚本声明的**复活币使用上限**（本局最多用几枚）。两支形态：
+	//
+	//	[coin limit] <N>                          —— 沉月湖（100004136/100004137 都是 8）
+	//	[coin info] … [normal] <N> <M> … [/coin info] —— 蔚蓝号（100004131/100004134 也是 8）
+	//
+	// 同族语义的旁证：`internal/legion/bakal_raid.go` 解析的 `[party coin limit]`
+	// 就是巴卡尔军团本的复活币上限。**形状不符保持 0** —— 其它副本的行为一个字节都不变。
+	//
+	// 用途：蔚蓝号写进 N2621 的 [32:36]（剩余次数，此前是代码常量 8）；
+	// 沉月湖写进 N2622 的 p[16]（协议里那句 "the host supplies the actual
+	// upstream-owned revival balance"）。见 next188。
+	CoinLimit uint32 `json:"coin_limit,omitempty"`
 	// RewardCard 是源 [dungeon clear result] [reward card] <N> 声明的**翻牌张数**
 	// （沉月湖第二层 100004137 为 1）。这是源对通关结算的声明，不是本地策略 ——
 	// 沉月湖单人的抽牌次数就取它，见 cmd/wireprobe 的 moon 配置推导。
@@ -97,6 +109,47 @@ type DungeonDefinition struct {
 	// Tower is attached only after a tower's source floor/map rules are verified.
 	// Entry and progress are shared; reward packets remain tower specific.
 	Tower *TowerRuntime `json:"-"`
+}
+
+// coinLimit 读副本脚本声明的「复活币使用上限」。两种形态（见 DungeonDefinition.CoinLimit）：
+//
+//	[coin limit] <N>
+//	[coin info] … [normal] <N> <M> … [/coin info]
+//
+// 都取那个正整数 N；形状不符（缺标签、值非正整数、多条）一律返回 0，
+// 让其它副本的行为一个字节都不变。
+func coinLimit(cells []pvf.Token) uint32 {
+	if v := sectionCells(cells, "[coin limit]"); len(v) == 1 && v[0].Type == 0 && v[0].Value > 0 {
+		return uint32(v[0].Value)
+	}
+	// [coin info] 块里的难度行：形如
+	//
+	//	[coin info] 0 [normal] 8 1 [/coin info]                       （蔚蓝号，单档）
+	//	[coin info] 0 [normal] 8 1 [expert] 8 1 [master] 8 1 [/coin info]（同族，三档）
+	//
+	// ⚠️ 这些难度名是 **type=6 的子标签**，不是 type=3 的 section ——
+	// 按 type=3 匹配会一个都找不到（实测踩过）。
+	// 取 [normal]（第一档）的值：本仓这两个副本三档同值（都是 8），取哪档都等价；
+	// 将来若出现分档不同的副本，这里要改成按当前难度取。
+	open := false
+	for i, c := range cells {
+		if c.Type == 3 {
+			switch c.Text {
+			case "[coin info]":
+				open = true
+			case "[/coin info]":
+				open = false
+			}
+			continue
+		}
+		if !open || c.Type != 6 || c.Text != "[normal]" {
+			continue
+		}
+		if i+1 < len(cells) && cells[i+1].Type == 0 && cells[i+1].Value > 0 {
+			return uint32(cells[i+1].Value)
+		}
+	}
+	return 0
 }
 
 // DungeonType 读副本脚本自己的 [dungeon type] 值（`boundary of attunement` /
@@ -388,6 +441,7 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	if individual := sectionCells(s.Cells, "[individual map movement]"); len(individual) == 1 && individual[0].Type == 0 && individual[0].Value == 1 {
 		d.IndividualMapMovement = true
 	}
+	d.CoinLimit = coinLimit(s.Cells)
 	// [reward card] 是翻牌张数（月湖第二层 100004137 = 1）。源里它写在
 	// [dungeon clear result] 段内；只在恰好一条且为非负整数时采纳 —— 形状不符就
 	// 保持 0，其它副本的行为一个字节都不变。

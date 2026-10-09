@@ -8,9 +8,13 @@ import (
 
 const NotiMoonLakeInfo uint16 = 2622
 
-// N2622+4 -> mode+76 through1401B70A0. Moon phase3 checks1 for
+// N2622+4 -> mode+76. Moon phase3 checks1 for
 // success presentation; phase5 checks2 for the failure cleanup branch.
 // Phase alone does not encode the result (G0260 S817/S837/S841 all use1).
+//
+// ⚠️ 旧注释里的「through 1401B70A0」不要当消费点依据（2026-10-09 IDA 复核）：
+// 该地址落在 sub_1401B7050 内部，那是个**通用字节码/属性读取循环**
+// （`movzx edi,[rdx] ; cmp edi,80h ; shl eax,3 …`），与 N2622 的字段语义无关。
 func MoonLakeOutcome115(p []byte, success bool) ([]byte, error) {
 	if len(p) != 126 {
 		return nil, fmt.Errorf("invalid Moon result record")
@@ -111,6 +115,32 @@ func MoonLakeGauges115(p []byte, troop, fever uint32) ([]byte, error) {
 	out := append([]byte(nil), p...)
 	binary.LittleEndian.PutUint32(out[118:], troop)
 	binary.LittleEndian.PutUint32(out[122:], fever)
+	return out, nil
+}
+
+// MoonLakeRevives115 把「本局剩余复活币次数」写进 N2622 的 p[16]。
+//
+// 协议那格的原注释就是 "the host supplies the actual upstream-owned revival balance" ——
+// 此前恒为 0（phase 14 关闭态时是 255 哨兵）。上限来自副本脚本的 [coin limit]
+// （沉月湖两层都是 8，见 catalog.DungeonDefinition.CoinLimit）。
+//
+// ⚠️ **这一格的用途仍未证实**（2026-10-09）：业主实机看到的那格数字是 **38 = 背包里
+// 复活币的持有量**（我们这一版已经在写 8），说明**显示不是取自 p[16]**；而 p[16] 到底是
+// 「本局可用次数」还是别的，还要靠实机（死满 8 次看第 9 次是否被拒）或继续 IDA 才能定。
+// 另：`[coin limit]` / `[coin info]` 在客户端是**脚本命令**（id 8878 / 7108，注册在
+// sub_1473BB560 / sub_147444B30 这个 `.dgn` 解释器一族里）⇒ 上限本身是**客户端自己从
+// .dgn 读的**，不需要服务端下发。`[revive count]` 是 PVP 模式那一族的标签，与本副本无关。
+func MoonLakeRevives115(p []byte, left uint32) ([]byte, error) {
+	if len(p) != 126 {
+		return nil, fmt.Errorf("wrong Moon Lake info size")
+	}
+	phase := binary.LittleEndian.Uint32(p)
+	if phase == 14 {
+		// 关闭态那一格是 255 哨兵，不要覆盖。
+		return p, nil
+	}
+	out := append([]byte(nil), p...)
+	binary.LittleEndian.PutUint32(out[16:], left)
 	return out, nil
 }
 
