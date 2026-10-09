@@ -8,13 +8,16 @@ import (
 )
 
 // The extension uses the same PVF source directory as the gateway. Unknown
-// types and dedicated party/guide channels do not receive its mode-2 view.
+// types and dedicated party/guide channels do not receive its mode-2 view,
+// except the separately bound PVF-backed Moon solo executor.
 func (w *worldSession) ordinaryEliteRosterVisible() bool {
 	if w == nil || !adventureelite.Enabled() || adventureEliteChannel(w.channelType) || w.eliteChannelDirectory == nil {
 		return false
 	}
 	a, known := w.eliteChannelDirectory.Attributes(w.channelType)
-	if known && (a.Type != w.channelType || a.IsRaid || a.IsLegion || a.IsPreRaid || a.IsSemiRaid || a.GuideDungeon != 0 || a.Panel != "") {
+	moonSolo := w.eliteMoonChannel()
+	if known && (a.Type != w.channelType || a.IsRaid || a.IsLegion || a.IsPreRaid ||
+		(!moonSolo && (a.IsSemiRaid || a.GuideDungeon != 0 || a.Panel != ""))) {
 		return false
 	}
 	if !known {
@@ -38,7 +41,7 @@ func (w *worldSession) ordinaryEliteRosterVisible() bool {
 			return false
 		}
 	}
-	if w.channelWorldIsolated {
+	if w.channelWorldIsolated && !moonSolo {
 		return false
 	}
 	if w.inTutorial || w.bleedingMineStart != nil {
@@ -58,7 +61,8 @@ func (w *worldSession) ordinaryEliteSelectionVisible() bool {
 // Reloading native companions is still restricted to a settled town session.
 func (w *worldSession) ordinaryElitePreparationAllowed() bool {
 	return w.ordinaryEliteSelectionVisible() && w.activeDungeon == nil &&
-		!w.selectingDungeon && w.pendingTownArrival == nil
+		!w.selectingDungeon && w.pendingTownArrival == nil &&
+		(!w.eliteMoonChannel() || w.moon.owner == nil)
 }
 
 // The account list can include the character now playing after a role switch.

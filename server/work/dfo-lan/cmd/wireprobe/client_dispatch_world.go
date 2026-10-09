@@ -150,8 +150,10 @@ func (client *gameConnection) dispatchSpecialContent(requestData *clientRequest)
 			}
 			return dispatchHandled
 		}
+		moonEliteBefore := client.worldState.eliteCombatState(requestData.frame.ID, requestData.plaintext)
 		handled, packets, e = client.worldState.moonHandle(requestData.frame.ID, requestData.plaintext, time.Now(), client.event)
 		if handled {
+			client.worldState.noteEliteCombatRequest(requestData.frame.ID, requestData.plaintext, moonEliteBefore, nil, packets, e, client.event)
 			if e != nil {
 				client.event(map[string]any{"kind": "moon_request_rejected", "id": requestData.frame.ID, "error": e.Error()})
 				packets = moonRefusal(requestData.frame.ID, requestData.plaintext)

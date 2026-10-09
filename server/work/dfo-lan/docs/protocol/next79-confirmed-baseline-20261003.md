@@ -216,3 +216,12 @@ CHANGELOG及confirmed baseline按本次单次快速进入/APC出现收口；原0
 提交完整性：gud/main已有BufferRentalRules/Source.BufferRental接线但遗漏两份buffer_rental.go，独立拟提交源码先构建失败，补入既有文件后构建通过。业主明确授权“允许补入两份源码（推荐）”，仅补跟踪internal/catalog/buffer_rental.go及internal/gamedata/buffer_rental.go；其余无关未跟踪文件不入库。已fetch实际唯一远端gud，HEAD与gud/main一致，无需合并；共享工作区重跑完整build/vet/test通过，无失败/新增失败。
 
 独立拟提交源码build/vet/test均退出0，3837通过/283跳过，无失败/新增失败。独立测试保留仓库已跟踪mods目录及本机既有runtime/login_ok.bin测试夹具；夹具不入库，首次遗漏测试环境所致的两项失败在恢复原上下文后均消失。
+
+
+## 沉月湖特殊频道精锐 APC 出场确认（服务端0.3.18）
+
+**已修复 / 已完成**：业主确认“APC队友确认出现”。沉月湖按当前 PVF 频道属性及既有单人征讨配置开放 mode2 精锐名单，复用原1811→1382/1879准备链及原 MoonSoloOwner 入场；不改真实单人队伍名单。候选3d10ef01，DLL保持0.3.10/a46493c6。证据 analysis/tasks/adventure-elite-moon-confirmed-20261010.json。
+
+**未修复 / 未闭环**：用户确认范围为 APC 出场；日志可观察首层及次层入场，不扩大为换层、撤退续进、结算或所有特殊频道验收。采集发生于会话仍运行时，退出及完整死亡覆盖缺口按原汇总保留。特殊频道全面开放是后续独立授权候选。
+
+**bug 测试取证**：044909_699398_next37 / PID9828 / runTick16288750；原 mode2 加载冻结[2,1,4]，首/次层原生各三名 kind5 登记result1。完整build/vet/test通过（4108通过/273跳过，无失败及新增失败），当前真实PVF绑定/首层/续进及采集夹具通过；PVF、SQLite/schema和存档结构保持。

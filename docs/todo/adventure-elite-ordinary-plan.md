@@ -547,3 +547,17 @@ Type22/发布ID10与PVF [server]、宠物名称/经验重复策略仍沿用既�
 **未修复 / 未闭环**：确认范围为业主报告的转场/重进消失问题。本次日志观察两场（100004939→CMD2062→100004940），不扩大为全部奥德赛、军团/攻坚机制或完整死亡采集通过。会话缺run.json，采集时未观察正常退出；原生死亡发送与服务端CMD39计数差异保留，汇总overall combat及allFreshEntriesRegistered=false没有改成通过。
 
 **bug 测试取证**：053059_378049_next37 / PID100452 / runTick161280828，原CMD1811仅一次，两次入场冻结[2,3,4]一致；events271/1131准入成功，entry5~7/58~60各三个原生登记result1，fresh loader8/61场景成员均[1,1,1]。原0.3.16失败和旧回归六子例失败保留；0.3.17完整go build ./...、go vet ./...、go test ./... -count=1通过（3943通过/269跳过，无失败及新增失败），真实PVF50条奥德赛journal来源与采集夹具通过。详见analysis/tasks/adventure-elite-stable-warp-confirmed-20261009.json；没有修改PVF、SQLite/schema/玩家存档或发布默认程序，二进制与运行日志不入库。
+
+## 沉月湖单人模式接入候选（服务端0.3.18，待实机）
+
+业主反馈进入沉月湖特殊频道没有 APC。040737_176050_next37 / PID23416 / runTick13796781 的 events1137：Type101、channelWorldIsolated=true、ordinary_source_allowed=false，N1754 已过滤 mode2 名单；后续进入既有 moon_party/moon_dungeon 流程。该会话混有 Boost 与普通副本，整场四次 CMD1811 不表示沉月湖加载成功；旧 build 清单与当时 Boost 候选哈希不符，原失败汇总的七项缺口保留。
+
+内容链：当前内层 PVF 4d8c0c82 → etc/clientchannelinfo.etc 与 etc/channelslotinfo.etc → catalog.ImportChannelDirectory → 既有 defaultMoonSoloConfig 的频道及源奖励绑定 → ordinaryEliteRosterVisible 允许该单人征讨视图 → 原 CMD1811/N1382/N1879 资料准备。原 MoonSoloOwner、单人真实队伍 N9、N28/N29、跨层/撤退续进、计分与奖励继续由沉月湖执行器处理；不把精锐角色加入真实组队名单。首层/续进入场只新增观测与入场序号，Moon 专有处理器补记原有战斗请求前后状态，普通 CMD16 在该频道继续拒绝。
+
+权威 IDB 的逐字节相同只读副本（双方 SHA705d3525；其他任务已占用唯一 worker，未关闭其会话）表明 145B22F50 的原生 kind5 登记仍经过 145F0C980；该门禁允许单真人队伍，真实成员计数来自 145F0F880 的八槽位。既有 DLL0.3.10 无固定普通频道白名单，并继续保留身份/来源/对象登记门禁。因此本轮先复用 DLL，原生沉月湖场景登记、攻击与跨层仍待实机，attempt moon-solo 1/3，不开放其他军团/攻坚或多人征讨机制。
+
+完整 go build ./...、go vet ./...、go test ./... -count=1 退出0（4108通过/273跳过；既有及新增失败集合均空）。新增低等级名单原始准备、源属性边界、拒绝缺失身份及真实 PVF 首层/续进身份保持测试通过。采集脚本原78种夹具、后续生命周期/战斗/重进兼容夹具及本轮沉月湖缺少原生登记证据的拒绝认证夹具全部通过，离线记录不认证实机成功。候选 wireprobe-handoff-source.exe 为 3d10ef01（31135232B），已保留部署前的 Boost 候选 8d3b2d50 与旧清单于 .tmp/adventure-elite/moon-delivery-backup。DLL保持 a46493c6；未修改启动器 exe、默认服务端、PVF、SQLite/schema 或玩家存档。只读预检通过；旧 PID23416 状态不能认证新候选已经运行。证据见 analysis/tasks/adventure-elite-moon-candidate-20261010.json。
+
+现有 moon_solo_flow.go 的频道101及首/次层副本常量，和 internal/dungeon 的对应关联仍未迁移为 .cos 索引发现，本轮仅复用已装配的源配置，不新增生产内容ID或 JSON 回退。原 Type22/发布ID10 等既有重复策略也不在本轮收敛；不得将此候选解释为所有特殊频道通用支持。
+
+下一次只需一场手动会话：保持已保存名单，以 DFO_ADVENTURE_ELITE=1 和 scripts/启动游戏-SQLite.cmd --source-build 重启；原角色进入沉月湖，按原单人征讨流程创建队伍并入场，检查 APC/队伍栏与战斗。首次正常后可在同一场过门，条件允许则覆盖换层及撤退后 Continue；首次异常即停止，最后退出游戏。不要求重新保存名单。日志统一保留频道源、准备/加载、沉月湖入场与入场序号、过门/换层及原生引用/登记/攻击来源。未取得实机确认前，不更新 CHANGELOG 或 confirmed baseline 为成功，也不提交候选二进制。
