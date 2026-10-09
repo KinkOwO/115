@@ -30,11 +30,11 @@ const (
 	enabledName     = "enabled.json"
 	enabledSchema   = 1
 	schema2         = 2
-	maxZipBytes     = 512 << 20  // 单个 zip 上限
-	maxEntries      = 20000      // 条目数上限
-	maxExtractBytes = 2 << 30    // 解包总字节上限（防 zip 炸弹）
-	maxModBytes     = 1 << 30    // 单个 mod 上限
-	maxModsPerZip   = 100        // 一次导入的 mod 数上限
+	// 体积 / 数量上限已于 2026-10-09 按业主要求**整体取消**（原：单 zip 512 MiB、
+	// 条目 2 万、解包总量 2 GiB、单个 mod 1 GiB、每包 100 个 mod）。
+	// 与启动器仓 internal/modlib/archive.go 同步 —— 两份是同一套逻辑的独立拷贝，
+	// 改一边不改另一边会让「web 工具能过、启动器过不了」或反过来。
+	// 安全类校验仍保留：绝对路径 / 上跳条目、落位目录名、重复 id、清单与权限位。
 )
 
 var (
@@ -870,9 +870,6 @@ func inspectZip(zipPath string) ([]Candidate, error) {
 	if len(zr.File) == 0 {
 		return nil, errors.New("zip 是空的")
 	}
-	if len(zr.File) > maxEntries {
-		return nil, fmt.Errorf("zip 条目过多（%d > %d）", len(zr.File), maxEntries)
-	}
 
 	// 收集每个 mod 根前缀下的文件（相对 mod 根）与目录名
 	type cand struct {
@@ -883,7 +880,6 @@ func inspectZip(zipPath string) ([]Candidate, error) {
 		manRaw []byte
 	}
 	cands := map[string]*cand{}
-	var total int64
 	for _, f := range zr.File {
 		name := strings.ReplaceAll(f.Name, "\\", "/")
 		if strings.HasPrefix(name, "/") || strings.Contains(name, ":") {
@@ -896,10 +892,6 @@ func inspectZip(zipPath string) ([]Candidate, error) {
 		}
 		if f.FileInfo().IsDir() {
 			continue
-		}
-		total += int64(f.UncompressedSize64)
-		if total > maxExtractBytes {
-			return nil, fmt.Errorf("解包总大小超过上限 %d 字节", int64(maxExtractBytes))
 		}
 		clean := path.Clean(name)
 
@@ -974,9 +966,6 @@ func inspectZip(zipPath string) ([]Candidate, error) {
 	if len(cands) == 0 {
 		return nil, errors.New("zip 里找不到 mod.json（形态 A：根下直接放；形态 B：每个 mod 一个子目录）")
 	}
-	if len(cands) > maxModsPerZip {
-		return nil, fmt.Errorf("一次导入的 mod 数过多（%d > %d）", len(cands), maxModsPerZip)
-	}
 	if _, both := cands[""]; both && len(cands) > 1 {
 		return nil, errors.New("zip 里既有根目录形态的 mod.json 又有子目录形态的 mod：请只用其中一种")
 	}
@@ -987,9 +976,6 @@ func inspectZip(zipPath string) ([]Candidate, error) {
 	for prefix, c := range cands {
 		if c.manRaw == nil {
 			return nil, fmt.Errorf("zip 里的 %s 没有读到 mod.json", prefix)
-		}
-		if c.bytes > maxModBytes {
-			return nil, fmt.Errorf("%s 超过单 mod 上限 %d 字节", prefix, int64(maxModBytes))
 		}
 		cand := Candidate{Prefix: prefix, DirName: c.dir, Bytes: c.bytes}
 		var m Manifest
@@ -1145,7 +1131,9 @@ func extractZipFile(f *zip.File, out string) error {
 		return err
 	}
 	defer w.Close()
-	_, err = io.Copy(w, io.LimitReader(rc, maxModBytes))
+	// 上限取消后不再做写入截断：原来借单 mod 上限的 LimitReader 会在超大文件上
+	// **静默截断**（不报错、直接产出损坏文件），比不设限更危险。
+	_, err = io.Copy(w, rc)
 	return err
 }
 
