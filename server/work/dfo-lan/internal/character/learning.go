@@ -553,5 +553,11 @@ func (s *Service) LearningResponse(role Character, req protocol.SkillPurchase) (
 	if variationUnlocked(&state) {
 		fillVariationSlots(&v)
 	}
-	return protocol.SkillPurchaseVariations(p, req.Mode, v.Intensions, v.Options)
+	// ⚠️ 这里的 mode 必须是 **req.Tree（页）**，不能是 req.Mode。
+	// 实机（2026-10-09 23:42）auto set 之后的批量加点包：Tree=0 而 Mode=1 ——
+	// Mode 是"这次是 auto set 批量"的标志，不是页。用 req.Mode 会发出一帧
+	// "页号=0 但 mode=1"自相矛盾的响应，客户端据此不刷新 VP 面板
+	// ⇒ 表现就是 auto set 后 enhance 看起来没设置，重登才恢复（登录走
+	// VariationRestore，那里 mode=tree 是自洽的，所以重登正常）。
+	return protocol.SkillPurchaseVariations(p, req.Tree, v.Intensions, v.Options)
 }

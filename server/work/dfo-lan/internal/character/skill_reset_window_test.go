@@ -203,3 +203,37 @@ func TestResetWindowResponseCarriesFilledBlocks(t *testing.T) {
 		t.Fatalf("未三觉 Reset 响应帧不匹配: %d vs %d 字节", len(out), len(want2))
 	}
 }
+
+// 第二页洗点/auto set 的响应帧必须带页号 1。
+// 实测（2026-10-09 23:26）：auto set 的确认帧与 Reset 窗口同形，走的就是
+// ResetResponse；mode 写死 0 时，客户端收到的是"第一页形态"的 enhance 帧，
+// 于是把当前 VP 面板刷成未设置 —— 而数据库第二页一个字节没动，只有重登才
+// 恢复（业主 23:32："是显示错误，重新登录是加上的"）。
+func TestResetWindowResponseCarriesSecondTreeMode(t *testing.T) {
+	s := &Service{}
+	st := State{Awakening: 3, Level: 100, SkillPoints: [2]uint16{120, 90}, TechniquePoints: [2]uint16{5, 3}}
+	raw, e := json.Marshal(st)
+	if e != nil {
+		t.Fatal(e)
+	}
+	out, e := s.ResetResponse(Character{State: raw}, 1)
+	if e != nil {
+		t.Fatal(e)
+	}
+	// 帧头第二个字节就是页号，直接钉死。
+	if len(out) < 2 || out[1] != 1 {
+		t.Fatalf("第二页 Reset 响应帧页号不是 1: %x", out)
+	}
+	p, e := protocol.SkillPurchaseSuccess(1, 90, 3, nil)
+	if e != nil {
+		t.Fatal(e)
+	}
+	fillVariationSlots(&st.SkillVariations[1])
+	want, e := protocol.SkillPurchaseVariations(p, 1, st.SkillVariations[1].Intensions, st.SkillVariations[1].Options)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if string(out) != string(want) {
+		t.Fatalf("第二页 Reset 响应帧不匹配:\n got %x\nwant %x", out, want)
+	}
+}
