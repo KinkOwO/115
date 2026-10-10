@@ -18,9 +18,11 @@ type Product struct {
 	Gold     uint32
 	Kind     byte
 	Option   byte
-	Enabled  bool
-	Starts   time.Time
-	Ends     time.Time
+	// Wire IDs verified against this avatar's PVF ability table.
+	AvatarOptions [4]uint64
+	Enabled       bool
+	Starts        time.Time
+	Ends          time.Time
 }
 type Catalog struct {
 	Source   string
@@ -51,7 +53,7 @@ func (s *Service) Quote(account, character int64, key string, cart []protocol.Ce
 		if !ok || !p.Enabled || p.ID != item.Product || p.Template == 0 || (p.Cera == 0) == (p.Gold == 0) || p.Units == 0 {
 			return order, fmt.Errorf("product %d not enabled for cash delivery", item.Product)
 		}
-		if item.Kind != p.Kind || item.Option != p.Option {
+		if item.Kind != p.Kind || (item.Option != p.Option && p.AvatarOptions[item.Option/64]&(uint64(1)<<(item.Option%64)) == 0) {
 			return order, fmt.Errorf("unsupported product option")
 		}
 		if item.Quantity == 0 || item.Quantity > 1000 || uint64(item.Quantity)*uint64(p.Units) > math.MaxUint32 {
@@ -65,7 +67,11 @@ func (s *Service) Quote(account, character int64, key string, cart []protocol.Ce
 		if total > math.MaxInt32 || gold > math.MaxUint32 {
 			return order, fmt.Errorf("purchase exceeds native currency range")
 		}
-		order.Lines = append(order.Lines, CashOrderLine{Product: p.ID, Template: p.Template, Quantity: item.Quantity, Units: p.Units, UnitPrice: p.Cera, GoldUnitPrice: p.Gold})
+		var avatarOption byte
+		if p.AvatarOptions != [4]uint64{} {
+			avatarOption = item.Option
+		}
+		order.Lines = append(order.Lines, CashOrderLine{AvatarOption: avatarOption, Product: p.ID, Template: p.Template, Quantity: item.Quantity, Units: p.Units, UnitPrice: p.Cera, GoldUnitPrice: p.Gold})
 	}
 	return order, nil
 }
