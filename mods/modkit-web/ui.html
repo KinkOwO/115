@@ -79,6 +79,20 @@
   .cand .bad{color:var(--danger);font-size:12px;margin-top:4px;white-space:pre-wrap}
   label.ow{display:flex;gap:6px;align-items:center;color:var(--dim)}
   label.dry{display:flex;gap:6px;align-items:center;color:#374151;background:#fff;border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:13px}
+  /* —— 带设置的 mod：名字可以点，进它自己提供的编辑页 —— */
+  .modlink{cursor:pointer;border-bottom:1px dashed #c9ced6}
+  .modlink:hover{color:var(--accent);border-bottom-color:var(--accent)}
+  .gear{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;
+        background:#eef2f7;color:#475569;cursor:pointer;font-weight:400;vertical-align:1px}
+  .gear:hover{background:#dbeafe;color:#1e40af}
+  dialog#setDlg{width:min(1100px,94vw)}
+  dialog#setDlg .dlg-b{padding:0}
+  #setFrame{display:block;width:100%;height:min(72vh,660px);border:0;background:#fff}
+  .setmeta{padding:9px 18px;border-bottom:1px solid var(--line);background:#fafbfc;font-size:12px;color:#4b5563}
+  .setmeta .t{margin-bottom:6px;line-height:1.7}
+  .setmeta code{background:#eef2f7;padding:1px 4px;border-radius:4px;font-size:11.5px;word-break:break-all}
+  .setmeta .tag.ok{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+  .flt{display:flex;gap:6px;align-items:center;color:var(--dim);font-size:12.5px}
 </style>
 </head>
 <body>
@@ -101,6 +115,9 @@
     <input type="checkbox" id="dry"> 预演（不改盘）
   </label>
   <input type="search" id="q" placeholder="搜索 id / 名称 / 作者" style="width:210px">
+  <label class="flt" title="只看带了 settings 目录、能点进编辑页的 mod">
+    <input type="checkbox" id="hasSet"> 只看有设置的
+  </label>
   <select id="size">
     <option value="10">10 / 页</option>
     <option value="20" selected>20 / 页</option>
@@ -121,7 +138,11 @@
   · <b>含客户端层（client/pvf/resource）的装/卸要求游戏未运行</b>（引擎硬门：DFO.exe 在跑就拒绝写盘）；<br>
   · <b>含 server 层的 mod：源码落位后必须重新编译服务端二进制</b>（启动器点「开始游戏」时会就地编译）；<br>
   · 升级（同 id 换版本）走"先按备份还原旧条目、再重放"；<b>「启用开关」只写启用名单</b>
-  （<code>enabled.json</code>，改完重启服务端生效），与装/卸是两件事。
+  （<code>enabled.json</code>，改完重启服务端生效），与装/卸是两件事。<br>
+  · ⚙ <b>带「⚙」标记的 mod 点名字就能进它自己的编辑页</b>：那一页由 mod 自己提供（包里的
+  <code>settings/index.html</code>），本页只负责渲染它、并按 mod 声明的
+  <code>settings/manifest.json</code> 替它读写那几个文件 —— 加一个新参数不用改本页。
+  勾上「只看有设置的」就只剩这些能调的。
 </div>
 
 <div class="msg" id="msg"></div>
@@ -170,6 +191,20 @@
   </div>
 </dialog>
 
+<!-- mod 自带的编辑页：谁的数值谁负责，本页只负责把它渲染出来并替它读写文件 -->
+<dialog id="setDlg">
+  <div class="dlg-h">
+    <span id="setTitle">设置</span>
+    <span class="spacer"></span>
+    <span class="sub" id="setFrom"></span>
+    <button class="mini" id="setClose">关闭</button>
+  </div>
+  <div class="dlg-b">
+    <div class="setmeta" id="setTargets"></div>
+    <iframe id="setFrame" title="mod 编辑页"></iframe>
+  </div>
+</dialog>
+
 <script>
 const $ = s => document.querySelector(s);
 let state = { page:1, size:20, q:"", total:0, pages:1, items:[], selected:new Set() };
@@ -214,7 +249,8 @@ async function api(path, opts){
 
 async function load(){
   clearMsg();
-  const url = `/api/mods?page=${state.page}&size=${state.size}&q=${encodeURIComponent(state.q)}`;
+  const url = `/api/mods?page=${state.page}&size=${state.size}&q=${encodeURIComponent(state.q)}` +
+    ($("#hasSet").checked ? "&hasSettings=1" : "");
   try{
     const d = await api(url);
     state.items = d.items || [];
@@ -298,7 +334,9 @@ function render(){
     tr.innerHTML = `
       <td><input type="checkbox" class="row" data-key="${esc(m.dirName)}" ${state.selected.has(m.dirName)?"checked":""}></td>
       <td class="name">
-        <b>${esc(m.name || m.id)}</b> <span class="sub">${esc(m.id)}${m.version?" · v"+esc(m.version):""}</span>
+        <b class="${m.settings ? "modlink" : ""}" ${m.settings ? `data-set="${esc(m.dirName)}" title="打开「${esc(m.settings.title)}」编辑页"` : ""}>${esc(m.name || m.id)}</b>
+        ${m.settings ? `<span class="gear" data-set="${esc(m.dirName)}" title="打开编辑页：${esc(m.settings.title)}（改的就是 mod 自己声明的那几个文件）">⚙ ${esc(m.settings.title)}</span>` : ""}
+        <span class="sub">${esc(m.id)}${m.version?" · v"+esc(m.version):""}</span>
         <div class="sub">${layers}${kindTag}${warn}</div>${drift}
       </td>
       <td class="desc" title="${esc(m.description || "")}">${m.description ? esc(m.description) : '<span class="sub">—</span>'}</td>
@@ -363,6 +401,39 @@ function showRun(action, key, res, httpStatus){
   $("#run").scrollIntoView({behavior:"smooth", block:"nearest"});
 }
 $("#runClose").onclick = () => { $("#run").hidden = true; };
+
+// ---- mod 自带的编辑页 ----
+//
+// 后端只做三件事：发现 mod 包里的 settings/、把它渲染出来、替它读写它声明过的那几个文件。
+// 页面上**没有任何一个为特定 mod 写的控件** —— 加一个新参数不用改这个页面。
+async function openSettings(key){
+  try{
+    const j = await api("/api/settings?key=" + encodeURIComponent(key));
+    if(j.none){ msg(`${key} 这个 mod 没有提供设置项（包里没有 settings/manifest.json）`, "info"); return; }
+    const man = j.manifest || {};
+    $("#setTitle").textContent = man.title || j.modName || key;
+    $("#setFrom").textContent = "编辑页来源：" + (j.from || "?");
+    const lines = (j.targets || []).map(t => {
+      const tags = [
+        t.hotReload ? '<span class="tag ok">改完不用重启</span>' : "",
+        t.exists ? "" : '<span class="tag warn">文件还不存在（编辑页可用模板创建）</span>',
+        t.error ? '<span class="tag warn">' + esc(t.error) + '</span>' : ""
+      ].join(" ");
+      return `<div class="t"><b>${esc(t.label || t.key)}</b> ${tags}` +
+        (t.resolved ? `<br><code>${esc(t.resolved)}</code>` : "") +
+        (t.note ? `<div style="color:#6b7280">${esc(t.note)}</div>` : "") + `</div>`;
+    }).join("");
+    const probs = (j.problems || []).map(p => `<div class="sub" style="color:#b45309">提示：${esc(p)}</div>`).join("");
+    $("#setTargets").innerHTML = lines + probs;
+    // 给 iframe 一个**真实 URL**：编辑页靠 ?key= 自己去拉数据（用 srcdoc 的话它没有 search）
+    $("#setFrame").src = "/api/settings/page?key=" + encodeURIComponent(key);
+    $("#setDlg").showModal();
+  }catch(err){
+    msg("打开设置失败：" + err.message, "err");
+  }
+}
+$("#setClose").onclick = () => $("#setDlg").close();
+$("#setDlg").addEventListener("close", () => { $("#setFrame").src = "about:blank"; });
 
 async function runOp(kind, key){
   if(busy) return;
@@ -431,6 +502,9 @@ $("#rows").addEventListener("click", async e => {
   }
   const ins = e.target.closest("button.ins");
   if(ins){ runOp("ins", ins.dataset.key); return; }
+  // 「点名字 / 点 ⚙」→ 打开这个 mod 自己提供的编辑页
+  const gear = e.target.closest("[data-set]");
+  if(gear){ openSettings(gear.dataset.set); return; }
   const uns = e.target.closest("button.uns");
   if(uns){
     const key = uns.dataset.key;
@@ -450,6 +524,7 @@ $("#btnRefresh").onclick = () => load();
 $("#dry").onchange = () => render();
 let qt = null;
 $("#q").oninput = e => { clearTimeout(qt); qt = setTimeout(()=>{ state.q = e.target.value; state.page = 1; load(); }, 250); };
+$("#hasSet").onchange = () => { state.page = 1; load(); };
 
 $("#btnBuildEngine").onclick = async () => {
   const b = $("#btnBuildEngine");

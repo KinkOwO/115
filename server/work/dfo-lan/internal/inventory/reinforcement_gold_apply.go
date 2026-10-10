@@ -217,11 +217,20 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 	streakKey := safeStreakKey(r.EquipmentSpace, r.EquipmentSlot, int(old))
 	var rate int
 	var ok bool
+	// 掷骰前把基值过一遍服务端层 mod 的规则：**注意 `old` 是"当前等级"，也是本次要判定的等级**，
+	// 而成功率表按"从这一级往上打"索引 —— 两边同一个数，不必 +1。
+	// 安全强化的失败补正已经算在 base 里，倍率作用在补正之后，所以 ×2 不会连 cap 一起吃。
 	if safe {
 		rate, ok = SafeSuccessPercent(int(old), streaks[streakKey])
+		if ok {
+			rate = enhanceSuccessPercent(enhanceKindSafe, int(old), rate)
+		}
 	} else {
 		// 便携强化器沿用普通强化成功率表（与无色小晶块同一张表）。
 		rate, ok = GoldSuccessPercent(int(old))
+		if ok {
+			rate = enhanceSuccessPercent(enhanceKindReinforce, int(old), rate)
+		}
 	}
 	if !ok {
 		return fail(RefusalGeneric, "当前强化等级没有成功率")

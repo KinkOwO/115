@@ -195,6 +195,15 @@ func (s *Server) Mux() *http.ServeMux {
 	// 装/卸（走 modkit 引擎）
 	mux.HandleFunc("/api/install", func(w http.ResponseWriter, r *http.Request) { s.handleOp(w, r, "install") })
 	mux.HandleFunc("/api/uninstall", func(w http.ResponseWriter, r *http.Request) { s.handleOp(w, r, "uninstall") })
+	mux.HandleFunc("/api/settings", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			s.handleSettingsSave(w, r)
+			return
+		}
+		s.handleSettings(w, r)
+	})
+	// 编辑页本身：给 iframe 一个真实 URL（编辑页靠 ?key= 自己拉数据）
+	mux.HandleFunc("/api/settings/page", s.handleSettingsPage)
 	mux.HandleFunc("/api/engine/build", s.handleEngineBuild)
 	return mux
 }
@@ -222,6 +231,15 @@ func fail(w http.ResponseWriter, code int, format string, args ...interface{}) {
 	writeJSON(w, code, map[string]interface{}{"error": fmt.Sprintf(format, args...)})
 }
 
+// onlySettings 解释 `hasSettings` 查询参数（1 / true / yes 都算真）。
+func onlySettings(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
+}
+
 func (s *Server) handleMods(w http.ResponseWriter, r *http.Request) {
 	items, note, err := s.Store.List()
 	if err != nil {
@@ -244,7 +262,19 @@ func (s *Server) handleMods(w http.ResponseWriter, r *http.Request) {
 	if size <= 0 || size > 200 {
 		size = 20
 	}
-	total := len(items)
+	// 列表页据此决定"这个名字能不能点进它自己的编辑页"（settings 提示只读 manifest，不读内容）
+	views := s.modsWithSettings(items)
+	// 只看带设置的：先算完 hint 再筛，筛选要发生在分页之前 —— 否则"第二页"是过滤前的第二页。
+	if onlySettings(r.URL.Query().Get("hasSettings")) {
+		kept := make([]ModView, 0, len(views))
+		for _, v := range views {
+			if v.Settings != nil {
+				kept = append(kept, v)
+			}
+		}
+		views = kept
+	}
+	total := len(views)
 	pages := (total + size - 1) / size
 	if pages == 0 {
 		pages = 1
@@ -271,7 +301,7 @@ func (s *Server) handleMods(w http.ResponseWriter, r *http.Request) {
 		"page":    page,
 		"size":    size,
 		"pages":   pages,
-		"items":   items[from:to],
+		"items":   views[from:to],
 		"env":     env,
 	})
 }
