@@ -293,6 +293,49 @@ const RewardEndAckSize = 1 + 13
 // RewardEndAck builds the CMD2046 response body.
 func RewardEndAck() []byte { return successfulReply(RewardEndAckSize) }
 
+// DimCloisterRewardEndAck 构造**次元回廊**的 CMD2046 应答（照官服 s30 的 32 字节形状）。
+//
+// ★★ 2026-10-11 第二十四轮：业主实机「清完第 1 界，回城后不能选下一界」，
+// 服务端日志显示客户端后来**再没发过第二次进图请求**（`enter request` 只出现一次）。
+//
+// 官服 c2s/s2c 逐帧对照给出原因 —— 官服的 CMD2046 应答是 **32 字节**，而且带界号：
+//
+//	#829（第 1 界清完）: 01 00000000 66 000000 | 00 000000 | 03 0b 04 d7 c6 39 | 00…
+//	#903（第 2 界清完）: 01 00000000 66 000000 | 01 000000 | 02 65 56 4d 49 43 | 00…
+//	#986（第 3 界清完）: 01 00000000 66 000000 | 02 000000 | 01 dd 05 01 56 3f | 00…
+//	                     ↑ @0=1（成功） @5=0x66       ↑ @9=**界号**  ↑ @13.. 未知尾
+//
+// 而本仓此前回的是通用 `RewardEndAck()` = `[0]=1` + 13 个零 = **14 字节**，
+// 连界号都没有 —— 客户端拿到这种应答无法把"本界结算完成"记进去，
+// 于是界数不推进、回城后选不了下一界。
+//
+// ❗注意：这只改**次元回廊**这一条路。通用 `RewardEndAck()` 仍被维纳斯/苏醒之森等
+// 共用（它们已实机验证可用），不动它。
+//
+// @13 起那 4 字节（`03/0b/04/d7`、`02/65/56/4d`、`01/dd/05/01`）语义未解，
+// 语义未明就照官服逐界取值（同 `IspinsRewardEndAck` 的 nonce 做法），第 3 界之后复用最后一次。
+func DimCloisterRewardEndAck(stage int) []byte {
+	if stage < 0 {
+		stage = 0
+	}
+	if stage >= len(dimCloisterRewardEndAckTails) {
+		stage = len(dimCloisterRewardEndAckTails) - 1
+	}
+	p := make([]byte, 32)
+	p[0] = 1
+	p[5] = 0x66
+	p[9] = byte(stage)
+	copy(p[13:], dimCloisterRewardEndAckTails[stage][:])
+	return p
+}
+
+// dimCloisterRewardEndAckTails 是官服 #829/#903/#986 在正文 @13..16 的实测值。
+var dimCloisterRewardEndAckTails = [3][4]byte{
+	{0x03, 0x0b, 0x04, 0xd7},
+	{0x02, 0x65, 0x56, 0x4d},
+	{0x01, 0xdd, 0x05, 0x01},
+}
+
 // Session is the per-character legion progress. It is deliberately not
 // persisted (D3): the operation is session state, not save data, and keeping
 // it out of the database avoids touching archive compatibility at all.

@@ -4,6 +4,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/legion"
 	"fmt"
+	"time"
 )
 
 // legionSession carries the per-connection legion state.
@@ -50,6 +51,39 @@ type legionSession struct {
 	// difficulty byte, stage marks and role counter through NOTI2895, while
 	// Venus drives NOTI2655. See apocalypse_run.go for the field evidence.
 	apocalypse *legion.ApocalypseRunState
+
+	// dimCloisterStage / dimCloisterParty 记次元回廊（频道 Type 50）当前那一关。
+	// 该族的 CMD2043 自带阶段下标与队伍字节，服务端在应答里回显，所以只在这里留
+	// 一份记录供 CMD2045 确认帧与日志引用；真正的副本状态在 world.activeDungeon。
+	dimCloisterStage       int
+	dimCloisterParty       byte
+	dimCloisterPartyName   string
+	dimCloisterPartyActive bool
+	// dimCloisterPartyNameReply 是建队请求里那份**逐字节验证过的名长字节**
+	// （`DecodeEvildomParty` 的 NameReplyBytes）。@3=06 之后要重推一帧队伍稳态
+	// （官服 #759），重推时直接用这份，不自己拼名长 —— 这一族的读法本身踩过坑。
+	dimCloisterPartyNameReply []byte
+	// dimCloisterCleared 是本场已经打完的界数（0..3）。用来选 N2314 的进度变体
+	// （官服三界各有一帧，见 internal/legion/dimension_cloister_info.generated.go），
+	// 以及判断 CMD2046 是「还有下一界」还是终局。
+	dimCloisterCleared int
+	// dimCloisterStages 是本场抽定的关卡顺序（业主 2026-10-11 定调：**恢复随机关卡**）。
+	//
+	// 池子取 `legion.DimCloisterStageDungeons`（**有官服进图帧列的那 3 个界**：
+	// TheMan/Abyss/Charon）。`DimCloisterAllStageDungeons` 的 5 个界里，
+	// Moros(100003180) / LightWoman(100003200) **没有任何官服帧**，
+	// 只随机副本号却回放别的界的怪物/状态帧会让三处打架（业主 2026-10-10 截图），
+	// 所以要扩到"5 选 3"必须先补那两界的官方帧列。
+	dimCloisterStages []uint32
+	// dimCloisterWindowDeadline 是难度选择窗的截止时刻；到点由
+	// worldSession.dimCloisterWindowClose 推原生 close ACK 自动关窗（同族维纳斯/末世录口径）。
+	dimCloisterWindowDeadline time.Time
+	// dimCloisterWindowAcked 记「本界已经发过开窗 A 帧」。同族（伊斯/维纳斯/末世录）是
+	// A=开窗、B=已选两条应答，本仓据此把客户端的第二次 CMD2080 当成"玩家的选择"。
+	dimCloisterWindowAcked bool
+	// dimCloisterEvents 是次元回廊的待发事件（开窗状态帧、到期关窗）。
+	// 用一条有序队列而不是多个定时器：开窗帧与关窗帧会在同一秒到期，顺序必须确定。
+	dimCloisterEvents []dimCloisterPendingEvent
 
 	// world is the connection's world session. The apocalypse run pointer is
 	// mirrored onto it because CMD2062 DUNGEON_DIRECT_MOVE is dispatched by the
@@ -139,6 +173,13 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 	arrivingSide := "town"
 	if inDungeon {
 		arrivingSide = "dungeon"
+	}
+
+	// 次元回廊（频道 Type 50 / Evildom）在集结区里直接选关进图：CMD2043 自带阶段
+	// 下标，服务端在那一刻就把整套进图帧列发完（官服 2026-10-09 抓包 s30 实测，
+	// 客户端 24 秒后的 CMD2045 只是确认帧）。不走末世录那条状态机。
+	if result, handled, err := s.handleDimCloister(w, p, id); handled {
+		return result, err
 	}
 
 	// 末世录（内容107/频道 Type119）走自己的玩法层：同一套信封，但难度、
