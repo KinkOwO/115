@@ -22,13 +22,14 @@ func TestTownEventInfoTableCarriesBoostRows(t *testing.T) {
 	if townEventInfoTable[len(townEventInfoTable)-1] != 0 {
 		t.Fatal("合并表丢了 0x00 尾")
 	}
-	want := binary.LittleEndian.Uint16(eventInfoTable[:2]) + 4
+	// 表体 = 官方 19 条门 + 运营活动行 + Boost Up 4 行（10017/10018/662/665）。
+	want := binary.LittleEndian.Uint16(eventInfoTable[:2]) + uint16(len(eventInfoActivityIDs)) + 4
 	got := binary.LittleEndian.Uint16(townEventInfoTable[:2])
 	if got != want {
 		t.Fatalf("记录数 %d, want %d", got, want)
 	}
 	// 启动日志 `NOTI108 rows=%d bytes=%d` 直接读这两个数，实机可比对：
-	// 频道门 19 + 10017/10018/662 + 毕业后的 665 = 23 行；
+	// 频道门 19 + 签到 331 + 10017/10018/662 + 毕业后的 665 = 24 行；
 	// 若仍是 rows=3 bytes=248 说明拿的是未合并表。
 	t.Logf("合并表 rows=%d bytes=%d（原表 rows=%d bytes=%d）",
 		got, len(townEventInfoTable),
@@ -47,12 +48,19 @@ func TestTownEventInfoTableCarriesBoostRows(t *testing.T) {
 // 否则客户端按 count 读取会把最后一行丢掉，665 入口照样不出现。
 func TestTownEventInfoTableCountFollowsRows(t *testing.T) {
 	base := binary.LittleEndian.Uint16(eventInfoTable[:2])
+	// 表体由三段拼成：官方 19 条门 + 运营活动行（DFO_EVENT_INFO_ACTIVITY，默认开）
+	// + Boost Up 行。运营活动行插在 Boost Up 之前，所以 665 仍是最后一行
+	// （下面用「challenge=true 的表以 challenge=false 的表为前缀」来钉这一点）。
+	activityRows := uint16(0)
+	if activityEventInfoRows() != nil {
+		activityRows = uint16(len(eventInfoActivityIDs))
+	}
 	for _, tc := range []struct {
 		challenge bool
 		rows      uint16
 	}{
-		{false, 3},
-		{true, 4},
+		{false, activityRows + 3},
+		{true, activityRows + 4},
 	} {
 		merged, ok := buildTownEventInfoTable(tc.challenge)
 		if !ok {

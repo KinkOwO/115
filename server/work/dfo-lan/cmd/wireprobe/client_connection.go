@@ -133,6 +133,7 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 		}
 		// Starter Boost 662：会话拿装配层冻结的活动目录；nil = 活动关闭，一切照旧。
 		client.worldState.boostup = client.boostCatalog
+		client.worldState.attendance = client.attendanceCatalog
 		// 末世录（频道 Type 119）：CMD2062 直进要在 dungeon 派发层先于通用
 		// 「没有 activeDungeon 就拒绝」的守卫被接管，所以把 legionSession 挂到
 		// worldSession 上；apocalypse 指针在 apocalypseRun() 里随 run 建立同步

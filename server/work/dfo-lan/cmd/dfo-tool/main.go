@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"dfolan/internal/toolcmd/accountlist"
+	"dfolan/internal/toolcmd/attendancecmd"
 	"dfolan/internal/toolcmd/audit36"
 	"dfolan/internal/toolcmd/charactercheck"
 	"dfolan/internal/toolcmd/dbq"
@@ -45,6 +46,7 @@ type command struct {
 // Keep commands sorted by name. Implementations register flags only when run.
 var commands = []command{
 	{"accountlist", "maintenance", "[options]", true, 0, accountlist.Run},
+	{"attendance", "maintenance", "[options]", true, 0, attendancecmd.Run},
 	{"audit36", "audit", "[options]", true, 0, audit36.Run},
 	{"charactercheck", "maintenance", "(temporary-schema storage regression; no options)", false, 0, charactercheck.Run},
 	{"dbq", "maintenance", "[options]", true, 0, dbq.Run},

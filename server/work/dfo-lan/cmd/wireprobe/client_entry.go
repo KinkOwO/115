@@ -432,6 +432,19 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				plan.BoostTraining = status
 			}
 		}
+		// 活动 331 每日签到的状态帧（NOTI1379）。**只在 108 表里真有 331 那一行时推**：
+		// 客户端是活动打开时才注册那个 handler（见 event_info_activity.go），
+		// 活动关着还推等于让客户端读一张不存在的表。
+		if activityEventInfoRows() != nil {
+			_, daily, dailyErr := client.worldState.attendanceDailyState(time.Now())
+			if dailyErr != nil {
+				client.event(map[string]any{"kind": "attendance_daily_state_error", "character_id": role.ID, "error": dailyErr.Error()})
+			} else {
+				plan.AttendanceDaily = daily
+				// 把解码后的状态一并记下来（判据见 attendance_flow.go 的注释）
+				client.logAttendanceDailyState(role.ID, daily)
+			}
+		}
 		if client.characters != nil {
 			oathCtx, oathCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			selection, oathErr := client.gameStore.EquippedOathSelection(oathCtx, client.developmentAccount, role.ID)

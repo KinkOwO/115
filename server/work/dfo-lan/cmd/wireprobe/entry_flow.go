@@ -154,6 +154,11 @@ type entryPayloads struct {
 	// （cap43 抓包的前两帧），客户端面板只认推送；不补它时重登录后面板停在 0。
 	// 只在角色真已登记挑战时才有值，普通角色进城序列保持逐字节不变。
 	BoostChallenge []byte
+	// AttendanceDaily 是 NOTI1379（活动 331「7-Day Journey」的每日签到状态，33 字节）。
+	// 和 2638/2722 同一道栅栏之后：它的 handler（sub_143869190）会取**窗口 77** 的对象
+	// 并调它的 vtbl+552，窗口对象在 124 之前还不存在时那一步是空转。
+	// 活动未打开（NOTI108 表里没有 331）时为 nil，进城序列逐字节不变。
+	AttendanceDaily []byte
 	// Peers carries the USERINFO of every actor already standing in the scene.
 	// It is emitted after this actor's own placement but before the area list,
 	// because the client only places actors it already knows.
@@ -358,6 +363,8 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"boost_training_progress_restored", 0, 2638, p.BoostTraining},
 		// 2722 与 2638 同一道栅栏之后：面板对象在 124 之前还不存在，早到的帧会被丢掉。
 		outboundPacket{"boost_challenge_progress_restored", 0, 2722, p.BoostChallenge},
+		// 活动 331 每日签到的状态帧，同样排在 124 之后（handler 要取窗口 77 的对象）。
+		outboundPacket{"attendance_daily_state_sent", 0, 1379, p.AttendanceDaily},
 		// NOTI398 displayValue=0 collapses the top-left Liberation Trace panel
 		// (see docs/protocol/next52-liberation-trace-booster-gage-398.md). It
 		// must follow 124: the panel object is not initialized before it. The
