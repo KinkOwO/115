@@ -1420,6 +1420,7 @@ type ItemService struct {
 	// equipmentgrouping.etc 的能力组映射）。nil = 算不出积分 ⇒ 不推 NOTI2634
 	// （客户端保持原值），绝不发 0 冒充。
 	Points *catalog.PointRules
+	Truth  *catalog.OathTruthRules
 }
 
 // PartSetIndexes 返回每个模板的套装号（`.equ` 的 `[part set index]`），

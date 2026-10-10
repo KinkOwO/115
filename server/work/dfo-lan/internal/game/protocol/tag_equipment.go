@@ -65,6 +65,10 @@ func TagEquipment(rows []DetailedWorn) ([]byte, error) {
 				return nil, fmt.Errorf("队友装备%d含尚未接入补充通知的实例字段24", item.Template)
 			}
 		}
+		randomOptions, err := tagRandomOptions(r)
+		if err != nil {
+			return nil, fmt.Errorf("队友装备%d随机属性：%w", item.Template, err)
+		}
 		// 这些区域由原生reader初始化，但不从此包读取。未接对应补充通知前
 		// 拒绝有值的实例，不能静默丢失已保存的养成数据。
 		// Creature EquipmentPayload writes the same instance key at +6 and
@@ -72,10 +76,10 @@ func TagEquipment(rows []DetailedWorn) ([]byte, error) {
 		// constructor 14576D9EA preserve +6; neither reads +24. This
 		// duplicate is identity, not extra saved growth. Permit only the
 		// matching duplicate on the native creature/creature-skin slots.
-		spans := [][2]int{{13, 14}, {22, 56}, {60, 76}, {82, 83}, {99, 103}}
+		spans := [][2]int{{13, 14}, {22, 56}, {82, 83}, {99, 103}}
 		if avatar {
 			// +24 is the persisted appearance attachment, consumed by headerA.
-			spans = [][2]int{{13, 14}, {22, 24}, {28, 56}, {60, 76}, {82, 83}, {99, 103}}
+			spans = [][2]int{{13, 14}, {22, 24}, {28, 56}, {82, 83}, {99, 103}}
 		}
 		if item.Slot == 26 || item.Slot == 32 {
 			key := binary.LittleEndian.Uint32(r[6:10])
@@ -83,7 +87,7 @@ func TagEquipment(rows []DetailedWorn) ([]byte, error) {
 			if mirror != 0 && mirror != key {
 				return nil, fmt.Errorf("队友宠物%d实例key不一致", item.Template)
 			}
-			spans = [][2]int{{13, 14}, {22, 24}, {28, 56}, {60, 76}, {82, 83}, {99, 103}}
+			spans = [][2]int{{13, 14}, {22, 24}, {28, 56}, {82, 83}, {99, 103}}
 		}
 		for _, span := range spans {
 			for _, value := range r[span[0]:span[1]] {
@@ -117,7 +121,7 @@ func TagEquipment(rows []DetailedWorn) ([]byte, error) {
 		}
 		p = append(p, 0) // 实例外的辅助属性列表；本地未保存此列表。
 		p = append(p, r[56:60]...)
-		p = append(p, 0) // 1451AA420的嵌套列表。
+		p = append(p, randomOptions...) // 1452C19F0 -> 1451AA420。
 		p = append(p, r[76:82]...)
 		p = append(p, 0) // 账号级附加开关，不写入物品实例。
 		p = append(p, r[83:86]...)

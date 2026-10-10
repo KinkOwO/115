@@ -4,7 +4,7 @@
     "DFO_PVF_CATALOGS": "world,quests,progression,items,equipment,periods,skins,journal,create-cost,transform,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,boostup,script-warps,layer-revisits,characters,cashshop,boxes,item-shops,bakal-raid,attendance-login,attendance-weekly,attendance-online,attendance-daily,membership",
     "DFO_PVF_VERIFY_BASELINES": "0",
     "DFO_PVF_ARCHIVE": "../client-build/Script.inner.pvf",
-    "DFO_PVF_SHA256": "18c170cddce927898300b4d464efeb0931f82c7b25f1453ee63cb54130fdb996",
+    "DFO_PVF_SHA256": "4f6e315ba945ffb0d887797e0e14511a362492ffc9d85064a70814704af75f37",
     "DFO_PVF_ENHANCEMENT_POLICY": "configs/pvf-enhancement-policy.json",
     "DFO_PVF_VAULT_POLICY": "configs/pvf-vault-policy.json",
     "DFO_PVF_DROP_POLICY": "configs/pvf-drop-policy.json",

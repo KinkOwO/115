@@ -35,7 +35,10 @@ type Options struct {
 	// 手写常量会与文件脱钩 —— 自愈更新了文件、常量没更新就启动失败（next142 的事故）。
 	// 自动派生不额外读一遍归档：OpenReadOnly完整流式计算一次SHA256并复用它。
 	ExpectedChecksum string
-	MaxBytes         int64
+	// StartupHashWarnings accepts a different valid archive and logs its actual identity.
+	// Audit callers remain strict by default. This never changes the save contract.
+	StartupHashWarnings bool
+	MaxBytes            int64
 	// Empty or "-" disables derived files. The archive is verified even on hits.
 	DerivedCacheDir string
 }
@@ -192,9 +195,16 @@ func Open(options Options) (*Source, error) {
 			log.Printf("PVF metadata cache unavailable; native parse: %v", err)
 		}
 	}
-	a, err := pvf.OpenReadOnlyCached(pvf.Options{Path: path, MaxBytes: options.MaxBytes}, expected, options.DerivedCacheDir, parser)
+	pinned := expected
+	if options.StartupHashWarnings {
+		pinned = ""
+	}
+	a, err := pvf.OpenReadOnlyCached(pvf.Options{Path: path, MaxBytes: options.MaxBytes}, pinned, options.DerivedCacheDir, parser)
 	if err != nil {
 		return nil, fmt.Errorf("open inner PVF: %w", err)
+	}
+	if options.StartupHashWarnings && expected != "" && expected != a.Snapshot().Checksum {
+		log.Printf("WARNING: PVF 哈希值不一致，继续启动：实际=%s，记录=%s，文件=%s", a.Snapshot().Checksum, expected, path)
 	}
 	s.archive = a
 	return s, nil
@@ -496,6 +506,10 @@ func (s *Source) EquipmentTransformSystem() (catalog.EquipmentTransformSystem, e
 // 源 = etc/115lvability/setpointinfo.cos 与 etc/115lvability2/oathpointinfo.cos（两份 UTF-16 文本），
 // 不经过任何导出 JSON。客户端只用这两张表做逐件明细，**角色总分由服务端算并推 NOTI2634** ——
 // 见 docs/protocol/oath-set-points-20261004.md。
+func (s *Source) OathTruth(index catalog.ItemIndex) (*catalog.OathTruthRules, error) {
+	return catalog.ImportOathTruth(s.archive, index)
+}
+
 func (s *Source) PointRules() (catalog.PointRules, error) {
 	if s.archive == nil {
 		return catalog.PointRules{}, fmt.Errorf("point rules import requires PVF")

@@ -23,5 +23,4 @@ package mods
 
 // RegisterMods 按稳定顺序调用每个 mod 的注册入口。
 // 服务端在完成配置与存储初始化之后、开始监听之前调用它。
-func RegisterMods() {
-}
+func RegisterMods() {}

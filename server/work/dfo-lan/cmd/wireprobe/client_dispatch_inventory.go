@@ -304,6 +304,18 @@ func (client *gameConnection) dispatchEquipmentSkillsAndMoves(requestData *clien
 		}
 		return dispatchHandled
 	}
+	if requestData.frame.Type == 1 && (requestData.frame.ID == 2420 || requestData.frame.ID == 2421) && client.bootstrapped && requestData.verified && client.worldState != nil && client.worldState.role.ID == client.selectedCharacterID {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		plan, truthErr := client.worldState.oathTruthPackets(ctx, requestData.frame.ID, requestData.plaintext)
+		cancel()
+		if truthErr != nil {
+			client.event(map[string]any{"kind": "oath_truth_rejected", "character_id": client.selectedCharacterID, "id": requestData.frame.ID, "reason": truthErr.Error(), "request_hex": hex.EncodeToString(requestData.plaintext)})
+		}
+		if client.sendPlan(plan, client.logCharacterResponseBody) != nil {
+			return dispatchClose
+		}
+		return dispatchHandled
+	}
 	if requestData.frame.Type == 1 && requestData.frame.ID == 2382 && client.bootstrapped && requestData.verified && client.worldState != nil && client.worldState.role.ID == client.selectedCharacterID {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		plan, oathErr := client.worldState.oathSelectionPackets(ctx, requestData.plaintext)

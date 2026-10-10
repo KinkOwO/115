@@ -57,6 +57,7 @@ type fameRules struct {
 	MemoryRuminations map[byte]int64            `json:"memory_ruminations"`
 	SoleQuality       map[uint32]map[byte]int64 `json:"sole_quality"`
 	SolePenalty       map[uint32]map[int]int64  `json:"sole_penalty"`
+	OathReinforcement map[byte]int64            `json:"oath_reinforcement,omitempty"`
 }
 
 type FameRules = fameRules
@@ -466,6 +467,17 @@ func (s *Service) EquipmentFameBreakdown(raw json.RawMessage) (FameBreakdown, er
 		}
 		result.SymbolFame = uint32(symbolTotal)
 		total += int64(symbolTotal)
+	}
+	truth, err := inventory.ReadOathTruth(raw)
+	if err != nil {
+		return result, err
+	}
+	if truth.Level > 0 {
+		value, ok := rules.OathReinforcement[truth.Level]
+		if !ok || value < 0 {
+			return result, fmt.Errorf("truth fame absent from source")
+		}
+		total += value
 	}
 	if total < 0 || total > math.MaxInt32 {
 		return result, fmt.Errorf("角色名望超出客户端范围")

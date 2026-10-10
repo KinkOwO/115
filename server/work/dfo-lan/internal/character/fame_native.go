@@ -69,6 +69,13 @@ func importFameRules(a *pvf.Archive, index catalog.ItemIndex, withItems bool) (*
 			return nil, err
 		}
 	}
+	r.OathReinforcement, err = fameSourcePairs[byte, int64](fameSourceField(rows, "[oath reinforcement point]"))
+	if err != nil {
+		return nil, err
+	}
+	if len(r.OathReinforcement) == 0 {
+		return nil, fmt.Errorf("missing oath truth fame source")
+	}
 	expanded, err := fameSourceNumbers(fameSourceField(rows, "[add value by expand set point]"))
 	if err != nil {
 		return nil, err

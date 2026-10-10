@@ -43,7 +43,7 @@ function Read-Lines([string]$path, [System.Collections.Generic.List[string]]$err
     } finally { $reader.Dispose() }
     return ,$rows
 }
-$supportedVersions = @('0.3.1', '0.3.2', '0.3.3', '0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10')
+$supportedVersions = @('0.3.1', '0.3.2', '0.3.3', '0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15')
 $build = Read-Json (Join-Path $PatchDirectory 'adventure-elite-build.json')
 $artifactChecks = @()
 $candidateValid = $null -ne $build -and $build.version -in $supportedVersions
@@ -136,7 +136,7 @@ foreach ($group in ($native | Where-Object { $_.phase -ne 'trace-limit' } | Grou
 }
 $lifecycle = New-Object 'System.Collections.Generic.List[object]'
 $lifeName = [string]$status.lifecycleTraceFile
-if ($status.version -in @('0.3.2', '0.3.3', '0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10')) {
+if ($status.version -in @('0.3.2', '0.3.3', '0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15')) {
     if (!$status.ordinaryLifecycleReady) { $issues.Add('生命周期采样未初始化。') }
     if ($lifeName -match '^adventure-elite-lifecycle-\d+-\d+\.jsonl$' -and (Test-Path -LiteralPath (Join-Path $PatchDirectory $lifeName))) {
         Copy-Item -LiteralPath (Join-Path $PatchDirectory $lifeName) -Destination (Join-Path $destination $lifeName)
@@ -150,7 +150,7 @@ if ($status.version -in @('0.3.2', '0.3.3', '0.3.4','0.3.5','0.3.6','0.3.7','0.3
     } elseif ($native.Count -gt 0) { $issues.Add('缺少本次生命周期采样日志；不得据此推断返回后存活。') }
 }
 $ownerSamples = @()
-if ($status.version -in @('0.3.3','0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10')) {
+if ($status.version -in @('0.3.3','0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15')) {
     if ($status.lifecycleTraceVersion -ne 2) { $issues.Add('身份/主人采样版本不符。') }
     foreach ($row in $lifecycle) {
         $shapeValid = $row.traceVersion -eq 2
@@ -174,7 +174,7 @@ if ($status.version -in @('0.3.3','0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9
     }
 }
 $entry = New-Object 'System.Collections.Generic.List[object]'
-if ($status.version -in @('0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10')) {
+if ($status.version -in @('0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15')) {
     if (!$status.ordinaryEntryTraceReady) { $issues.Add('首房只读观察钩子未初始化：' + $status.entryFailureSite) }
     $entryName = [string]$status.entryTraceFile
     if ($entryName -notmatch '^adventure-elite-entry-\d+-\d+\.jsonl$') { $issues.Add('首房日志名无效。') }
@@ -278,13 +278,13 @@ $freshServerEntries=@($events | Where-Object {($_.kind -eq 'adventure_elite_entr
 $entryBefore = @($entry | Where-Object { $_.phase -eq 'loader-before' })
 $entryAfter = @($entry | Where-Object { $_.phase -eq 'loader-after' })
 $entryGates = @($entry | Where-Object { $_.phase -eq 'registration-gate' -and $_.callerRva -eq 0x5B25191 })
-if ($status.version -in @('0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10') -and $entryDecision.Count -gt 0 -and (!$entryBefore.Count -or !$entryAfter.Count -or !$entryGates.Count)) { $issues.Add('首房已获服务端许可，但缺加载前后或精确注册门禁样本。') }
+if ($status.version -in @('0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15') -and $entryDecision.Count -gt 0 -and (!$entryBefore.Count -or !$entryAfter.Count -or !$entryGates.Count)) { $issues.Add('首房已获服务端许可，但缺加载前后或精确注册门禁样本。') }
 if ($entryBefore.Count -ne $entryAfter.Count) { $issues.Add('首房加载前后样本不配对，不能声称完整。') }
 $registrationScope = @($entry | Where-Object { $_.phase -in @('registration-scope-allowed','registration-scope-rejected','registration-scope-native') })
 $registrationAllowed = @($registrationScope | Where-Object { $_.phase -eq 'registration-scope-allowed' })
 $registrationChannel = @($entry | Where-Object { $_.phase -eq 'registration-channel-native' -and $_.callerRva -eq 0x5B251C3 })
 $registrationResults = @($entry | Where-Object { $_.phase -eq 'native-registration-result' -and $_.callerRva -eq 0x5B2529D })
-if ($status.version -in @('0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10')) {
+if ($status.version -in @('0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15')) {
     if (!$status.ordinaryRegistrationReady) { $issues.Add('首房登记适配未初始化：' + $status.registrationFailureSite) }
     foreach ($row in $entry) {
         if (@($row.registrationChecks).Count -ne 11 -or @($row.registrationPlayerRef).Count -ne 2 -or @($row.registrationNativePlayerRef).Count -ne 2) { $issues.Add('首房登记条件/真人引用字段不完整。'); break }
@@ -307,7 +307,7 @@ if ($status.version -in @('0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10')) {
 # v0.3.9: correlate the fresh-dungeon loader and exact active getter consumer.
 $activeReentry=@($entry | Where-Object {$_.phase -eq 'registration-active-reentry'})
 $freshRegistrationCycles=@()
-if($status.version -in @('0.3.9','0.3.10')) {
+if($status.version -in @('0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15')) {
     foreach($row in $entry) {
         if($null -eq $row.PSObject.Properties['loaderCallerRva'] -or $null -eq $row.PSObject.Properties['freshDungeonEntry']){$issues.Add('重复登记缺原生加载调用者字段。');break}
     }
@@ -335,8 +335,8 @@ $combat = New-Object 'System.Collections.Generic.List[object]'
 $combatIssues = New-Object 'System.Collections.Generic.List[string]'
 $combatLinks = @()
 $deathPackets = @()
-if ($status.version -in @('0.3.7','0.3.8','0.3.9','0.3.10')) {
-    if (!$status.ordinaryCombatTraceReady -or $status.combatTraceVersion -ne $(if($status.version -in @('0.3.8','0.3.9','0.3.10')){2}else{1})) { $combatIssues.Add('战斗归属观察未初始化或版本不符。') }
+if ($status.version -in @('0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15')) {
+    if (!$status.ordinaryCombatTraceReady -or $status.combatTraceVersion -ne $(if($status.version -in @('0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15')){2}else{1})) { $combatIssues.Add('战斗归属观察未初始化或版本不符。') }
     $combatName = [string]$status.combatTraceFile
     if ($combatName -notmatch '^adventure-elite-combat-\d+-\d+\.jsonl$' -or !(Test-Path -LiteralPath (Join-Path $PatchDirectory $combatName))) { $combatIssues.Add('缺少本次战斗归属日志。') }
     else {
@@ -357,13 +357,13 @@ if ($status.version -in @('0.3.7','0.3.8','0.3.9','0.3.10')) {
         if ($row.ordinal -ne $lastOrdinal+1 -or $seenTransactions.ContainsKey([string]$row.transaction)) { $combatIssues.Add('战斗日志序号缺失或事务重复。') }
         $lastOrdinal=$row.ordinal; $seenTransactions[[string]$row.transaction]=$true
         if (!$row.completed) { $combatIssues.Add('战斗原生调用未正常返回。') }
-        if($status.version -in @('0.3.8','0.3.9','0.3.10')) {
+        if($status.version -in @('0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15')) {
             foreach($field in @('effectiveArgument','uniqueSource','controllerBound','controllerWire','combatGetterRva','roomSerial')) { if($null -eq $row.PSObject.Properties[$field]){$combatIssues.Add('归属候选新增字段缺失：'+$field)} }
             if($row.nativeWritesChanged -and ($row.phase -ne 'killer-write' -or $row.victimKind -ne 3 -or $row.eliteSlot -lt 0 -or $row.eliteSlot -ge 3 -or $row.readable[0] -ne 1 -or $row.stable[0] -ne 1 -or $row.sourceKind -ne 5 -or $row.sourceStrong -le 0 -or $row.sourceField[1] -ne $row.sourceId -or $row.callerRva -ne 0x5DD022B -or $row.parent -le 0 -or $row.argument -ne 65535 -or $row.effectiveArgument -ne $row.ownerId -or $row.ownerId -ne $row.ownerController -or $row.ownerMatches -ne 1 -or !$row.uniqueSource -or !$row.controllerBound -or $row.controllerWire -ne 65535 -or $row.sourceController -ne 65535 -or $row.combatGetterRva -ne 0x14CC20)) { $combatIssues.Add('击杀者改写缺少精确原生来源或主人条件。') }
         } elseif($row.nativeWritesChanged) { $combatIssues.Add('只读观察版本出现改写标记。') }
         if ($row.phase -notin @('source-assignment','killer-write','death-send')) { $combatIssues.Add('未知战斗观察阶段。') }
         if (0 -in $row.readable -or 0 -in $row.stable -or $row.victimId -lt 0) { $combatIssues.Add('战斗对象读取不完整、不稳定或身份无效。') }
-        if ($row.phase -eq 'killer-write' -and $row.killer[1] -ne ([uint32]([int64]$(if($status.version -in @('0.3.8','0.3.9','0.3.10')){$row.effectiveArgument}else{$row.argument}) -band 0xffffffffL))) { $combatIssues.Add('原生击杀者写入结果与参数不符。') }
+        if ($row.phase -eq 'killer-write' -and $row.killer[1] -ne ([uint32]([int64]$(if($status.version -in @('0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15')){$row.effectiveArgument}else{$row.argument}) -band 0xffffffffL))) { $combatIssues.Add('原生击杀者写入结果与参数不符。') }
     }
     foreach ($row in @($combat | Where-Object { $_.phase -eq 'killer-write' -and $_.parent -gt 0 -and $_.callerRva -eq 0x5DD022B })) {
         $parents=@($combat | Where-Object { $_.phase -eq 'source-assignment' -and $_.transaction -eq $row.parent -and $_.victim -eq $row.victim -and $_.thread -eq $row.thread -and $_.input -eq $row.input -and $_.ordinal -gt $row.ordinal })
@@ -409,7 +409,7 @@ foreach($event in $events) {
     if($matches.Count){$ownedFresh+=$event}
 }
 $ownedIssues=New-Object 'System.Collections.Generic.List[string]'
-if($status.version -in @('0.3.8','0.3.9','0.3.10')) {
+if($status.version -in @('0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15')) {
     if(!$ownedWrites.Count){$ownedIssues.Add('尚无符合来源条件的精锐击杀者改写样本。')}
     if(!$serverCombat.Count -or !$ownedFresh.Count){$ownedIssues.Add('缺服务端归属候选处理或归属新死亡记录。')}
     foreach($row in $serverCombat) {
@@ -441,18 +441,36 @@ foreach($decision in $reentryDecisions) {
     $reentryRuns += [pscustomobject]@{runId=$decision.run_id;entrySerial=$decision.entry_serial;dungeon=$decision.dungeon;sourceScript=$decision.source_script;sourceSha256=$decision.source_sha256;entryCommitted=($entryCommitted.Count -eq 1);ownedDeaths=@($ownedFresh | Where-Object {$_.before.run_id -eq $decision.run_id}).Count;deaths=@($rows | Where-Object {$_.id -eq 39 -and $_.processed}).Count;moves=@($rows | Where-Object {$_.id -eq 45 -and $_.processed}).Count;pickups=@($rows | Where-Object {$_.id -eq 43 -and $_.processed}).Count;results=@($rows | Where-Object {$_.id -eq 46 -and $_.processed}).Count;cards=@($rows | Where-Object {$_.id -in @(69,70,71) -and $_.processed}).Count;returnCommitted=($returns.Count -gt 0);refusals=@($rows | Where-Object {!$_.processed})}
 }
 $retryRuns=@();$freshRunIds=@{}
-for($i=0;$status.version -in @('0.3.9','0.3.10') -and $i -lt $freshServerEntries.Count;$i++) {
+for($i=0;$status.version -in @('0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15') -and $i -lt $freshServerEntries.Count;$i++) {
     $event=$freshServerEntries[$i];$retry=$event.kind -eq 'adventure_elite_dispatch_committed'
     $runId=if($retry){$event.after.run_id}else{$event.run_id}
     if(!$runId -or $freshRunIds.ContainsKey([string]$runId)){$issues.Add('新副本加载的RunID缺失或重复。')}
     if($runId){$freshRunIds[[string]$runId]=$true}
     if($retry){$retryRuns+=[pscustomobject]@{runId=$runId;originRunId=$event.origin_run_id;serverEntrySerial=$event.entry_serial;freshEntryIndex=$i+1;nativeLoaderOrdinal=$(if($i -lt $freshRegistrationCycles.Count){$freshRegistrationCycles[$i].loaderOrdinal}else{0});ownedDeaths=@($ownedFresh | Where-Object {$_.before.run_id -eq $runId}).Count}}
 }
+$catchup = New-Object 'System.Collections.Generic.List[object]'
+if ($status.version -in @('0.3.11','0.3.12','0.3.13','0.3.14','0.3.15')) {
+    if (!$status.apcCatchupReady) { $issues.Add('APC补救传送未初始化：' + $status.apcCatchupFailureSite) }
+    $catchupName = [string]$status.apcCatchupTraceFile
+    if ($catchupName -notmatch '^adventure-elite-catchup-\d+-\d+\.jsonl$') { $issues.Add('APC补救传送日志名无效。') }
+    elseif (Test-Path -LiteralPath (Join-Path $PatchDirectory $catchupName)) {
+        Copy-Item -LiteralPath (Join-Path $PatchDirectory $catchupName) -Destination (Join-Path $destination $catchupName)
+        $copied += $catchupName
+        $catchup = Read-Lines (Join-Path $destination $catchupName) $issues
+        foreach ($row in $catchup) {
+            if ($row.traceVersion -ne $(if($status.version -in @('0.3.12','0.3.13','0.3.14','0.3.15')){2}else{1}) -or $row.processId -ne $status.processId -or $row.runTick -ne $status.runTick) { $issues.Add('APC补救传送日志版本或进程/代次不符。') }
+            if ($row.reason -eq 'runtime-memory-fault') { $issues.Add('APC补救传送出现内存异常并已停止补救。') }
+        }
+    }
+    else { $issues.Add('缺少本次APC补救传送日志，不能判断是否发生检测。') }
+}
 $entryCountValid=($entryDecision.Count -eq 1 -or ($reentryDecisions.Count -gt 0 -and $reentryDecisions.Count -eq $entryDecision.Count))
-$entryComplete = $pidMatch -and $candidateValid -and $status.version -in @('0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10') -and $entryCountValid -and $entryBefore.Count -gt 0 -and $entryBefore.Count -eq $entryAfter.Count -and $entryGates.Count -gt 0 -and $issues.Count -eq 0
+$entryComplete = $pidMatch -and $candidateValid -and $status.version -in @('0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15') -and $entryCountValid -and $entryBefore.Count -gt 0 -and $entryBefore.Count -eq $entryAfter.Count -and $entryGates.Count -gt 0 -and $issues.Count -eq 0
 $summary = [ordered]@{
     session = $SessionPath; collectedAt = [DateTime]::UtcNow.ToString('o'); candidateValid = $candidateValid; artifacts = $artifactChecks
     resources = $resourceChecks
+    apcCatchupRecords = $catchup.Count; apcCatchupReasons = @($catchup | Group-Object reason | Select-Object Name, Count)
+    apcCatchupTeleports = @($catchup | Where-Object { $_.reason -eq 'teleport' }); apcCatchupVerified = $false
     status = $status; pidMatch = [bool]$pidMatch; progress = $progress; requests1811 = $requests.Count
     serverDecisions = $decisions; serverSentPackets = @($related | Where-Object { $_.kind -eq 'adventure_elite_packet_sent' }); nativeRecords = $native.Count; nativeReasons = @($native | Group-Object scopeReason | Select-Object Name, Count)
     nativeCompletion = $done; normalExitObserved = ($clientText -match 'SUMMARY exit=0x0'); copied = $copied; issues = @($issues)
@@ -471,11 +489,11 @@ $summary = [ordered]@{
     registrationScopeObservations = $registrationScope; registrationScopeAccepted = $registrationAllowed.Count -gt 0
     registrationChannelObservations = $registrationChannel; registrationResults = $registrationResults
     registrationActiveReentryObservations = $activeReentry; freshRegistrationCycles = $freshRegistrationCycles
-    allFreshEntriesRegistered = ($status.version -in @('0.3.9','0.3.10') -and $freshRegistrationCycles.Count -gt 0 -and @($freshRegistrationCycles | Where-Object {!$_.allRegistered -or !$_.adapterValid}).Count -eq 0 -and $issues.Count -eq 0)
+    allFreshEntriesRegistered = ($status.version -in @('0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15') -and $freshRegistrationCycles.Count -gt 0 -and @($freshRegistrationCycles | Where-Object {!$_.allRegistered -or !$_.adapterValid}).Count -eq 0 -and $issues.Count -eq 0)
     combatRecords = $combat.Count; combatNativeProvenance = $combatLinks; combatDeathPackets = $deathPackets; combatIssues = @($combatIssues)
-    combatCoverageComplete = ($status.version -in @('0.3.7','0.3.8','0.3.9','0.3.10') -and $pidMatch -and $candidateValid -and $combat.Count -gt 0 -and $combatIssues.Count -eq 0 -and $issues.Count -eq 0)
+    combatCoverageComplete = ($status.version -in @('0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15') -and $pidMatch -and $candidateValid -and $combat.Count -gt 0 -and $combatIssues.Count -eq 0 -and $issues.Count -eq 0)
     ownedCombatWrites = $ownedWrites; ownedCombatServerRequests = $serverCombat; ownedCombatFreshDeaths = $ownedFresh
-    ownedCombatIssues = @($ownedIssues); ownedCombatProcessedObserved = ($status.version -in @('0.3.8','0.3.9','0.3.10') -and $ownedFresh.Count -gt 0 -and $ownedIssues.Count -eq 0 -and $issues.Count -eq 0)
+    ownedCombatIssues = @($ownedIssues); ownedCombatProcessedObserved = ($status.version -in @('0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15') -and $ownedFresh.Count -gt 0 -and $ownedIssues.Count -eq 0 -and $issues.Count -eq 0)
     ordinaryBatchCoverage = [ordered]@{ deaths=$serverDeaths.Count; pickups=@($serverCombat | Where-Object {$_.id -eq 43 -and $_.processed}).Count; moves=@($serverCombat | Where-Object {$_.id -eq 45 -and $_.processed}).Count; results=@($serverCombat | Where-Object {$_.id -eq 46 -and $_.processed}).Count; cards=@($serverCombat | Where-Object {$_.id -in @(69,70,71) -and $_.processed}).Count; exits=@($serverCombat | Where-Object {$_.id -in @(42,72) -and $_.processed}).Count; refusals=@($serverCombat | Where-Object {!$_.processed}); roomLoadCycles=$entryAfter.Count; nativeRoomSerials=@($combat | Group-Object roomSerial | Select-Object Name,Count) }
     retryRuns = $retryRuns; freshServerEntryCount = $freshServerEntries.Count
     ordinaryReentryRuns = $reentryRuns; directMoveRuns = $directMoveRuns; directMoveRequests = @($related | Where-Object {$_.kind -eq 'client_frame' -and $_.id -eq 2062})

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -55,15 +55,15 @@ namespace Local115US {
    foreach(string n in new[]{"client","DFO",@"01_客户端\DFO"}) if(File.Exists(Path.Combine(root,n,"DFO.exe")))return Path.Combine(root,n);
    return Path.Combine(root,"client");
   }
-  public static void Validate(string root,string client,bool hash) {
+  public static void Validate(string root,string client,bool hash,Action<string> notice=null) {
    foreach(string p in new[]{Backend(root),Path.Combine(Module(root),"bin","wireprobe-pvf.exe"),Path.Combine(Module(root),"configs","pvf-default.json"),Path.Combine(root,"server","work","dfo_probe_tools","probe.exe"),Path.Combine(client,"DFO.exe"),Path.Combine(client,"Script.pvf"),Path.Combine(client,"sk.dat")})
     if(!File.Exists(p))throw new Exception("文件缺失："+p+"\n请完整解压压缩包，或在目录设置中选择正确位置。");
    var prof=Read(Path.Combine(Module(root),"configs","pvf-default.json"));
    if(Get(prof,"binary","").Replace('\\','/')!="bin/wireprobe-pvf.exe")throw new Exception("当前目录不是配套的本地版默认配置。");
-   if(hash)foreach(string line in ReleaseManifest.Validate(root,client))Console.WriteLine(line);
+   if(hash)foreach(string line in ReleaseManifest.Validate(root,client,true))if(line.Contains("提示：")){if(notice!=null)notice(line);else Console.WriteLine(line); }
   }
-  public static void Prepare(string root,string client,bool initialize=false) {
-   Validate(root,client,true);var context=new PackageContext(root,client,false);
+  public static void Prepare(string root,string client,bool initialize=false,Action<string> notice=null) {
+   Validate(root,client,true,notice);var context=new PackageContext(root,client,false);
    if(!initialize){AssertCheckClient(root,client);return;}
    string launch=Path.Combine(root,"server","launcher.local.json");var cfg=Read(launch);
    cfg["client_dir"]=PersistedClientPath(root,client);cfg["server_binary"]="work/dfo-lan/bin/wireprobe-pvf.exe";Write(launch,cfg);
@@ -148,11 +148,11 @@ namespace Local115US {
   void SetState(string title,string message,bool active){status.Text=title;detail.Text=message;progress.Visibility=active?Visibility.Visible:Visibility.Collapsed;start.IsEnabled=!busy&&!running;start.Content=running?(active?"正在启动…":"游戏运行中"):(busy?"请稍候…":"开始游戏");Find<Button>("Check").IsEnabled=!busy&&!running;Find<Button>("Stop").IsEnabled=running&&!busy;RefreshRobotToggle();}
   public void Append(string line){w.Dispatcher.BeginInvoke(new Action(()=>{string txt=DateTime.Now.ToString("HH:mm:ss")+"  "+line+Environment.NewLine;log.AppendText(txt);if(log.Text.Length>80000)log.Text=log.Text.Substring(log.Text.Length-60000);log.ScrollToEnd();try{Directory.CreateDirectory(Path.GetDirectoryName(logFile));File.AppendAllText(logFile,txt,Encoding.UTF8);}catch{}}));}
   void Error(Exception ex){Append(ex.ToString());SetState("需要处理",ex.Message,false);MessageBox.Show(w,ex.Message,"本地版提示",MessageBoxButton.OK,MessageBoxImage.Information);}
-  async Task Check(){if(busy||running)return;busy=true;SetState("正在检查","核对客户端、服务端与本地存档目录…",true);try{await Task.Run(()=>{Core.Prepare(root,client);int code=Core.Run(root,"launch",Append,"--check");if(code!=0)throw new Exception("环境检查未通过，请打开运行日志查看缺失文件或配置。");});SaveChoice();busy=false;SetState("可以开始游戏","本地版环境检查通过，存档保存在当前整合包内。",false);}finally{busy=false;start.IsEnabled=!running;Find<Button>("Check").IsEnabled=!running;progress.Visibility=Visibility.Collapsed;}}
+  async Task Check(){if(busy||running)return;busy=true;SetState("正在检查","核对客户端、服务端与本地存档目录…",true);try{await Task.Run(()=>{Core.Prepare(root,client,false,Append);int code=Core.Run(root,"launch",Append,"--check");if(code!=0)throw new Exception("环境检查未通过，请打开运行日志查看缺失文件或配置。");});SaveChoice();busy=false;SetState("可以开始游戏","本地版环境检查通过，存档保存在当前整合包内。",false);}finally{busy=false;start.IsEnabled=!running;Find<Button>("Check").IsEnabled=!running;progress.Visibility=Visibility.Collapsed;}}
   async Task Start(){if(busy||running)return;await DisconnectGM();if(!Core.Admin()){var si=new ProcessStartInfo(Assembly.GetExecutingAssembly().Location,Core.Args("--root",root,"--client",client,"--start"));si.WorkingDirectory=Core.Home;si.UseShellExecute=true;si.Verb="runas";try{Process.Start(si);closing=true;w.Close();}catch(System.ComponentModel.Win32Exception){SetState("等待开始","游戏网络隔离需要管理员权限，请在系统提示中允许。",false);}return;}
    memoryNotice=new ClientMemoryNotice();Find<TextBlock>("ClientMemoryHint").Text=ClientMemoryNotice.DefaultHint;
    busy=true;SetState("正在启动","正在加载本地服务端，首次启动需要一些时间…",true);
-   try{await Task.Run(()=>Core.Prepare(root,client,true));string lockPath=Path.Combine(Core.Module(root),"runtime","local-launcher.session.lock");Directory.CreateDirectory(Path.GetDirectoryName(lockPath));lease=new FileStream(lockPath,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None);SaveChoice();running=true;busy=false;SetState("正在启动游戏","正在加载资源并等待游戏窗口，请勿重复启动。",true);
+   try{await Task.Run(()=>Core.Prepare(root,client,true,Append));string lockPath=Path.Combine(Core.Module(root),"runtime","local-launcher.session.lock");Directory.CreateDirectory(Path.GetDirectoryName(lockPath));lease=new FileStream(lockPath,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None);SaveChoice();running=true;busy=false;SetState("正在启动游戏","正在加载资源并等待游戏窗口，请勿重复启动。",true);
     session=Core.Spawn(root,"launch",Append);var timer=new DispatcherTimer{Interval=TimeSpan.FromSeconds(2)};timer.Tick+=(s,e)=>{if(!running){timer.Stop();return;}try{foreach(var game in Process.GetProcessesByName("DFO")){using(game){try{if(!String.Equals(game.MainModule.FileName,Path.Combine(client,"DFO.exe"),StringComparison.OrdinalIgnoreCase))continue;long bytes=game.PrivateMemorySize64;bool wasNear=memoryNotice.NearLimit;memoryNotice.Observe(bytes);Find<TextBlock>("ClientMemoryHint").Text=memoryNotice.Hint(bytes);if(memoryNotice.NearLimit&&!wasNear)Append(memoryNotice.Hint(bytes));SetState(memoryNotice.NearLimit?"客户端内存接近上限":"游戏运行中",memoryNotice.NearLimit?"建议完成当前操作后正常退出并重新进入游戏。":"退出游戏后，本地服务端会自动停止。",false);}catch{}}}}catch{}};timer.Start();
     int exit=await Task.Run(()=>{session.WaitForExit();return session.ExitCode;});timer.Stop();running=false;session.Dispose();session=null;if(lease!=null){lease.Dispose();lease=null;}string memoryExit=memoryNotice.ExitHint;if(memoryExit!=""){Find<TextBlock>("ClientMemoryHint").Text=memoryExit;Append(memoryExit);}SetState(exit==0?"游戏已结束":"启动未完成",memoryExit!=""?memoryExit:(exit==0?"本地游戏环境已停止，可以再次开始。":"请打开运行日志查看原因；不会删除或重置存档。"),false);
    }catch{running=false;busy=false;if(lease!=null){lease.Dispose();lease=null;}throw;}
@@ -167,9 +167,9 @@ namespace Local115US {
    var settings=Core.Read(Path.Combine(Core.Home,"local-launcher.settings.json"));string root=Core.Full(Core.Opt(args,"--root","."),Core.Home);
    bool settingsHere=String.Equals(Core.Full(Core.Get(settings,"root","."),Core.Home),root,StringComparison.OrdinalIgnoreCase);
    string client=Core.Opt(args,"--client",settingsHere?Core.Get(settings,"client",""):"");client=client==""?Core.Client(root):Core.Full(client,root);
-   if(args.Contains("--verify-release")){Console.WriteLine(Core.Json.Serialize(new{ok=true,release_id=ReleaseBuild.ID,files=ReleaseManifest.Validate(root,client)}));return 0;}
+   if(args.Contains("--verify-release")){Console.WriteLine(Core.Json.Serialize(new{ok=true,release_id=ReleaseBuild.ID,files=ReleaseManifest.Validate(root,client,true)}));return 0;}
    if(args.Contains("--check")||args.Contains("--plan")){Core.Prepare(root,client);int code=Core.Run(root,"launch",Console.WriteLine,args.Contains("--plan")?"--dry-run":"--check");return code;}
-   if(args.Contains("--help")){Console.WriteLine("115US Local + GM Launcher 2.0.5 | --root <package> --client <client> --check | --plan | --self-test");return 0;}
+   if(args.Contains("--help")){Console.WriteLine("115US Local + GM Launcher 2.0.6 | --root <package> --client <client> --check | --plan | --self-test");return 0;}
    Forms.Application.EnableVisualStyles();Forms.Application.SetCompatibleTextRenderingDefault(false);
    bool preview=args.Contains("--render-all");var context=new PackageContext(root,client,false);
    using(var instance=new System.Threading.Mutex(false,"Local\\115US.Unified."+context.InstanceKey+(preview?".Preview":""))){

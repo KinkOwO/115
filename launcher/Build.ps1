@@ -4,7 +4,7 @@
 
  [Parameter(Mandatory=$true)][string]$Server,
 
- [string]$ReleaseId='2026.10.11-cumulative-r5',
+ [string]$ReleaseId='2026.10.11-cumulative-r7',
  [string]$OutDir=''
 
 )
@@ -33,9 +33,9 @@ using System.Reflection;
 
 [assembly: AssemblyTitle("115US Local + GM Launcher")]
 
-[assembly: AssemblyVersion("2.0.5.0")]
+[assembly: AssemblyVersion("2.0.7.0")]
 
-[assembly: AssemblyFileVersion("2.0.5.0")]
+[assembly: AssemblyFileVersion("2.0.7.0")]
 
 [assembly: AssemblyInformationalVersion("$ReleaseId")]
 
@@ -75,7 +75,7 @@ $taskRedirect=Join-Path $OutDir '115US单机GM桌面版.exe'
 
 if($LASTEXITCODE -ne 0){throw 'Legacy GM redirect compilation failed'}
 
-$taskResult=[ordered]@{release_id=$ReleaseId;version='2.0.5.0';server_sha256=$taskServerHash;embedded_gm_sha256=$taskGMHash;launcher=$taskOutput;launcher_sha256=(Get-FileHash -LiteralPath $taskOutput).Hash.ToLowerInvariant();legacy_gm_redirect=$taskRedirect;legacy_gm_redirect_sha256=(Get-FileHash -LiteralPath $taskRedirect).Hash.ToLowerInvariant();built_utc=[DateTime]::UtcNow.ToString('o')}
+$taskResult=[ordered]@{release_id=$ReleaseId;version='2.0.7.0';server_sha256=$taskServerHash;embedded_gm_sha256=$taskGMHash;launcher=$taskOutput;launcher_sha256=(Get-FileHash -LiteralPath $taskOutput).Hash.ToLowerInvariant();legacy_gm_redirect=$taskRedirect;legacy_gm_redirect_sha256=(Get-FileHash -LiteralPath $taskRedirect).Hash.ToLowerInvariant();built_utc=[DateTime]::UtcNow.ToString('o')}
 
 $taskResult | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $OutDir 'build-result.json') -Encoding utf8
 

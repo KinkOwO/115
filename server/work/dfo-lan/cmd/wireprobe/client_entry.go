@@ -552,7 +552,12 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "oath_selection_restore_error", "character_id": role.ID, "reason": oathErr.Error()})
 				return dispatchHandled
 			}
-			plan.OathSystemInfo, oathErr = protocol.OathSystemInfo(selection.Level, selection.Option)
+			truth, truthErr := client.gameStore.OathTruth(context.Background(), client.developmentAccount, role.ID)
+			if truthErr != nil {
+				client.event(map[string]any{"kind": "oath_truth_restore_error", "reason": truthErr.Error()})
+				return dispatchHandled
+			}
+			plan.OathSystemInfo, oathErr = protocol.OathSystemInfoWithTruth(selection.Level, selection.Option, truth.Level, truth.Options)
 			if oathErr != nil {
 				client.event(map[string]any{"kind": "oath_selection_restore_error", "character_id": role.ID, "reason": oathErr.Error()})
 				return dispatchHandled

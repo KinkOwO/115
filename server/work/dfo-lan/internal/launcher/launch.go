@@ -99,7 +99,8 @@ func applySessionAccount(env *childEnv, opts LaunchOptions) (string, error) {
 // LaunchReport is everything launch --check / --dry-run reports, plus the raw material the
 // tests compare against the Python's own output.
 type LaunchReport struct {
-	Storage string // "SQLite <path>", worded as the Python's line was
+	Warnings []string // Release fingerprint differences never reject startup.
+	Storage  string   // "SQLite <path>", worded as the Python's line was
 	// StorageUninitialized marks a read-only default plan, not an existing save.
 	// Only the GUI's actual Start action initializes a missing active configuration.
 	StorageUninitialized bool
@@ -162,6 +163,7 @@ func (r LaunchReport) Lines(dryRun bool) []string {
 		"Data mode: " + r.DataMode,
 		"Client: " + r.ClientDir,
 	}
+	lines = append(lines, r.Warnings...)
 	if dryRun {
 		for _, step := range r.Plan {
 			lines = append(lines, step.Line())
@@ -371,6 +373,8 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 			return report, err
 		}
 	}
+	report.Warnings = releaseHashWarnings(root, client)
+	report.Warnings = append(report.Warnings, startupSourceHashWarnings(report)...)
 	return report, nil
 }
 

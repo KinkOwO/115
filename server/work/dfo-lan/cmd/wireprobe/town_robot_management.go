@@ -580,7 +580,7 @@ func (f *townRobotFleet) loadManagementNames() {
 	m := f.manager
 	display := map[uint32]catalog.ItemDisplay{}
 	err := func() error {
-		s, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: os.Getenv("DFO_PVF_ARCHIVE"), ExpectedChecksum: os.Getenv("DFO_PVF_SHA256")})
+		s, err := gamedata.Open(gamedata.Options{Mode: gamedata.PVF, ArchivePath: os.Getenv("DFO_PVF_ARCHIVE"), ExpectedChecksum: os.Getenv("DFO_PVF_SHA256"), StartupHashWarnings: true})
 		if err != nil {
 			return err
 		}

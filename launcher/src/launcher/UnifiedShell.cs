@@ -92,7 +92,7 @@ namespace Local115US {
   void MakeVersionPage(){
    var grid=Find<Grid>("VersionPage");grid.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});grid.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});grid.RowDefinitions.Add(new RowDefinition());
    grid.Children.Add(Heading("版本与配套检查"));
-   var row=new StackPanel{Orientation=Orientation.Horizontal};row.Children.Add(ActionButton("重新核对文件",VersionCheck));row.Children.Add(new TextBlock{Text="本地版 + GM  2.0.5  /  "+ReleaseBuild.ID,VerticalAlignment=VerticalAlignment.Center,Foreground=Brushes.Goldenrod});Grid.SetRow(row,1);grid.Children.Add(row);
+   var row=new StackPanel{Orientation=Orientation.Horizontal};row.Children.Add(ActionButton("重新核对文件",VersionCheck));row.Children.Add(new TextBlock{Text="本地版 + GM  2.0.6  /  "+ReleaseBuild.ID,VerticalAlignment=VerticalAlignment.Center,Foreground=Brushes.Goldenrod});Grid.SetRow(row,1);grid.Children.Add(row);
    versionReport=ReportBox();Grid.SetRow(versionReport,2);grid.Children.Add(versionReport);
   }
   async Task VersionCheck(){

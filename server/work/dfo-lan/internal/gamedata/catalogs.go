@@ -95,6 +95,7 @@ type Catalogs struct {
 	// Points 是逐件「套装积分 / 誓约积分」表（setpointinfo.cos / oathpointinfo.cos），
 	// 与 transform 同域装载；服务端算角色总分、推 NOTI2634 时用。
 	Points                                       *catalog.PointRules
+	Truth                                        *catalog.OathTruthRules
 	RaidEntrances                                map[uint32]catalog.RaidEntrance
 	LegionContents                               catalog.LegionContents
 	QuestSkip                                    *catalog.QuestSkip
@@ -123,6 +124,7 @@ type Catalogs struct {
 }
 
 type CatalogInputs struct {
+	StartupHashWarnings                                                                            bool
 	Selection, ArchivePath, ArchiveChecksum                                                        string
 	CharacterPath, QuestPath, ProgressionPath, WorldPath                                           string
 	BaselineDir                                                                                    string
@@ -407,7 +409,7 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		anchorChecksum = characterPolicy.SourceChecksum
 	}
 	started := time.Now()
-	source, err := Open(Options{Mode: PVF, ArchivePath: path, ExpectedChecksum: checksum, DerivedCacheDir: inputs.DerivedCacheDir})
+	source, err := Open(Options{Mode: PVF, ArchivePath: path, ExpectedChecksum: checksum, StartupHashWarnings: inputs.StartupHashWarnings, DerivedCacheDir: inputs.DerivedCacheDir})
 	if err != nil {
 		return &result, err
 	}
@@ -415,7 +417,12 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 	defer source.Close()
 	logPVFMemory("source-open", time.Since(started))
 	if anchorChecksum != "" && source.Snapshot().Checksum != anchorChecksum {
-		return &result, fmt.Errorf("PVF/character source mismatch: %s versus %s", source.Snapshot().Checksum, anchorChecksum)
+		if !inputs.StartupHashWarnings {
+			return &result, fmt.Errorf("PVF/character source mismatch: %s versus %s", source.Snapshot().Checksum, anchorChecksum)
+		}
+		log.Printf("WARNING: 角色配置 PVF 哈希值不一致，继续启动：实际=%s，记录=%s；存档身份保持", source.Snapshot().Checksum, anchorChecksum)
+		// Rebind only this in-memory policy copy. Keep every shortcut and save rule.
+		characterPolicy.SourceChecksum = source.Snapshot().Checksum
 	}
 	result.SourceChecksum = source.Snapshot().Checksum
 	if selected["buffer-rental"] {
@@ -516,7 +523,7 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 			return &result, err
 		}
 	}
-	if selected["boxes"] || selected["fame"] || selected["roster-backgrounds"] || selected["season"] || selected["adventure"] || selected["lottery"] || selected["selection-boxes"] || selected["bleeding-mine"] || selected["black-purgatory"] || selected["clear-cube"] || selected["odyssey-growth"] || selected["odyssey-weapons"] || selected["odyssey-drop"] || selected["odyssey-currency"] || selected["items"] || selected["equipment"] || selected["prices"] || selected["materials"] || selected["boosters"] || selected["enhancements"] || selected["shields"] || selected["equipment-selection"] {
+	if selected["transform"] || selected["boxes"] || selected["fame"] || selected["roster-backgrounds"] || selected["season"] || selected["adventure"] || selected["lottery"] || selected["selection-boxes"] || selected["bleeding-mine"] || selected["black-purgatory"] || selected["clear-cube"] || selected["odyssey-growth"] || selected["odyssey-weapons"] || selected["odyssey-drop"] || selected["odyssey-currency"] || selected["items"] || selected["equipment"] || selected["prices"] || selected["materials"] || selected["boosters"] || selected["enhancements"] || selected["shields"] || selected["equipment-selection"] {
 
 		var direct catalog.ItemIndex
 		var e error
@@ -529,6 +536,13 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 			return &result, e
 		}
 		result.Items = &direct
+		if selected["transform"] {
+			result.Truth, e = source.OathTruth(direct)
+			if e != nil {
+				return &result, fmt.Errorf("PVF oath truth: %w", e)
+			}
+			log.Printf("PVF oath truth prepared: max=%d source=%s raw=%s", result.Truth.MaxLevel, result.Truth.Source, result.Truth.RawSHA256)
+		}
 		if _, present := source.archive.FindFile(cashshop.PremiumListPath); present {
 			result.Contracts, e = cashshop.ImportContractRules(source.archive, &direct)
 			if e != nil {

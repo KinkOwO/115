@@ -48,7 +48,7 @@ type Config struct {
 	PVFDropPolicy                    string `koanf:"pvf-drop-policy" default:"configs/pvf-drop-policy.json" env:"DFO_PVF_DROP_POLICY" help:"existing basic equipment allowlist and maximum loot grade; source rules from PVF"`
 	PVFCacheDir                      string `koanf:"pvf-cache-dir" default:"runtime/pvf-cache" env:"DFO_PVF_CACHE_DIR" help:"derived PVF cache directory; - disables caching"`
 	PVFArchive                       string `koanf:"pvf-archive" env:"DFO_PVF_ARCHIVE" help:"explicit inner PVF path for candidate domains"`
-	PVFSHA256                        string `koanf:"pvf-sha256" env:"DFO_PVF_SHA256" help:"expected inner PVF SHA256; must match existing character source"`
+	PVFSHA256                        string `koanf:"pvf-sha256" env:"DFO_PVF_SHA256" help:"recorded inner PVF SHA256; differences warn and startup continues"`
 	CharacterRules                   string `koanf:"character-rules" default:"configs/character-probe.json" help:"explicit local bootstrap settings"`
 	SelectProbeConfig                string `koanf:"select-probe-config" help:"opt in to current-build SELECT parser experiment; does not initialize a town"`
 	EntryBasicProbe                  bool   `koanf:"entry-basic-probe" default:"false" help:"send experimental current-build minimum actor info after SELECT; does not initialize a town"`

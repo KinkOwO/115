@@ -16,6 +16,7 @@ static __declspec(thread) uintptr_t g_entryWorld,g_entryScene,g_entryLoaderCalle
 static __declspec(thread) bool g_entryFreshDungeon;
 static __declspec(thread) EliteRegistrationFacts g_registrationChecks;
 static void (*g_entryBranchReset)();
+static void (*g_entryRegistrationDone)(uintptr_t,uintptr_t,uintptr_t,unsigned int);
 static __declspec(thread) uintptr_t g_registrationPlayer[2],g_registrationNativePlayer[2];
 
 static bool EliteEntryIdentity() {
@@ -113,6 +114,8 @@ static __declspec(noinline) char __fastcall EliteEntryRegisterObserve(uintptr_t 
     const auto caller=reinterpret_cast<uintptr_t>(_ReturnAddress())-reinterpret_cast<uintptr_t>(g_prepareImage);
     char result=g_entryRegisterOriginal(scene,parent,kind,id,actor,a6,a7,a8);
     DWORD nativeError=GetLastError();
+    if(result==1 && kind==5 && parent==0 && a6==0 && a7==0 && a8==1 && caller==0x5B2529D && g_entryWorld && g_entryRegistrationDone)
+        g_entryRegistrationDone(g_entryWorld,scene,actor,id);
     if(caller==0x5B2529D && g_entryWorld) EliteEntryRecord("native-registration-result",caller,scene,result);
     SetLastError(nativeError);
     return result;

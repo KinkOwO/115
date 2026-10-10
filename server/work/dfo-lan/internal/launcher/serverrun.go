@@ -71,6 +71,10 @@ func startSession(ctx context.Context, root string, opts LaunchOptions, console 
 		fmt.Fprintln(console, message)
 	}
 
+	for _, warning := range report.Warnings {
+		fmt.Fprintln(console, warning)
+	}
+
 	// 2. 已经有会话在 7001 上，就不要叠一个（launch_local.py L278-L279）。--storage-only
 	//    不起网关，--client-only 连的是别的机器，Python 那一句把两者都排除在外。
 	if !opts.StorageOnly && !opts.ClientOnly && PortListening(GatewayPort, portProbeTimeout) {

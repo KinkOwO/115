@@ -150,7 +150,8 @@ func TestEliteOdysseyQuickNextRejectsUnfinishedStaleAndSpecialRoutes(t *testing.
 			require.Equal(t, uint64(1), w.adventureEliteEntrySerial)
 			require.Equal(t, frozen, *w.adventureElitePrepared)
 			if w.adventureEliteEntryProbeUsed {
-				require.Error(t, w.eliteEntryProbeRequest(2015))
+				_, teleportErr := w.elvenmereTeleport(make([]byte, 25))
+				require.Error(t, teleportErr, "Odyssey run cannot use Elvenmere teleport")
 			}
 		})
 	}

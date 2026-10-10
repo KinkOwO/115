@@ -51,7 +51,7 @@ func (w *worldSession) oathSelectionPackets(ctx context.Context, body []byte) ([
 		// the authoritative selection even after a core change.
 		current.Level, current.ItemID, current.Option = selected.Level, selected.ItemID, selected.Option
 	}
-	info, err := protocol.OathSystemInfo(current.Level, current.Option)
+	info, err := w.oathInfo(ctx, current.Level, current.Option)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func (w *worldSession) oathDisplayRefresh(ctx context.Context, name string) []ou
 		log.Printf("oath display refresh: %v", err)
 		return nil
 	}
-	info, err := protocol.OathSystemInfo(selection.Level, selection.Option)
+	info, err := w.oathInfo(ctx, selection.Level, selection.Option)
 	if err != nil {
 		log.Printf("oath display refresh: %v", err)
 		return nil
@@ -151,7 +151,7 @@ func (w *worldSession) dungeonOathSelectionPacket(ctx context.Context) (outbound
 	if err != nil {
 		return outboundPacket{}, err
 	}
-	info, err := protocol.OathSystemInfo(selected.Level, selected.Option)
+	info, err := w.oathInfo(ctx, selected.Level, selected.Option)
 	if err != nil {
 		return outboundPacket{}, err
 	}
