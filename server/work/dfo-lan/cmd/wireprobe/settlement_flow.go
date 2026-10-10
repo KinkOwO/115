@@ -97,6 +97,15 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
+	// 升级事件脚本（level_up 的 grant_item / 角色待遇）是在上面这笔提交**之后**才落库的，
+	// 返回的 role 里没有它们。先回读，本轮结算帧才带得动 —— 发奖白给的前半。
+	// 回读失败就照旧编码：不能让取证动作把已通关的玩家卡在结算里。
+	committed, granted, grantErr := w.rewardStateAfterCommit(ctx, role)
+	if grantErr == nil {
+		role = committed
+	} else {
+		log.Printf("settlement reward reload failed role=%d: %v", role.ID, grantErr)
+	}
 	if tower != nil {
 		if _, err := w.store.AdvanceTowerFloor(ctx, w.account, towerPolicy(tower), tower.Floor, w.activeDungeon.RunID); err != nil {
 			return nil, err
@@ -256,6 +265,14 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 			return nil, e
 		}
 		plan = append(plan, outboundPacket{"clear_available_quests", 0, 21, available})
+	}
+	// 后半：上面那批 14 差分只在有爬塔奖励时才发，事件脚本发进背包的东西一次都带不到。
+	// 这里按真实入库状态补一帧全量背包；没变过就是零帧，副本内也绝不补 USERINFO1。
+	catchUp, catchUpErr := w.rewardCatchUpPackets(role, granted)
+	if catchUpErr != nil {
+		log.Printf("settlement reward catch-up failed role=%d: %v", role.ID, catchUpErr)
+	} else {
+		plan = append(plan, catchUp...)
 	}
 	return plan, nil
 }
