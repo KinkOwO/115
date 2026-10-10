@@ -44,6 +44,9 @@ func ImportPilot(a *pvf.Archive) (PilotConfig, error) {
 	if e = c.resolveEquipmentEntries(equipment, resolve); e != nil {
 		return c, e
 	}
+	if e = c.loadAvatarAbilityCases(resolve); e != nil {
+		return c, e
+	}
 	return c, c.Validate()
 }
 

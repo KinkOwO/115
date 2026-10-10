@@ -114,6 +114,18 @@ func (client *gameConnection) dispatchSpecialContent(requestData *clientRequest)
 		return dispatchHandled
 	}
 	if requestData.frame.Type == 1 && client.bootstrapped && requestData.verified && client.worldState != nil && client.selectedCharacterID != 0 {
+				// ★ 2026-10-10 收尾：这里原先有一条「次元回廊 CMD39 就直接投影清关链」
+				// 的兜底，用来绕过两个闸门（`ConfirmDeath` 查不到客户端报的怪物编号、
+				// 以及 completeDungeon 开头的 `!Completed()`）。**已经删掉**：
+				//
+				// 根因是会话怪物编号与 N29 给的编号不一致（客户端那只 BOSS 是 N29 生成的），
+				// 现已在 `dimCloisterLoadStagePlan` 里对齐（见 dimension_cloister_entity.go）。
+				// 对齐之后 `monsterDeath → ConfirmDeath → tryComplete → completeDungeon`
+				// 这条**既有**通用路径自然就通了，不需要这条旁路 ——
+				// 而它当时是**不看清的是哪只怪**就发清关链的，留着会在打小怪时误触发。
+				//
+				// 若将来又出现「BOSS 死了不通关」，先看 events.jsonl 里 CMD39/CMD117 的
+				// 拒绝原因，不要重新加旁路。
 		eliteBefore := client.worldState.eliteCombatState(requestData.frame.ID, requestData.plaintext)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		handled, packets, e := client.worldState.blackPurgatoryHandle(ctx, requestData.frame.ID, requestData.plaintext)
@@ -822,7 +834,7 @@ func (client *gameConnection) dispatchWorldAndQuests(requestData *clientRequest)
 			note["id"] = requestData.frame.ID
 			client.event(note)
 		}
-		if e = client.sendPlan(plan, client.logWorldResponseBody); e != nil {
+		if e = client.sendLegionSettlementPlan(plan); e != nil {
 			return dispatchClose
 		}
 		return dispatchHandled

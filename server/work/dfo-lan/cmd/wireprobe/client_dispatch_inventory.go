@@ -335,6 +335,12 @@ func (client *gameConnection) dispatchEquipmentSkillsAndMoves(requestData *clien
 		return dispatchHandled
 	}
 	if requestData.frame.ID == 19 && client.bootstrapped && requestData.verified && client.wearService != nil {
+		// 衣柜(space 33)搬移的最小验证：只回 ACK，不落存档、不发容器帧。
+		if handled, e := client.avatarClosetMoveAckOnly(requestData); e != nil {
+			return dispatchClose
+		} else if handled {
+			return dispatchHandled
+		}
 		shieldRequest, shieldDecodeErr := protocol.DecodeItemMove(requestData.plaintext)
 		shieldMove := shieldDecodeErr == nil && inventory.IsKnightShieldMove(shieldRequest)
 		var oldShield uint32
@@ -527,6 +533,31 @@ func (client *gameConnection) dispatchCosmeticsAndGold(requestData *clientReques
 	}
 	if client.worldState != nil && client.bootstrapped && requestData.frame.ID == 507 {
 		if !requestData.verified {
+			return dispatchHandled
+		}
+		// Avatar Preset Expansion Ticket（模板 590723098）是右键使用类道具，但它的
+		// CMD507 动作号在 PVF 里读不出来（[use action packet] 恒为 0），所以这一路
+		// **不参与动作号白名单**，改按"请求点名的槽位里装的是不是这张券"路由
+		// （口径同 DecodeQuestAirshipAction：item identity 取自背包槽位）。
+		// 首次命中把整条 CMD507 原文写进日志 —— 动作号与额外字段一次性拿到，
+		// 即便落地逻辑还有偏差，这一次实机操作也不会白跑。
+		if presetSlot, ok := client.worldState.avatarPresetTicketSlot(requestData.plaintext); ok {
+			presetAction := uint32(0)
+			if len(requestData.plaintext) >= 11 {
+				presetAction = binary.LittleEndian.Uint32(requestData.plaintext[7:11])
+			}
+			client.event(map[string]any{"kind": "avatar_preset_ticket_use_seen", "character_id": client.worldState.role.ID,
+				"slot": presetSlot, "action": presetAction, "plain_hex": hex.EncodeToString(requestData.plaintext)})
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			plan, e := client.worldState.useAvatarPresetTicket(ctx, requestData.plaintext, requestData.frame.Raw, client.purchaseSession.prefix, client.event)
+			cancel()
+			if e != nil {
+				client.event(map[string]any{"kind": "avatar_preset_expansion_refused", "character_id": client.worldState.role.ID, "reason": e.Error()})
+				return dispatchHandled
+			}
+			if client.sendPlan(plan, client.logWorldResponseBody) != nil {
+				return dispatchClose
+			}
 			return dispatchHandled
 		}
 		if len(requestData.plaintext) >= 11 && binary.LittleEndian.Uint32(requestData.plaintext[7:11]) == protocol.SeasonCapsuleAction {

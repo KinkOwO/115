@@ -417,6 +417,30 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		// NOTI108: 上游 19 条官方门禁记录静态表（event_info_generated.go）随登录
 		// 下发,开启所有 raid 页签门禁位。静态表恒定,不再走运行时动态组装。
 		plan.ChannelEventInfo = eventInfoTable
+		// NOTI1076 AVATAR_CLOSET_INFO：官方每次登录都下发一帧（16B）。缺它时客户端
+		// 衣柜 UI 衣架全锁、且不发任何衣柜命令。首字节 = 衣柜槽数（基础 1 槽，
+		// 买 Tier1/2/3 各 +1，上限 4），取自存档 ClosetExpansion（已购档位数）。
+		closetExpansion := byte(0)
+		if bag, bagErr := inventory.ReadBag(role.State); bagErr == nil {
+			closetExpansion = bag.ClosetExpansion
+		}
+		if info, infoErr := protocol.AvatarClosetInfo(protocol.AvatarClosetSlots(closetExpansion)); infoErr == nil {
+			plan.AvatarClosetInfo = info
+		}
+		// NOTI1077 衣柜内容（当前为空列表；客户端 reader 见 protocol.AvatarClosetSet）。
+		plan.AvatarClosetSet = protocol.AvatarClosetSet()
+		// NOTI1585 装扮预设列表：官方每次登录都下发一帧。布局由反汇编客户端
+		// handler（0x14335A230）得到，编码器与官方帧逐字节对齐；栏位数取存档
+		// AvatarPresetPages（已解锁页数），未写过时用官方默认 1 页。
+		presetPages := protocol.DefaultAvatarPresetPages()
+		if bag, bagErr := inventory.ReadBag(role.State); bagErr == nil && bag.AvatarPresetPages > 0 {
+			presetPages += bag.AvatarPresetPages
+		}
+		if list, listErr := protocol.AvatarPresetList(presetPages); listErr == nil {
+			plan.AvatarPresetList = list
+		} else {
+			client.event(map[string]any{"kind": "avatar_preset_list_build_error", "character_id": role.ID, "error": listErr.Error()})
+		}
 		// Starter Boost 662 进城恢复：可领礼物集合（2265）与训练进度（2638）都按
 		// 本角色状态现算。读失败只丢这一帧并记事件——进城不该被活动状态卡住。
 		if client.worldState != nil && client.worldState.boostup != nil {
