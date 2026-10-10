@@ -1,0 +1,41 @@
+{
+  "format": "dfo_20260901_inner",
+  "decoder": "pvf_archive.wrapper_keys/aes",
+  "client_exe": {
+    "path": "C:\\合成客户端\\DFO.exe",
+    "size": 9,
+    "sha256": "e71c9742438f181bc4ae373d380b6d0e052edae60482ad89a04a2c5c9f0471f0"
+  },
+  "sk_dat": {
+    "path": "C:\\合成客户端\\sk.dat",
+    "size": 8,
+    "sha256": "f37e29a058efa222feab056b04b9fb073c9909563246dc4d8091f0c5e470ee51"
+  },
+  "outer": {
+    "path": "C:\\合成客户端\\Script.pvf",
+    "size": 12,
+    "sha256": "9f095e3a6dcdf83ee9c611d394ae4e01db4c9db9c20b63399381b381fc6cd514"
+  },
+  "inner": {
+    "path": "C:\\合成产物\\Script.inner.pvf",
+    "size": 13,
+    "sha256": "df5f99c4855666005f0944306feac40e6c01252b0ae54182a9ec124af48a2079"
+  },
+  "cache": [
+    {
+      "name": "DFO.exe",
+      "size": 9,
+      "mtime_ns": 0
+    },
+    {
+      "name": "sk.dat",
+      "size": 8,
+      "mtime_ns": 0
+    },
+    {
+      "name": "Script.pvf",
+      "size": 12,
+      "mtime_ns": 0
+    }
+  ]
+}

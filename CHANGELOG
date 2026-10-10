@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-10-11 PVF清单测试独立输入构建确认
+
+**已修复 / 已完成**：业主确认“确认能编译通过，可以提交”。`TestDecideOnThePythonWrittenManifest` 改用Python生成的固定清单与临时三件套，移除对本机客户端、launcher.local.json和旧内层产物的依赖。保留同源复用，并增加DFO.exe/sk.dat/Script.pvf逐项变化必须重建的断言；运行期来源门禁不放宽。确认基线见 `server/work/dfo-lan/docs/innerpvf-manifest-build-confirmed-baseline-20261011.md`。
+
+**bug 测试取证**：原测试独立复现失败，本机DFO.exe指纹与旧清单不一致，sk.dat及Script.pvf一致；按来源拒绝复用是正确行为。修复后格式解析、渲染、门禁分支及三件套变更专项通过。Go1.26.0全量build/vet/test退出0/0/0，失败集合空；原build-game脚本完成两产物编译和身份检查。提交门禁通过，提交前fetch实际远端gud/main无待合并更新；本机无origin/fork。
+
+**未修复 / 未闭环**：确认仅覆盖构建与自动测试；本轮不重建本机内层PVF，不修改客户端、运行清单、schema或玩家存档。默认程序保持；固定JSON仅为合成测试夹具，不是运行内容源，日志与二进制不入库。
+
 ## 2026-10-11 登录后台发送生命周期构建确认
 
 **已修复 / 已完成**：业主确认“确认能编译通过，可以提交”。选角后无输出通道时不启动保活，保活及两类延迟登录推送绑定连接关闭信号；保留原30秒间隔、16字节保活体、1.1秒登录延迟及伊斯待机区pending分支。新增虚拟时间回归，覆盖无输出、正常保活和断连取消。合并上游后的已有nil保护纳入同一生命周期管理，确认基线见 `server/work/dfo-lan/docs/ispins-login-build-confirmed-baseline-20261011.md`。
