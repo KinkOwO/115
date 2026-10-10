@@ -13,6 +13,69 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-11 次元回廊军团本（内容 0x0d / 频道 Type 50 & 84）移植 + 运行时修复
+
+**已修复 / 已完成**：业主实机确认「击败 BOSS 后横幅 + 军团翻牌界面出现、BOSS 可正常打死」，
+关卡难度按业主要求固定最高档（9），关卡顺序随机（本场抽定）。整条内容走**军团本自己那套**
+（横幅 N31 + 本界进度态 N2314 → 客户端 CMD2046），**不发** N2252/N2253（本客户端 build
+取不到该内容的翻牌窗口，发了必崩）。
+- ① **怪物编号必须对齐 N29**：客户端那只 BOSS 是它自己按我们下发的 N29 生成的，
+  会话表若自行编号（4096 起）则 `CMD39` 被拒（`monster absent from current source room`）、
+  `CMD117` 也拒 ⇒ 怪物永远不算死、横幅不出现。对齐见 `internal/legion/dimension_cloister_entity.go`。
+- ② **军团 BOSS 不许 roll 地面掉落**：`monsterDeath` 的排除条件原先漏了本内容，
+  实机会话 `roles_persist_*_20261010_184617_918679_next37` 里第 4 界 BOSS 掉了一件
+  109 级圣职者武器 `108030760`（职业不符）⇒ 客户端击杀当场 `exit=0xC0000005`。
+  现按同族口径排除（`!w.isDimCloisterChannel()`）。
+- ③ **通关走通用流程、军团本自己那套负责展示**：`completeDungeon()` 只返回横幅；
+  `dungeonResult` 对次元回廊频道**整包吞掉 CMD46**（否则会叠出普通副本那套
+  `dungeon name suc / B 评分` 面板）；CMD72 由 `settlementExit` 的次元回廊分支
+  收成 ACK72 + `leaveDungeon()`。
+- ④ **界数推进**：清关时下发 N2314 进度帧（本界记录态 + 开窗态），下标用
+  **已清界数**（官服：第 1 界清完发 `dungeon0/@11=01`、第 2 界清完发 `dungeon1/@11=02`）；
+  回城开窗那条路与它**同口径**。同一界只确认一次（幂等），避免客户端反复开翻牌形成无限循环。
+- ⑤ **随机关卡**：建队时抽定本场三关顺序（池子 = `DimCloisterStageDungeons`，
+  即**有官服进图帧列的 3 个界** TheMan/Abyss/Charon）。另两界
+  Moros(100003180)/LightWoman(100003200) 无官方帧，只随机副本号会三处打架。
+- ⑥ **难度选择窗（右上角 UI）**：开战倒计时结束后推 `N2314 @3=06` 开窗；
+  客户端发 `CMD2080` 时**第一次只回 A 帧（开窗，把选择权交给玩家）**，
+  第二次（玩家点选）才回 B 帧（已选）——原先两帧挤在同一批发，业主看到的是
+  「难度框一闪而过、被自动选了难度」（2026-10-10 第七轮实机）。
+  **空卡兜底**：本客户端这条内容的 `[string data]` 全空 ⇒ 卡片无内容、按钮按不出选择值，
+  所以服务端在窗口停留 `dimCloisterChoiceDelay`（3 秒，官服 #771→#773 = 3.7 秒）后
+  **自动按下本界选择值**（B 帧），否则窗口会一直停着、玩家进不了图。
+  客户端那扇窗自身带 25 秒倒计时，所以兜底关窗取 30 秒（晚于它，避免插进玩家还在挑的时候）。
+- ⑦ **难度固定最高档 9**（`DimCloisterOperationForcedChoice`，业主 2026-10-11 定调）。
+  实机日志（会话 `roles_persist_*_20261010_221847_354912_next37`）：
+  `dim_cloister_operation_window action=0 choice=9` → `operation_open_ack` →
+  3 秒后 `operation_auto_choice choice=9` → `operation_choice_ack` → 客户端进图。
+  该档是**超越模式**（BOSS 三阶段）；若出现"打不死/不通关"改回 7 即可，属该档固有行为。
+- 依据：官方抓包 s30（`_dump_s30_c2s/s2c.txt`，CMD2043/2045/2046/2080、N2254/N2314 帧列）
+  + IDA 静态取证（N2252 handler `sub_1424FDC30` 精确读 `0x1E5C`、N2253 `sub_1424FDB60` 读 `0x965`，
+  注册器 `sub_1424FE600` 给出 opcode 8CC/8CD，全族共用同一对处理器）
+  + 实机会话 `roles_persist_*_20261010_{194607,220400,220857}_next37`。逐轮取证见本目录提交说明。
+
+**未修复 / 未闭环**：
+- 复现/未复现：**回城后进入下一界**（第 2 界解锁）在最后一轮实机仍不成立；
+  服务端日志显示客户端清关后**不再发第二次进图请求**（`enter request` 只出现一次，
+  `requested_stage=0`）。已排除：进度帧下标口径不一致、N2314 发送时机、CMD2046 应答长度。
+  待办：确认客户端 `MyresDimensionCloister.etc` 的 `[string data]` 为空的缺口是否
+  导致它放弃解锁（若如此属**客户端数据**问题，服务端无法补齐）。
+- **难度选择卡无内容**（同一数据缺口）：窗能开、能开窗交互、服务端 3 秒兜底也能推进，
+  但卡片上的文字/数值取不到（`[string data]` 全空）⇒ 玩家实际是"空卡"，无法真正按自己的
+  意愿挑难度；当前口径由服务端固定为最高档 9。玩家能否点选、卡片是否列出候选，
+  需下一轮实机截图确认（服务端侧只能保证 A/B 帧形状与官服一致）。
+- 横幅与翻牌界面上的文案是客户端缺文本资源时的**占位符**（`dungeon name suc` /
+  `clearTimeValue` / `mission name!`），翻牌也无奖励显示 —— 同源于上述客户端数据缺口。
+- 未覆盖：Moros / LightWoman 两界（无官方帧列，扩到"5 选 3"需补两份抓包）。
+
+**bug 测试取证**：`go build ./cmd/... ./internal/...` 与
+`go vet ./cmd/wireprobe/ ./internal/legion/ ./internal/dungeon/ ./internal/game/protocol/` 通过；
+`go test ./cmd/wireprobe/ -run 'DimCloister|Evildom'`、`./internal/legion/`、`./internal/dungeon/` 通过。
+全量 `go test ./cmd/wireprobe/` 的失败集合与移植前**逐条一致**（7 个既有环境性失败：
+DB fixture 缺失 + `ispins_wiring.go` 已知 panic），本次未引入新失败。
+提交前按仓库约定只入源码与 CHANGELOG，运行期文件（`runtime/storage/*.sqlite3`、
+`runtime/roles_*/`）与候选二进制不入库。
+
 ## 2026-10-10 装扮预设（Avatar Preset）扩展券解锁页签
 
 **已修复 / 已完成**：业主实机确认「买券 → 右键使用 → 页签 +1」跑通（连续 18 张券 `applied=true`，`pages` 1→19 严格递增，无一次被幂等键误吞）。

@@ -38,6 +38,17 @@ func (w *worldSession) canRechallenge(ctx context.Context) bool {
 }
 
 func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
+	// 次元回廊：**不走通用结算**（业主 2026-10-10 定调：「取消普通翻牌，直接用
+	// 刚刚出现的横幅和翻牌，这才是原本的东西」）。
+	//
+	// 军团本自己的那套是「横幅 N31 + 本界进度态 N2314 → 军团翻牌界面」，
+	// 而通用结算那一套（N34 `dungeon_play_result` / N37 / N35 / N261）是普通地下城的
+	// "dungeon name suc + B 评分"面板 —— 两者叠在一起就是业主看到的
+	// 「先普通翻牌结算、接着军团横幅、再军团翻牌」。
+	// 所以这里把 CMD46 整包吞掉（与伊斯/维纳斯同形）。
+	if w != nil && w.activeDungeon != nil && w.isDimCloisterChannel() {
+		return nil, nil
+	}
 	// [ISPINS-ARENA-BOSS] 伊斯大陆会话的 CMD46 整包吞掉：官服 s4 实证
 	// （c2s 帧 338/393/442/489）每阶段 boss 死亡后客户端都会发 141B 的
 	// 通用结算请求，但官服对它没有任何专门应答（s2c 全流无 kind=1 id=46；

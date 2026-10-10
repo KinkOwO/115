@@ -38,6 +38,10 @@ var beforeClientTypeDispatch = [...]clientDispatchStage{
 	// dispatchForest 再随后：苏醒之森（Type 96）待机区 CMD12/13，同理由
 	// （各内容自带的队伍类型字节互不相认）。
 	(*gameConnection).dispatchForest,
+	// dispatchEvildom 再随后：次元回廊（Type 50）待机区 CMD12/13 与开战
+	// CMD2043（内容 0x0d）。该内容的队伍类型字节是 0x0d，同样互不相认；
+	// 而且 legion.Requests 不含 CMD12，不在这里接管就会被通用队伍链丢掉。
+	(*gameConnection).dispatchEvildom,
 	(*gameConnection).dispatchSpecialContent,
 	(*gameConnection).dispatchCashshopAndBoxes,
 	(*gameConnection).dispatchStoryAndAdvancement,
