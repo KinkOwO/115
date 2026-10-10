@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-10-11 精锐已解封装备加载与剧情 APC 出现确认
+
+**已修复 / 已完成**：业主确认“确认APC出现，可以提交”。服务端0.3.20补齐队友装备随机属性的原生嵌套列表，将已保存181字节实例的属性三列转换为(id,A,B)三元组，保留type与special FF。修复已解封装备100060157使CMD1811拒绝整队加载的问题，猛毒雷鸣废墟剧情图恢复APC出现；原装备、角色属性和精锐名单无需改动。来源沿用当前PVF的 `[random option]` 与既有解封/存档链，不增加内容白名单或随机规则。确认基线见 `analysis/tasks/adventure-elite-random-options-confirmed-20261011.json`。
+
+**bug 测试取证**：043715_391804_next37 / PID22488 / runTick15202078，events203加载成功、204/206发送N1382/N1879；10476字节资料包含014a101702ff，客户端N1382 after的remaining=0/readerSuccess=1，N1879后三名weakAlive=3，首房原生登记成功。当前完整工作树go build ./...、go vet ./...、go test ./... -count=1 -json均退出0（4264通过/276跳过，逐名对照既有失败基线为空）；临时SQLite保存/加载与真实PVF三名现存队友编码检查通过。隔离服务端候选95dc56bb；DLL0.3.15/8180378b、启动器和默认程序保持。
+
+**未修复 / 未闭环**：确认范围为本次装备加载拒绝与APC出现；不扩大为随机属性伤害收益、完整战斗/死亡、所有副本或特殊替换属性分支。采集保留run.json缺失、死亡数量关联和全局登记汇总缺口，不能改写为全场验收。无PVF、SQLite/schema或玩家存档修改；运行日志、二进制和其他任务文件不入库。提交前fetch实际远端gud/main，无待合并更新；本机无origin/fork。
+
+独立拟提交源码以HEAD归档叠加本任务五份Go文件，保留原mods及本机login_ok.bin测试夹具，完整build/vet/test退出0（4155通过/293跳过，失败与新增失败空）；没有依赖其他未跟踪源码。提交门禁通过。
+
 ## 2026-10-11 PVF清单测试独立输入构建确认
 
 **已修复 / 已完成**：业主确认“确认能编译通过，可以提交”。`TestDecideOnThePythonWrittenManifest` 改用Python生成的固定清单与临时三件套，移除对本机客户端、launcher.local.json和旧内层产物的依赖。保留同源复用，并增加DFO.exe/sk.dat/Script.pvf逐项变化必须重建的断言；运行期来源门禁不放宽。确认基线见 `server/work/dfo-lan/docs/innerpvf-manifest-build-confirmed-baseline-20261011.md`。

@@ -606,3 +606,25 @@ v0.3.11 实机仍未跟随，PID17816/runTick2828687 catchup 日志缺失，尚�
 ## APC x64dbg 换层取证候选 v0.3.13
 
 补救 attempt 3/3，未确认。PID7996在艾尔文下一层证明世界状态3而旧门禁8；同一场景对象195C52B00丢失三名精锐CRef，但管理器仍持有。两处状态门禁修正；本代次原生登记成功锚点一致且丢成员持续3秒后，原生八参数登记+位置setter补救，已有成员仍用原生A*。跨场景对象变化拒绝、剧情演员保护与APC战斗状态连续性待证。取证与回退见analysis/tasks/elite-apc-scene-debug-20261011.md；不写confirmed baseline/CHANGELOG。
+
+## 已解封装备的精锐资料投影候选（服务端0.3.20，待实机）
+
+猛毒雷鸣废墟剧情入场没有 APC 的失败会话为 20261011_040715_688082_next37 / PID11376。events157 的 CMD1811 已获 Type22 普通源准入，但因 bash 穿戴100060157实例的字段60被拒绝，未产生 N1382/N1879；events261/313 两次副本6/map76141入场都发生在该加载失败之后。不是该副本地图或频道被排除，继续扩大准入不能解决资料加载拒绝。
+
+内容来源为当前内层 PVF 4d8c0c82 的 equipment/character/common/jacket/leather/100060157.equ（SHA24fd9a7e、[random option] 1），经 Source.RandomOptions 读取 etc/randomoption 原生规则，UnsealRandomOption/applyRandomOptions 已将属性写入181字节实例。现有存档块014a000010000017000002ff00000000表示一项属性(id74,A16,B23)、type2、special FF。本轮只接入已有随机属性的队友传输，不添加装备ID表、地图例外或第二套随机规则。
+
+权威 IDB 的145962410 flag1→1452C1540→1452C19F0/1451AA420读取 count u8、逐项(id,A,B) u8三元组；非空再读取type与special。1452C2491/267E→1451A5560应用到实际穿戴对象，不依赖临时181字节块的空属性区域。五处调用及读取字节同时与仓库参考 EXE（1d394878）和实际运行 EXE（eb3e04a2）匹配。新 TagEquipment 将存档三列转换为原生列表014a101702ff；零属性保持原包，特殊替换分支及其它未消费的实例数据仍明确拒绝。随机属性投影 attempt1/3；不是重启旧准入/C2S猜包次数。
+
+新增黄金向量检查0/1/2/3属性数量、字节顺序及后续字段游标；临时 SQLite 测试验证低等级队友保存后加载、稳定身份、N1382/N1879与存档不变。另从活动 SQLite 只读导出当前角色1/4/5的快照，用真实 PVF 职业/技能目录分别编码通过（穿戴9/21/9件，资料2471/5575/2438字节）。完整 go build ./...、go vet ./...、go test ./... -count=1 -json 均退出0，4264通过/276跳过；逐名对照既有空失败基线，无新增失败。首次新增测试使用原生频道夹具、没有普通准备对象的测试错误已更正，最终门禁无失败。
+
+仅部署隔离服务端候选95dc56bb（31390720B），补充1811诊断 equipment_projection_version=0.3.20 / random_option_projection_attempt=1/3。DLL0.3.15（8180378b，含原isolatedDllPath）、启动器f7442e67与默认服务端a6f26960保持原哈希；没有修改PVF、SQLite/schema或玩家存档。只读预检通过；旧PID状态不表示新候选运行。部署前的82af37d1服务端及原清单备份在 .tmp/adventure-elite/poison-story-delivery-backup。旧失败会话完整采集到 runtime/adventure-elite-captures/20261011对应会话目录，旧服务端清单哈希不匹配及生命周期/死亡关联七项缺口原样保留。证据为 analysis/tasks/adventure-elite-random-options-candidate-20261011.json。
+
+下一次一场手动会话：保持角色和已保存精锐名单，以 DFO_ADVENTURE_ELITE=1、scripts/启动游戏-SQLite.cmd --source-build 重启，进入猛毒雷鸣废墟剧情图检查 APC 与队伍栏。正常时同场可过门并回城重进一次；首次异常即停止，最后退出后通知采集。不要求重新保存或更换装备。既有原生加载/登记/场景日志与新增1811决策、完整包内容统一采集；本次属性分支实机消费仍待确认，特殊属性替换分支与其他未支持实例字段不算修复。未更新 CHANGELOG/confirmed baseline，未提交候选或运行日志。
+
+### 已解封装备资料加载与剧情 APC 出现确认
+
+业主随后确认“确认APC出现，可以提交”。043715_391804_next37 / PID22488 / runTick15202078 中，events203的CMD1811已接受，名单[4,1,5]不变；N1382资料10476字节包含014a101702ff，原生after完整读尽且readerSuccess=1，N1879之后三名APC引用有效。副本6/map76141首房原生登记和sceneVectorMatches=[1,1,1]成立，解决本次猛毒雷鸣废墟剧情图没有APC的问题。按用户确认收口，记录见 analysis/tasks/adventure-elite-random-options-confirmed-20261011.json。
+
+用户没有确认随机属性伤害收益或完整战斗覆盖；采集仍缺run.json、未观察正常退出，死亡数量关联与全局入场汇总缺口保留。特殊替换属性分支和其它未消费实例数据继续拒绝。DLL、PVF、SQLite/schema、玩家存档及默认程序保持；源码/回归与确认文档收口，运行产物和其他任务文件不提交。
+
+独立拟提交源码build/vet/全量测试均退出0，4155通过/293跳过，失败与新增失败为空；只叠加当前任务五份Go文件，不依赖其他未跟踪源码。保留原mods与本机login_ok.bin测试上下文，临时独立目录和测试日志不入库。
