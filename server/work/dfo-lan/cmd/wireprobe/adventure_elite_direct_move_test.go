@@ -87,7 +87,7 @@ func TestEliteOdysseyQuickNextBuildsIndependentRunAndKeepsFrozenRoster(t *testin
 }
 
 func TestEliteOdysseyQuickNextRejectsUnfinishedStaleAndSpecialRoutes(t *testing.T) {
-	for _, name := range []string{"uncompleted", "no-result", "no-clear-sent", "unloaded", "unused", "owner", "channel", "settings", "empty", "wire-zero", "pending-town", "selecting", "ordinary-source", "ordinary-role", "raid", "target-ordinary", "target-tutorial", "target-tower", "target-hell", "target-unknown", "level", "difficulty", "malformed"} {
+	for _, name := range []string{"uncompleted", "no-result", "no-clear-sent", "unloaded", "unused", "owner", "channel", "settings", "empty", "wire-zero", "pending-town", "selecting", "ordinary-source", "ordinary-role", "target-ordinary", "target-tutorial", "target-tower", "target-hell", "target-unknown", "level", "difficulty", "malformed"} {
 		t.Run(name, func(t *testing.T) {
 			w, body := eliteQuickNextWorld(t)
 			d := w.dungeons.Dungeons[4]

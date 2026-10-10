@@ -204,6 +204,10 @@ func (w *worldSession) useCoinRevive(ctx context.Context, store ceraReviveStore,
 		w.bakal.SpendCoinBudget()
 		plan = append(plan, outboundPacket{"bakal_revive_budget", 0, 2285, w.bakal.PartyFrame(w.bakalLocation, time.Now())})
 	}
+	if err == nil && len(plan) > 0 {
+		// 沉月湖（与蔚蓝号并列的征讨支线）：上限走源 [coin limit]，见 next188。
+		plan = w.afterMoonCoinRevive(plan)
+	}
 	return plan, err
 }
 

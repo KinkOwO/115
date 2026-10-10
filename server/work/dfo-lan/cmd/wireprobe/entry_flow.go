@@ -133,6 +133,24 @@ type entryPayloads struct {
 	BoosterGage     []byte
 	SkillVariations []byte
 	OdysseyProgress []byte
+	// AvatarClosetInfo is the NOTI1076 ENUM_NOTIPACKET_AVATAR_CLOSET_INFO body the
+	// official server pushes on every login (16 B, byte-identical across sessions).
+	// The closet UI keeps every hanger locked - and refuses to send any closet
+	// command - until the server sends it, so it rides with the avatar container
+	// refresh after the entry barrier. A nil payload is skipped by preparePackets.
+	AvatarClosetInfo []byte
+	// AvatarClosetSet is the NOTI1077 ENUM_NOTIPACKET_CHANGE_AVATAR_CLOSET_SET body
+	// (the closet's contents/avatar sets). The client's reader (DFO.exe 0x1449e8100)
+	// starts with a u32 entry count and returns early on 0, so the empty body
+	// {0,0,0,0} is a valid "closet holds nothing" state. A nil payload is skipped.
+	AvatarClosetSet []byte
+	// AvatarPresetList is the NOTI1585 ENUM_NOTIPACKET_AVATAR_PRESET_LIST body
+	// (the Avatar Preset page + its preset slots). The layout comes from
+	// disassembling the client reader (DFO.exe 0x14335A230) and the encoder is
+	// pinned byte-for-byte to the official capture - see
+	// protocol.AvatarPresetList and protocol/avatar_preset_test.go. A nil
+	// payload is skipped by preparePackets.
+	AvatarPresetList []byte
 	// SkillLocks is the NOTI2827 character option block that restores the
 	// player's locked skills. It is sent last: the forwarded evidence for this
 	// client reports a crash on town entry when 2827 arrives early in the frame
@@ -154,6 +172,11 @@ type entryPayloads struct {
 	// （cap43 抓包的前两帧），客户端面板只认推送；不补它时重登录后面板停在 0。
 	// 只在角色真已登记挑战时才有值，普通角色进城序列保持逐字节不变。
 	BoostChallenge []byte
+	// AttendanceDaily 是 NOTI1379（活动 331「7-Day Journey」的每日签到状态，33 字节）。
+	// 和 2638/2722 同一道栅栏之后：它的 handler（sub_143869190）会取**窗口 77** 的对象
+	// 并调它的 vtbl+552，窗口对象在 124 之前还不存在时那一步是空转。
+	// 活动未打开（NOTI108 表里没有 331）时为 nil，进城序列逐字节不变。
+	AttendanceDaily []byte
 	// Peers carries the USERINFO of every actor already standing in the scene.
 	// It is emitted after this actor's own placement but before the area list,
 	// because the client only places actors it already knows.
@@ -358,6 +381,8 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"boost_training_progress_restored", 0, 2638, p.BoostTraining},
 		// 2722 与 2638 同一道栅栏之后：面板对象在 124 之前还不存在，早到的帧会被丢掉。
 		outboundPacket{"boost_challenge_progress_restored", 0, 2722, p.BoostChallenge},
+		// 活动 331 每日签到的状态帧，同样排在 124 之后（handler 要取窗口 77 的对象）。
+		outboundPacket{"attendance_daily_state_sent", 0, 1379, p.AttendanceDaily},
 		// NOTI398 displayValue=0 collapses the top-left Liberation Trace panel
 		// (see docs/protocol/next52-liberation-trace-booster-gage-398.md). It
 		// must follow 124: the panel object is not initialized before it. The
@@ -369,6 +394,11 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"skill_variations_restored", 1, 29, p.SkillVariations},
 		// Complete lists and visual refresh after the entry/actor initialization barrier.
 		outboundPacket{"avatar_inventory_restored", 0, 13, p.AvatarReady},
+		outboundPacket{"avatar_closet_info", 0, 1076, p.AvatarClosetInfo},
+		outboundPacket{"avatar_closet_set", 0, 1077, p.AvatarClosetSet},
+		// NOTI1585 装扮预设列表：官方每次登录都下发一帧（624B，默认 12 个预设）。
+		// 帧形状与官方逐字节一致（见 protocol/avatar_preset_test.go 的金标准）。
+		outboundPacket{"avatar_preset_list", 0, 1585, p.AvatarPresetList},
 	)
 	// The list1 objects must exist before Clone's source lookup is restored,
 	// and subsequent worn reconstruction must consume this character's table.

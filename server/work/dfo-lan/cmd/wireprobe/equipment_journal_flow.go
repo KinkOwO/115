@@ -498,30 +498,21 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 	return plan, nil
 }
 
-// boostJournalPanel / boostJournalContext 是 **662 教学期装备库窗口**的标识
-// （实机 2026-10-04 帧：`u32@0=36`、`u32@8=0x054131D0`）。
-//
-// 该窗口的 `[12]` 实测为 **0**，但它与既有取证的两对来源不符
-// （`panel=164 / context=0x46ece836` = 变换，`panel=0 / context=0x005ff2f9` = 生成，
-// 见 `analysis/tasks/next126-装备库制作CMD2259阶段一落地.md` §9），且请求点名的是
-// 「槽位 + 图鉴已登记的目标」—— 正是变换的输入形状（把图鉴那件换到点名槽位）。
-// ⇒ 该窗口在教学轨道内按**变换**分派。
-// ⚠️ **只看 panel，不要钉 context**：实测两天两个不同的值
-// （2026-10-04 、2026-10-05 ）—— 它随窗口实例变，不是窗口标识。
-// 前一次就是因为把 context 钉死成常量而没命中，学员号仍走了生成路径（落背包、不是互换）。
-const boostJournalPanel = 36
-
-// boostJournalSwap 判定这次 2259 是否来自教学期图鉴窗口、且角色仍在 662 训练轨道。
-// 两个条件都满足才改派为变换；出关或换窗口一律回到按 `[12]` 分派。
-func (w *worldSession) boostJournalSwap(r protocol.EquipmentCraftRequest) bool {
+// boostJournalSwap 按已领取的源任务分派教学变换，不把请求头的采样值当窗口身份。
+// 20261010 实机同一教学链发 u32@0=46；旧的 panel=36 门禁把两次确认误作生成。
+// IDA 1414F4480 未初始化前 13 字节，14150C4D0 的 a2=0 分支以 2259 发送变换。
+// 当前客户端帧的 header[12]=0 不能单独证明生成；普通路径的历史分派本轮保持。
+// 费用、图鉴守卫和穿戴事实仍由既有变换事务校验，任务推进复用源 WearRequirement。
+func (w *worldSession) boostJournalSwap(_ protocol.EquipmentCraftRequest) bool {
 	if w == nil || w.boostup == nil || w.role.ID == 0 {
 		return false
 	}
-	if r.Panel != boostJournalPanel {
+	st, e := boostup.ReadState(w.role.State)
+	if e != nil || !st.Activated || st.Training.Finished || st.Training.Phase != 2 ||
+		!st.Training.Claimed[st.Training.Step] || st.Training.Step == 0 || int(st.Training.Step) > len(w.boostup.Steps) {
 		return false
 	}
-	st, e := boostup.ReadState(w.role.State)
-	return e == nil && st.Activated && !st.Training.Finished
+	return w.boostup.Steps[int(st.Training.Step)-1].Mission == "transform equip journal or equip item"
 }
 
 // craftFingerprint 把一次 2259 请求压成一个字符串指纹。

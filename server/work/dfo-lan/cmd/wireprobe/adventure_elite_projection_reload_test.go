@@ -130,11 +130,16 @@ func TestAdventureEliteProjectionRefreshRetainsSpecialScopeBoundary(t *testing.T
 			}
 			hidden, err := w.refreshAdventureEliteSelections(ctx, profile)
 			require.NoError(t, err)
-			require.Len(t, hidden, 1)
-			require.Equal(t, []byte{0}, hidden[0].Payload)
-			require.Nil(t, w.adventureElitePrepared)
+			if scope == "tutorial" {
+				require.Len(t, hidden, 1)
+				require.Equal(t, []byte{0}, hidden[0].Payload)
+				require.Nil(t, w.adventureElitePrepared)
+			} else {
+				require.Empty(t, hidden, "category or isolation must not cause a destructive roster reload")
+				require.NotNil(t, w.adventureElitePrepared)
+			}
 			_, err = w.loadAdventureElite(ctx, []byte{2, 0})
-			require.ErrorContains(t, err, "当前频道未启用")
+			require.Error(t, err, "tutorial or duplicate preparation remains blocked")
 		})
 	}
 }

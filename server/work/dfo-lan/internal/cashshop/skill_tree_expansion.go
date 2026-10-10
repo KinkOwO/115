@@ -31,11 +31,11 @@ type SkillTreeLedger interface {
 // [item mod or ext] products are reserved for capacity/refresh handlers the
 // ordinary family refuses without.
 func (p *Pilot) TryPurchaseSkillTreeExpansion(ctx context.Context, ledger BagLedger, account, character int64, key string, cart []protocol.CeraCartItem) (CashReceipt, bool, bool, error) {
-	if p == nil || len(cart) != 1 || cart[0].Quantity != 1 {
+	if p == nil || len(cart) != 1 || cart[0].Product != skillTreeSKU || cart[0].Quantity != 1 {
 		return CashReceipt{}, false, false, nil
 	}
 	line := cart[0]
-	entry, found := p.findEntry(line.Product, skillTreeTemplate)
+	entry, found := p.findEntry(line.Product, 0)
 	if !found || entry.Row[0].Value != skillTreeSKU || entry.Row[1].Value != skillTreeTemplate {
 		return CashReceipt{}, false, false, nil
 	}

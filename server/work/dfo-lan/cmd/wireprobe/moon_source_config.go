@@ -36,7 +36,9 @@ func moonSourceBlock(decls []catalog.DungeonRewardBlock) (catalog.DungeonRewardB
 // 迷雾工商协会银币 / 通宝袖珍罐），所以数量沿用同一份实测；哪个副本换了组就补一行。
 var conquestObservedFixedCounts = map[uint32]map[uint32]uint32{
 	100004137: {10362429: 60, 10362432: 15}, // 沉月湖第二层（2026-10-02 实机截图）
-	100004134: {10362429: 60, 10362432: 15}, // 蔚蓝号（固定组与月湖同为 21291）
+	// 蔚蓝号：**L0 取值** —— 官服抓包 `F16-s2c.txt` 第 682 帧（id=35, body=616）的头两条行就是 `10362432 x160`、`10362429 x100`。
+	// 原来挂的 100004134 是猜的：蔚蓝号真正进的是频道 [guide dungeon index] = **100004131**（见 azure_flip.go）。
+	100004131: {10362429: 100, 10362432: 160},
 }
 
 // conquestFamilyDungeons 是「征讨地下城」这一族的副本号。

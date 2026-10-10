@@ -1,5 +1,13 @@
 # 当前构建与第一阶段证据
 
+## 2026-10-10：事件脚本奖励结算后补齐已确认
+
+业主确认“对的，全变了”。真源是时序：Lua 事件脚本（level_up、quest_complete）的 grant_item 与角色待遇在业务事务**提交之后**才写库，reward.Notifier 三个方法没有返回值、错误只记日志，提交交回网关的那份角色不含这批东西，而结算帧又全部由它编码，于是物品进了库、帧里没有、内存里也没有，玩家要等下一次全量背包（多半是重登）才认。新增 `cmd/wireprobe/reward_settlement_refresh.go`：结算与任务 Finish 之后回读库内那份角色（WireID 换回会话值），按**编码后的帧体**比较三类投影——普通背包含金币那一行、宠物/特殊容器、USERINFO1 待遇（不比 state 原始字节，CharactersWithAdventure 会把账号迷雾阶段投影进 state，比字节会场场误报），变了才用既有帧形补发（NOTI13 全量背包、NOTI13 宠物容器、城镇 USERINFO1 三件套），零变化零帧；副本内的待遇变化不发 USERINFO1，改置 slotUnlockDirty 由回城重建，因为客户端只在登录/选角/进本构造装备栏行对象，补发会清空装备栏显示。回读或补帧失败只打日志，不把已通关、已完成卡在结算里。接线 `settlement_flow.go` 与 `quest_flow.go`，不发明未证实帧形、不留玩法开关。
+
+实机会话 roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261010_190844_972934_next37（gateway.out 首行为日常入口 bin/wireprobe-pvf.exe）。跨级落在结算而不是杀怪，这是本批要验的那一半：本场最后一条杀怪经验帧 Lv15/469,416 低于 Lv16 门槛 469,546，结算帧 dungeon_clear_experience（NOTI37）为 Lv16/469,623；库侧时序 clear:e22379c5… 12:03:21.072013Z → 两条 reward:level_up:…:16:item .073984Z/.074990Z → 含 reward_event_inventory 的结算 plan .0848679Z。补齐帧体 2,539 字节按 NOTI13 布局整帧解通（5 字节头 + 14 行×181 字节，行内 slot u16@0、template u32@2、amount u32@6、period u32@56）：金币 10,262,736、slot65 模板 10418035 数量 1,200。事后查库角色 2 仍为 Lv16/469,623 且该物品 1,200，帧值即存档值。
+
+现役 bin/wireprobe-pvf.exe 与源码候选 bin/wireprobe-handoff-source.exe 逐字节相同，SHA256 41272cdd3cf98c4e8726027ac75bb2bceaf7674530791cad342632389750838a（31,084,032 字节），本批修复已在日常入口上；上一颗 pvf 125dcd57 被同名覆盖、更早那颗 4238d6fa 的副本目录 runtime/shop-routing-fix-20261009 现在也不在本机，回退只能重编；bin/wireprobe-dungeon39.exe 归档基准未覆盖。go build、go vet、go test -count=1 限定 ./cmd/... ./internal/... 退出码 0/0/0、46 个含测试的包全 ok / 0 FAIL，同一棵树的纯净 origin/main 基线跑同一命令也是 0/0/0、46 ok（无回归）；未走 Build-Server.ps1，其 ./... 会被 runtime/update-backup 的并发副本绊倒。新增 reward_settlement_refresh_test.go 五条用例：只给钱、给物品、宠物容器、副本内待遇转回城补发、没变过一帧都不补，在「origin/main + 仅本任务两块 hunk」的树上逐条 PASS——工作区 settlement_flow.go 相对 origin/main 混有他人的蔚蓝号源驱动翻牌接线，按 hunk 归属拆开后只重放本任务两块。不记作通过：宠物容器帧与城镇待遇补发两条分支本场门未触发，只有单测无实机正证；character_create 与其余功能（Ispins N2293、Azure N537、签到 N1379、赤红铁矿周常合成）的同款 lastSent 门未做。本批无 schema 变更、不改写存档身份与幂等口径。取证用的一次性探针脚本已删除、mods 回到 28 份文件基线，库内 4 行 reward 幂等记录与对应的 111,111 金币、100 件材料按“不碰玩家存档”保留未删，且删除时网关已在跑、下次重启前它们仍在内存里。
+
 ## 2026-10-09：商城购买分流修复已确认
 
 基于主线1511aaee，普通单件购买曾被角色栏扩展券处理中的模板回退误拦截；修复为先限定扩展券 SKU，再按请求商品 ID 精确查找，通用 findEntry 与报价、扣款、发货逻辑保持。用户确认 MOD 商品和原生商品“两种都购买成功”；此确认仅覆盖普通购买恢复，扩展券分流由回归测试验证。

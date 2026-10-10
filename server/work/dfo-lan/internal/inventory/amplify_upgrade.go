@@ -388,6 +388,8 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 
 	// 判定成功率（官方页数据；便携增幅器沿用普通增幅成功率表）。
 	percent := AmplifySuccessPercent(level)
+	// 服务端层 mod 的成功率规则（后处理）：每次掷骰现读，改完立刻生效。
+	percent = enhanceSuccessPercent(enhanceKindAmplify, level, percent)
 	roll, err := amplifyUpgradeRandomInt(100)
 	if err != nil {
 		return nil, out, err

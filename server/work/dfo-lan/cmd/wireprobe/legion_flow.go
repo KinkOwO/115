@@ -4,6 +4,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/legion"
 	"fmt"
+	"time"
 )
 
 // legionSession carries the per-connection legion state.
@@ -55,6 +56,34 @@ type legionSession struct {
 	// mirrored onto it because CMD2062 DUNGEON_DIRECT_MOVE is dispatched by the
 	// dungeon layer, which has no legionSession of its own.
 	world *worldSession
+
+	// 以下是次元回廊（dimension cloister，频道 Type 84）的运行态，
+	// 由 cmd/wireprobe/dimension_cloister_flow.go 驱动。
+	//
+	// dimCloisterStage 是当前界序号，撤退休退时置 -1 表示"整场作废重开"。
+	// dimCloisterCleared 是已清界数，用来决定记录/终局态与奖励。
+	// dimCloisterPartyActive 标记待机区是否已建队（CMD12/CMD13 的判据）。
+	// dimCloisterWindowDeadline / dimCloisterEvents 是操作窗的待发事件队列：
+	// 开窗帧与「停留若干秒后自动确认难度」的兜底帧都排在这里，由
+	// connectionSession.cloisterWindow 的精确定时器到期后统一下发。
+	dimCloisterStage          int
+	dimCloisterCleared        int
+	dimCloisterPartyActive    bool
+	// dimCloisterPartyName 是建队请求（CMD12）里的队名；dimCloisterPartyNameReply
+	// 是那份请求自带的"名长字节"，队伍稳态刷新帧（N9）要复用同一份字节，
+	// 否则客户端会当成新队伍把界面刷回初始态。
+	dimCloisterPartyName      string
+	dimCloisterPartyNameReply []byte
+	// dimCloisterWindowAcked 标记操作窗是否已经开过（开窗 A 帧已发）。
+	// 再收到一次选择请求时说明玩家已经选了 → 回"已选" B 帧并撤掉兜底关窗。
+	dimCloisterWindowAcked    bool
+	dimCloisterWindowDeadline time.Time
+	dimCloisterEvents         []dimCloisterPendingEvent
+	// dimCloisterParty 是 CMD2045 进图确认帧里的队伍字节（原样留存，供后续帧复用）。
+	// dimCloisterStages 是本场三关的**抽定顺序**（dimCloisterRollStages 洗牌后写入），
+	// 为空时退回 legion.DimCloisterStageDungeons 的固定顺序。
+	dimCloisterParty  byte
+	dimCloisterStages []uint32
 }
 
 // legionResult is one handled command: the packets to send plus the events that

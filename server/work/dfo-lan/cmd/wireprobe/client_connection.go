@@ -124,11 +124,16 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 			}
 		}
 		client.worldState.channelGuideDungeon = client.gatewayRuntime.channelGuides[client.channelTypes[client.channel]]
+		// 蔚蓝号（征服频道 102）的源驱动翻牌策略（nil = 未装配 ⇒ 退回通用翻牌）。
+		// 真正生效还要 activeDungeon 的副本号等于策略记的结算层，见 azureFlipActive()。
+		// ⚠️ 漏了这一行不会报错、只会静默走老路（2026-10-09 实测代价：一轮实机白跑）。
+		client.worldState.azureFlipCfg = client.azureFlip
 		if client.moonConfig != nil && client.channel == client.moonConfig.Channel {
 			client.worldState.moonConfig = client.moonConfig
 		}
 		// Starter Boost 662：会话拿装配层冻结的活动目录；nil = 活动关闭，一切照旧。
 		client.worldState.boostup = client.boostCatalog
+		client.worldState.attendance = client.attendanceCatalog
 		// 末世录（频道 Type 119）：CMD2062 直进要在 dungeon 派发层先于通用
 		// 「没有 activeDungeon 就拒绝」的守卫被接管，所以把 legionSession 挂到
 		// worldSession 上；apocalypse 指针在 apocalypseRun() 里随 run 建立同步
@@ -287,6 +292,18 @@ func (client *gameConnection) serve() {
 				}
 			}
 			continue
+		case now := <-client.connection.cloisterWindow:
+			// 次元回廊待发事件到期：下发窗口状态帧（N2314，横幅/右上角 UI）或到期关窗。
+			// 用精确定时器而不是 mineTicker：这条连接上 mineTicker 不触发
+			//（2026-10-10 抓包实证：只回了 ack、后续帧从未发出）。
+			packets, events := client.dimCloisterEventsDue(now)
+			for _, note := range events {
+				client.event(note)
+			}
+			if client.sendPlan(packets, client.logWorldResponseBody) != nil {
+				return
+			}
+			continue
 		case now := <-client.connection.forestBanner:
 			// 苏醒之森 Extreme「净化开始」横幅到期（N2568 自带 delay[4]）：
 			// 精确下发挂起的进图帧列。worldSession 只有主循环碰，无并发。
@@ -416,8 +433,67 @@ func (client *gameConnection) serve() {
 	}
 }
 
+// sendPlanBatched 与 sendPlan 同样按顺序编码，但**整批只写一次**（一次 write 系统调用）。
+//
+// 为什么需要它：客户端有个别处理器会从**本次 recv 到的字节**里按固定长度取数据
+//（次元回廊的 N2252 = `sub_1424FDC30` 固定取 0x1E5C=7772 字节）—— 逐帧 write 会让
+// 每次 recv 只拿到本帧的十几个字节，那个处理器就会走空写守卫崩掉（0xC0000005）。
+// 整批一次写出时，客户端一次 recv 就能拿到后面所有帧，读取才有足够的字节。
+//
+// 与 sendPlan 的差别只有"写几次"：编码顺序、每帧的 sent 回调完全一致。
+func (client *gameConnection) sendPlanBatched(plan []outboundPacket, sent func(outboundPacket)) error {
+	prepared, err := preparePackets(client.output.keys, plan)
+	if err != nil {
+		return err
+	}
+	return client.output.writePrepared(prepared, func(p preparedPacket) {
+		if sent != nil {
+			sent(p.outboundPacket)
+		}
+	})
+}
+
+// sendLegionSettlementPlan 发送军团结算批次。
+//
+// 默认逐帧写（与 sendPlan 完全一致）；但当批次里含 opcode 2252 时整批一次写出，
+// 让客户端那次 recv 同时拿到该帧与它后面的帧（见 sendPlanBatched 的说明）。
+//
+// 注：次元回廊最终**不再发 N2252/N2253**（本客户端该内容的翻牌窗口取不到，
+// 发了必崩；改走"军团横幅 N31 + 本界进度态 N2314 → 客户端 CMD2046"），
+// 所以这条分支当前不会命中；保留它是为了让"含 2252 的批次"在任何路径下都安全。
+func (client *gameConnection) sendLegionSettlementPlan(plan []outboundPacket) error {
+	needsBatch := false
+	for _, p := range plan {
+		if p.Kind == 0 && p.ID == 2252 {
+			needsBatch = true
+			break
+		}
+	}
+	if !needsBatch {
+		return client.sendPlan(plan, client.logWorldResponseBody)
+	}
+	client.event(map[string]any{
+		"kind": "legion_settlement_batched_write", "frames": len(plan),
+		"character_id": client.selectedCharacterID,
+	})
+	return client.sendPlanBatched(plan, client.logWorldResponseBody)
+}
+
 func (client *gameConnection) sendPlan(plan []outboundPacket, sent func(outboundPacket)) error {
+	var moonEntry map[string]any
+	for _, p := range plan {
+		if p.Name == "moon_dungeon" && client.worldState != nil {
+			moonEntry = client.worldState.eliteMoonEntryObservation()
+			break
+		}
+	}
 	return sendPacketPlan(plan, client.output.send, func(p outboundPacket) {
+		if note := client.worldState.eliteSpecialPacketObservation(p.Name, p.Kind, p.ID); note != nil {
+			client.event(note)
+		}
+		if p.Name == "moon_dungeon" && moonEntry != nil {
+			client.event(moonEntry)
+		}
 		if p.ID == 1754 || p.ID == 1382 || p.ID == 1879 {
 			event := adventureEliteDiagnostic(client.worldState, p.ID, []outboundPacket{p}, nil)
 			event["kind"] = "adventure_elite_packet_sent"

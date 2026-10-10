@@ -35,6 +35,8 @@ type PilotConfig struct {
 	// ImportPilot/NewPilot; classify falls back to a per-call derivation
 	// when the config was built by hand (tests).
 	immediateTemplates map[int32]bool
+	// Loaded directly from the same PVF; never a second runtime content source.
+	avatarAbilityCases map[int32]map[uint16]string
 }
 type OrdinaryProduct struct {
 	Section     string               `json:"section"`
@@ -531,7 +533,10 @@ func (p *Pilot) products() (map[uint32]Product, error) {
 	}
 	out := map[uint32]Product{}
 	for _, v := range p.Config.Entries {
-		product, _, e := p.Config.classify(v)
+		product, handler, e := p.Config.classify(v)
+		if e == nil && handler.Kind == "[avatar]" {
+			product.AvatarOptions = p.Config.avatarPurchaseOptions(v.Item)
+		}
 		if e == nil {
 			out[product.ID] = product
 		}
@@ -611,6 +616,9 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 		return CashReceipt{}, false, fmt.Errorf("purchase requires1..32 supported products")
 	}
 	if receipt, applied, handled, err := p.TryPurchaseAvatarInventoryExpansion(ctx, ledger, account, character, key, cart); handled || err != nil {
+		return receipt, applied, err
+	}
+	if receipt, applied, handled, err := p.TryPurchaseAvatarClosetExpansion(ctx, ledger, account, character, key, cart); handled || err != nil {
 		return receipt, applied, err
 	}
 	if receipt, applied, handled, err := p.TryPurchaseInventoryExpansion(ctx, ledger, account, character, key, cart); handled || err != nil {
@@ -711,7 +719,7 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 			if ok && HasExpiration(entry.Item) {
 				exp = MaxExpireTime
 			}
-			raw, e = p.deliverAmount(raw, line.Template, line.Units*line.Quantity, exp)
+			raw, e = p.deliverSelectedAmount(raw, line.Template, line.Units*line.Quantity, line.AvatarOption, exp)
 			if e != nil {
 				return nil, e
 			}
@@ -728,6 +736,10 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 	return mixed.PurchaseCashMixed(ctx, o, deliver, activations)
 }
 func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32, expireTime ...uint32) (json.RawMessage, error) {
+	return p.deliverSelectedAmount(raw, template, amount, 0, expireTime...)
+}
+
+func (p *Pilot) deliverSelectedAmount(raw json.RawMessage, template, amount uint32, option byte, expireTime ...uint32) (json.RawMessage, error) {
 	if amount == 0 || amount > 112000 {
 		return nil, fmt.Errorf("invalid delivery amount")
 	}
@@ -736,6 +748,9 @@ func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32, expi
 		exp = expireTime[0]
 	}
 	if template == 1 {
+		if option != 0 {
+			return nil, fmt.Errorf("selected avatar option on currency delivery")
+		}
 		b, e := inventory.ReadBag(raw)
 		if e != nil {
 			return nil, e
@@ -749,6 +764,9 @@ func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32, expi
 	h, err := p.resolveDeliveryType(template)
 	if err != nil {
 		return nil, err
+	}
+	if option != 0 && h.Kind != "[avatar]" {
+		return nil, fmt.Errorf("selected avatar option on non-avatar delivery")
 	}
 	if h.Kind == "[avatar]" {
 		if info, ok := p.ItemCatalog[template]; ok && info.Kind != "avatar" {
@@ -773,9 +791,10 @@ func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32, expi
 						b.Special = map[byte][]inventory.BagEquipment{}
 					}
 					b.Special[1] = append(b.Special[1], inventory.BagEquipment{
-						Slot:         s,
-						Template:     template,
-						Period:       exp,
+						Slot:          s,
+						Template:      template,
+						Period:        exp,
+						Durability:    uint16(option),
 						AvatarOptions: p.avatarSocketOptions(template),
 					})
 					found = true

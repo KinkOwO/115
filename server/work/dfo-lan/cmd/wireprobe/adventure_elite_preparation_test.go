@@ -100,17 +100,24 @@ func TestAdventureElitePreparationFollowsSourceChannelAttributesWithoutMutatingS
 			if flag == "unknown" {
 				delete(w.eliteChannelDirectory.ByType, 121)
 			}
-			require.False(t, w.ordinaryElitePreparationAllowed())
+			blocked := flag == "unknown" || flag == "tutorial" || flag == "warp"
+			require.Equal(t, !blocked, w.ordinaryElitePreparationAllowed())
 			payload, err := w.adventureElitePayload(context.Background(), profile)
 			require.NoError(t, err)
-			if flag == "warp" {
+			if !blocked || flag == "warp" {
 				require.NotEqual(t, []byte{0}, payload, "ordinary town warp preserves the roster, while preparation stays blocked")
 			} else {
 				require.Equal(t, []byte{0}, payload, "unsupported source view must not authorize the DLL transaction")
 			}
 			_, err = w.loadAdventureElite(context.Background(), []byte{2, 0})
-			require.ErrorContains(t, err, "当前频道未启用")
-			require.Nil(t, w.adventureElitePrepared)
+			if blocked {
+				require.ErrorContains(t, err, "当前频道未启用")
+				require.Nil(t, w.adventureElitePrepared)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, [3]int64{apc.ID, 0, 0}, w.adventureElitePrepared.Selected)
+				w.adventureElitePrepared = nil
+			}
 			require.Equal(t, [3]int64{apc.ID, 0, 0}, profile.Data.EliteSelections[2])
 		})
 	}
@@ -170,8 +177,8 @@ func TestAdventureEliteSelectionTransitionsDoNotDestroyPreparedCompanions(t *tes
 	w.eliteChannelDirectory.ByType[22] = catalog.ChannelAttributes{Type: 22, IsLegion: true}
 	hidden, err := w.refreshAdventureEliteSelections(ctx, profile)
 	require.NoError(t, err)
-	require.Len(t, hidden, 1, "actual source scope changes still hide mode2")
-	require.Equal(t, []byte{0}, hidden[0].Payload)
+	require.Empty(t, hidden, "source category changes no longer remove the identical roster")
+	require.Equal(t, frozen, *w.adventureElitePrepared)
 }
 
 func TestAdventureElitePreparationNativeChannelSources(t *testing.T) {
@@ -193,8 +200,7 @@ func TestAdventureElitePreparationNativeChannelSources(t *testing.T) {
 		w.serverID = server
 		for _, row := range rows.Rows {
 			w.eliteChannelID, w.channelType = row.ID, row.Type
-			a, special := dir.Attributes(row.Type)
-			expected := !special || !(a.IsRaid || a.IsLegion || a.IsPreRaid || a.IsSemiRaid || a.GuideDungeon != 0 || a.Panel != "")
+			expected := true
 			if adventureEliteChannel(row.Type) {
 				expected = false
 			}
@@ -207,7 +213,7 @@ func TestAdventureElitePreparationNativeChannelSources(t *testing.T) {
 	require.True(t, w.ordinaryElitePreparationAllowed(), "Odyssey character shares source ordinary channel route")
 	for _, id := range []uint32{106, 119} {
 		w.channelType = id
-		require.False(t, w.ordinaryElitePreparationAllowed(), "native special type must override ordinary ID")
+		require.True(t, w.ordinaryElitePreparationAllowed(), "source special type is authorized independently of ordinary ID")
 	}
 	w.channelType, w.eliteChannelID = 9999, 9999
 	require.False(t, w.ordinaryElitePreparationAllowed(), "unknown route must fail closed")
@@ -221,7 +227,7 @@ func TestAdventureElitePreparationSourceOrdinaryRowChangesEligibility(t *testing
 	w.eliteChannelInfo = &catalog.ChannelInfo{Servers: map[uint32]catalog.ChannelInfoServer{1: {ServerID: 1, Rows: []catalog.ChannelInfoRow{{ID: 10, Type: 2}}}}}
 	require.True(t, w.ordinaryElitePreparationAllowed())
 	w.eliteChannelInfo.Servers[1] = catalog.ChannelInfoServer{ServerID: 1, Rows: []catalog.ChannelInfoRow{{ID: 10, Type: 106}}}
-	require.False(t, w.ordinaryElitePreparationAllowed())
+	require.True(t, w.ordinaryElitePreparationAllowed(), "published special route is also allowed")
 	w.eliteChannelInfo.Servers[1] = catalog.ChannelInfoServer{ServerID: 1, Rows: []catalog.ChannelInfoRow{{ID: 11, Type: 2}}}
 	require.False(t, w.ordinaryElitePreparationAllowed())
 }

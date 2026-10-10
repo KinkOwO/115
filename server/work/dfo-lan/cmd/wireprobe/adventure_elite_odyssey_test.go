@@ -74,14 +74,14 @@ func TestEliteOdysseyAdmissionPreservesModeSourceAndOwner(t *testing.T) {
 	require.Error(t, w.eliteEntryProbeRequest(39))
 }
 
-func TestEliteOdysseyCharacterKeepsOrdinarySourceAndSpecialChannelBoundary(t *testing.T) {
+func TestEliteOdysseyCharacterAllowsSpecialSourceAndRetainsOrdinaryModeBoundary(t *testing.T) {
 	t.Setenv(adventureelite.EnvKey, "1")
 	w := probeWorld()
 	w.odyssey = true
 	r := protocol.DungeonSelection{ID: 3, Party: 65535}
 	require.NoError(t, w.validateEliteEntryProbe(r))
 	w.eliteChannelDirectory.ByType[22] = catalog.ChannelAttributes{Type: 22, IsLegion: true}
-	require.Error(t, w.validateEliteEntryProbe(r))
+	require.NoError(t, w.validateEliteEntryProbe(r))
 	w = probeWorld()
 	w.odyssey = true
 	r.Mode = 1
@@ -90,7 +90,7 @@ func TestEliteOdysseyCharacterKeepsOrdinarySourceAndSpecialChannelBoundary(t *te
 	w.odyssey = true
 	w.channelWorldIsolated = true
 	r.Mode = 0
-	require.Error(t, w.validateEliteEntryProbe(r))
+	require.NoError(t, w.validateEliteEntryProbe(r))
 }
 
 func TestEliteOdysseyCurrentPVFJournalSourceAdmission(t *testing.T) {

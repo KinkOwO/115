@@ -154,7 +154,16 @@ type Bag struct {
 	// Legacy inventories omit this field and keep their original avatar capacity.
 	AvatarExpansion byte                    `json:"avatar_expansion,omitempty"`
 	Expansion       byte                    `json:"expansion,omitempty"`
-	Version         string                  `json:"version"`
+	// ClosetExpansion 是衣柜（Avatar Closet）档位：0=未购买（按官方默认档 1 下发），
+	// N=已买到 Tier N。对应 PVF 商品 "Avatar Closet Expansion Kit"（3001197/8/9）。
+	ClosetExpansion byte `json:"closet_expansion,omitempty"`
+	// AvatarPresetPages 是装扮预设（Avatar Preset）已解锁的**页数**（= 页签/栏位数）。
+	// 0 = 存档里没写过（按官方默认 1 页下发），N = 已用券解锁到 N+1 页。
+	// 字段名 2026-10-10 从 avatar_preset_slots 改成 avatar_preset_pages：语义从
+	// "每页条目数" 纠正为 "页签（栏位）数"，旧键自然作废、不用改存档。
+	// 对应 PVF 商品 "Avatar Preset Expansion Ticket"（3003017 / 模板 590723098）。
+	AvatarPresetPages byte                    `json:"avatar_preset_pages,omitempty"`
+	Version           string                  `json:"version"`
 	Gold            uint32                  `json:"gold"`
 	Coin            uint32                  `json:"coin,omitempty"`
 	Items           []BagItem               `json:"items"`
@@ -287,6 +296,9 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 	if b.AvatarExpansion > protocol.MaxAvatarInventoryExpansion {
 		return b, fmt.Errorf("时装栏扩展档位超出客户端范围")
 	}
+	if b.AvatarPresetPages >= protocol.MaxAvatarPresetPages {
+		return b, fmt.Errorf("装扮预设页数超出客户端范围")
+	}
 	for _, i := range b.Items {
 		if i.Template == 1 {
 			if uint64(b.Coin)+uint64(i.Amount) <= math.MaxUint32 {
@@ -395,6 +407,9 @@ func SaveBag(state json.RawMessage, b Bag) (json.RawMessage, error) {
 	}
 	if b.Expansion > 2 {
 		return nil, fmt.Errorf("背包扩展档位超出客户端范围")
+	}
+	if b.AvatarPresetPages >= protocol.MaxAvatarPresetPages {
+		return nil, fmt.Errorf("装扮预设页数超出客户端范围")
 	}
 
 	// [ALIGN-20260930-DURABILITY] 落库前 clamp 耐久（见 SetDurabilityLimit 的说明）。

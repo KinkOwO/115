@@ -83,6 +83,13 @@ func equippedAppearanceEntrySize(row EquippedAppearance) int {
 // the client, so it is rejected here.
 const maxEquippedAppearanceSlot = 25
 
+// MaxEquippedAppearanceSlot 把上面的上界交给本包之外的调用方。
+//
+// 为什么导出而不是让调用方自己写个 25：槽位上界是**客户端表的性质**，
+// 让它出现第二份常量，将来表扩了就会有一处漏改（根 AGENTS §0.2 的单一真源）。
+// 调用方（目前是 cmd/wireprobe 的假人宿主）只用它做"这个槽合法吗"的判断。
+func MaxEquippedAppearanceSlot() byte { return maxEquippedAppearanceSlot }
+
 // weaponSlot is the only slot whose dedicated tail fields the client reads.
 const weaponSlot = 12
 

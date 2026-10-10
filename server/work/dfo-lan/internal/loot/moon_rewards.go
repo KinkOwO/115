@@ -334,7 +334,7 @@ func (s *Service) DecodeMoonReward(role Role, run string, raw json.RawMessage) (
 	if e := json.Unmarshal(raw, &p); e != nil {
 		return p, e
 	}
-	if p.Run != run || p.Source != role.ConfigVersion || p.Source != s.Catalog.Source.SaveIdentity() || p.Account != role.AccountID || p.Character != role.ID || len(p.Grants) == 0 || len(p.Grants) > 16 {
+	if p.Run != run || p.Source != role.ConfigVersion || p.Source != s.Catalog.Source.SaveIdentity() || p.Account != role.AccountID || p.Character != role.ID || len(p.Grants) == 0 || len(p.Grants) > MoonRewardMaxRows {
 		return p, fmt.Errorf("foreign/corrupt Moon reward proof")
 	}
 	return p, nil

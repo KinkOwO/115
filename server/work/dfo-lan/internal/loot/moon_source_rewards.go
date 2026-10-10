@@ -912,6 +912,19 @@ func (s *Service) rollMoonRarityEquipment(sink *moonSourceSink, base string, rol
 	}
 }
 
+// MoonRewardMaxRows 是**每座**产物行数的硬上限。
+//
+// 依据：`protocol.ConquestClearReward115` 的编码器对每个在场座位要求
+// `0 < len(Rewards[slot]) <= 126`（见 internal/game/protocol/conquest_reward115.go），
+// 所以策略的 `MaxRows` 与任何奖单的 `Grants` 都不能超过它。
+//
+// ⚠️ 2026-10-09 修正：`DecodeMoonReward` 原先用的是**老**月湖策略留下的 16 件上界
+// （那时奖单是 `Draws <= 16` 的 Choice 列表）。源驱动路径按 `MaxRows`（=126）记账，
+// 而蔚蓝号的效率是「装备 10 / 誓约 4」（沉月湖是 7/3）⇒ 固定 2 件 + 基础产物 + 10 + 4 > 16
+// ⇒ 奖单**写完再读回**时被判 `foreign/corrupt Moon reward proof` ⇒ CMD46 整条被拒
+// ⇒ **结算面板根本不出现**（业主实机 2026-10-09 21:0x）。沉月湖恰好卡在 16 以内才没露出来。
+const MoonRewardMaxRows = 126
+
 // ValidateMoonSourcePolicy 是源驱动策略的**入场前自检**（与旧 ValidateMoonRewards 同一位置调用）。
 //
 // 为什么要在进门前查：装不出东西的策略必须在这里失败，而不是让玩家打完 Boss 才发现翻牌是空的
@@ -930,8 +943,8 @@ func (s *Service) ValidateMoonSourcePolicy(p MoonSourcePolicy) error {
 	if p.SettlementDungeon == 0 {
 		return fmt.Errorf("Moon source policy without settlement dungeon")
 	}
-	if p.MaxRows <= 0 {
-		return fmt.Errorf("Moon source policy without row budget")
+	if p.MaxRows <= 0 || p.MaxRows > MoonRewardMaxRows {
+		return fmt.Errorf("Moon source policy row budget out of range")
 	}
 	// 声明了「需要展开」的基础产物却没有展开池 ⇒ **进门就失败**：别让玩家打完 Boss 才发现
 	// 少东西（与深渊「booster 目录缺失就硬失败、不退化成把包装丢在地上」同一条理由）。

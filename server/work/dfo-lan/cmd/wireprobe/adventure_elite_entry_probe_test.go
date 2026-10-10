@@ -71,7 +71,11 @@ func TestAdventureEliteEntryProbeScopeAndFrozenIdentity(t *testing.T) {
 				w.dungeons.Dungeons[3] = d
 			}
 			frozen := *w.adventureElitePrepared
-			require.Error(t, w.validateEliteEntryProbe(r))
+			if name == "raid" {
+				require.NoError(t, w.validateEliteEntryProbe(r), "special source category delegates to existing entry")
+			} else {
+				require.Error(t, w.validateEliteEntryProbe(r))
+			}
 			require.Equal(t, frozen, *w.adventureElitePrepared)
 		})
 	}
@@ -95,7 +99,7 @@ func TestAdventureEliteOwnedCombatKeepsScopeAndReusesOrdinaryHandlers(t *testing
 
 func TestAdventureEliteOwnedCombatRejectsStaleOrSpecialRun(t *testing.T) {
 	t.Setenv(adventureelite.EnvKey, "1")
-	for _, name := range []string{"missing", "owner", "channel", "settings", "empty", "wire-zero", "wire-sentinel", "unloaded", "odyssey-role", "raid", "tutorial", "tower", "hell", "source-odyssey"} {
+	for _, name := range []string{"missing", "owner", "channel", "settings", "empty", "wire-zero", "wire-sentinel", "unloaded", "odyssey-role", "tutorial", "tower", "hell", "source-odyssey"} {
 		t.Run(name, func(t *testing.T) {
 			w := probeWorld()
 			w.adventureEliteEntryProbeUsed = true

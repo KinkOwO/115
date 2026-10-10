@@ -250,6 +250,7 @@ func DecodeAdventureBestHonor(p []byte) (row AdventureCharacter, automatic bool,
 type AdventureEliteSelection struct {
 	Mode       uint16
 	Slots      [3]int32
+	APCIndices [3]uint32 // PVF special APC [index]; account-save decoder still rejects NPCs
 	SkillUsage [3][30]int32
 }
 
@@ -265,9 +266,9 @@ func DecodeAdventureEliteSelection(p []byte) (r AdventureEliteSelection, err err
 		return r, fmt.Errorf("精锐角色模式无效")
 	}
 	for i := range r.Slots {
-		// 142E5C590只对额外APC模板做索引转换。本账号角色的标记和模板号均为零。
+		// 142E5C590只对特殊APC [index]做索引转换。本账号角色的标记和特殊索引均为零。
 		if p[0x10+i] != 0 || binary.LittleEndian.Uint32(p[0x17+i*4:]) != 0 {
-			return r, fmt.Errorf("精锐设置包含未接入的外部APC模板")
+			return r, fmt.Errorf("精锐设置包含未接入的外部APC索引")
 		}
 		r.Slots[i] = int32(binary.LittleEndian.Uint32(p[0x27+i*4:]))
 		if r.Slots[i] < -1 {
@@ -302,6 +303,13 @@ func AdventureEliteSelections(rows []AdventureEliteSelection) ([]byte, error) {
 				return nil, fmt.Errorf("精锐角色列表索引无效")
 			}
 			binary.LittleEndian.PutUint32(body[0x27+i*4:], uint32(slot))
+			if index := row.APCIndices[i]; index != 0 {
+				if slot != -1 {
+					return nil, fmt.Errorf("特殊APC索引不能同时绑定账号角色槽位")
+				}
+				body[0x10+i] = 1
+				binary.LittleEndian.PutUint32(body[0x17+i*4:], index)
+			}
 			if slot >= 0 {
 				for j, skill := range row.SkillUsage[i] {
 					binary.LittleEndian.PutUint32(body[0x33+(i+1)*120+j*4:], uint32(skill))

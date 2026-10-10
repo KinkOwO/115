@@ -20,7 +20,15 @@ func (w *worldSession) resetCards() {
 	w.cardAutoPickAt = time.Time{}
 }
 func (w *worldSession) cardsReady() error {
-	if w == nil || w.loot == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || !w.resultSent || w.cardPlan == nil || w.cardPlan.Run != w.activeDungeon.RunID {
+	if w == nil || w.loot == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || !w.resultSent {
+		return fmt.Errorf("cards before owned settlement")
+	}
+	// 蔚蓝号（征讨族）的奖单是**源驱动**那一份：载体是 MoonRewardPlan 而不是 CardPlan
+	// （CardPlan.Items 只有 8 格，装不下源声明的整张单子），见 azure_flip.go。
+	if w.azureFlipOwned() {
+		return nil
+	}
+	if w.cardPlan == nil || w.cardPlan.Run != w.activeDungeon.RunID {
 		return fmt.Errorf("cards before owned settlement")
 	}
 	return nil
@@ -49,6 +57,14 @@ func (w *worldSession) cardStage(id uint16, p []byte) ([]outboundPacket, error) 
 	return []outboundPacket{{"card_layout_ack", 1, 70, protocol.CardLayout()}}, nil
 }
 func (w *worldSession) grantFreeCard(index byte) ([]outboundPacket, error) {
+	// 蔚蓝号的奖单在 MoonRewardPlan 上（源驱动），领取走 ClaimMoonReward ——
+	// 与沉月湖同一个事务（按 run 幂等）。通用 PickCard 读的是 CardPlan，
+	// 那条路对蔚蓝号已经不适用（单子装不进 8 格）。
+	if w.azureFlipOwned() {
+		// 重复调用由 azureClaim 内部幂等处理（只回选中帧、不重复发奖）——
+		// **不能在这里空手返回**：玩家点牌那条 CMD71 会因此拿不到任何应答。
+		return w.azureClaim(index)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	role, receipt, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).PickCard(ctx, w.role, w.activeDungeon, *w.cardPlan, index)
@@ -145,6 +161,31 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 	// 与本次逐条同形（连 VMem 增量模式都一样）。
 	// ⇒ 定案：选项 5 必须**由应答当场驱动入场**，不能让客户端自己走 2062。
 	unsettledSeamless := r.Option == protocol.SettlementExitSeamless && w.cardsReady() != nil
+	// 次元回廊的 CMD72：**必须在这里收住**。
+	//
+	// ★ 2026-10-10 第十三轮定案：本客户端 build 里 `N2252/N2253`（本内容的翻牌界面）
+	// 取不到 XUI 窗口 ⇒ 只要发那种帧（大表或小帧），
+	// 客户端就在 `sub_1424FDC30` 里崩（`0x146EA0C30` / `0x1424FDD35`，14 轮实机一致）。
+	// 所以本内容**不走翻牌 UI**：横幅（N31）由清关链发，结算在服务端做（奖励已入库），
+	// 玩家点「返回城镇」时走这里 —— ACK72 + `leaveDungeon()` 回集结区，与伊斯/维纳斯同形。
+	//
+	// 若不在这里拦，CMD72 会落进下面的通用翻牌/结算分支（那需要 `cardsReady()`），
+	// 对军团内容不适用。
+	if w.legion != nil && w.legion.isDimCloister() && w.activeDungeon != nil {
+		ack := outboundPacket{"settlement_focus_ack", 1, 72, protocol.SettlementExitSuccess(r)}
+		if r.State == 2 {
+			// 只更新按钮选中态：保持 run 归属，等 state1 再真正离场。
+			return nil, []outboundPacket{ack}, nil
+		}
+		route, e := w.leaveDungeon()
+		if e != nil {
+			return nil, nil, e
+		}
+		w.selectingDungeon = false
+		ack.Name = "settlement_exit_ack"
+		w.legion.dimCloisterStage = -1
+		return nil, append([]outboundPacket{ack}, route[1:]...), nil
+	}
 	// [ISPINS-ARENA-BOSS] 伊斯大陆的 CMD72 全部不走通用翻牌/结算：官服 s4
 	// 整场没有一帧 69/70/71（阶段奖励由 N2256/N2252 承载），撤退休退
 	// （source=0）更发生在副本未完成时。回城复用 leaveDungeon（回到进本前
