@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"time"
 )
 
 type dungeonReviveStore interface {
@@ -226,6 +227,43 @@ func (w *worldSession) useCoinRevive(ctx context.Context, store ceraReviveStore,
 	// 不留"换一档还能复活"的缝。拒绝后走既有死亡超时流程判负回城。
 	if e := w.odysseyReviveGate(); e != nil {
 		return nil, e
+	}
+	raid := w != nil && w.bakal != nil && w.activeDungeon != nil && w.activeDungeon.RaidManaged
+	if raid {
+		if err := w.bakal.CheckCoinBudget(); err != nil {
+			return nil, err
+		}
+	}
+	// 末世录（内容 107 / 频道 Type 119）：复活币由**所选作战的 `[allow coin]`** 决定，
+	// 且按**关卡**计数 —— PVF `apocalypse.ctp` 的 `[operation data set]` 里只有作战①
+	// （难度1）带该列、值 `-1, 8`，作战②/③/④ 都没有该列。业主 2026-10-08 定调：
+	// **最后一个数 = 每关上限；无该列 = 禁止复活**。
+	//
+	// 此前该字段只被解析进 plan.AllowCoin 并写进日志事件，**从未执行**，实机表现就是
+	// 业主报的「难度1 能用掉全部 99 个币、难度2 也照样能用」。
+	// 与巴卡尔团本同型：先判预算，复活真的成功后再扣。
+	apocalypse, apocalypseErr := w.apocalypseCheckCoinBudget()
+	if apocalypseErr != nil {
+		return nil, apocalypseErr
+	}
+	plan, err := w.resolveCoinRevive(ctx, store, p, frame, pilotEnabled)
+	if apocalypse && err == nil && len(plan) > 0 {
+		w.apocalypseSpendCoinBudget()
+	}
+	if raid && err == nil && len(plan) > 0 {
+		w.bakal.SpendCoinBudget()
+		plan = append(plan, outboundPacket{"bakal_revive_budget", 0, 2285, w.bakal.PartyFrame(w.bakalLocation, time.Now())})
+	}
+	if err == nil && len(plan) > 0 {
+		// 沉月湖（与蔚蓝号并列的征讨支线）：上限走源 [coin limit]，见 next188。
+		plan = w.afterMoonCoinRevive(plan)
+	}
+	return plan, err
+}
+
+func (w *worldSession) resolveCoinRevive(ctx context.Context, store ceraReviveStore, p, frame []byte, pilotEnabled bool) ([]outboundPacket, error) {
+	if w != nil && w.activeDungeon != nil && w.pilotDeath != nil && w.pilotDeath.Run == w.activeDungeon.RunID && w.pilotDeath.Revives[sha256.Sum256(frame)] {
+		return nil, nil
 	}
 	if pilotEnabled {
 		plan, e := w.pilotRevive(ctx, store, p, frame)

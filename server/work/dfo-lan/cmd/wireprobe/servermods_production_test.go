@@ -12,8 +12,9 @@ import (
 // Adding the MOD framework must preserve the established new-character
 // rewards and must not auto-install the sample equipment giveaway.
 func TestProductionMODRegistrationKeepsExistingCharacterRewards(t *testing.T) {
+	beforeScripts, beforeIDs := servermod.RewardScripts(), servermod.Registered()
 	mods.RegisterMods()
-	if len(servermod.RewardScripts()) != 0 || len(servermod.Registered()) != 0 {
+	if !reflect.DeepEqual(beforeScripts, servermod.RewardScripts()) || !reflect.DeepEqual(beforeIDs, servermod.Registered()) {
 		t.Fatal("sample MOD activated in production")
 	}
 	grants := map[uint32]uint64{}
@@ -46,7 +47,7 @@ func TestTownActivityChallengeSnapshotUsesActualRecordCount(t *testing.T) {
 		t.Fatal("challenge snapshot unavailable")
 	}
 	keys := decodeOpenEventKeys(t, body)
-	if len(keys) != 23 || keys[22] != 665 {
+	if len(keys) != 24 || keys[23] != 665 {
 		t.Fatalf("challenge record count or identity lost: %v", keys)
 	}
 }

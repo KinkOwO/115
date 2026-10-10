@@ -1,0 +1,512 @@
+{
+  "status": "confirmed-native-quick-next-and-APC-presence; bounded-single-transition",
+  "userConfirmation": "确认成功，能够快速进入下一个副本，APC也出现",
+  "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261009_015823_668706_next37",
+  "capture": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-quick-next-confirmed-capture\\roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261009_015823_668706_next37",
+  "processId": 85832,
+  "runTick": 148524671,
+  "serverVersion": "0.3.13",
+  "runtimeSourceCommit": "e79c943e9c535d17e2a5198f757aa0f7ec119268",
+  "deployedServer": {
+    "sha256": "85a3ff4bc4d9dccfb663b7003c47a0b1ef014d2f6497e694af5d9f1765dd028b",
+    "bytes": 29683200
+  },
+  "DLL": {
+    "version": "0.3.9",
+    "sha256": "941656906dac3e0f7c8c1e9430ca390eac8d88013dd528539d35661aa689e005"
+  },
+  "launcherSha256": "aed177c46cb700afbb77d75d2f8aa3b5061dde82ac3f629901436722d3752a79",
+  "sourceChain": "same inner PVF checksum4d8c0c82 -> journal.cos/list.dungeon/DGN -> current reader -> original directMoveDungeon/dungeon.Select -> original15/27/16/28/29 -> successful dispatch -> native fresh loader and original APC registration. No new source table.",
+  "normalExit": true,
+  "candidateValid": true,
+  "pidMatch": true,
+  "confirmedScope": [
+    "Single native2062 transition from100004935 Grakqarak to100004936 Thunderland",
+    "One glow APC visibly appeared in the new dungeon, matching native fresh reentry registration result1"
+  ],
+  "directMoveRuns": [
+    {
+      "originRunId": "14c7cbbc4134b93fac70d3460c5f6b2a",
+      "runId": "1663e92ef220252e5d16f6c0b54a9f1e",
+      "dungeon": 100004936,
+      "entrySerial": 2,
+      "requestAndSourceMatched": true,
+      "entryPlanMatched": true,
+      "cleanNewRun": true
+    }
+  ],
+  "nativeFreshCycles": [
+    {
+      "loaderOrdinal": 1,
+      "endOrdinal": 6,
+      "thread": 66172,
+      "managerActive": 0,
+      "companions": 1,
+      "nativeResults": 1,
+      "activeAdaptations": 0,
+      "allRegistered": true,
+      "adapterValid": true
+    },
+    {
+      "loaderOrdinal": 23,
+      "endOrdinal": 29,
+      "thread": 66172,
+      "managerActive": 1,
+      "companions": 1,
+      "nativeResults": 1,
+      "activeAdaptations": 1,
+      "allRegistered": true,
+      "adapterValid": true
+    }
+  ],
+  "perRunObservations": [
+    {
+      "runId": "14c7cbbc4134b93fac70d3460c5f6b2a",
+      "entrySerial": 1,
+      "dungeon": 100004935,
+      "sourceScript": "contents/2026/aradodyssey/dungeon/01_grakqarak/grakqarak.dgn",
+      "sourceSha256": "ddeafda700fbc6c44bb8be28a5d50f6445e0d2c7eb808a9187c4d1469fd1572b",
+      "entryCommitted": true,
+      "ownedDeaths": 5,
+      "deaths": 25,
+      "moves": 4,
+      "pickups": 2,
+      "results": 1,
+      "cards": 2,
+      "returnCommitted": false,
+      "refusals": []
+    },
+    {
+      "runId": "1663e92ef220252e5d16f6c0b54a9f1e",
+      "entrySerial": 2,
+      "dungeon": 100004936,
+      "sourceScript": "contents/2026/aradodyssey/dungeon/02_thunderland/thunderland.dgn",
+      "sourceSha256": "d8c955e7f5fbdf91eca3d67d5ec4fa59ca2f0beb29f687eaed8deda208d07a45",
+      "entryCommitted": true,
+      "ownedDeaths": 0,
+      "deaths": 45,
+      "moves": 4,
+      "pickups": 6,
+      "results": 1,
+      "cards": 2,
+      "returnCommitted": true,
+      "refusals": []
+    }
+  ],
+  "ownedFreshDeaths": 5,
+  "postTransitionOwnedFreshDeaths": 0,
+  "allFreshEntriesRegisteredAggregate": false,
+  "aggregateNote": "Global aggregate is false because retained full-death capture gap; each individual native fresh cycle succeeded. Native scope logs and user appearance confirmation are recorded separately.",
+  "retainedCaptureIssues": [
+    "原生死亡发送与服务端 CMD39 数量不一致，不能声称覆盖完整。"
+  ],
+  "anchors": [
+    {
+      "file": "events.jsonl",
+      "line": 193,
+      "kind": "client_frame",
+      "id": 16,
+      "plain_hex": "47f4f5050200000000ffff000000000000000000000000000000000000000000"
+    },
+    {
+      "file": "events.jsonl",
+      "line": 194,
+      "kind": "adventure_elite_entry_probe",
+      "accepted": true,
+      "entry_serial": 1,
+      "run_id": "14c7cbbc4134b93fac70d3460c5f6b2a",
+      "dungeon": 100004935,
+      "source_script": "contents/2026/aradodyssey/dungeon/01_grakqarak/grakqarak.dgn",
+      "source_sha256": "ddeafda700fbc6c44bb8be28a5d50f6445e0d2c7eb808a9187c4d1469fd1572b"
+    },
+    {
+      "file": "events.jsonl",
+      "line": 564,
+      "kind": "client_frame",
+      "id": 2062,
+      "plain_hex": "7900000000000000ffffffffff48f4f505020000000000000001000000a0000000c8000000140000000a000000000000"
+    },
+    {
+      "file": "events.jsonl",
+      "line": 565,
+      "kind": "adventure_elite_combat_request",
+      "id": 2062,
+      "processed": true,
+      "candidate_version": "0.3.13",
+      "entry_serial": 2,
+      "pending_run_id": "1663e92ef220252e5d16f6c0b54a9f1e",
+      "pending_dungeon": 100004936,
+      "before": {
+        "active": true,
+        "cards_active": true,
+        "combat_alive": 0,
+        "completed": true,
+        "completion_sent": true,
+        "death_sent_count": 25,
+        "drops_active": true,
+        "dungeon": 100004935,
+        "entry_serial": 1,
+        "level": 25,
+        "loaded": true,
+        "map": 100016507,
+        "odyssey": true,
+        "pending_town_arrival": false,
+        "quest": 0,
+        "requested_difficulty": 2,
+        "requested_dungeon": 100004936,
+        "requested_gate": [
+          160,
+          200,
+          20,
+          10
+        ],
+        "requested_source_odyssey": true,
+        "requested_source_script": "contents/2026/aradodyssey/dungeon/02_thunderland/thunderland.dgn",
+        "requested_source_sha256": "d8c955e7f5fbdf91eca3d67d5ec4fa59ca2f0beb29f687eaed8deda208d07a45",
+        "result_sent": true,
+        "room_cleared": true,
+        "run_id": "14c7cbbc4134b93fac70d3460c5f6b2a",
+        "selecting_dungeon": false,
+        "source_designated_difficulty": 2,
+        "source_hunt_boss": 109019257,
+        "source_odyssey": true,
+        "source_script": "contents/2026/aradodyssey/dungeon/01_grakqarak/grakqarak.dgn",
+        "source_sha256": "ddeafda700fbc6c44bb8be28a5d50f6445e0d2c7eb808a9187c4d1469fd1572b",
+        "source_story_layers": 0
+      },
+      "after": {
+        "active": true,
+        "cards_active": true,
+        "combat_alive": 0,
+        "completed": true,
+        "completion_sent": true,
+        "death_sent_count": 25,
+        "drops_active": true,
+        "dungeon": 100004935,
+        "entry_serial": 2,
+        "level": 25,
+        "loaded": true,
+        "map": 100016507,
+        "odyssey": true,
+        "pending_town_arrival": false,
+        "quest": 0,
+        "requested_difficulty": 2,
+        "requested_dungeon": 100004936,
+        "requested_gate": [
+          160,
+          200,
+          20,
+          10
+        ],
+        "requested_source_odyssey": true,
+        "requested_source_script": "contents/2026/aradodyssey/dungeon/02_thunderland/thunderland.dgn",
+        "requested_source_sha256": "d8c955e7f5fbdf91eca3d67d5ec4fa59ca2f0beb29f687eaed8deda208d07a45",
+        "result_sent": true,
+        "room_cleared": true,
+        "run_id": "14c7cbbc4134b93fac70d3460c5f6b2a",
+        "selecting_dungeon": false,
+        "source_designated_difficulty": 2,
+        "source_hunt_boss": 109019257,
+        "source_odyssey": true,
+        "source_script": "contents/2026/aradodyssey/dungeon/01_grakqarak/grakqarak.dgn",
+        "source_sha256": "ddeafda700fbc6c44bb8be28a5d50f6445e0d2c7eb808a9187c4d1469fd1572b",
+        "source_story_layers": 0
+      }
+    },
+    {
+      "file": "events.jsonl",
+      "line": 566,
+      "kind": "adventure_elite_entry_probe",
+      "accepted": true,
+      "entry_serial": 2,
+      "origin_run_id": "14c7cbbc4134b93fac70d3460c5f6b2a",
+      "run_id": "1663e92ef220252e5d16f6c0b54a9f1e",
+      "dungeon": 100004936,
+      "source_script": "contents/2026/aradodyssey/dungeon/02_thunderland/thunderland.dgn",
+      "source_sha256": "d8c955e7f5fbdf91eca3d67d5ec4fa59ca2f0beb29f687eaed8deda208d07a45"
+    },
+    {
+      "file": "events.jsonl",
+      "line": 577,
+      "kind": "adventure_elite_dispatch_committed",
+      "id": 2062,
+      "entry_serial": 2,
+      "origin_run_id": "14c7cbbc4134b93fac70d3460c5f6b2a",
+      "after": {
+        "active": true,
+        "cards_active": false,
+        "combat_alive": 5,
+        "completed": false,
+        "completion_sent": false,
+        "death_sent_count": 0,
+        "drops_active": false,
+        "dungeon": 100004936,
+        "entry_serial": 2,
+        "level": 25,
+        "loaded": false,
+        "map": 100016508,
+        "odyssey": true,
+        "pending_town_arrival": false,
+        "quest": 0,
+        "requested_difficulty": 2,
+        "requested_dungeon": 100004936,
+        "requested_gate": [
+          160,
+          200,
+          20,
+          10
+        ],
+        "requested_source_odyssey": true,
+        "requested_source_script": "contents/2026/aradodyssey/dungeon/02_thunderland/thunderland.dgn",
+        "requested_source_sha256": "d8c955e7f5fbdf91eca3d67d5ec4fa59ca2f0beb29f687eaed8deda208d07a45",
+        "result_sent": false,
+        "room_cleared": false,
+        "run_id": "1663e92ef220252e5d16f6c0b54a9f1e",
+        "selecting_dungeon": false,
+        "source_designated_difficulty": 2,
+        "source_hunt_boss": 109019257,
+        "source_odyssey": true,
+        "source_script": "contents/2026/aradodyssey/dungeon/02_thunderland/thunderland.dgn",
+        "source_sha256": "d8c955e7f5fbdf91eca3d67d5ec4fa59ca2f0beb29f687eaed8deda208d07a45",
+        "source_story_layers": 0
+      }
+    },
+    {
+      "file": "events.jsonl",
+      "line": 1067,
+      "kind": "adventure_elite_combat_request",
+      "id": 72,
+      "processed": true,
+      "candidate_version": "0.3.13",
+      "entry_serial": 2,
+      "before": {
+        "active": true,
+        "cards_active": true,
+        "combat_alive": 0,
+        "completed": true,
+        "completion_sent": true,
+        "death_sent_count": 45,
+        "drops_active": true,
+        "dungeon": 100004936,
+        "entry_serial": 2,
+        "level": 35,
+        "loaded": true,
+        "map": 100016512,
+        "odyssey": true,
+        "pending_town_arrival": false,
+        "quest": 0,
+        "result_sent": true,
+        "room_cleared": true,
+        "run_id": "1663e92ef220252e5d16f6c0b54a9f1e",
+        "selecting_dungeon": false,
+        "source_designated_difficulty": 2,
+        "source_hunt_boss": 109019257,
+        "source_odyssey": true,
+        "source_script": "contents/2026/aradodyssey/dungeon/02_thunderland/thunderland.dgn",
+        "source_sha256": "d8c955e7f5fbdf91eca3d67d5ec4fa59ca2f0beb29f687eaed8deda208d07a45",
+        "source_story_layers": 0
+      },
+      "after": {
+        "active": true,
+        "cards_active": true,
+        "combat_alive": 0,
+        "completed": true,
+        "completion_sent": true,
+        "death_sent_count": 45,
+        "drops_active": true,
+        "dungeon": 100004936,
+        "entry_serial": 2,
+        "level": 35,
+        "loaded": true,
+        "map": 100016512,
+        "odyssey": true,
+        "pending_town_arrival": false,
+        "quest": 0,
+        "result_sent": true,
+        "room_cleared": true,
+        "run_id": "1663e92ef220252e5d16f6c0b54a9f1e",
+        "selecting_dungeon": false,
+        "source_designated_difficulty": 2,
+        "source_hunt_boss": 109019257,
+        "source_odyssey": true,
+        "source_script": "contents/2026/aradodyssey/dungeon/02_thunderland/thunderland.dgn",
+        "source_sha256": "d8c955e7f5fbdf91eca3d67d5ec4fa59ca2f0beb29f687eaed8deda208d07a45",
+        "source_story_layers": 0
+      }
+    },
+    {
+      "file": "events.jsonl",
+      "line": 1078,
+      "kind": "adventure_elite_dispatch_committed",
+      "id": 72,
+      "entry_serial": 2,
+      "origin_run_id": "1663e92ef220252e5d16f6c0b54a9f1e",
+      "after": {
+        "active": false,
+        "cards_active": false,
+        "completion_sent": false,
+        "death_sent_count": 0,
+        "drops_active": false,
+        "entry_serial": 2,
+        "level": 35,
+        "odyssey": true,
+        "pending_town_arrival": false,
+        "result_sent": false,
+        "selecting_dungeon": false
+      }
+    }
+  ],
+  "verification": {
+    "freshBuild": {
+      "owned": {
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-confirmation-owned-build.log"
+      },
+      "root": {
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-confirmation-root-build.log"
+      }
+    },
+    "unchangedSourcePreviousFullGates": {
+      "owned": {
+        "build": {
+          "tree": "owned",
+          "command": [
+            "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+            "build",
+            "./..."
+          ],
+          "exitCode": 0,
+          "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-owned-build.log"
+        },
+        "vet": {
+          "tree": "owned",
+          "command": [
+            "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+            "vet",
+            "./..."
+          ],
+          "exitCode": 0,
+          "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-owned-vet.log"
+        },
+        "test": {
+          "tree": "owned",
+          "command": [
+            "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+            "test",
+            "-json",
+            "./...",
+            "-count=1"
+          ],
+          "exitCode": 0,
+          "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-owned-test.log",
+          "passed": 3824,
+          "skipped": 282,
+          "failures": [],
+          "baselineFailures": [],
+          "newFailures": []
+        },
+        "binary": {
+          "tree": "owned",
+          "command": [
+            "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+            "build",
+            "-o",
+            "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-owned-candidate.exe",
+            "./cmd/wireprobe"
+          ],
+          "exitCode": 0,
+          "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-owned-binary.log"
+        }
+      },
+      "root": {
+        "build": {
+          "tree": "root",
+          "command": [
+            "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+            "build",
+            "./..."
+          ],
+          "exitCode": 0,
+          "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-root-build.log"
+        },
+        "vet": {
+          "tree": "root",
+          "command": [
+            "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+            "vet",
+            "./..."
+          ],
+          "exitCode": 0,
+          "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-root-vet.log"
+        },
+        "test": {
+          "tree": "root",
+          "command": [
+            "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+            "test",
+            "-json",
+            "./...",
+            "-count=1"
+          ],
+          "exitCode": 0,
+          "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-root-test.log",
+          "passed": 3676,
+          "skipped": 207,
+          "failures": [],
+          "baselineFailures": [],
+          "newFailures": []
+        },
+        "binary": {
+          "tree": "root",
+          "command": [
+            "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+            "build",
+            "-o",
+            "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-root-candidate.exe",
+            "./cmd/wireprobe"
+          ],
+          "exitCode": 0,
+          "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\quick-next-root-binary.log"
+        }
+      }
+    },
+    "previousCollectorFixtures": 85,
+    "gateReuseReason": "Documentation/evidence closure only; all six task code/test/script hashes unchanged and no new remote commits. No source change or merge requiring full vet/test repetition."
+  },
+  "remote": "Fetched actual gud/main; no behind commits, same merged76115fcd; origin/fork not configured",
+  "PVFChanged": false,
+  "schemaChanged": false,
+  "storeModified": false,
+  "DLLChanged": false,
+  "runtimeCodeChanged": false,
+  "attemptIncreased": false,
+  "defaultPublished": false,
+  "allModesVerified": false,
+  "multipleConsecutiveDirectMovesVerified": false,
+  "postTransitionAPCKillVerified": false,
+  "releaseOrStateContinuityVerified": false,
+  "remaining": [
+    "Full native death-call/send coverage has one retained gap",
+    "No second consecutive2062 transition sample",
+    "No post-transition owned APC death sample; AI/kill not expanded from appearance confirmation",
+    "Mode3/option5/special teams/object reference release/state continuity remain independent"
+  ],
+  "priorFailurePreserved": "analysis/tasks/adventure-elite-odyssey-quick-next-candidate-20261009.json (preceding0.3.12 failed2062 and0.3.13 candidate proof retained)",
+  "knownDuplicateRule": "Type22/publishedID10 channel_identity.go compatibility still overlaps etc/channel_info.etc [server]; retain original migration ledger without policy expansion",
+  "manualNeededForThisClosure": false,
+  "serverDeathPackets": 70,
+  "completedNativeDeathFunctionCalls": 97
+}

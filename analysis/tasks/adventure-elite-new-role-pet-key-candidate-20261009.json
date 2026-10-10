@@ -1,0 +1,294 @@
+{
+  "status": "candidate; manual native load/appearance pending",
+  "userReport": "创建了个新角色，结果APC和队伍信息都没有出现",
+  "failureSession": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261009_025432_546975_next37",
+  "failureAnchors": [
+    {
+      "file": "events.jsonl",
+      "line": 158,
+      "id": 1811,
+      "plainHex": "0200000000000000"
+    },
+    {
+      "file": "events.jsonl",
+      "line": 159,
+      "characterId": 4,
+      "accepted": false,
+      "reason": "精锐装备技能资料无法完整编码：队友装备500991107含尚未接入补充通知的实例字段22",
+      "frozenPreparation": null
+    },
+    {
+      "file": "events.jsonl",
+      "line": 214,
+      "id": 16,
+      "dungeon": 3,
+      "quest": 3145,
+      "note": "No successful elite preparation or N1382/N1879 existed"
+    }
+  ],
+  "accountSelectionsReadOnly": [
+    1,
+    3,
+    2
+  ],
+  "currentCharacter": 4,
+  "companionCharacter": 3,
+  "pet": {
+    "slot": 26,
+    "template": 500991107,
+    "recordBytes": 181,
+    "recordSha256": "9633ef9817d3c2255f2da6c675ea955d672149af380204120eaf03396e8494d5",
+    "key6": 1,
+    "key24": 1,
+    "nonzeroInRejectedSpan22To56": [
+      24
+    ]
+  },
+  "source": {
+    "format": "dfo_20260901_inner",
+    "path": "F:/projects/agents/reverse/115us/server/work/client-build/Script.inner.pvf",
+    "size": 771470242,
+    "checksum": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+    "loaded_at": "2026-10-08T19:13:05.4230922Z",
+    "file_count": 5650173,
+    "group_count": 82571,
+    "cached_chunks": 37,
+    "cached_texts": 0
+  },
+  "sourceItem": {
+    "id": 500991107,
+    "path": "equipment/creature/500991107.equ",
+    "kind": "equipment"
+  },
+  "sourceScriptSha256": "f2abad28de698d28ba9d17403f55cececc865b57d5c1efdf2b5a6f0af02f8f08",
+  "sourceEquipmentType": "[equipment type] [creature]",
+  "sourceMinimumLevel": 1,
+  "sourceIndexHashes": {
+    "list/equipment.lst": "7ffc480eee357d1dbd507de2c75621e0fca3a209dac76e64254bc00bc0557b71",
+    "list/stackable.lst": "7d747f6158803518d71527d28a1ad00839cdf83f4498f3ad587c237f32b80daf"
+  },
+  "sourceChain": "Current equipment.lst -> equipment/creature/500991107.equ [equipment type] [creature] -> existing inventory instance/creature key handling -> TagEquipment -> original N1382/N1879. No new item IDs or game conditions.",
+  "nativeEvidence": {
+    "database": "client/DFO.exe.i64",
+    "sessionId": "c1000f62",
+    "reader": "145962410 ->145962630/1452C1540; u32 key at1452C1682 into v184;1452C1EB7 v235=PAIR(v184,v154) yields original instance+6",
+    "constructor": "14576D8B0 at14576D9EA reads original instance+6 to protected identity; full217 lines inspected; does not read +24",
+    "nonconsumedSpan": "1452C1540 initializes +22..55, does not read mirrored +24; actual nonzero only +24=1 duplicated from +6=1",
+    "separateCreatureReader": "N2189 registered1444F86E8 ->1444FEDE0 has separate creature growth/name data; not added as an unverified new packet in this candidate",
+    "sourceCopies": [
+      ".tmp/adventure-elite/new-role-ida-tagEquipmentIDA.json",
+      ".tmp/adventure-elite/new-role-ida-tagEquipmentPost.json",
+      ".tmp/adventure-elite/new-role-ida-newroleIDA1.json"
+    ]
+  },
+  "change": "Only native creature/skin slots26/32 may have zero or identical mirror key24. Key6 remains in original compact header. Different keys or any other unsupported bytes remain errors. No saved record mutation, item removal, selection clearing, packet layout change, new opcode or DLL change.",
+  "attempt": "pet mirror-key server projection1/3; original native layout remains1/3; not blind packet guessing",
+  "actualReadOnlyBefore": [
+    {
+      "bytes": 1724,
+      "id": 1,
+      "sha256": "b47b6c0e9c86d58877de246e616e7085ed2aceda47413a460b3d758551ea5fce",
+      "wornCount": 9
+    },
+    {
+      "bytes": 1154,
+      "id": 2,
+      "sha256": "dc9b849d12e2cd0dc6557c3392d5c7ac1d1944d642bd8ed9ac49083567c6074c",
+      "wornCount": 6
+    },
+    {
+      "bytes": 0,
+      "error": "队友装备500991107含尚未接入补充通知的实例字段22",
+      "id": 3,
+      "wornCount": 25
+    },
+    {
+      "bytes": 1154,
+      "id": 4,
+      "sha256": "43fd060b2ef047f7ffbd59bf4cc682aa530368dd14edf19bd9072a8d076b41d7",
+      "wornCount": 6
+    }
+  ],
+  "actualReadOnlyAfter": [
+    {
+      "bytes": 1724,
+      "id": 1,
+      "sha256": "b47b6c0e9c86d58877de246e616e7085ed2aceda47413a460b3d758551ea5fce",
+      "wornCount": 9
+    },
+    {
+      "bytes": 1154,
+      "id": 2,
+      "sha256": "dc9b849d12e2cd0dc6557c3392d5c7ac1d1944d642bd8ed9ac49083567c6074c",
+      "wornCount": 6
+    },
+    {
+      "bytes": 4807,
+      "id": 3,
+      "sha256": "9cc377f507d7bb76668c2d89684d41726e6b8c28fc37ef68ec4007693c67e993",
+      "wornCount": 25
+    },
+    {
+      "bytes": 1154,
+      "id": 4,
+      "sha256": "43fd060b2ef047f7ffbd59bf4cc682aa530368dd14edf19bd9072a8d076b41d7",
+      "wornCount": 6
+    }
+  ],
+  "verification": {
+    "owned": {
+      "build": {
+        "phase": "fixed",
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\new-role-fixed-owned-build.log"
+      },
+      "vet": {
+        "phase": "fixed",
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "vet",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\new-role-fixed-owned-vet.log"
+      },
+      "test": {
+        "phase": "fixed",
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "test",
+          "-json",
+          "./...",
+          "-count=1"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\new-role-fixed-owned-test.log",
+        "passed": 3853,
+        "skipped": 282,
+        "failures": [],
+        "baselineFailures": [],
+        "newFailures": []
+      }
+    },
+    "root": {
+      "build": {
+        "phase": "fixed",
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\new-role-fixed-root-build.log"
+      },
+      "vet": {
+        "phase": "fixed",
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "vet",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\new-role-fixed-root-vet.log"
+      },
+      "test": {
+        "phase": "fixed",
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "test",
+          "-json",
+          "./...",
+          "-count=1"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\new-role-fixed-root-test.log",
+        "passed": 3910,
+        "skipped": 269,
+        "failures": [],
+        "baselineFailures": [],
+        "newFailures": []
+      }
+    }
+  },
+  "sourceChanged": [
+    {
+      "path": "server/work/dfo-lan/internal/game/protocol/tag_equipment.go",
+      "ownedSha256": "df8a9c3239a338c988ad7b664c863f50dfb6a017c992c843dc9728d1c6df8283",
+      "sharedSha256": "df8a9c3239a338c988ad7b664c863f50dfb6a017c992c843dc9728d1c6df8283"
+    },
+    {
+      "path": "server/work/dfo-lan/internal/game/protocol/tag_equipment_test.go",
+      "ownedSha256": "3cd5ffe5f42de200f7a17b12cad7d1f28a03a4698f15e83ef654f4ebef4f4389",
+      "sharedSha256": "3cd5ffe5f42de200f7a17b12cad7d1f28a03a4698f15e83ef654f4ebef4f4389"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_equipment_test.go",
+      "ownedSha256": "278216332b9f0d4e4f40855c61d2a6439708425abecbf64fa0b1056a802c55cc",
+      "sharedSha256": "278216332b9f0d4e4f40855c61d2a6439708425abecbf64fa0b1056a802c55cc"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_combat_diagnostic.go",
+      "ownedSha256": "b8a7cf2033be5f04ce5be3dbac866093fd284e9741b66c0dd4e752e65205c091",
+      "sharedSha256": "b8a7cf2033be5f04ce5be3dbac866093fd284e9741b66c0dd4e752e65205c091"
+    },
+    {
+      "path": "scripts/collect-adventure-elite.ps1",
+      "ownedSha256": "6214a85fedd733ad0b473950ed45f968f75363e370292efef822ece5a7ab9652",
+      "sharedSha256": "6214a85fedd733ad0b473950ed45f968f75363e370292efef822ece5a7ab9652"
+    },
+    {
+      "path": "scripts/test-adventure-elite-capture.ps1",
+      "ownedSha256": "ab3966343c6ecc058bd2be9b4de940e7d5e69cc48cd99f5b471f75a8586b6905",
+      "sharedSha256": "ab3966343c6ecc058bd2be9b4de940e7d5e69cc48cd99f5b471f75a8586b6905"
+    }
+  ],
+  "artifact": {
+    "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+    "candidateVersion": "0.3.14",
+    "sha256": "8eae14a07d2f280bf846e81e25575cc338774e4a6b38c730bb25959b31afd19d",
+    "bytes": 30656000
+  },
+  "previousOnDiskServerSha256": "17bce99b94ed17865782a0c4c0e5ef5e29d6e0f8c5113794e558066a21f6f53d",
+  "previousManifestServerSha256": "85a3ff4bc4d9dccfb663b7003c47a0b1ef014d2f6497e694af5d9f1765dd028b",
+  "DLLChanged": false,
+  "PVFChanged": false,
+  "schemaChanged": false,
+  "playerStoreModified": false,
+  "defaultPublished": false,
+  "remoteMerged": "gud/main e4cc3ba1 -> owned71f0fe8f; four documentation conflicts preserved both histories",
+  "buildDependenciesNotCommitted": [
+    {
+      "path": "server/work/dfo-lan/internal/catalog/buffer_rental.go",
+      "sha256": "29149d89b9543e0c51fc68bd8fe2db826d161d7f0d6004610a8de1f6a0252539",
+      "purpose": "read-only local build dependency copy for upstream tracked references; owned by other task; MUST NOT STAGE"
+    },
+    {
+      "path": "server/work/dfo-lan/internal/gamedata/buffer_rental.go",
+      "sha256": "f54cebd2cab93726499d0769597cf88dbc052a4a139ea0b8cc727ea6babe8ac6",
+      "purpose": "read-only local build dependency copy for upstream tracked references; owned by other task; MUST NOT STAGE"
+    }
+  ],
+  "knownDuplicateRules": "Type22/publishedID10 compatibility with etc/channel_info.etc [server] remains in existing ledger; no expansion. Existing creatureDefaultNames/creatureExperienceThresholds duplicate native definitions, observed during key tracing, are not executed or modified by this projection; source migration remains separate.",
+  "remaining": [
+    "Manual new-role original N1382/N1879 consumption, APC appearance and stable party HUD not yet confirmed",
+    "Full creature growth/loyalty/name transmission not newly implemented or verified",
+    "Full death-call/physical-send coverage remains a separate retained gap",
+    "Special parties and consecutive Odyssey direct moves remain bounded by original acceptance"
+  ],
+  "collectorFixtureVerification": {
+    "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-adventure-elite-capture.ps1",
+    "exitCode": 0,
+    "passed": 86
+  }
+}

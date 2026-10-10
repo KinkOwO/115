@@ -1,6 +1,10 @@
 package loot
 
-import "fmt"
+import (
+	"fmt"
+
+	"dfolan/internal/catalog"
+)
 
 // RewardBoxCandidate is one entry of a wrapper's pool: the template it pays, the
 // weight it is drawn with in that pool, and how many copies one draw hands over.
@@ -101,6 +105,14 @@ func OpenRewardBoxes(seed uint32, src RewardBoxSource, awards []Award) ([]Award,
 						for i := uint32(0); i < pool.draws(); i++ {
 							c, ok := pool.pick(&rng)
 							if !ok {
+								continue
+							}
+							// 源里的 `-1` 是「本次没有」：它占的是那份概率，
+							// 但抽中它**不发任何东西**。以前它被解析器过滤掉，
+							// 结果整池三元组错位、把 drawCount 当成模板发出去
+							// （实机地上出现复活币/金库升级道具/空面）。见
+							// internal/catalog/booster_import.go 的 boosterNumber。
+							if catalog.IsBoosterNoDrop(c.Template) {
 								continue
 							}
 							amount := c.Count

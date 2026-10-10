@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/attendance"
 	"dfolan/internal/boostup"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
@@ -9,6 +10,7 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/legion"
 	"dfolan/internal/loot"
 	"dfolan/internal/npcpresence"
 	"dfolan/internal/quest"
@@ -19,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -48,21 +51,31 @@ type worldSession struct {
 	fameInitialized     bool
 	moonConfig          *moonSoloConfig
 	moon                moonSoloState
+	// azureFlipCfg 是蔚蓝号（征服频道 102）的**源驱动翻牌策略**，与 moonConfig 同一
+	// 装配与注入口径（bootstrap 装配 → gatewayRuntime → 会话）。nil = 未装配，
+	// 蔚蓝号退回原先的通用翻牌（FreezeAzureMainCards）。
+	azureFlipCfg *azureFlipConfig
 	// azure 是蔚蓝号（Azure Main，channelType 102）的会话状态。
 	// 它不像 moonConfig 那样需要注入对象才生效 ——
 	// 分派直接按 w.channelType == azureMainChannelType 门控（见 azure_main_flow.go）。
-	azure                 azureMainState
-	characters            *character.Service
-	pilotDeath            *odysseyDeath
-	service               *world.Service
-	store                 *database.Store
-	account               int64
-	serverID              uint32
-	role                  database.Character
-	level                 byte
-	adventureSnapshot     [32]byte
-	adventureIdentitySent bool
-	channelType           uint32
+	azure                        azureMainState
+	characters                   *character.Service
+	pilotDeath                   *odysseyDeath
+	service                      *world.Service
+	store                        *database.Store
+	account                      int64
+	serverID                     uint32
+	role                         database.Character
+	level                        byte
+	adventureSnapshot            [32]byte
+	channelType                  uint32
+	eliteChannelDirectory        *catalog.ChannelDirectory
+	eliteChannelInfo             *catalog.ChannelInfo
+	eliteChannelID               uint32
+	adventureElitePrepared       *adventureElitePreparation
+	adventureEliteEntryProbeUsed bool
+	adventureEliteEntrySerial    uint64
+	adventureIdentitySent        bool
 	// channelWorldIsolated 标记当前连接在特殊征讨频道（towns 表有专属城镇）。
 	// true 时会话内位置不落普通频道共享行；specialTowns 是全部特殊城镇集合，
 	// 用于把共享行里的历史污染位置修回默认落点。
@@ -83,23 +96,83 @@ type worldSession struct {
 	// venus 是一次美神维纳斯（内容号 106）挑战的会话状态；nil = 无进行中的
 	// 挑战。字节契约见 venus_flow.go、internal/legion/venus.go 与
 	// 包规格/全流程 N2655/2290/2291/1474 规格文档。
-	venus                *venusRun
+	venus *venusRun
+	// bakal 是一次巴卡尔攻坚战（频道 type 82）的会话状态；nil = 无进行中的
+	// raid。字节契约见 bakal_flow.go、internal/legion/bakal*.go 与
+	// next151 取证文档。
+	bakal                    *legion.BakalOpening
+	bakalRun                 string
+	bakalRecruitment         *protocol.NativeRaidRecruitment
+	bakalFailureNotified     bool
+	bakalDeathReturnAt       time.Time
+	bakalDeathReturnRun      string
+	bakalDeathReturnSequence uint32
+	// bakalName 是 CMD656 建团请求内嵌的团名（开战 burst 用它登记成员）；
+	// bakalCurrent / bakalLocation 记录当前进住的作战图与其 raid-map 位置
+	// （CMD2073 加载闭环、CMD2069 战报、CMD2070 跳转都要引用）。
+	bakalName     string
+	bakalCurrent  uint32
+	bakalLocation uint32
+	// bakalRules / bakalRewards 由网关构造时注入；nil = 该内容未装载（建团
+	// 被待机区未绑定拒绝，与交接包拒绝实录一致）。
+	nativeBakalRules   *catalog.NativeBakalRaidRules
+	nativeBakalRewards *workflow.NativeBakalRewardService
+	bakalQuotaRole     int64
+	bakalQuotaBody     []byte
+	// boostup 是一次新手成长胶囊教学（活动 662）的会话状态。
+	boostup               *boostup.Catalog
+	boostAPCSelectionSent bool // native mode3 selection sent on this actor connection
+	// attendance 是每日签到（活动 331）的原生目录；nil = 源读取失败，签到推送与领取都按「活动未开启」处理。
+	nativeAttendance *attendance.Catalog
+	// boostWorldBase / boostOperations / notifyBoostMail 是 Starter Boost 活动
+	// 662 的注入接线：基地世界服务、一次性事件键会话与毕业邮件回调。
+	boostWorldBase  *world.Service
+	boostOperations requestKeySession
+	notifyBoostMail func(int64)
+	// 下列字段由 origin 侧的非巴卡尔内容注入：苏醒之森（forest）、维纳斯
+	// （venus）、永夜之城频道刷新与槽位解锁状态。
+	forest               *forestRun
 	apocalypseNavigation *dungeon.Session
 	apocalypseRun        *apocalypseRoute
 	// forest 是一次苏醒之森（Forest of Awakening，内容号 104）挑战的会话
 	// 状态；nil = 无进行中的挑战。字节契约见 forest_flow.go 与
 	// internal/legion/forest.go（官服 21:42-21:45 三关完整抓包向量）。
-	forest *forestRun
 	// forestPartyHard 记录待机区建队选择的模式（CMD12 类型 0x19 =
 	// Extreme/ForestOfAwakeningHard），开战时带入 forestRun.hard。
 	forestPartyHard bool
-	// lastVenusResetCharacter 是最近一次发过遗物 UI 重置（N2655 mask=0）
-	// 的角色 WireID：同一频道连接内切角色时触发一次（BUG4）。
+	// forestEntryPending 是「净化开始横幅（N2568）已发、进图帧列待发」的挂起项。
+	// 官服 N2568（22:05:41.514）与真正的进图帧列（22:05:45.580）之间隔着 4.066s
+	// 的「极·苏醒之森净化开始」横幅 + 演出。一次性连发会让客户端在演出中途收到
+	// N28/N29，演出永不收尾（2026-10-09 实机：进第 1 关后屏幕 UI 全丢）。
+	// 由 client_connection 的秒 tick 到期下发（与 apocalypsePending 同款）。
+	forestEntryPending      *forestStageEntryPending
 	lastVenusResetCharacter int64
-	// pendingRelicReset 挂起「遗物 UI 待归零」标记：终局视频播完置位，
-	// 同连接内角色变化的首个 CMD35 补发后清除（第二十三轮两段式，避免
-	// 首次进频道就误发等待态 UI——015424 会话回归实证）。
-	pendingRelicReset         bool
+	pendingRelicReset       bool
+	// apocalypse 是末世录（内容号 107 / 频道 Type 119）本场攻坚的会话状态；
+	// nil = 本连接没有开过 run。字节契约与证据见 apocalypse_run.go、
+	// apocalypse_stage.go 与 internal/legion/apocalypse*.go。
+	apocalypse *legion.ApocalypseRunState
+	// legion 是本连接的军团会话（同一份状态的宿主）。CMD2062 直进要在
+	// dungeon 派发层（而不是军团层）先于通用「没有 activeDungeon 就拒绝」的
+	// 守卫被接管，所以这里留一个镜像指针。
+	legion *legionSession
+	// apocalypseStageCleared marks the apocalypse stages whose monsters are all
+	// dead in this connection, so the stage projection fires once per stage
+	// (the same guard venusRun.cleared provides for Venus). Index = stage.
+	apocalypseStageCleared [6]bool
+	// apocalypseSelectWindowPending 是「难度框开窗后强制关闭」的挂起任务。
+	apocalypseSelectWindowPending *apocalypseSelectWindow
+	// apocalypseAdvancePending 是「清关后服务端主动推进下一关」的挂起任务。
+	// 客户端若自己发了 CMD2062 就取消它（那条是快路径）。
+	apocalypseAdvancePending *apocalypseAdvance
+	// apocalypsePending 是清关时挂起的终局结算任务：boss 死亡与翻牌之间需要
+	// 一小段延迟（抓包 94.91s 清关 → 94.94s N2252），由 client_connection 的
+	// 定时器触发。nil = 没有挂起的结算。
+	apocalypsePending *apocalypseSettlement
+	// apocalypseGrant 是最近一次末世录终局结算的结果（入库明细 + 完成事件），
+	// 供日志与测试断言。nil = 本连接还没结算过。
+	apocalypseGrant           *apocalypseGrant
+	channelSpawns             map[uint32]database.WorldPosition
 	blackPurgatory            blackPurgatoryState
 	adventureEliteSnapshot    [32]byte
 	boostTrainingAPCRequested bool
@@ -172,12 +245,28 @@ type worldSession struct {
 	// oathProgressClears 是保底阈值：oathProgressDungeons 里的副本通关这么多场后，
 	// 下一场下发 oath=45（必出一次隐藏 BOSS），并在通关时归零；<=0 = 关闭保底。
 	oathProgressClears int
+	// deferredClearSet 是「通关横幅延后到离开副本」的副本集合（默认只有小深渊 100005014）。
+	// 见 oath_progress.go 的 deferredClearDefaultDungeons 与 next171 的实机取证。
+	deferredClearSet map[uint32]bool
+	// seamlessRetry 标记「这一轮进场是 CMD72 选项 5 的无缝续刷」。置位时进图序列
+	// **不发 dungeon_actor_appearance_sent / dungeon_actor_addition_sent（NOTI2）**：
+	// 客户端收到它们会打 `<read minimum Information>` 重建角色对象，临时 buff 与
+	// 召唤物就是在那一步被重上的（国服的无缝续刷不清空，见 next173 §7）。
+	// 进图序列读完即清，避免影响后续任何一次普通进场。
+	seamlessRetry bool
 	// oathProgressDungeons 是计入保底的副本集合（默认只有小深渊 100005014）。
 	oathProgressDungeons map[uint32]bool
 	// omenInfo 是**显式注入**的 noti 2836 载荷（征兆队伍状态，69 字节）；空 = 按
 	// 角色存档里的真实档数生成（-omen-state）。它是征兆 UI 的唯一数据源，
 	// 几何与语义见 omen_info.go。
 	omenInfo []byte
+	// attunementReward 是**显式注入** noti 2859 的**规格串**（调律之边界奖励，
+	// 载荷 12 字节 = 3 × u32）；空 = 一个字节都不发（默认 —— 三个字段的语义尚未取证，
+	// 见 attunement_reward.go 文件头）。
+	//
+	// 存规格而不是解析结果：它可能是 `@文件`，那样**每次进本要重读**
+	// （试值时不重启服务端就能换值）。
+	attunementReward string
 	// oathInject 是本轮要注入给客户端的候选通知（诊断用，默认空），见 oath_probe.go。
 	oathInject []oathInjectSpec
 	// oathNext 是注入队列的游标：每进一次副本推进一格，见 oathInjectNext。
@@ -186,6 +275,14 @@ type worldSession struct {
 	// 它只在会话里生效一次，之后仍按通关正常累积/结算；-omen-state 打开时会写回存档。
 	omenHold        int
 	omenHoldApplied bool
+	// omenMisses 是 -omen-misses 的诊断值：把小深渊征兆的「连续未触发」计数直接摆到
+	// 某一格（30 就保底补一阶），省掉刷场次。与 omenHold 同一套：每个会话只应用一次，
+	// 但**写回存档**，否则重启后这次摆放就白摆了。
+	omenMisses        int
+	omenMissesApplied bool
+	// omenMissesRun 是本场开始时的「连续未触发」计数（进本时从存档读出，见
+	// loadOmenRunState）。它就是官方那条「累计 30 次不触发就保底补 1 阶」的账。
+	omenMissesRun uint32
 	// omenState 打开「征兆 = 角色存档级状态」这条线（-omen-state，见 omen_state.go）：
 	// 进本读存档、结算写回、noti 2836 按真实档数下发，并让隐藏 BOSS 由「满档结算」
 	// 驱动，而不是按通关场次。关闭时征兆只活在内存账本里。
@@ -202,8 +299,15 @@ type worldSession struct {
 	// omenGradeForOathTier）—— 这是**我们一起补的映射**：源里星蕴石品质只由
 	// noti 2836 的 grade 决定，而 grade 原本只是征兆持有档数，与天平档位无关
 	// （2026-10-01 实机验证：固定 oath=45 仍掉 Unique 档箱子）。
-	// 0 = 本场还没算过，omenInfoPackets 会回落到 grade 1。
+	// 0 = 本场还没算过。
 	oathTierRun uint16
+	// attunementRunTiers 是本场**在进本时预掷**的两条线档位（primer=中央珠子/星蕴石，
+	// oath=天平/誓约；见 internal/loot/attunement_plan.go）。
+	//
+	// 由 oathInfoPackets 写入并随 noti 2838 下发；掉落阶段传给 loot.Session.Tiers，
+	// 于是「客户端显示的那一档」与「服务端发的这一件」永远是同一档。
+	// 零值 = 非调律副本或调用方没接线，掉落退回内部预掷。
+	attunementRunTiers loot.RunTiers
 	// omenReported 是本会话已经记过事件的征兆结算序号（见 noteOmenClear）。
 	omenReported uint64
 	// scaleRun 是上面两张表所归属的副本运行号。同一会话里重进副本会把 entity 从
@@ -238,6 +342,7 @@ type worldSession struct {
 	// nil when the gateway runs without a multiplayer hub.
 	hub  *lanHub
 	peer *lanPeer
+	// —— 巴尔卡/使徒 raid 会话状态（raid_bakal_*.go、dungeon_flow.go）——
 	// lastMotion and lastSpeed are the most recent values this client reported with
 	// CMD 35. NOTI 22 carries them so the other clients animate the movement.
 	lastMotion byte
@@ -261,7 +366,6 @@ type worldSession struct {
 
 	// boostup 是「胶囊加速/新手成长」活动 662 的本连接目录视图（nil = 活动关闭）。
 	// 它由 gatewayRuntime 的同一份只读源解析结果按值共享，不在连接上重复解析。
-	boostup            *boostup.Catalog
 	attendance         *workflow.AttendanceService
 	attendanceCalendar *character.FatigueService
 	attendanceDay      string
@@ -274,15 +378,27 @@ type worldSession struct {
 	onlineClock        time.Time
 	onlineRole         int64
 	// boostWorldBase 记住被胶囊教学城镇替换掉的普通世界服务，毕业/失效后还原。
-	boostWorldBase *world.Service
 	// notifyBoostMail 把活动邮寄写进角色的未读信箱（唤醒 mailChanges 重发提示）。
-	notifyBoostMail func(int64)
 	// boostOperations 是活动领奖幂等键的来源（口径同装备线：连接随机数 + 传输帧
 	// 摘要）。donor 基线把同一个键发生器挂在会话的 itemOperations 上。
-	boostOperations requestKeySession
+
 }
 
 func (w *worldSession) enter(role database.Character, spawn database.WorldPosition) error {
+	// Recover after character selection and before preparing its inventory.
+	// Preserve the selected scene identity, including on partial recovery.
+	if w.nativeBakalRewards != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		saved, err := w.nativeBakalRewards.Recover(ctx, role, time.Now())
+		cancel()
+		saved.WireID = role.WireID
+		role = saved
+		if err != nil {
+			log.Printf("Bakal rewards pending: character=%d: %v", role.ID, err)
+		}
+	}
+	w.bakal, w.bakalRun, w.bakalCurrent, w.bakalLocation = nil, "", 0, 0
+	w.bakalRecruitment = nil
 	var state character.State
 	if e := json.Unmarshal(role.State, &state); e != nil {
 		return e
@@ -392,6 +508,9 @@ func (w *worldSession) enter(role database.Character, spawn database.WorldPositi
 	w.adventureSnapshot = [32]byte{}
 	w.adventureIdentitySent = false
 	w.adventureEliteSnapshot = [32]byte{}
+	w.adventureElitePrepared = nil
+	w.adventureEliteEntryProbeUsed = false
+	w.adventureEliteEntrySerial = 0
 	w.boostTrainingAPCRequested = false
 	w.adventureReady = false
 	w.seasonLevelSnapshot = [32]byte{}
@@ -779,6 +898,9 @@ func (w *worldSession) handleWithAreaTransition(id uint16, p []byte, send func(b
 			return e
 		}
 		if e = w.announceSelf(event); e != nil {
+			return e
+		}
+		if e = w.syncBakalMemberArea(send, event); e != nil {
 			return e
 		}
 		a := w.service.Catalog.Areas[catalog.AreaKey(next.Town, next.Area)]

@@ -45,6 +45,13 @@ func decodeNativePortal115(p []byte, bakal bool) (LegionPortal115, error) {
 	if r.Dungeon == 0 || r.Difficulty > 4 || (!bakal && r.TargetGrid[0] != 0) || (bakal && (r.TargetGrid[0] < 0 || r.TargetGrid[0] > 255 || r.TargetGrid[1] < 0 || r.TargetGrid[1] > 255)) {
 		return r, fmt.Errorf("unsupported legion direct-move fields")
 	}
+	if bakal {
+		for _, coordinate := range r.TargetGrid {
+			if coordinate < 0 || coordinate > 255 {
+				return r, fmt.Errorf("invalid native Bakal target grid")
+			}
+		}
+	}
 	for _, v := range p[46:] {
 		if v != 0 {
 			return r, fmt.Errorf("nonzero legion direct-move padding")

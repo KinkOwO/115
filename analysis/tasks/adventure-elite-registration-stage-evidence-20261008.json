@@ -1,0 +1,84 @@
+{
+  "authority": "client/DFO.exe.i64 and matched current client/DFO.exe bytes",
+  "baseCommit": "c3f16e90d6fe29fd9e18854188e056f8413e0947",
+  "stage": "ordinary-first-room-registration-candidate-awaiting-manual",
+  "confirmedFirstRoom": {
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_194942_871765_next37",
+    "pid": 51904,
+    "runTick": 126375750,
+    "thread": 110720,
+    "entrySamples": 3,
+    "lifecycleSamples": 82,
+    "nativeGate": 1,
+    "condition6264": 0,
+    "condition8056": 128,
+    "manager576": 0,
+    "cloneIds": [
+      0,
+      1
+    ],
+    "sceneMatches": [
+      0,
+      0,
+      -1
+    ],
+    "nativeRegistrationObserved": false,
+    "normalExit": true,
+    "issues": []
+  },
+  "static": {
+    "loader": "145B22F50",
+    "cmpSite": "145B251A9",
+    "cmpGuard": "80b87818000000",
+    "channelGate": "142E60CF0",
+    "exactCaller": "145B251C3",
+    "managerActive": "142E60CE0",
+    "register": "145DE4360 ->145DE4AF0",
+    "registerCaller": "145B2529D",
+    "registerABI": "8 consumed arguments; IDA varargs/prototype extras are not replayed",
+    "nativePlayer": "145EFAFB0 primary14EF2CA88/90 fallback14EF2CA70/78",
+    "rawProof": ".tmp/adventure-elite/registration-native-proof.json"
+  },
+  "patch": {
+    "fieldsWritten": [],
+    "instructionSite": "7-byte CMP replaced by guarded near CALL thunk",
+    "returnAddressRewritten": false,
+    "nativeConditionNonzeroPreserved": true,
+    "originalChannelPredicateAlwaysCalled": true,
+    "controlAndOwnerReferencesExact": true,
+    "nativeAIInitializationPreserved": true,
+    "aiPaused": false,
+    "unknownKillerAccepted": false,
+    "attempt": "registration 1/3; preparation3/3 and codec1/3 unchanged"
+  },
+  "verification": {
+    "GoBuild": 0,
+    "GoVet": 0,
+    "GoTest": 0,
+    "passed": 3769,
+    "skipped": 279,
+    "baselineFailures": [],
+    "newFailures": [],
+    "cppMechanisms": 9,
+    "collectorFixtures": 34,
+    "diskContexts": 15,
+    "nonGameEnvSmoke": 6,
+    "clientStartedByAgent": false
+  },
+  "pending": [
+    "actual combat player CRef equality",
+    "native registration result and scene membership",
+    "AI and attacks/summons attribution",
+    "return/room ownership and cleanup",
+    "story/Odyssey/special parties"
+  ],
+  "compatibility": {
+    "SQLiteSchemaChanged": false,
+    "PVFChanged": false,
+    "defaultPublished": false
+  },
+  "unwindReferences": [
+    "https://learn.microsoft.com/en-us/cpp/build/prolog-and-epilog?view=msvc-170",
+    "https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64"
+  ]
+}

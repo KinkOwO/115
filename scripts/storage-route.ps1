@@ -558,6 +558,9 @@ function Start-PostgresBounded([int]$timeoutSeconds) {
 # 注：不再有「强制 Go 隔离」的环境变量（2026-10-05 去掉，见 Invoke-FullChain 里的说明）。
 
 function Get-GoLauncherPath() {
+    if ($env:DFO_ADVENTURE_ELITE -ceq '1') {
+        return (Join-Path $RepoRoot 'server\work\dfo-lan\bin\dfolauncher-adventure-elite.exe')
+    }
     return (Join-Path $RepoRoot 'server\work\dfo-lan\bin\dfolauncher.exe')
 }
 
@@ -588,6 +591,18 @@ function Show-ChainInfo() {
 }
 
 function Invoke-FullChain([string]$route, [string]$scope, [string[]]$extra) {
+    if ($env:DFO_ADVENTURE_ELITE -ceq '1') {
+        $eliteRequired = @((Get-GoLauncherPath), (Join-Path $RepoRoot 'server\work\dfo-lan\bin\wireprobe-handoff-source.exe'))
+        if ($scope -ne '--server-only') {
+            $eliteRequired += (Join-Path $RepoRoot 'client-patchs\adventure-elite\dist\AdventureElite.dll')
+        }
+        foreach ($elitePath in $eliteRequired) {
+            if (!(Test-Path -LiteralPath $elitePath -PathType Leaf)) {
+                throw ('精锐资格已启用但候选缺失：{0}；请运行 scripts/build-adventure-elite.ps1 -WithServer' -f $elitePath)
+            }
+        }
+        Write-Host 'DFO_ADVENTURE_ELITE=1：服务端资格策略开启；游戏启动由 Go 宿主注入资格 DLL。普通/剧情/奥德赛自动带入未就绪。' -ForegroundColor Cyan
+    }
     Use-Route $route
     if ($route -eq 'postgres') {
         Start-PostgresBounded 60
@@ -671,14 +686,29 @@ function Test-IsAdmin {
 # 实测 `中文名` 变成 `涓枃鍚?` ⇒ 提升后的 `cmd /c "<乱码路径>"` 找不到文件、窗口瞬间关闭
 # （2026-10-05 业主双击两个路线入口「直接闪退」的根因）。
 # 这里改用 .NET 参数表传 $PSCommandPath（真实 Unicode 字符串）⇒ 路径不会被重新解码。
+# RunAs does not reliably inherit process-local environment. Transport only the
+# two startup policy variables as data, never interpolate their values into code.
+function Get-EncodedLaunchHandoff([string]$verb, [string[]]$rest, [string]$scriptPath = $PSCommandPath) {
+    $handoff = @{
+        Root = $RepoRoot
+        Script = $scriptPath
+        Arguments = @($verb) + @($rest)
+        Environment = @{
+            DFO_ADVENTURE_ELITE = [Environment]::GetEnvironmentVariable('DFO_ADVENTURE_ELITE', 'Process')
+            DFO_ODYSSEY_MODE = [Environment]::GetEnvironmentVariable('DFO_ODYSSEY_MODE', 'Process')
+        }
+    }
+    $handoffJson = $handoff | ConvertTo-Json -Depth 4 -Compress
+    $handoffPayload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($handoffJson))
+    $handoffCode = '$ProgressPreference = "SilentlyContinue"; $handoffData = ConvertFrom-Json ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("' + $handoffPayload + '"))); foreach ($handoffKey in @("DFO_ADVENTURE_ELITE", "DFO_ODYSSEY_MODE")) { [Environment]::SetEnvironmentVariable($handoffKey, $handoffData.Environment.$handoffKey, "Process") }; Set-Location -LiteralPath $handoffData.Root; $handoffArguments = @($handoffData.Arguments); & $handoffData.Script @handoffArguments; exit $LASTEXITCODE'
+    return [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($handoffCode))
+}
+
 function Invoke-ElevatedSelf([string]$verb, [string[]]$rest) {
     # 变量名**不能**叫 `$args`：那是 PowerShell 的自动变量，赋值会被忽略/取到 null，
     # 实测报错「Cannot validate argument on parameter 'ArgumentList' … contains a null value」
     # （2026-10-05 业主第二次实机踩到）。`$pid`/`$home`/`$error` 同理，一律换名。
-    $elevatedArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath, $verb)
-    foreach ($item in @($rest)) {
-        if ($null -ne $item -and "$item" -ne '') { $elevatedArgs += "$item" }
-    }
+    $elevatedArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', (Get-EncodedLaunchHandoff $verb $rest))
     Write-Host '[提权] 以管理员身份后台执行；输出实时显示在本窗口（不再新开窗口）…' -ForegroundColor Cyan
     $logPath = Get-EntryLogPath $verb
     # 父进程负责清空日志：这样下面按行号跟随新增内容不会读到上一轮的旧行。

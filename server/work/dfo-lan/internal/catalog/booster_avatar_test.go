@@ -114,6 +114,3 @@ func TestBoosterFixedAvatarNativeArchive(t *testing.T) {
 		})
 	}
 }
-
-func cellTag(v string) pvf.Token { return pvf.Token{Type: 3, Text: v} }
-func cellNum(v int32) pvf.Token  { return pvf.Token{Type: 0, Value: v} }

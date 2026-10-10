@@ -43,9 +43,7 @@ func TestSettlementRetryOpensSelectionBeforeEntry(t *testing.T) {
 	if plan[2].ID != 16 || plan[2].Kind != 1 {
 		t.Fatalf("third packet is not the selection acknowledgement ACK16: %+v", plan[2])
 	}
-	if last := plan[len(plan)-1]; last.ID != 29 || last.Name != "dungeon_start_map_sent" {
-		t.Fatalf("last packet is not NOTI29 start map: %+v", last)
-	}
+	assertEntryTail(t, plan)
 	// 回城 / 场景切换帧一旦混进进图帧组，客户端就会在切换与进图之间撞车。
 	for _, p := range plan {
 		if p.Name == "town_actor_state" || p.Name == "dungeon_return_area" || p.Name == "dungeon_return_users" {

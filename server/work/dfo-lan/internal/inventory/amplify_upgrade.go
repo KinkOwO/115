@@ -161,6 +161,15 @@ func AmplifySafeMaxLevel() int {
 	return 9
 }
 
+// AmplifyMaxLevelCap 是普通/便携增幅的当前上限（过渡保护）。
+//
+// 客户端未打补丁时，CMD80 成功回包只接受 ≤+15；服务端直接在此拒绝
+// +15 之后的增幅（+14→+15 是最后一次），与客户端行为对齐，并保证
+// AmplifyUpgradeResultCap（=31）的降级逻辑永远不会被触发，无需客户端
+// 补丁也安全。后续统一打客户端补丁（上限 10→30）后，把这里放宽到 31
+// 即可让 +16 及更高播放成功动画。
+const AmplifyMaxLevelCap = 15
+
 // AmplifySafeCost 返回该等级安全增幅的材料数量与金币。
 // [safe upgrade] 每级两行：enabled=1 是武器行、enabled=0 是非武器行（官方：武器与非武器消耗不同）。
 func AmplifySafeCost(level int, weapon bool) (uint32, uint32, bool) {
@@ -392,6 +401,8 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 
 	// 判定成功率（官方页数据）。
 	percent := AmplifySuccessPercent(level)
+	// 服务端层 mod 的成功率规则（后处理）：每次掷骰现读，改完立刻生效。
+	percent = enhanceSuccessPercent(enhanceKindAmplify, level, percent)
 	roll, err := amplifyUpgradeRandomInt(100)
 	if err != nil {
 		return nil, out, err

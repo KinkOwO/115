@@ -26,7 +26,7 @@ func TestEventSnapshotRetainsChallengeAcrossEntryAndReturn(t *testing.T) {
 			t.Fatal("selection, entry and return diverged")
 		}
 		ids := decodeOpenEventKeys(t, entry)
-		want := 22
+		want := 23
 		if challenge {
 			want++
 		}

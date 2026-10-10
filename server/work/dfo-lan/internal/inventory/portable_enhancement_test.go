@@ -75,7 +75,7 @@ func TestPortableEnhancementConsumesToolWithoutNormalMaterialsOrGold(t *testing.
 					if err == nil {
 						ack, err = protocol.ReinforcementGoldReply(r, out.MaterialRemaining, out.Old, out.Level, out.Result)
 					}
-					if out.Mode != "portable" {
+					if out.Mode != "portable_upgrade" {
 						t.Fatal(out)
 					}
 				} else {

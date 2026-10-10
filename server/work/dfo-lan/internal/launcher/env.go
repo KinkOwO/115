@@ -3,6 +3,8 @@ package launcher
 import (
 	"os"
 	"strings"
+
+	"dfolan/internal/adventureelite"
 )
 
 // LegacyGameplaySwitches are removed when a profile does not declare DFO_PVF_CATALOGS,
@@ -26,6 +28,7 @@ func BuildServerEnv(base []string, profileEnv map[string]string, jsonMode bool) 
 	// Preserve order for readability while keeping last-wins semantics.
 	merged := make([]string, 0, len(base)+len(profileEnv))
 	index := map[string]int{}
+	featureValue, featurePresent := "", false
 	set := func(key, value string) {
 		entry := key + "=" + value
 		if at, ok := index[key]; ok {
@@ -42,6 +45,10 @@ func BuildServerEnv(base []string, profileEnv map[string]string, jsonMode bool) 
 			// Not a KEY=VALUE entry; carry it through untouched rather than dropping it.
 			merged = append(merged, entry)
 			continue
+		}
+		if strings.EqualFold(key, adventureelite.EnvKey) {
+			key = adventureelite.EnvKey
+			featureValue, featurePresent = value, true
 		}
 		if jsonMode && strings.HasPrefix(key, "DFO_PVF_") {
 			continue
@@ -64,8 +71,16 @@ func BuildServerEnv(base []string, profileEnv map[string]string, jsonMode bool) 
 			}
 		}
 		for key, value := range profileEnv {
+			// This owner-requested process switch controls script routing too.
+			// A profile must not silently enable it or override the caller.
+			if strings.EqualFold(key, adventureelite.EnvKey) {
+				continue
+			}
 			set(key, value)
 		}
+	}
+	if featurePresent {
+		set(adventureelite.EnvKey, featureValue)
 	}
 	return merged
 }

@@ -39,6 +39,13 @@ type Session struct {
 	// 「星蕴石自选套装罐子」，而 omen.go 的结算各发各的 —— 同一场里两条都触发就各自
 	// 发自己那份，互不覆盖、也不互相抑制。
 	OathTier uint16
+	// Tiers 是本场**在天平开场之前**就预掷好的两条线档位（见 attunement_plan.go）。
+	//
+	// 为什么由外部灌进来而不是这里掷：noti 2838 必须在副本加载应答里就把 primer/oath
+	// 两个档位发给客户端（天平开场执行 Primer_Proc.act 时要读它们），而掉落发生在这
+	// 之后。零值 = 没预掷（非调律副本、或调用方没接线），此时退回 Roll 的内部预掷，
+	// 行为与 2026-10-07 之前逐字节相同。
+	Tiers RunTiers
 	// attunementRolled 保证一轮只抽一次专属奖励：同一只源领主再被确认死亡
 	// （或同模板的第二只 rank3）都不会重复发奖。
 	attunementRolled bool
@@ -243,9 +250,12 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	if hellOwned {
 		result.Awards = filterDungeonAwards(d.Definition, result.Awards)
 	}
+	result.Awards = dropCreatureEggs(s.Equipment, result.Awards)
 	// Append this independent pool after map awards; it cannot replace gear.
 	// Deferred/special modes do not consume its RNG or runtime policy.
-	if ordinaryDungeonRewards(d, s.Catalog, s.Attunement) && !excludeRandom && !d.Unowned[entity] && monsterItemsEnabled(s.Rules) && (s.Catalog.OrdinaryMonsterItemRate > 0 || s.Catalog.WorldDrop != nil && s.Catalog.OrdinaryWorldDropPercent > 0) {
+	// 开关用**取用处**的实际速率（目录值 × mod 倍率），不是构造时的旧值：
+	// mod 的 server.boot 跑在 prepareRuntime 之后，固化进目录会漏掉它设的倍率。
+	if ordinaryDungeonRewards(d, s.Catalog, s.Attunement) && !excludeRandom && !d.Unowned[entity] && monsterItemsEnabled(s.Rules) && ordinaryDropPoolsEnabled(s.Catalog) {
 		table, known, err := s.Catalog.MonsterItemTable(monster.Template)
 		if err != nil {
 			result.SkippedKinds = append(result.SkippedKinds, "monster_item_source_refused:"+err.Error())
@@ -316,7 +326,16 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 			result.NextSeed = p.next
 			omenPending, oathPending, attunementPending = p.omen, p.oath, true
 		} else {
-			awards, next, err := s.Attunement.Roll(result.NextSeed, d.Definition.ID, uint32(d.Maze.Index))
+			// 档位已预掷（进本时随 2838 下发）⇒ 按档位选池：掉落的这一档与客户端
+			// 珠子/天平显示的那一档必然是同一个数字；没预掷则退回内部预掷。
+			var awards []Award
+			var next uint32
+			var err error
+			if s.Tiers != (RunTiers{}) {
+				awards, next, err = s.Attunement.RollPlanned(result.NextSeed, d.Definition.ID, uint32(d.Maze.Index), s.Tiers)
+			} else {
+				awards, next, err = s.Attunement.Roll(result.NextSeed, d.Definition.ID, uint32(d.Maze.Index))
+			}
 			if err != nil {
 				return nil, err
 			}

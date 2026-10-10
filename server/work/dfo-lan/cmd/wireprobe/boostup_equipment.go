@@ -53,7 +53,7 @@ func (w *worldSession) reconcileBoostEquipment() []outboundPacket {
 			if err != nil {
 				log.Printf("boost challenge equipment snapshot role=%d: %v", w.role.ID, err)
 			} else {
-				plan = append(plan, outboundPacket{"boost_challenge_equipment_unlock", 0, 2722, body})
+				plan = append(plan, boostChallengePackets("boost_challenge_equipment_unlock", body)...)
 			}
 		}
 	}

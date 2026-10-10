@@ -1,0 +1,21 @@
+{
+  "binary": ".tmp/pvf-boxes/bin/wireprobe-handoff-source.exe",
+  "environment": {
+    "DFO_PVF_CATALOGS": "world,quests,progression,items,equipment,periods,skins,journal,create-cost,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps,layer-revisits,characters,cashshop,boxes",
+    "DFO_PVF_VERIFY_BASELINES": "0",
+    "DFO_PVF_ARCHIVE": "../client-build/Script.inner.pvf",
+    "DFO_PVF_SHA256": "",
+    "DFO_PVF_ENHANCEMENT_POLICY": "configs/pvf-enhancement-policy.json",
+    "DFO_PVF_VAULT_POLICY": "configs/pvf-vault-policy.json",
+    "DFO_PVF_DROP_POLICY": "configs/pvf-drop-policy.json",
+    "DFO_PVF_SCENE_POLICY": "configs/pvf-scene-policy.json",
+    "DFO_PVF_CONTENT_POLICY": "configs/pvf-mine-policy.json",
+    "DFO_PVF_SELECTION_POLICY": "configs/pvf-selection-policy.json",
+    "DFO_PVF_LOTTERY_POLICY": "configs/pvf-lottery-policy.json",
+    "DFO_PVF_SCRIPT_WARP_POLICY": "configs/pvf-script-warp-policy.json",
+    "DFO_PVF_LAYER_REVISIT_POLICY": "configs/pvf-layer-revisit-policy.json",
+    "DFO_PVF_CHARACTER_POLICY": "configs/pvf-character-policy.json",
+    "DFO_SHOP_RELEASE": "1",
+    "DFO_PVF_BOX_POLICY": "configs/pvf-box-policy.json"
+  }
+}

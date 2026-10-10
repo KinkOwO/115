@@ -123,6 +123,20 @@
 端到端复验：两个服务端 mod 同时安装 → `go build ./...` = 0；`Register() → servermod.Boot()` 日志
 `[mod odyssey.hardcore] 策略已生效：…` ✔。
 
+> ⚠️ **订正（2026-10-07 复核，本节是当时的方案记录，不要当成当时的已发布事实）**：
+> 上面这段"修法"当时写的是**方案**（别名形如 `modpkg0/modpkg1`），而它当时**并没有**随
+> v1.7.7 的第一版（启动器仓 commit `8c87358`）发布 —— 那一版 `renderServerModsGen` 仍是
+> **默认 import** + `modpkg.Register()`，所以当时同时装两个 server 层 mod 仍会失败
+> （`modpkg redeclared in this block`），只是被安装期新增的 `go build ./mods/` 校验
+> **在安装阶段拦下并回滚**（启动器仓 `internal/modkit/install2.go:633-645`，
+> 报「生成的 mod 加载器编译失败」）。
+>
+> **后续：该修复已经落地并推送** —— 启动器仓 commit **`0bd67dc`**（2026-10-07 03:03，
+> 已在远端 `fork/master`；版号仍 1.7.7、exe 重出）实现了多 mod 共存，但实现是
+> **`serverModGoImportAlias()`**（别名形如 `mod_<清洗后的 id>`、撞名追加 `_2`/`_3`），
+> **不是**本文写的 `modpkg0/modpkg1` 那套命名；0 个 / 1 个 mod 的产物逐字节不变。
+> 口径见 `mods/MOD-DEVELOPMENT.md` §4.8。
+
 ### 4.3 怪物血量 ×10：client 层 exe.patch（业主定路线后实现）
 
 服务端无通路（§2.3）、内容层无目标（§4.1）⇒ 只剩 client 层的 `exe.patch`（框架原生支持）。

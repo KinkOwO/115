@@ -13,11 +13,21 @@ func reset(t *testing.T) {
 	boots = nil
 	consoles = nil
 	responses = nil
+	requests = nil
 	registeredIDs = map[string]bool{}
 	modValues = map[string]string{}
 	configKeys = map[string]string{}
 	contentClaims = nil
 	mu.Unlock()
+	// 脚本注册表与启用清单各有自己的锁与状态，一并清掉，保证用例互不串味。
+	scriptMu.Lock()
+	modScripts = nil
+	scriptMu.Unlock()
+	enabledMu.Lock()
+	enabledPath = ""
+	disabledSet = map[string]bool{}
+	enabledLoadNote = ""
+	enabledMu.Unlock()
 }
 
 func TestRegisterAndBootRunsInOrder(t *testing.T) {
@@ -180,4 +190,107 @@ func TestValidModID(t *testing.T) {
 			t.Errorf("%q 应非法", bad)
 		}
 	}
+}
+
+// TestRequestHookSeesFrameAndShortCircuits 钉住请求钩子的核心语义：
+// 上下文带全帧信息、首个 handled=true 的钩子接手、后续钩子不再被问。
+func TestRequestHookSeesFrameAndShortCircuits(t *testing.T) {
+	reset(t)
+	var order []string
+	var seen *RequestContext
+	RegisterRequest("first.mod", func(ctx *RequestContext) (bool, error) {
+		order = append(order, "first")
+		return false, nil
+	})
+	RegisterRequest("second.mod", func(ctx *RequestContext) (bool, error) {
+		order = append(order, "second")
+		seen = ctx
+		return true, nil
+	})
+	RegisterRequest("third.mod", func(ctx *RequestContext) (bool, error) {
+		order = append(order, "third")
+		return false, nil
+	})
+
+	var replied []byte
+	handled := ObserveRequest("peer-1", 1, 2043, []byte{0xAA}, []byte{0xBB, 0xCC}, true,
+		func(kind byte, id uint16, payload []byte) error {
+			replied = append(replied, payload...)
+			return nil
+		})
+
+	if !handled {
+		t.Fatal("第二个钩子返回 true 时 ObserveRequest 必须报 handled")
+	}
+	if strings.Join(order, ",") != "first,second" {
+		t.Fatalf("执行顺序 = %v，期望 first,second（短路后不再问第三个）", order)
+	}
+	if seen == nil || seen.Conn != "peer-1" || seen.Type != 1 || seen.ID != 2043 || !seen.Verified {
+		t.Fatalf("上下文不对：%+v", seen)
+	}
+	if string(seen.Plaintext) != string([]byte{0xBB, 0xCC}) {
+		t.Fatalf("正文不对：%x", seen.Plaintext)
+	}
+	if err := seen.Reply(0, 99, []byte{1, 2}); err != nil {
+		t.Fatalf("Reply 失败：%v", err)
+	}
+	if string(replied) != string([]byte{1, 2}) {
+		t.Fatalf("Reply 没送到调用方给的发送口：%x", replied)
+	}
+}
+
+// TestRequestHookErrorDoesNotStopOthers 钉住"一个 mod 出错不拖垮其余 mod 与内置分发"。
+func TestRequestHookErrorDoesNotStopOthers(t *testing.T) {
+	reset(t)
+	RegisterRequest("bad.mod", func(*RequestContext) (bool, error) {
+		return false, errors.New("这个 mod 坏了")
+	})
+	RegisterRequest("good.mod", func(*RequestContext) (bool, error) { return true, nil })
+	if !ObserveRequest("p", 1, 1, nil, nil, false, nil) {
+		t.Fatal("坏 mod 之后的好 mod 仍应有机会接手")
+	}
+}
+
+// TestRequestHookZeroCostWhenNone 钉住快路径：没登记钩子时不进循环、不碰 reply。
+func TestRequestHookZeroCostWhenNone(t *testing.T) {
+	reset(t)
+	if HasRequestHooks() {
+		t.Fatal("没登记钩子时 HasRequestHooks 必须为假")
+	}
+	called := false
+	if ObserveRequest("p", 1, 1, nil, nil, true, func(byte, uint16, []byte) error {
+		called = true
+		return nil
+	}) {
+		t.Fatal("没有钩子时不应报 handled")
+	}
+	if called {
+		t.Fatal("没有钩子时不应调用发送口")
+	}
+	RegisterRequest("only.mod", func(*RequestContext) (bool, error) { return false, nil })
+	if !HasRequestHooks() {
+		t.Fatal("登记后 HasRequestHooks 必须为真")
+	}
+	if !strings.Contains(Description(), "request 钩子 1 个") {
+		t.Fatalf("Description 应报出 request 钩子数：%q", Description())
+	}
+}
+
+// TestRegisterRequestRejectsBadInput 钉住与其它注册函数一致的入参纪律。
+func TestRegisterRequestRejectsBadInput(t *testing.T) {
+	reset(t)
+	mustPanic(t, "nil 回调", func() { RegisterRequest("a.mod", nil) })
+	mustPanic(t, "非法 id", func() {
+		RegisterRequest("Bad_ID", func(*RequestContext) (bool, error) { return false, nil })
+	})
+}
+
+func mustPanic(t *testing.T, what string, fn func()) {
+	t.Helper()
+	defer func() {
+		if recover() == nil {
+			t.Fatalf("%s 应当 panic", what)
+		}
+	}()
+	fn()
 }

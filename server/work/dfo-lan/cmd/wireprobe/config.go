@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dfolan/internal/accountname"
 	"dfolan/internal/gamedata"
 	"flag"
 	"fmt"
@@ -84,6 +85,7 @@ type Config struct {
 	Boxes                            string `koanf:"boxes" help:"deprecated path; requires the prepared native PVF boxes domain"`
 	CardRules                        string `koanf:"card-rules" default:"configs/cards.compat90.json" help:"separate compatible free-card policy"`
 	VenusFlipGear                    string `koanf:"venus-flip-gear" default:"configs/venus-flip-gear.generated.json" env:"DFO_VENUS_FLIP_GEAR" help:"venus terminal flip random-gear pool (row 1 slots 1-5, legion 106)"`
+	ApocalypseFlipGear               string `koanf:"apocalypse-flip-gear" default:"configs/apocalypse-flip-gear.generated.json" env:"DFO_APOCALYPSE_FLIP_GEAR" help:"apocalypse terminal flip random-gear pool (legion 107; rarity 2/3/4 = magic/unique/epic at 15/35/50)"`
 	SkillCatalog                     string `koanf:"skill-catalog" help:"deprecated skill JSON path; requires the native PVF skills domain"`
 	ChannelRefreshConfig             string `koanf:"channel-refresh-config" help:"separate local channel directory service for native refresh"`
 	ChannelIdentity                  bool   `koanf:"channel-identity" default:"false" help:"candidate: synchronize NOTI2435 and all actor contexts with the connected channel"`
@@ -98,6 +100,7 @@ type Config struct {
 	ShopPrices                       string `koanf:"shop-prices" env:"DFO_SHOP_PRICES" help:"deprecated path; ignored with native PVF prices, otherwise refused"`
 	BleedingMineRewards              string `koanf:"bleeding-mine-rewards" help:"deprecated path; requires the prepared native PVF bleeding-mine domain"`
 	SoloPartyBootstrap               bool   `koanf:"solo-party-bootstrap" default:"false" help:"initialize the owned actor in the current solo party roster"`
+	Account                          string `koanf:"account" default:"probe" env:"DFO_ACCOUNT" help:"本次会话登录用的开发账号名；决定角色与存档归属 accounts 表的哪一行（UPSERT：换名即自动建号）"`
 	AccountOptions                   string `koanf:"account-options" help:"sparse current-client account option overrides; other defaults remain client-owned"`
 	UnifiedCharacTemplate            string `koanf:"unified-charac-template" help:"override the built-in 3539 byte character option block sent as NOTI2827 (different client build only)"`
 	SkillLockOffset                  int    `koanf:"skill-lock-offset" default:"-1" help:"override the subtype 19 skill lock offset inside the character option block (default 2736)"`
@@ -117,9 +120,12 @@ type Config struct {
 	OathGradesFromGear               bool   `koanf:"oath-grades-from-gear" default:"false" env:"DFO_OATH_GRADES_FROM_GEAR" help:"诊断：按角色穿戴的誓约/引子装备算档位（旧规则）。默认关 —— 客户端脱不下誓约槽，穿上 primeval 就永久 oath=45"`
 	OathProgressClears               int    `koanf:"oath-progress-clears" env:"DFO_OATH_PROGRESS_CLEARS" help:"隐藏 BOSS 的保底场次：-oath-progress-dungeons 里的副本通关这么多场后，下一场下发 oath=45（必出一次）并在通关时归零；<=0 关闭保底"`
 	OathProgressDungeons             string `koanf:"oath-progress-dungeons" env:"DFO_OATH_PROGRESS_DUNGEONS" help:"计入保底的副本号，逗号分隔（默认只有小深渊 100005014）"`
+	DeferredClearDungeons            string `koanf:"deferred-clear-dungeons" env:"DFO_DEFERRED_CLEAR_DUNGEONS" help:"诊断：把这些副本号的通关结算横幅（NOTI31）延后到「离开副本」再发，逗号分隔。默认空 = 不延后（与国服一致：国服同样弹结算面板并保留右侧前进箭头）"`
 	OathInject                       string `koanf:"oath-inject" env:"DFO_OATH_INJECT" help:"诊断用：向客户端注入任意 noti 的候选列表，形式 id:size:fill;off:val,...（见 oath_probe.go）；默认空 = 关闭"`
 	OmenHold                         int    `koanf:"omen-hold" default:"-1" env:"DFO_OMEN_HOLD" help:"诊断：把玩家直接放到指定征兆阶段(0-4)，-1 = 不动；会写回角色存档"`
+	OmenMisses                       int    `koanf:"omen-misses" default:"-1" env:"DFO_OMEN_MISSES" help:"诊断：把小深渊征兆的「连续未触发」计数直接设到指定值(0-29)，-1 = 不动；会写回角色存档，用来一轮验证 30 次保底"`
 	OmenInfo                         string `koanf:"omen-info" env:"DFO_OMEN_INFO" help:"诊断：直接指定 noti 2836「征兆队伍状态」的 69 字节载荷，用来点亮征兆 UI 并实测字段语义。写法见 cmd/wireprobe/omen_info.go；留空 = 按角色存档里的真实档数生成"`
+	AttunementReward                 string `koanf:"attunement-reward" env:"DFO_ATTUNEMENT_REWARD" help:"诊断：直接指定 noti 2859「调律之边界奖励」的 12 字节载荷（3 × u32 小端），用来实测它的三个字段各是什么。三种写法：24 位十六进制 / 3 个十进制 u32 / @文件路径（每次进本重读，试值不必重启服务端）。留空 = 不发（默认，客户端会保留模块里的 72/72/-1）"`
 	ScaleDeathFromHP                 bool   `koanf:"scale-death-from-hp" default:"false" env:"DFO_SCALE_DEATH_FROM_HP" help:"诊断：定盘机关血量触底时由服务端兜底宣布死亡（默认关；noti 2838 修好后天平会自己死）"`
 	BoostUpEvent                     bool   `koanf:"boostup-event" default:"true" env:"DFO_BOOSTUP_EVENT" envmode:"not-zero" help:"新手成长活动 662 总开关：训练关卡、礼盒、胶囊与领奖；内容只从 PVF 直读的 boostup 域来，缺该域时本开关自动降级为关并记 warning，DFO_BOOSTUP_EVENT=0 关闭"`
 	BoostUpChallenge                 bool   `koanf:"boostup-challenge" default:"false" env:"DFO_BOOSTUP_CHALLENGE" help:"662 毕业后的可选挑战（665）源绑定与领奖，默认关"`
@@ -132,8 +138,9 @@ type Config struct {
 // defaults. Each call uses a private FlagSet and Koanf instance.
 func loadConfig(args []string, getenv func(string) string, output io.Writer) (Config, error) {
 	cfg := Config{
-		OathProgressClears:   oathDefaultProgressClears,
-		OathProgressDungeons: oathDefaultProgressDungeons,
+		OathProgressClears:    oathDefaultProgressClears,
+		OathProgressDungeons:  oathDefaultProgressDungeons,
+		DeferredClearDungeons: deferredClearDefaultDungeons,
 	}
 	fs := flag.NewFlagSet("wireprobe", flag.ContinueOnError)
 	fs.SetOutput(output)
@@ -226,8 +233,18 @@ func (c Config) validate() error {
 	if c.PVFCheckCatalogs && strings.TrimSpace(c.PVFCatalogs) == "" {
 		return fmt.Errorf("pvf-check-catalogs requires explicit pvf-catalogs")
 	}
-	if c.BoostUpChallenge && !c.BoostUpEvent {
-		return fmt.Errorf("boostup-challenge requires boostup-event")
+	// 诊断载荷在这里就校验，而不是等 prepareRuntime 读到那一行：那个位置在**整库
+	// PVF 准备之后**（实测约 48 秒），一个写错的字符要等近一分钟才报错。
+	// ⚠️ 踩过的坑（2026-10-08）：cmd 的 **逗号也是参数分隔符**，
+	// `launch-attunement-reward.cmd 44,43,0` 会让 `%1` 只剩 `44`
+	// ⇒ 报 `got "44"`。值要用引号包起来，或走 `set DFO_ATTUNEMENT_REWARD=44,43,0`。
+	if _, err := attunementRewardSpec(c.AttunementReward); err != nil {
+		return fmt.Errorf("attunement-reward: %w", err)
+	}
+	// 账号名要同时进 SQL 与客户端连接 payload（以 ? 分段），所以只放行安全字符，
+	// 这里拦下比等 prepareRuntime 报一条看不懂的唯一键冲突便宜得多。
+	if !accountname.Valid(c.Account) {
+		return fmt.Errorf("account %q 只允许 1..%d 个 ASCII 字母、数字、_ 与 -", c.Account, accountname.MaxLength)
 	}
 	return nil
 }

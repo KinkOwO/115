@@ -51,6 +51,52 @@ func (b Bag) AddPetGear(item BagEquipment) (Bag, uint16, error) {
 	return b, 0, fmt.Errorf("pet equipment container is full")
 }
 
+// PetCreatureFirst/Last 是**宠物本体**在宠物容器（list 7）里的槽位区间。
+//
+// 依据：NOTI105 的生物列表只收录 slot < 140 的行（internal/game/protocol/creature_list.go 的 reader），
+// 而既有两条写本体的路径也都扫 0..139（internal/cashshop/pilot.go 的 deliverAmount、
+// cmd/wireprobe/booster_flow.go 的开箱）。宠物**装备**在 320..375、宠物**用品**在 376..431，
+// 三段不能混用（bag.go 的校验会因槽号相撞而拒整份存档）。
+const (
+	PetCreatureFirst uint16 = 0
+	PetCreatureLast  uint16 = 139
+)
+
+// AddPetCreature 把一只**宠物本体**放进宠物容器，返回落到的槽位。
+//
+// 与 AddPetGear 同一套写法（copy-on-write：先复制 Special 再追加，不动调用方的 Bag）。
+//
+// 三条刻意的留白（照既有本体路径的口径，别"顺手补上"）：
+//   - **不写 Record**：实例 key 由槽位推导（key = 槽位+2，客户端 reader 与
+//     equipment_record.go 两侧一致）；塞一个自造的 Record 会因 Record[2:6] != 模板而对不上。
+//   - **不写 Durability/Period**：本体的期限要按脚本 [usable period] 现算（显示成"剩余 N 天"），
+//     这里写 GrantExpireTime 会让它显示 24856 天。
+//   - **不合并**：本体是"一只一行"，不像堆叠物那样并堆（同一只宠物可以有多行）。
+func (b Bag) AddPetCreature(template uint32) (Bag, uint16, error) {
+	if template == 0 {
+		return b, 0, fmt.Errorf("pet creature template is required")
+	}
+	occupied := make(map[uint16]bool, len(b.Special[7]))
+	for _, row := range b.Special[7] {
+		if row.Slot >= PetCreatureFirst && row.Slot <= PetCreatureLast {
+			occupied[row.Slot] = true
+		}
+	}
+	for slot := PetCreatureFirst; slot <= PetCreatureLast; slot++ {
+		if occupied[slot] {
+			continue
+		}
+		next := b
+		next.Special = make(map[byte][]BagEquipment, len(b.Special)+1)
+		for space, rows := range b.Special {
+			next.Special[space] = rows
+		}
+		next.Special[7] = append(append([]BagEquipment(nil), b.Special[7]...), BagEquipment{Slot: slot, Template: template})
+		return next, slot, nil
+	}
+	return b, 0, fmt.Errorf("creature inventory is full")
+}
+
 // SweepPetGear relocates old rewards without changing any item instance.
 func SweepPetGear(b Bag, equipment *EquipmentCatalog) (Bag, bool, error) {
 	if equipment == nil {

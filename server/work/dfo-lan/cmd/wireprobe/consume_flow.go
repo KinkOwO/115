@@ -34,6 +34,31 @@ func (w *worldSession) useStackable(p []byte, event func(map[string]any)) ([]out
 	if e != nil {
 		return nil, e
 	}
+	var check func() error
+	limited := false
+	if w.bakal != nil && w.activeDungeon != nil && w.activeDungeon.RaidManaged && r.List == 0 {
+		script, err := w.items.Catalog.ItemScript(r.Template)
+		if err != nil {
+			return nil, err
+		}
+		for _, token := range script.Cells {
+			if token.Type == 3 && token.Text == "[stackable dungeon limit]" {
+				limited = true
+				break
+			}
+		}
+		if limited {
+			check = w.bakal.CheckPotionBudget
+		}
+	}
+	var committed func()
+	if limited {
+		committed = func() {
+			w.bakal.SpendPotionBudget()
+			coins, potions := w.bakal.Budget()
+			event(map[string]any{"kind": "bakal_consumable_budget", "raid": w.bakalRun, "coins": coins, "potions": potions})
+		}
+	}
 	service := &workflow.ItemService{Store: w.store, Items: w.items}
 	var saved database.Character
 	var receipt inventory.ConsumeReceipt
@@ -44,7 +69,15 @@ func (w *worldSession) useStackable(p []byte, event func(map[string]any)) ([]out
 		}
 		saved, receipt, applied, e = service.ConsumeCharacterSlotTicket(ctx, w.role, r, w.characters.Rules.MaxCharacters)
 	} else {
-		saved, receipt, applied, e = service.ConsumeWithCheck(ctx, w.role, r, w.checkContentPotionUse)
+		saved, receipt, applied, e = service.ConsumeCheckedWithRole(ctx, w.role, r, func(current database.Character, request protocol.UseStackableRequest) error {
+			if err := w.checkContentPotionUse(current, request); err != nil {
+				return err
+			}
+			if check != nil {
+				return check()
+			}
+			return nil
+		}, committed)
 	}
 	if e != nil {
 		return nil, e

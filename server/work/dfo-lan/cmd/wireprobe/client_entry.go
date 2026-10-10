@@ -362,6 +362,7 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "world_entry_error", "error": e.Error()})
 				return dispatchHandled
 			}
+			role = client.worldState.role
 			// Publish this actor before the area list is serialized, so the list already
 			// carries the other players standing in the same place.
 			if client.hub != nil && len(basic) > 0 {
@@ -491,6 +492,30 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		if os.Getenv("DFO_RAID_OPEN_EVENTS_PROBE") == "1" && (client.gatewayRuntime == nil || client.boostEventInfo == nil) {
 			plan.ChannelEventInfo = raidChannelEventInfo(client.channelTypes, client.channelDirectory)
 		}
+		// NOTI1076 AVATAR_CLOSET_INFO：官方每次登录都下发一帧（16B）。缺它时客户端
+		// 衣柜 UI 衣架全锁、且不发任何衣柜命令。首字节 = 衣柜槽数（基础 1 槽，
+		// 买 Tier1/2/3 各 +1，上限 4），取自存档 ClosetExpansion（已购档位数）。
+		closetExpansion := byte(0)
+		if bag, bagErr := inventory.ReadBag(role.State); bagErr == nil {
+			closetExpansion = bag.ClosetExpansion
+		}
+		if info, infoErr := protocol.AvatarClosetInfo(protocol.AvatarClosetSlots(closetExpansion)); infoErr == nil {
+			plan.AvatarClosetInfo = info
+		}
+		// NOTI1077 衣柜内容（当前为空列表；客户端 reader 见 protocol.AvatarClosetSet）。
+		plan.AvatarClosetSet = protocol.AvatarClosetSet()
+		// NOTI1585 装扮预设列表：官方每次登录都下发一帧。布局由反汇编客户端
+		// handler（0x14335A230）得到，编码器与官方帧逐字节对齐；栏位数取存档
+		// AvatarPresetPages（已解锁页数），未写过时用官方默认 1 页。
+		presetPages := protocol.DefaultAvatarPresetPages()
+		if bag, bagErr := inventory.ReadBag(role.State); bagErr == nil && bag.AvatarPresetPages > 0 {
+			presetPages += bag.AvatarPresetPages
+		}
+		if list, listErr := protocol.AvatarPresetList(presetPages); listErr == nil {
+			plan.AvatarPresetList = list
+		} else {
+			client.event(map[string]any{"kind": "avatar_preset_list_build_error", "character_id": role.ID, "error": listErr.Error()})
+		}
 		// Starter Boost 662 进城恢复：可领礼物集合（2265）与训练进度（2638）都按
 		// 本角色状态现算。读失败只丢这一帧并记事件——进城不该被活动状态卡住。
 		if client.worldState != nil && client.worldState.boostup != nil {
@@ -504,6 +529,19 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "boost_training_restore_error", "character_id": role.ID, "error": boostErr.Error()})
 			} else {
 				plan.BoostTraining = status
+			}
+		}
+		// 活动 331 每日签到的状态帧（NOTI1379）。**只在 108 表里真有 331 那一行时推**：
+		// 客户端是活动打开时才注册那个 handler（见 event_info_activity.go），
+		// 活动关着还推等于让客户端读一张不存在的表。
+		if activityEventInfoRows() != nil {
+			_, daily, dailyErr := client.worldState.attendanceDailyState(time.Now())
+			if dailyErr != nil {
+				client.event(map[string]any{"kind": "attendance_daily_state_error", "character_id": role.ID, "error": dailyErr.Error()})
+			} else {
+				plan.AttendanceDaily = daily
+				// 把解码后的状态一并记下来（判据见 attendance_flow.go 的注释）
+				client.logAttendanceDailyState(role.ID, daily)
 			}
 		}
 		if client.characters != nil {
@@ -1115,6 +1153,10 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		// next79 挂接（ispins_wiring.go）：N1719 保活 goroutine 与登录期
 		// N2254 分支（伊斯频道挂 pending、普通频道 1.1s 后推 N2254+781+782）。
 		client.ispinsPostSelection(role.ID)
+		if client.worldState != nil {
+			// The newly selected character owns a fresh client quota cache.
+			client.worldState.bakalQuotaBody = nil
+		}
 		// 进城镇好感度全量同步：NOTI733(NPC_FAVOR_POINT_INFO) 是客户端
 		// 唯一的无弹窗全量装载入口（handler 0x1452db190：先清空 favor
 		// map 再逐条装入并刷新，不派发任何 UI 事件）；806 ack 虽也写
@@ -1152,6 +1194,20 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		// 原因见 azure_main_flow.go 的 azureRewardSnapshot：缺它客户端会在
 		// 「创建攻坚队」时报「奖励已领完」。只对 102 生效。
 		if client.worldState != nil && client.worldState.channelType == azureMainChannelType {
+			// 满包时挂起的源驱动奖单在这里补发（见 azure_flip.go）。奖单模型与月湖共用，
+			// 而月湖的补发钩子挂在它自己的 250ms tick 上 —— 蔚蓝号频道没有那个 tick，
+			// 借这个既有进城钩子兜住，免得「满包那一次的奖励永远拿不到」。
+			if pending, pendingErr := client.worldState.azureRecoverPendingRewards(); pendingErr != nil {
+				client.event(map[string]any{"kind": "azure_pending_rewards_error", "error": pendingErr.Error()})
+			} else {
+				for _, pendingPacket := range pending {
+					if sendErr := client.output.send(pendingPacket.Kind, pendingPacket.ID, pendingPacket.Payload); sendErr != nil {
+						client.event(map[string]any{"kind": "azure_pending_rewards_send_error", "id": pendingPacket.ID, "error": sendErr.Error()})
+						break
+					}
+					client.event(map[string]any{"kind": pendingPacket.Name, "id": pendingPacket.ID})
+				}
+			}
 			azureRewards, azureErr := client.worldState.azureRewardSnapshot()
 			if azureErr != nil {
 				client.event(map[string]any{"kind": "azure_main_rewards_error", "error": azureErr.Error()})

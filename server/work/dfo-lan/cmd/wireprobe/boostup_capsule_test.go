@@ -34,7 +34,7 @@ func TestBoostCapsulePacketsPrimeAwakeningAndKeepConsumedSlotEmpty(t *testing.T)
 	if !bytes.Equal(empty[0].Payload[5:9], []byte{255, 255, 255, 255}) {
 		t.Fatal("empty capsule slot became currency", empty[0].Payload[:12])
 	}
-	if _, e = (&worldSession{}).useBoostCapsule(make([]byte, 64)); e == nil {
+	if _, e = (&worldSession{}).useBoostCapsule(make([]byte, 64), nil); e == nil {
 		t.Fatal("unowned capsule accepted")
 	}
 }

@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"fmt"
+	"log"
 	"sort"
 
 	"dfolan/internal/catalog"
@@ -29,18 +30,32 @@ func ImportOrdinaryDropPool(a *pvf.Archive, index catalog.ItemIndex, excluded []
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 	var pool []EquipmentDrop
+	missing := 0
+	var missingSamples []string
 	for n, id := range ids {
 		if n%1024 == 0 {
 			a.ReleaseReadCaches()
 		}
 		script, err := catalog.ResolveScript(a, index.Items[id].Path)
 		if err != nil {
-			return nil, fmt.Errorf("ordinary equipment %d: %w", id, err)
+			// devpack 基线差异：对方历史整合（native_clone/creature/title 等）的物品
+			// 源脚本不在本基线 PVF 里。这些物品本服从未可用，且普通掉落池的类型
+			// 过滤（仅武器/防具/首饰）本来就会排除它们，跳过并计数即可。
+			// 见 合并记录-20261005-devpack服务端合并.md。
+			missing++
+			if len(missingSamples) < 8 {
+				missingSamples = append(missingSamples, fmt.Sprintf("%d %v", id, err))
+			}
+			continue
 		}
 		row := equipmentDefinitionFromScript(id, script)
 		if candidate, ok := ordinaryDropCandidate(row); ok {
 			pool = append(pool, candidate)
 		}
+	}
+	if missing > 0 {
+		log.Printf("PVF ordinary drop pool: %d equipment scripts missing (devpack baseline gap); samples: %v",
+			missing, missingSamples)
 	}
 	return pool, nil
 }

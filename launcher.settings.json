@@ -7,20 +7,22 @@
   },
   "selfupdate": {
     "branch": "master",
-    "endpoint": "https://gitgud.io/yh9/115us-dfolauncher",
-    "fallback_branch": "master",
-    "fallback_endpoint": "https://gitgud.io/RicardoLz/115us-dfolauncher"
+    "enabled": false,
+    "endpoint": "https://gitgud.io/yh9/115us-dfolauncher"
+  },
+  "ui": {
+    "variant": "intuitive"
   },
   "update": {
     "branch": "main",
+    "channel": "dev",
     "enabled": true,
     "endpoint": "https://gitgud.io/fuckworld/115",
-    "fallback_branch": "main",
-    "fallback_endpoint": "https://gitgud.io/RicardoLz/115"
+    "follow_latest": true
   },
   "window": {
     "height": 909,
     "maximized": false,
-    "width": 1650
+    "width": 1757
   }
 }

@@ -33,9 +33,14 @@ type State struct {
 	AdventureEarnedExperience uint64                `json:"adventure_earned_experience,omitempty"`
 	SkillPoints               [2]uint16             `json:"skill_points,omitempty"`
 	TechniquePoints           [2]uint16             `json:"technique_points,omitempty"`
-	CurrencySlot2             uint32                `json:"currency_slot2,omitempty"`
-	Advancement               byte                  `json:"advancement"`
-	Awakening                 byte                  `json:"awakening,omitempty"`
+	// SkillTreeType 是角色"技能类型"选择：0 = 第二技能页未解锁（零值，老存档
+	// 与漏赋值都保持锁定），1 = 技能类型 1（第一页），2 = 技能类型 2（第二页）。
+	// 由商城"技能类型扩展券"（PVF item 821 / product 3000150，购买即生效）解锁：
+	// 购买把 0 置为 1。下发映射见 protocol.EntryAdditionProbe.SkillTreeType。
+	SkillTreeType byte   `json:"skill_tree_type,omitempty"`
+	CurrencySlot2 uint32 `json:"currency_slot2,omitempty"`
+	Advancement   byte   `json:"advancement"`
+	Awakening     byte   `json:"awakening,omitempty"`
 	// No omitempty: an unallocated VP block still has to serialize, otherwise
 	// the client decodes an empty variation section and the panel reads blank
 	// until the next character switch.
@@ -180,6 +185,11 @@ func (s *Service) Create(ctx context.Context, account int64, p []byte) (Characte
 			Name:          created.Name,
 			Level:         stateLevel(created.State),
 			ConfigVersion: created.ConfigVersion,
+			// 职业信息：建号这一刻就是已知的（基础职业来自请求、转职来自上面的落账结果）。
+			// 规则常用它来决定发哪一套（例如输出/辅助两套宝珠、辅助不发换装套装）。
+			Profession:    int32(created.Profession),
+			Advancement:   int32(initial.Advancement),
+			HasProfession: true,
 		})
 	}
 	return created, nil
@@ -197,6 +207,21 @@ func (s *State) setCreationOptions(options []byte) {
 
 func (s *Service) List(ctx context.Context, account int64) ([]byte, error) {
 	return s.ListWithFatigue(ctx, account, nil, time.Time{})
+}
+
+// slotCapacity returns the account's effective character-slot cap: the global
+// Rules.MaxCharacters plus the account-level bonus granted by the cash-shop
+// Character Slot Extension Kit (account-level column, takes effect on purchase).
+// Offline projections without a Store fall back to the global cap.
+func (s *Service) slotCapacity(ctx context.Context, account int64) (int, error) {
+	if s.Store == nil {
+		return s.Rules.MaxCharacters, nil
+	}
+	bonus, err := s.Store.AccountSlotBonus(ctx, account)
+	if err != nil {
+		return 0, err
+	}
+	return s.Rules.MaxCharacters + int(bonus), nil
 }
 
 var specialChannelPrerequisites = []uint16{12167, 12312, 12392, 12422, 13763, 21019}
@@ -438,6 +463,7 @@ func (s *Service) EntryBasicProbe(role Character, channelContext [2]byte) ([]byt
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		BasePercent:   entryBasePercent,
+		SkillTreeType: state.SkillTreeType,
 		ActorServerID: role.WireID, Context: channelContext,
 		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags, GrowthEffectFlags: effectFlags},
 		// The explicit per-slot block must stay empty on the entry path. A
@@ -522,6 +548,7 @@ func (s *Service) AppearanceProbe(role Character, channelContext [2]byte) ([]byt
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		BasePercent:   entryBasePercent,
+		SkillTreeType: state.SkillTreeType,
 		ActorServerID: role.WireID, Context: channelContext,
 		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags, GrowthEffectFlags: effectFlags},
 		Appearance: rows,

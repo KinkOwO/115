@@ -246,7 +246,7 @@ func (s *Store) PurchaseCash(ctx context.Context, o CashOrder) (CashReceipt, boo
 	if o.DeliveryMode != "" {
 		return CashReceipt{}, false, fmt.Errorf("unexpected cash delivery mode")
 	}
-	return s.purchaseCash(ctx, o, nil, nil)
+	return s.purchaseCash(ctx, o, nil, nil, 0)
 }
 
 // PurchaseCashPremium activates an account contract atomically with the CERA
@@ -255,7 +255,7 @@ func (s *Store) PurchaseCashPremium(ctx context.Context, o CashOrder, premiumTyp
 	if o.DeliveryMode != "" || premiumType == 0 || durationSecond <= 0 {
 		return CashReceipt{}, false, fmt.Errorf("invalid premium purchase")
 	}
-	return s.purchaseCash(ctx, o, nil, map[int]CashPremiumActivation{0: {Type: premiumType, DurationSecond: durationSecond}})
+	return s.purchaseCash(ctx, o, nil, map[int]CashPremiumActivation{0: {Type: premiumType, DurationSecond: durationSecond}}, 0)
 }
 
 // PurchaseCashMixed charges one order inside a single transaction: every line
@@ -272,7 +272,71 @@ func (s *Store) PurchaseCashMixed(ctx context.Context, o CashOrder, deliver func
 		return CashReceipt{}, false, fmt.Errorf("invalid contract cart")
 	}
 	o.DeliveryMode = "bag-v1"
-	return s.purchaseCash(ctx, o, deliver, premiums)
+	return s.purchaseCash(ctx, o, deliver, premiums, 0)
+}
+
+// PurchaseCashCharacterSlots charges one Character Slot Extension Kit and adds
+// the account-level character-slot bonus inside the same transaction.
+// Takes effect on purchase (PVF [immediately adaptive product] semantics); no
+// inventory item is delivered.
+func (s *Store) PurchaseCashCharacterSlots(ctx context.Context, o CashOrder, bonus int) (CashReceipt, bool, error) {
+	if bonus <= 0 || bonus > 65534 || o.DeliveryMode != "" {
+		return CashReceipt{}, false, fmt.Errorf("invalid character slot purchase")
+	}
+	o.DeliveryMode = "character-slot-v1"
+	return s.purchaseCash(ctx, o, nil, nil, bonus)
+}
+
+// PurchaseCashSkillTreeExpansion unlocks the character's second skill type
+// (Skill Type Extension Ticket, PVF item 821 / product 3000150) inside the same
+// transaction as the CERA debit. Takes effect on purchase; no inventory item is
+// delivered, matching the 86JP SkillTreeExpansionService policy.
+func (s *Store) PurchaseCashSkillTreeExpansion(ctx context.Context, o CashOrder) (CashReceipt, bool, error) {
+	if o.DeliveryMode != "" {
+		return CashReceipt{}, false, fmt.Errorf("invalid skill tree expansion purchase")
+	}
+	o.DeliveryMode = "skill-tree-v1"
+	receipt, applied, e := s.purchaseCash(ctx, o, unlockSkillTreeType, nil, 0)
+	if e != nil {
+		return receipt, applied, e
+	}
+	receipt.SkillTreeUnlocked = true
+	return receipt, applied, nil
+}
+
+// unlockSkillTreeType 是角色 State 的原地变换：只把技能类型解锁位从 0（未解锁）
+// 换成 1（技能类型 1）。已经解锁时原样返回，重复购买不会把玩家当前选择的页重置。
+// 字段语义见 character.State.SkillTreeType。
+func unlockSkillTreeType(state json.RawMessage) (json.RawMessage, error) {
+	var object map[string]json.RawMessage
+	if e := json.Unmarshal(state, &object); e != nil || object == nil {
+		return nil, fmt.Errorf("invalid character state")
+	}
+	var current byte
+	if raw, ok := object["skill_tree_type"]; ok {
+		if e := json.Unmarshal(raw, &current); e != nil {
+			return nil, fmt.Errorf("invalid skill tree selection")
+		}
+	}
+	if current >= 1 && current <= 2 {
+		return state, nil
+	}
+	object["skill_tree_type"] = json.RawMessage("1")
+	// 解锁时把第一页的 VP 点数复制给第二页：觉醒只在那**一刻**发过 5 点，
+	// 之后才解锁的角色第二页会一直是 0（业主 2026-10-09 20:32："第二页没有 vp 了"）。
+	var points [2]uint16
+	if raw, ok := object["technique_points"]; ok {
+		if e := json.Unmarshal(raw, &points); e != nil {
+			return nil, fmt.Errorf("invalid technique points")
+		}
+	}
+	points[1] = points[0]
+	buf, e := json.Marshal(points)
+	if e != nil {
+		return nil, e
+	}
+	object["technique_points"] = buf
+	return json.Marshal(object)
 }
 
 // PurchaseCashToBag executes a pure, source-backed inventory mutation under
@@ -283,7 +347,7 @@ func (s *Store) PurchaseCashToBag(ctx context.Context, o CashOrder, deliver func
 		return CashReceipt{}, false, fmt.Errorf("missing or invalid bag delivery")
 	}
 	o.DeliveryMode = "bag-v1"
-	return s.purchaseCash(ctx, o, deliver, nil)
+	return s.purchaseCash(ctx, o, deliver, nil, 0)
 }
 
 func (s *Store) PurchaseCashVault(ctx context.Context, o CashOrder, upgrade func(VaultState) (VaultState, error)) (CashReceipt, bool, error) {
@@ -291,7 +355,7 @@ func (s *Store) PurchaseCashVault(ctx context.Context, o CashOrder, upgrade func
 		return CashReceipt{}, false, fmt.Errorf("invalid vault purchase")
 	}
 	o.DeliveryMode = "vault-upgrade-v1"
-	return s.purchaseCash(ctx, o, nil, nil, upgrade)
+	return s.purchaseCash(ctx, o, nil, nil, 0, upgrade)
 }
 
 // 共用首档商品不携带金库编号。重放先沿用原订单目标；新请求依据
@@ -322,7 +386,9 @@ type CashPremiumActivation = cashshop.CashPremiumActivation
 
 // purchaseCash keys activations by order-line index: a contract line never
 // reaches cash_inventory, an ordinary line never activates a contract.
-func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json.RawMessage) (json.RawMessage, error), premiums map[int]CashPremiumActivation, upgrades ...func(VaultState) (VaultState, error)) (CashReceipt, bool, error) {
+// slots carries the account-level character-slot bonus (+N) for the Character
+// Slot Extension Kit; it lands in the same transaction as the CERA debit.
+func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json.RawMessage) (json.RawMessage, error), premiums map[int]CashPremiumActivation, slots int, upgrades ...func(VaultState) (VaultState, error)) (CashReceipt, bool, error) {
 	var receipt CashReceipt
 	cost, goldCost, e := o.Totals()
 	if e != nil {
@@ -479,6 +545,17 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 	if e = q.SaveAccountCurrency(ctx, sqlcgen.SaveAccountCurrencyParams{AccountID: o.Account, Cera: int64(receipt.After)}); e != nil {
 		return receipt, false, e
 	}
+	// Character Slot Extension Kit: the account-level slot bonus lands in the
+	// same transaction as the CERA debit (takes effect on purchase, no bag item).
+	if slots > 0 {
+		if slots > 65534 {
+			return CashReceipt{}, false, fmt.Errorf("character slot bonus exceeds native range")
+		}
+		if e = tx.exec(ctx, fmt.Sprintf("UPDATE accounts SET character_slots_bonus = character_slots_bonus + %d WHERE id = %d", slots, o.Account)); e != nil {
+			return CashReceipt{}, false, e
+		}
+		receipt.CharacterState = state
+	}
 	if deliver != nil {
 		if e = tx.queries().UpdateCharacterState(ctx, sqlcgen.UpdateCharacterStateParams{CharacterID: o.Character, State: receipt.CharacterState}); e != nil {
 			return CashReceipt{}, false, e
@@ -507,7 +584,7 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 		}
 		receipt.Deliveries = append(receipt.Deliveries, d)
 	}
-	if deliver != nil || len(upgrades) > 0 {
+	if deliver != nil || slots > 0 || len(upgrades) > 0 {
 		if e = q.MarkCashOrderDelivered(ctx, sqlcgen.MarkCashOrderDeliveredParams{AccountID: o.Account, OrderKey: o.Key}); e != nil {
 			return CashReceipt{}, false, e
 		}

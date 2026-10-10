@@ -51,6 +51,7 @@
 | `post_layout` | 1 | 给每个新建的顶层窗口补一条 `WM_INPUTLANGCHANGE`（覆盖"从消息取 HKL"那条路径） |
 | `fix_slots` | 1 | **修正 Themida 导入槽**：客户端是加壳的，它调 user32/imm32 走自己的导入桩（`FF 25` → 槽里存着提前解析好的真实地址），改导出表对它无效。打开后精确匹配到我们的原函数地址就换成我们的包装 |
 | `fix_gate` | 1 | **钩住客户端门禁本体**（RVA `0x6F22400`）+ **布局写入点**（RVA `0x6F23070`）：入口把 `mgr+0x68` 改成传统 IME 的 HKL / 把要写进去的中文布局换掉。不管客户端从哪拿到真实 HKL，门禁都会过 |
+| `fix_charpos` | **1** | 自己回答 IME 的位置询问（`IMR_QUERYCHARPOSITION`/`IMR_CANDIDATEWINDOW`）并跳过客户端原处理：候选窗不出来 / 中文角色名检查卡住时先关它对照 |
 | `fix_isime` | **1** | `ImmIsIME` 对我们报出去的传统布局改报「是输入法」（实机 16:32：客户端问到 0 就把拼音当字母上屏） |
 | `fix_cancel` | **1** | 备用：吞掉客户端主动取消组字（`ImmNotifyIME`：`NI_COMPOSITIONSTR`+`CPS_CANCEL`）。日志若显示客户端一直在取消组字（组字串永远单个字母）才打开 |
 | `ime_bridge` | **1** | 备用：客户端自己不处理组字时，把已上屏的结果串（`GCS_RESULTSTR`）逐字当 `WM_CHAR` 投给它。客户端也会处理组字时字会重复，所以默认关 |

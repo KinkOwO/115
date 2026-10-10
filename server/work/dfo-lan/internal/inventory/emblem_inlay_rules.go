@@ -13,6 +13,7 @@ type EmblemInlayRules struct {
 
 // Native 14716AA90 maps source socket names to the masks used by the avatar
 // extension. M excludes S (platinum); dual-color emblems accept either color.
+// [S socket] 用 avatarPlatinumSocket 常量（与补默认孔共用同一真源）。
 func emblemSocketMask(name string) (uint16, bool) {
 	switch name {
 	case "[A socket]":
@@ -24,7 +25,7 @@ func emblemSocketMask(name string) (uint16, bool) {
 	case "[D socket]":
 		return 8, true
 	case "[S socket]":
-		return 16, true
+		return avatarPlatinumSocket, true
 	case "[M socket]":
 		return avatarMultiSocket, true
 	case "[All socket]":

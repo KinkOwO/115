@@ -1,0 +1,133 @@
+{
+  "status": "ordinary-story-candidate-ready-for-one-live-flow",
+  "stage": "ordinary-story",
+  "attempt": "story 1/3",
+  "sourceCommit": "a8318f7b114adf276425342a3ee655ed271319eb",
+  "workingTreeModified": true,
+  "changedSources": [
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_entry_probe.go",
+      "sha256": "b04c87e66c32b27888c516f55393b19a37ba295ebec70a334112782d3812c87a",
+      "bytes": 3753
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_entry_probe_test.go",
+      "sha256": "ffa71bfb591f74ee2c87b14a211e10f9759fc3d1154d9829878ff8e50008a0de",
+      "bytes": 7084
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_story_test.go",
+      "sha256": "c8f75e41bb83d4afbe9766899fcfa3d527e14036940561999643f297265a6533",
+      "bytes": 4280
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_combat_diagnostic.go",
+      "sha256": "daa79991b838b2c3ae822a088f9c3cbda629635e6d714c5bf97f762cb3a61a3d",
+      "bytes": 3852
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/client_dispatch_world.go",
+      "sha256": "410a6e59db74be32e26ac978241f9b38d78599c11203fa268e920078bd328df1",
+      "bytes": 48086
+    },
+    {
+      "path": "scripts/collect-adventure-elite.ps1",
+      "sha256": "8f792ebc3393e0867938353f225c2e5e0bb6b6b74cf0288e9a1e5fa6fca64903",
+      "bytes": 44599
+    }
+  ],
+  "intent": "Allow a source-backed ordinary dungeon request with nonzero accepted quest. Keep player minimum level, accepted quest ownership, maze/room/layer parsing, difficulty/fatigue, mode, party, channel, tutorial/training/special-source guards and native boss/clear conditions. No invented quest/map list.",
+  "requestFixture": {
+    "plainHex": "050000000000000000ffff00000000004a0c0000000000000000000000000000",
+    "decodedDungeon": 5,
+    "decodedQuest": 3146,
+    "decodedMode": 0,
+    "party": 65535
+  },
+  "pvf": {
+    "archive": "server/work/client-build/Script.inner.pvf",
+    "sha256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+    "dungeonIndexPath": "list/dungeon.lst",
+    "dungeonId": 5,
+    "script": "dungeon/act1/sunderland.dgn",
+    "scriptSha256": "f2ad25fd1a365ac38b57e8d1a7ab122ca3625d3e2faeea862828deb77e93181b",
+    "minimumRequiredLevel": 5,
+    "maze": 0,
+    "quest": 3146,
+    "startMap": 76131,
+    "bossCoordinate": [
+      3,
+      1
+    ],
+    "questScript": "contents/2022/new_scenario_renewal/season_1/grandflores/quest/grandflores_03.qst",
+    "questScriptSha256": "4995523a11c4c36f0e7c11f52667a5bd91adec3f4b6e73150c31294641c63183",
+    "preRequiredQuest": [
+      4873
+    ],
+    "nextRelationQuest": 3147
+  },
+  "verification": {
+    "goBuild": {
+      "kind": "build",
+      "exitCode": 0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\story-gate-build.log"
+    },
+    "goVet": {
+      "kind": "vet",
+      "exitCode": 0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\story-gate-vet.log"
+    },
+    "goTest": {
+      "exitCode": 0,
+      "passed": 3792,
+      "skipped": 280,
+      "failures": [],
+      "baselineFailures": [],
+      "newFailures": [],
+      "intentionalNewSkip": 1,
+      "skipExplanation": "One additional current-PVF gated test is explicitly skipped in the ordinary full test run; that test was run separately against the identified current inner PVF and passed."
+    },
+    "sourceReaderTest": "TestEliteStoryAdmissionRetainsSourceAndQuestRules",
+    "currentArchiveTest": "TestEliteStoryNative3146SourceAdmission, current archive opened with expected checksum; request decodes, source Select rejects unaccepted task/below minimum/no corresponding maze, and accepts source quest maze at source minimum",
+    "collectorFixtures": {
+      "count": 78,
+      "exitCode": 0,
+      "includes": "7 retry admission/registration fixtures, including missing request, dirty state, same RunID, missing plan, duplicate transition and missing native loader"
+    }
+  },
+  "artifacts": {
+    "dllVersion": "0.3.9",
+    "dllSha256": "941656906dac3e0f7c8c1e9430ca390eac8d88013dd528539d35661aa689e005",
+    "dllBytes": 225792,
+    "serverVersion": "0.3.10",
+    "serverSha256": "8f2e187a0cdcd9be153d47e597691147ef5d221c7a73fa0b155b710db59ab951",
+    "serverBytes": 30499328,
+    "launcherSha256": "aed177c46cb700afbb77d75d2f8aa3b5061dde82ac3f629901436722d3752a79",
+    "defaultServerSha256": "a6f269603887f18fa8bb60814a655641f12c5eeaf1a07f89d840e166a393be6c",
+    "resources": {
+      "client/DFO.exe": "1d3948784e5e0f77ed744017bf82bf0c50de9421423f9e59f6f70aed609d8ffa",
+      "client/Script.pvf": "5dd03873edf2c1df7aea16db5ad146a776fb8461a947be73042cabd932e66f0a",
+      "client/sk.dat": "59d78371335d22dae0eaeca2a827939576e85a5f5ede4ba286f0438d2fbc6eaf",
+      "server/work/client-build/Script.inner.pvf": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f"
+    }
+  },
+  "schemaChanged": false,
+  "pvfChanged": false,
+  "dllChanged": false,
+  "defaultPublished": false,
+  "userActionRequired": "one manual run only after candidate copied and startup preflight: existing saved APC list; keep player on an accepted quest/dungeon source; enter dungeon5 Quest3146 if still available; verify APC appears and attacks regular enemy; pass one story layer and confirm APC remains bound/follows; continue naturally through final source boss/clear and normal settlement. If entry or first registration fails, stop and exit once so the prepared capture contains native request, quest, run, layer, companion registration, combat, results and normal client exit. Do not resave the list or rerun completed ordinary maps.",
+  "notAcceptance": [
+    "other story dungeons",
+    "story companions do not attack/target noncombat actors",
+    "all story layers",
+    "dungeon IDs other than5",
+    "Odyssey",
+    "CMD2062",
+    "seamless option5",
+    "APC HP/MP/death/cooldown continuity",
+    "native reference release",
+    "special parties"
+  ],
+  "priorDuplication": "Type22/publishedID10 policy still overlaps etc/channel_info.etc [server]; retained unchanged for the existing documented compatibility scope.",
+  "rollback": "F:/projects/agents/reverse/115us/.tmp/adventure-elite/ordinary-story-delivery-backup; previous candidate is recoverable byte-for-byte."
+}

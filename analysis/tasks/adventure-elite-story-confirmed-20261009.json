@@ -1,0 +1,679 @@
+{
+  "status": "ordinary-story-apc-presence-user-confirmed-with-source-flow-observed",
+  "attempt": "story 1/3",
+  "manualConfirmation": "成功，剧情副本也有APC出现",
+  "manualScope": "APC presence in this ordinary story run; no user statement about all story dungeons or every combat/scene condition",
+  "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261009_004730_456710_next37",
+  "capturePath": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\story-confirmation-capture\\roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261009_004730_456710_next37",
+  "processId": 69388,
+  "runTick": 144271843,
+  "runId": "eff17bb4afec9f7c85247b02f34fd493",
+  "characterId": 2,
+  "entry": {
+    "_line": 218,
+    "channel_type": 22,
+    "dungeon": 5,
+    "quest": 3146,
+    "map": 76131,
+    "maze": 0,
+    "source_script": "dungeon/act1/sunderland.dgn",
+    "source_sha256": "f2ad25fd1a365ac38b57e8d1a7ab122ca3625d3e2faeea862828deb77e93181b",
+    "source_boss_position": [
+      3,
+      1
+    ],
+    "source_noncombat_actors": 1,
+    "source_story_layers": 0
+  },
+  "sourceDefinition": {
+    "archive": "server/work/client-build/Script.inner.pvf",
+    "sha256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+    "dungeonIndexPath": "list/dungeon.lst",
+    "dungeonId": 5,
+    "script": "dungeon/act1/sunderland.dgn",
+    "scriptSha256": "f2ad25fd1a365ac38b57e8d1a7ab122ca3625d3e2faeea862828deb77e93181b",
+    "minimumRequiredLevel": 5,
+    "maze": 0,
+    "quest": 3146,
+    "startMap": 76131,
+    "bossCoordinate": [
+      3,
+      1
+    ],
+    "questScript": "contents/2022/new_scenario_renewal/season_1/grandflores/quest/grandflores_03.qst",
+    "questScriptSha256": "4995523a11c4c36f0e7c11f52667a5bd91adec3f4b6e73150c31294641c63183",
+    "preRequiredQuest": [
+      4873
+    ],
+    "nextRelationQuest": 3147
+  },
+  "registration": {
+    "trace": "adventure-elite-entry-69388-144271843.jsonl",
+    "nativeResults": [
+      {
+        "line": 5,
+        "ordinal": 5,
+        "result": 1,
+        "sceneVectorMatches": [
+          1,
+          0,
+          -1
+        ],
+        "owners": [
+          1,
+          1,
+          -1
+        ]
+      },
+      {
+        "line": 6,
+        "ordinal": 6,
+        "result": 1,
+        "sceneVectorMatches": [
+          1,
+          1,
+          -1
+        ],
+        "owners": [
+          1,
+          1,
+          -1
+        ]
+      }
+    ],
+    "freshCycle": {
+      "loaderOrdinal": 1,
+      "endOrdinal": 7,
+      "thread": 109708,
+      "managerActive": 0,
+      "companions": 2,
+      "nativeResults": 2,
+      "activeAdaptations": 0,
+      "allRegistered": true,
+      "adapterValid": true
+    }
+  },
+  "flow": {
+    "roomLoadCount": 5,
+    "roomLoads": [
+      {
+        "line": 242,
+        "map": 76131,
+        "loaded": true,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493"
+      },
+      {
+        "line": 273,
+        "map": 76132,
+        "loaded": true,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493"
+      },
+      {
+        "line": 330,
+        "map": 76134,
+        "loaded": true,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493"
+      },
+      {
+        "line": 409,
+        "map": 76135,
+        "loaded": true,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493"
+      },
+      {
+        "line": 473,
+        "map": 76136,
+        "loaded": true,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493"
+      }
+    ],
+    "moveCount": 4,
+    "pickupCount": 2,
+    "monsterExperienceUpdates": 23,
+    "anchors": [
+      {
+        "_line": 586,
+        "kind": "dungeon_clear_experience",
+        "id": 37,
+        "time": "2026-10-08T16:49:22.7323387Z"
+      },
+      {
+        "_line": 593,
+        "kind": "quest_scene_trigger",
+        "time": "2026-10-08T16:49:22.7424216Z"
+      },
+      {
+        "_line": 619,
+        "kind": "quest_finished",
+        "quest": 3146,
+        "time": "2026-10-08T16:49:28.2082419Z"
+      },
+      {
+        "_line": 620,
+        "kind": "quest_inventory_committed",
+        "quest": 3146,
+        "time": "2026-10-08T16:49:28.2082419Z"
+      },
+      {
+        "_line": 621,
+        "kind": "quest_experience",
+        "quest": 3146,
+        "time": "2026-10-08T16:49:28.2082419Z"
+      },
+      {
+        "_line": 622,
+        "kind": "quest_triggers_updated",
+        "quest": 3146,
+        "time": "2026-10-08T16:49:28.2082419Z"
+      },
+      {
+        "_line": 627,
+        "kind": "quest_saved_and_sent",
+        "quest": 3147,
+        "time": "2026-10-08T16:49:28.7856899Z"
+      },
+      {
+        "_line": 637,
+        "kind": "settlement_exit_ack",
+        "id": 72,
+        "time": "2026-10-08T16:50:00.5013633Z"
+      },
+      {
+        "line": 591,
+        "id": 46,
+        "kind": "adventure_elite_dispatch_committed",
+        "completed": true,
+        "resultSent": true,
+        "active": true
+      },
+      {
+        "line": 609,
+        "id": 69,
+        "kind": "adventure_elite_dispatch_committed",
+        "completed": true,
+        "resultSent": true,
+        "active": true
+      },
+      {
+        "line": 613,
+        "id": 70,
+        "kind": "adventure_elite_dispatch_committed",
+        "completed": true,
+        "resultSent": true,
+        "active": true
+      },
+      {
+        "line": 646,
+        "id": 72,
+        "kind": "adventure_elite_dispatch_committed",
+        "completed": null,
+        "resultSent": false,
+        "active": false
+      }
+    ]
+  },
+  "combat": {
+    "trace": "adventure-elite-combat-69388-144271843.jsonl",
+    "traceRecords": 195,
+    "nativeDeathInvocations": 26,
+    "serverDeathFrames": 25,
+    "exactRegularVectorPairs": 23,
+    "exactApcProvenanceDeaths": 17,
+    "exactHumanProvenanceDeaths": 6,
+    "pairedRegularVectors": [
+      {
+        "entity": 4097,
+        "killer": 2,
+        "map": 76132,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 281,
+        "requestLine": 282,
+        "nativeLine": 37,
+        "nativeOrdinal": 37,
+        "roomSerial": 2,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 27
+      },
+      {
+        "entity": 4098,
+        "killer": 2,
+        "map": 76132,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 287,
+        "requestLine": 288,
+        "nativeLine": 38,
+        "nativeOrdinal": 38,
+        "roomSerial": 2,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 20
+      },
+      {
+        "entity": 4099,
+        "killer": 2,
+        "map": 76132,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 293,
+        "requestLine": 294,
+        "nativeLine": 39,
+        "nativeOrdinal": 39,
+        "roomSerial": 2,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 13
+      },
+      {
+        "entity": 4100,
+        "killer": 2,
+        "map": 76132,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 302,
+        "requestLine": 303,
+        "nativeLine": 40,
+        "nativeOrdinal": 40,
+        "roomSerial": 2,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 6
+      },
+      {
+        "entity": 4105,
+        "killer": 2,
+        "map": 76134,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 337,
+        "requestLine": 338,
+        "nativeLine": 48,
+        "nativeOrdinal": 48,
+        "roomSerial": 3,
+        "sourceId": 2,
+        "slot": -1,
+        "apcProvenance": false,
+        "rewrittenSetterOrdinal": null
+      },
+      {
+        "entity": 4104,
+        "killer": 2,
+        "map": 76134,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 348,
+        "requestLine": 349,
+        "nativeLine": 77,
+        "nativeOrdinal": 77,
+        "roomSerial": 3,
+        "sourceId": 0,
+        "slot": 0,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 54
+      },
+      {
+        "entity": 4102,
+        "killer": 2,
+        "map": 76134,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 355,
+        "requestLine": 356,
+        "nativeLine": 78,
+        "nativeOrdinal": 78,
+        "roomSerial": 3,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 68
+      },
+      {
+        "entity": 4103,
+        "killer": 2,
+        "map": 76134,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 361,
+        "requestLine": 362,
+        "nativeLine": 79,
+        "nativeOrdinal": 79,
+        "roomSerial": 3,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 61
+      },
+      {
+        "entity": 4101,
+        "killer": 2,
+        "map": 76134,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 369,
+        "requestLine": 370,
+        "nativeLine": 80,
+        "nativeOrdinal": 80,
+        "roomSerial": 3,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 75
+      },
+      {
+        "entity": 4111,
+        "killer": 2,
+        "map": 76135,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 418,
+        "requestLine": 419,
+        "nativeLine": 116,
+        "nativeOrdinal": 116,
+        "roomSerial": 4,
+        "sourceId": 2,
+        "slot": -1,
+        "apcProvenance": false,
+        "rewrittenSetterOrdinal": null
+      },
+      {
+        "entity": 4109,
+        "killer": 2,
+        "map": 76135,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 425,
+        "requestLine": 426,
+        "nativeLine": 117,
+        "nativeOrdinal": 117,
+        "roomSerial": 4,
+        "sourceId": 2,
+        "slot": -1,
+        "apcProvenance": false,
+        "rewrittenSetterOrdinal": null
+      },
+      {
+        "entity": 4110,
+        "killer": 2,
+        "map": 76135,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 431,
+        "requestLine": 432,
+        "nativeLine": 118,
+        "nativeOrdinal": 118,
+        "roomSerial": 4,
+        "sourceId": 2,
+        "slot": -1,
+        "apcProvenance": false,
+        "rewrittenSetterOrdinal": null
+      },
+      {
+        "entity": 4112,
+        "killer": 2,
+        "map": 76135,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 439,
+        "requestLine": 440,
+        "nativeLine": 119,
+        "nativeOrdinal": 119,
+        "roomSerial": 4,
+        "sourceId": 2,
+        "slot": -1,
+        "apcProvenance": false,
+        "rewrittenSetterOrdinal": null
+      },
+      {
+        "entity": 4108,
+        "killer": 2,
+        "map": 76135,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 446,
+        "requestLine": 447,
+        "nativeLine": 120,
+        "nativeOrdinal": 120,
+        "roomSerial": 4,
+        "sourceId": 2,
+        "slot": -1,
+        "apcProvenance": false,
+        "rewrittenSetterOrdinal": null
+      },
+      {
+        "entity": 4113,
+        "killer": 2,
+        "map": 76136,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 486,
+        "requestLine": 487,
+        "nativeLine": 184,
+        "nativeOrdinal": 184,
+        "roomSerial": 5,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 147
+      },
+      {
+        "entity": 4115,
+        "killer": 2,
+        "map": 76136,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 492,
+        "requestLine": 493,
+        "nativeLine": 185,
+        "nativeOrdinal": 185,
+        "roomSerial": 5,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 161
+      },
+      {
+        "entity": 4117,
+        "killer": 2,
+        "map": 76136,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 500,
+        "requestLine": 501,
+        "nativeLine": 186,
+        "nativeOrdinal": 186,
+        "roomSerial": 5,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 175
+      },
+      {
+        "entity": 4118,
+        "killer": 2,
+        "map": 76136,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 506,
+        "requestLine": 507,
+        "nativeLine": 187,
+        "nativeOrdinal": 187,
+        "roomSerial": 5,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 182
+      },
+      {
+        "entity": 4116,
+        "killer": 2,
+        "map": 76136,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 514,
+        "requestLine": 515,
+        "nativeLine": 188,
+        "nativeOrdinal": 188,
+        "roomSerial": 5,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 168
+      },
+      {
+        "entity": 4120,
+        "killer": 2,
+        "map": 76136,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 521,
+        "requestLine": 522,
+        "nativeLine": 189,
+        "nativeOrdinal": 189,
+        "roomSerial": 5,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 133
+      },
+      {
+        "entity": 4114,
+        "killer": 2,
+        "map": 76136,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 528,
+        "requestLine": 529,
+        "nativeLine": 190,
+        "nativeOrdinal": 190,
+        "roomSerial": 5,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 154
+      },
+      {
+        "entity": 4119,
+        "killer": 2,
+        "map": 76136,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 535,
+        "requestLine": 536,
+        "nativeLine": 191,
+        "nativeOrdinal": 191,
+        "roomSerial": 5,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 140
+      },
+      {
+        "entity": 4121,
+        "killer": 2,
+        "map": 76136,
+        "runId": "eff17bb4afec9f7c85247b02f34fd493",
+        "frameLine": 541,
+        "requestLine": 542,
+        "nativeLine": 192,
+        "nativeOrdinal": 192,
+        "roomSerial": 5,
+        "sourceId": 1,
+        "slot": 1,
+        "apcProvenance": true,
+        "rewrittenSetterOrdinal": 126
+      }
+    ],
+    "unpairedGroups": {
+      "serverRequests": [
+        {
+          "entity": 13099,
+          "killer": 65535,
+          "line": 246,
+          "map": 76131
+        },
+        {
+          "entity": 4123,
+          "killer": 65535,
+          "line": 571,
+          "map": 76136
+        }
+      ],
+      "nativeInvocations": [
+        {
+          "entity": 4123,
+          "killer": 65535,
+          "line": 193,
+          "ordinal": 193,
+          "roomSerial": 5
+        },
+        {
+          "entity": 4123,
+          "killer": 65535,
+          "line": 194,
+          "ordinal": 194,
+          "roomSerial": 5
+        },
+        {
+          "entity": 4123,
+          "killer": 65535,
+          "line": 195,
+          "ordinal": 195,
+          "roomSerial": 5
+        }
+      ]
+    },
+    "scopeNote": "Only the 23 exact 2-killer vectors are matched, and APC claims also require original source/parent-setter/controller/owner proof. Intro entity13099 has a server request without this native hook record. Final entity4123 has three native function invocations and one server request. Completed hook invocation is not proven equal to one packet send; no sentinel-only attribution or broad filtering was added."
+  },
+  "collector": {
+    "exitCode": 0,
+    "candidateValid": true,
+    "pidMatch": true,
+    "normalExitObserved": true,
+    "issues": [
+      "原生死亡发送与服务端 CMD39 数量不一致，不能声称覆盖完整。"
+    ],
+    "combatCoverageComplete": false,
+    "allFreshEntriesRegistered": false,
+    "freshCycleRegistered": true,
+    "globalFlagsUnchanged": true
+  },
+  "identity": {
+    "deployedArtifacts": [
+      {
+        "path": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+        "sha256": "941656906dac3e0f7c8c1e9430ca390eac8d88013dd528539d35661aa689e005",
+        "bytes": 225792
+      },
+      {
+        "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+        "sha256": "1c9f58423b1def87b2cf5d5ba2af6ccd3379af9b27ea18e8630be60a68c263cf",
+        "bytes": 29571584
+      },
+      {
+        "path": "server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe",
+        "sha256": "aed177c46cb700afbb77d75d2f8aa3b5061dde82ac3f629901436722d3752a79",
+        "bytes": 16971776
+      }
+    ],
+    "policySourceCommit": "08613763aa54d669dcaf1546109b22047f8ef9b1",
+    "actualBuildBaseCommit": "29b48b061d0d576309a3d2fd1583197063d7c58b",
+    "actualBuildWorkingTreeModified": true,
+    "serverVersion": "0.3.10",
+    "dllVersion": "0.3.9",
+    "isolatedCandidateServerSha256": "8f2e187a0cdcd9be153d47e597691147ef5d221c7a73fa0b155b710db59ab951",
+    "hashQualification": "Live deployment uses root combined working tree binary1c9f5842, not isolated candidate binary8f2e187a. Path is recorded in storage/entry-game-sqlite.log; current deployment files match captured build metadata. No in-process full executable hash attestation is claimed."
+  },
+  "verification": {
+    "runtimeModifiedThisTurn": false,
+    "goSourceChangedThisTurn": false,
+    "priorGoBuildExit": 0,
+    "priorGoVetExit": 0,
+    "priorFullGoTestExit": 0,
+    "priorRealSourceTestExit": 0,
+    "priorCollectorFixtureCount": 78,
+    "priorCollectorFixtureExit": 0
+  },
+  "unclosed": [
+    "all other story dungeons and story layers",
+    "APCs never target NonCombat actors",
+    "death function invocation versus actual packet send branch for the unmatched intro/final groups",
+    "immediate later-room loader-after scene-vector sampling (matches0) does not prove final scene attachment or disappearance",
+    "APC HP/MP/death/cooldown continuity",
+    "native reference release",
+    "Odyssey",
+    "CMD2062",
+    "seamless settlement option5",
+    "legion/raid/special parties"
+  ],
+  "compatibility": {
+    "schemaChanged": false,
+    "pvfChanged": false,
+    "defaultServerPublished": false,
+    "envRetainedByUserRequest": "DFO_ADVENTURE_ELITE=1"
+  },
+  "priorDuplication": "Existing Type22/publishedID10 channel compatibility policy still overlaps etc/channel_info.etc [server]; unchanged, pending source-mode/channel resolution evidence."
+}

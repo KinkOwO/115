@@ -72,8 +72,16 @@ var payAsIsWrappers = map[uint32]string{
 // 这里回答两个问题 —— 开一层会出什么，以及某个模板到底是不是真物品。
 type boosterBoxSource struct {
 	catalog *BoosterCatalog
-	// Source marker semantics for dropped wrappers. Explicit event auto-open
-	// consumers retain their existing behavior with the zero value.
+	// serverUnwrap 打开「按源标记决定拆不拆」这条规则（只给「调律之边界」用）：
+	//
+	//   源里声明了**客户端开箱入口**（`[oath item booster]` / `[lottery ani info]`，
+	//   例如光辉意志）⇒ 原样落地，玩家自己开（还能看到它的抽奖演出）；
+	//   其余一律**服务端代开**（内容物落地）。
+	//
+	// ⚠️ 2026-10-08 修正：旧判据是「只有 `[instantly open]` 才代开」，结果像 `10419728`
+	//（史诗砝码的史诗档）这种**两个标记都没有**的盒子被原样落地 —— 客户端没有开箱入口，
+	// 玩家拿到的是死盒子、掉不出装备（业主实机反馈）。判据改成「没有客户端入口就代开」。
+	// 零值 = 旧行为（拆掉所有能拆的 booster），所以旧调用点不受影响。
 	serverUnwrap bool
 }
 
@@ -88,6 +96,8 @@ func (s boosterBoxSource) RewardBox(template uint32) (loot.RewardBox, bool) {
 	if !ok || len(def.Pools) == 0 {
 		return loot.RewardBox{}, false
 	}
+	// 源标记规则（2026-10-08 修正）：**只有声明了客户端开箱入口的**才原样落地，其余代开。
+	//（Container 也必须同时给出同一个答案，否则会被当成 unopenable 直接丢掉。）
 	if s.serverUnwrap && def.ClientOpenPath {
 		return loot.RewardBox{}, false
 	}
@@ -137,6 +147,10 @@ func (s boosterBoxSource) Container(template uint32) bool {
 		return false
 	}
 	if def, ok := s.catalog.Definitions[template]; ok {
+		// 源标记规则（2026-10-08 修正）：**只有声明了客户端开箱入口的**才是「玩家自己开」的那种；
+		// 它既不是「服务端代开」，也不是「本 build 打不开」，所以两边都不认、正常落地。
+		// 其余 booster（含两个标记都没有的一般礼盒）都由服务端代开 —— 客户端没有入口的盒子
+		// 落到玩家脚下就是死盒子（10419728 那次实机反馈）。
 		if s.serverUnwrap && def.ClientOpenPath {
 			return false
 		}
@@ -468,6 +482,12 @@ func (w *worldSession) openBoosterItem(
 				picks := pool.Pick(r)
 				for _, p := range picks {
 					tpl := p.Template
+					// 源里的 `-1` 是「本次没有」：抽中它不发东西（见
+					// catalog.boosterNumber 的注释 —— 过滤掉它会让整池错位，
+					// 实机表现为地上出现复活币/金库升级道具）。
+					if catalog.IsBoosterNoDrop(tpl) {
+						continue
+					}
 					if tpl == 42 {
 						tpl = 1
 					}
@@ -760,8 +780,10 @@ func (w *worldSession) openBoosterItem(
 	plan = append(plan, outboundPacket{"booster_main_inventory_updated", 0, 14, mainUpdate})
 
 	if res.HasAvatars && len(finalBag.Special[1]) > 0 {
-		// NOTI14 is a delta: unchanged legacy stackable rows in the avatar
-		// container must not reach the native avatar period reader 145A83FA0.
+		// NOTI14 is an incremental update, not a snapshot. In particular, old
+		// saves may contain stackable avatar boxes in this container: the
+		// client only reads the trailing period for an actual avatar template
+		// (145A83FA0), so resending those unchanged rows corrupts its cursor.
 		previous := map[uint16]inventory.BagEquipment{}
 		for _, item := range curBag.Special[1] {
 			previous[item.Slot] = item

@@ -1,0 +1,171 @@
+{
+  "status": "candidate-pending-manual",
+  "candidateVersion": "0.3.18",
+  "attempt": "moon-solo 1/3",
+  "repositoryHead": "b868233a06e2e1de7fb56fa228a8dd68755968aa",
+  "scope": "Existing PVF-bound Moon solo executor only. Original one-real-player party, packets, content progression, rewards and saves remain owned by its existing handlers. No raid/legion blanket support.",
+  "failure": {
+    "session": "server/work/dfo-lan/runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261010_040737_176050_next37",
+    "capture": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261010_040737_176050_next37",
+    "pid": 23416,
+    "runTick": 13796781,
+    "emptyEliteNotificationLine": 1137,
+    "opcode": 1754,
+    "channelType": 101,
+    "ordinarySourceAllowed": false,
+    "channelWorldIsolated": true,
+    "limitations": "Mixed Boost/ordinary/Moon session. Four CMD1811 requests are whole-session counts, not Moon success. Old manifest hashes did not match the current Boost candidate; capture gaps retained."
+  },
+  "source": {
+    "archive": {
+      "format": "dfo_20260901_inner",
+      "path": "../client-build/Script.inner.pvf",
+      "size": 771470242,
+      "checksum": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+      "loaded_at": "2026-10-09T20:31:24.4582721Z",
+      "file_count": 5650173,
+      "group_count": 82571,
+      "cached_chunks": 0,
+      "cached_texts": 0
+    },
+    "scripts": [
+      {
+        "path": "etc/clientchannelinfo.etc",
+        "rawSHA256": "11d190d6dd30b300878c6c69e57711296ed18b2093e85cc8ee2b845880718624"
+      },
+      {
+        "path": "etc/channelslotinfo.etc",
+        "rawSHA256": "0b644c8bb40989e1ec1ae91665c85ec1cfc531fb054039760e5407ae89dad52b"
+      }
+    ],
+    "attributes": {
+      "Type": 101,
+      "IsSemiRaid": true,
+      "Town": 215,
+      "GuideDungeon": 100004137,
+      "SlotDungeon": 100004137,
+      "Panel": "conquestDungeonPanel"
+    },
+    "reader": "catalog.ImportChannelDirectory; existing defaultMoonSoloConfig and PVF source reward binding",
+    "execution": "ordinaryEliteRosterVisible -> original mode2 CMD1811/N1382/N1879; existing moon_dungeon N28 observation -> unchanged MoonSoloOwner and Moon party plan",
+    "contentDefinitionDiscovered": "contents/2025/moonlake/etc/moonlake.cos",
+    "duplicateRules": "Existing moonChannelType=101 and first/second dungeon IDs in moon_solo_flow.go/internal/dungeon remain unmigrated; this candidate reuses the bound executor and adds no production content IDs or JSON fallback."
+  },
+  "ida": {
+    "authority": "client/DFO.exe.i64",
+    "readOnlyWorkerCopy": ".tmp/boost-skill-ida/DFO-copy.i64",
+    "bothSHA256": "705d3525d2e098ea133fdd287c979ac42068f6b400f0b04e1280272429b1cb86",
+    "session": "3ae616ec",
+    "authorityOpenBlocked": "Maximum idalib worker count 1; did not close another task worker or mutate either database",
+    "loader": "145B22F50",
+    "registrationBranch": [
+      "145B25193: sub145F0C980 must succeed",
+      "145B251B0: current dungeon +6264 must be nonzero",
+      "145B251C5: prepared manager active must succeed",
+      "145B251DD: prepared manager busy must be zero",
+      "145B2523A: sub142E5FFA0 obtains companion",
+      "145B2529F: sub145DE4360 registers kind5"
+    ],
+    "partyGate": "145F0C980 permits no current party or one real member; rejects active multi-person party. 145F017E0 returns party+1976; 145F0F880 counts eight DWORD slots 12..19 !=FFFF. Existing Moon N9 roster remains one real member. Actual Moon loader branch/scene registration still requires manual evidence."
+  },
+  "implementationFiles": [
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_moon.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_moon_test.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_preparation.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_entry_probe.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_combat_diagnostic.go",
+    "server/work/dfo-lan/cmd/wireprobe/client_connection.go",
+    "server/work/dfo-lan/cmd/wireprobe/client_dispatch_world.go",
+    "scripts/collect-adventure-elite.ps1",
+    "scripts/test-adventure-elite-capture.ps1"
+  ],
+  "gates": {
+    "build": {
+      "command": "go build ./...",
+      "exitCode": 0,
+      "seconds": 12.1,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\moon-build.log",
+      "failures": []
+    },
+    "vet": {
+      "command": "go vet ./...",
+      "exitCode": 0,
+      "seconds": 2.04,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\moon-vet.log",
+      "failures": []
+    },
+    "test": {
+      "command": "go test ./... -count=1 -json",
+      "exitCode": 0,
+      "seconds": 83.5,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\moon-test.log",
+      "failures": [],
+      "passed": 4108,
+      "skipped": 273,
+      "baselineFailures": [],
+      "newFailures": [],
+      "baseline": "analysis/tasks/adventure-elite-stable-warp-candidate-20261009.json"
+    },
+    "source": {
+      "command": "go test ./cmd/wireprobe -run ^TestAdventureEliteMoonCurrentPVFChannelBinding$ -count=1 -v",
+      "exitCode": 0,
+      "seconds": 16.55,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\moon-source.log",
+      "failures": []
+    },
+    "binary": {
+      "command": "go build -o F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\moon-candidate.exe ./cmd/wireprobe",
+      "exitCode": 0,
+      "seconds": 2.0,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\moon-binary.log",
+      "failures": []
+    }
+  },
+  "delivery": {
+    "before": {
+      "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+      "sha256": "8d3b2d50f57d5ac8f43501b26dce978113d84c8ffd88405e4b922a430befc65b",
+      "bytes": 31027200
+    },
+    "candidate": {
+      "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+      "sha256": "3d10ef014b746ca1663a6221e1e09d0c01941f87a0c5318e9b530ccd1b99635a",
+      "bytes": 31135232
+    },
+    "dll": {
+      "path": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+      "sha256": "a46493c61f54fef1ec52852cd8e02383722a10d53587db343a96fc09b6f89099",
+      "bytes": 225792
+    },
+    "backup": ".tmp/adventure-elite/moon-delivery-backup",
+    "manifest": "client-patchs/adventure-elite/dist/adventure-elite-build.json"
+  },
+  "captureFixtures": "Full offline 78 base cases, existing lifecycle/registration/combat/reentry/odyssey/full-roster/0315/0316/0317 cases plus0318 Moon missing-native-evidence case passed. Synthetic server observations do not certify Moon native registration or live behavior.",
+  "manualAcceptance": "pending",
+  "saveCompatibility": "No schema, PVF, account selection or player save migration.",
+  "preflight": "collect-adventure-elite.ps1 -CheckOnly exit0; current artifacts matched; last status PID23416 is historical and does not certify new server execution.",
+  "manualSingleSession": [
+    "Restart using DFO_ADVENTURE_ELITE=1 and scripts/启动游戏-SQLite.cmd --source-build; keep already saved companions",
+    "Use same Moon special channel and existing solo-party creation; check APC/HUD and combat",
+    "If first entry works, cross a room and optionally one floor/retreat-and-continue in the same session",
+    "Exit game after normal run or stop on the first failure; collect whole session before further attempts"
+  ],
+  "notChanged": [
+    "DLL0.3.10",
+    "launcher EXE",
+    "default service binary",
+    "wireprobe-dungeon39.exe",
+    "PVF resources",
+    "SQLite/schema/saves"
+  ],
+  "notConfirmed": [
+    "Moon native loader/party gate dynamic hit",
+    "APC appearance/HUD and owned combat in Moon",
+    "Floor transitions, retreat/continue/rechallenge",
+    "Other real multiplayer special party modes"
+  ],
+  "captureFixtureCommand": "pwsh -NoProfile -File scripts/test-adventure-elite-capture.ps1",
+  "captureFixtureExitCode": 0,
+  "captureFixtureLog": ".tmp/adventure-elite/moon-capture-fixture-final.log",
+  "implementationNotes": "Unrelated whole-package gofmt changes were verified against formatting HEAD and restored. An offline fixture expected success without matching native loader evidence and was corrected; an intermediate capture overlapped binary replacement and hit file sharing, so the final run used stable artifacts."
+}

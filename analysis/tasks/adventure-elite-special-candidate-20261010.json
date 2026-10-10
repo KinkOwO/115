@@ -1,0 +1,158 @@
+{
+  "status": "candidate-subsequently-user-confirmed",
+  "candidateVersion": "0.3.19",
+  "attempt": "source-special 1/3",
+  "authorization": "既然是因为频道的不同，那么给所有服务端支持的特殊频道副本允许吧，经过多次测试应该是能用了的",
+  "previousAcceptance": "APC队友确认出现",
+  "previousClosureCommit": "da141465",
+  "previousClosurePushed": "gud/main, explicitly authorized by user after initial automatic-review rejection",
+  "source": {
+    "archiveSHA256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+    "scripts": [
+      "etc/channel_info.etc",
+      "etc/clientchannelinfo.etc",
+      "etc/channelslotinfo.etc"
+    ],
+    "readers": [
+      "catalog.ImportChannelInfo",
+      "catalog.ImportChannelDirectory"
+    ],
+    "policy": "User-authorized companion admission across existing server-supported special executors; IsRaid/IsLegion/IsPreRaid/IsSemiRaid/guide/panel/isolated-town categories no longer remove mode2. Unknown unpublished routes and mismatched source Type remain refused. No new content/channel list or packet grammar."
+  },
+  "execution": "Original dungeon/legion/raid/conquest handlers remain responsible for team, mode, party identity, stage, source difficulty/player level, admission cost and rewards. Ordinary-only companion entry restrictions do not substitute for their rules. Existing native companion gates and DLL registration identity checks retained.",
+  "nativeEvidence": {
+    "baseline": "analysis/tasks/adventure-elite-moon-confirmed-20261010.json",
+    "ida": "analysis/tasks/adventure-elite-moon-candidate-20261010.json",
+    "partyGate": "145F0C980/145F0F880 allow one real member; removing server channel filtering does not bypass native real multiplayer party restrictions",
+    "newDLLChanges": false,
+    "newPVFChanges": false,
+    "specialRuntimeClaims": "Not every special channel or phase is independently live verified."
+  },
+  "safetyBoundaries": [
+    "Existing native channels stay on original path",
+    "Original tutorial/Boost mode3 preparation stays independent",
+    "Active dungeon, pending town/selection/warp, duplicate1811 and ongoing Moon/mine run still block companion reload",
+    "Special warp and mine lifecycle keep account roster projection stable without another save/reload",
+    "Own-playing role excluded from projected companion slots; persisted selections/skills retain original account data"
+  ],
+  "diagnostics": {
+    "event": "adventure_elite_special_packet_sent",
+    "scope": "Successful N28/N29 sending and actual state at send; no fabricated native registration/entry acceptance",
+    "collectorField": "specialElitePacketObservations",
+    "specialHandlers": [
+      "black-purgatory",
+      "Azure",
+      "Moon",
+      "legion-family",
+      "semiraid red-door"
+    ],
+    "nativeLogs": "Existing module-relative native lifecycle/entry/combat diagnostics are retained. Potential trace limits, active-session or unmatched-death gaps remain visible."
+  },
+  "gates": {
+    "build": {
+      "command": "go build ./...",
+      "exitCode": 0,
+      "seconds": 4.59,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-build.log",
+      "failures": []
+    },
+    "vet": {
+      "command": "go vet ./...",
+      "exitCode": 0,
+      "seconds": 2.39,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-vet.log",
+      "failures": []
+    },
+    "test": {
+      "command": "go test ./... -count=1 -json",
+      "exitCode": 0,
+      "seconds": 79.85,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-test.log",
+      "failures": [],
+      "passed": 4116,
+      "skipped": 273,
+      "baselineFailures": [],
+      "newFailures": [],
+      "baseline": "analysis/tasks/adventure-elite-moon-candidate-20261010.json"
+    },
+    "source": {
+      "command": "go test ./cmd/wireprobe -run ^TestAdventureElitePreparationNativeChannelSources$ -count=1 -v",
+      "exitCode": 0,
+      "seconds": 9.65,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-source.log",
+      "failures": []
+    },
+    "binary": {
+      "command": "go build -o F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-candidate.exe ./cmd/wireprobe",
+      "exitCode": 0,
+      "seconds": 1.89,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-binary.log",
+      "failures": []
+    },
+    "targeted": {
+      "command": "go test ./cmd/wireprobe -run ^TestAdventureElite -count=1",
+      "exitCode": 0,
+      "seconds": 8.45,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-targeted.log",
+      "failures": []
+    }
+  },
+  "captureFixtures": {
+    "command": "pwsh -NoProfile -File scripts/test-adventure-elite-capture.ps1",
+    "exitCode": 0,
+    "log": ".tmp/adventure-elite/special-capture-fixture.log",
+    "scope": "Complete prior fixture suite plus0319 compatibility/packet-observation case; offline fixtures do not certify special live APC success"
+  },
+  "delivery": {
+    "before": {
+      "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+      "sha256": "3d10ef014b746ca1663a6221e1e09d0c01941f87a0c5318e9b530ccd1b99635a",
+      "bytes": 31135232
+    },
+    "candidate": {
+      "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+      "sha256": "7b14d95ed3ec26f6b8cb8cfc4ad95a667836e9999f9d0a0ebfd8abea4d19a91c",
+      "bytes": 31142400
+    },
+    "dll": {
+      "path": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+      "sha256": "a46493c61f54fef1ec52852cd8e02383722a10d53587db343a96fc09b6f89099",
+      "bytes": 225792
+    },
+    "backup": ".tmp/adventure-elite/special-delivery-backup",
+    "manifest": "client-patchs/adventure-elite/dist/adventure-elite-build.json"
+  },
+  "changedFiles": [
+    "docs/todo/adventure-elite-ordinary-plan.md",
+    "scripts/collect-adventure-elite.ps1",
+    "scripts/test-adventure-elite-capture.ps1",
+    "server/README-先看这里.md",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_combat_diagnostic.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_direct_move_test.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_entry_probe.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_entry_probe_test.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_moon.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_moon_test.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_odyssey_test.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_preparation.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_preparation_test.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_projection_reload_test.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_self_projection_test.go",
+    "server/work/dfo-lan/cmd/wireprobe/client_connection.go",
+    "server/work/dfo-lan/cmd/wireprobe/client_dispatch_world.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_special.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_special_test.go"
+  ],
+  "saveCompatibility": "No schema/migration/database/save modifications; no stored account roster rewrite.",
+  "remainingDuplicateRules": "Existing Moon channel/phase identifiers and mine route/fame tables (moon_solo_flow.go/internal/dungeon and bleeding_mine_flow.go) still require native content association discovery under the existing PVF migration ledger; this extension adds no parallel special-channel list.",
+  "intermediateTestResult": "Old Odyssey test still expected legion/isolated admission refusal; updated its permission assertions to user authorization while retaining ordinary mode rejection. Final full-suite failure list and added failure list both empty.",
+  "preflight": "CheckOnly exit0; candidate manifest matches deployed artifacts. Historical DLL process status does not certify new server execution.",
+  "manualNextUse": "Restart with DFO_ADVENTURE_ELITE=1 and scripts/启动游戏-SQLite.cmd --source-build; retain saved companions. Use any already supported non-Moon special dungeon and observe APC/HUD, a room move and reentry if convenient. No requirement to save again or test every channel; stop on first abnormality and preserve the whole session.",
+  "untested": [
+    "Every individual special executor native APC spawn/combat",
+    "Real multiplayer parties",
+    "Native tag-party interactions in mine and all phase transitions/rewards"
+  ],
+  "sourceClosureEvidence": "analysis/tasks/adventure-elite-special-confirmed-20261010.json",
+  "candidateBinariesNotCommitted": true
+}

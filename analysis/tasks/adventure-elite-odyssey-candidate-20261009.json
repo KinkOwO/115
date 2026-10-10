@@ -1,0 +1,832 @@
+{
+  "status": "ordinary-odyssey-candidate-pending-manual-native-acceptance",
+  "attempt": "odyssey 1/3",
+  "serverVersion": "0.3.11",
+  "dllVersion": "0.3.9",
+  "sourceParentCommit": "c8d04474b2f7c4a71a58a5c52989a476c3e81e13",
+  "scope": "User-authorized no-PVF extension: same ordinary single-player dungeon pipeline, source Odyssey dungeons allowed only for current Odyssey role/session. Same source designated difficulty, maze, minimum PLAYER level, quest ownership, doors, clear rules, rewards, journal and SQLite events; remove only elite-specific Odyssey exclusion. APC eligibility remains previously approved low-level policy.",
+  "pvfChain": {
+    "archive": {
+      "path": "F:\\projects\\agents\\reverse\\115us\\server\\work\\client-build\\Script.inner.pvf",
+      "sha256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+      "bytes": 771470242
+    },
+    "journalPath": "contents/2026/aradodyssey/etc/aradodysseyjournal.cos",
+    "journalSHA256": "d4654fa9a50ddd582077f5f7a0a19835ec4fb6b777f032d1a66be7f288eff67e",
+    "discovery": "native journal nodes -> source dungeon.lst -> DGN scripts -> gamedata.Source.Dungeons -> catalog.ParseDungeon -> existing dungeon.Select -> existing battle/reward/journal flow",
+    "fields": [
+      "[dungeon mode script] arad odyssey",
+      "[designate dungeon difficulty]",
+      "[minimum required level]",
+      "[hunt boss]",
+      "[boss room entrance condition]"
+    ],
+    "sourceAuditVectorsOnly": [
+      {
+        "id": "100004934",
+        "path": "contents/2026/aradodyssey/dungeon/00_mirkwood/mirkwood.dgn",
+        "sha256": "a29874ec7ace62688f258168b00f267c08c487e7c2a57a137b225dca33185c34",
+        "minimum": "1",
+        "difficulty": "2",
+        "map": "100016498",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004935",
+        "path": "contents/2026/aradodyssey/dungeon/01_grakqarak/grakqarak.dgn",
+        "sha256": "ddeafda700fbc6c44bb8be28a5d50f6445e0d2c7eb808a9187c4d1469fd1572b",
+        "minimum": "15",
+        "difficulty": "2",
+        "map": "100016503",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004936",
+        "path": "contents/2026/aradodyssey/dungeon/02_thunderland/thunderland.dgn",
+        "sha256": "d8c955e7f5fbdf91eca3d67d5ec4fa59ca2f0beb29f687eaed8deda208d07a45",
+        "minimum": "25",
+        "difficulty": "2",
+        "map": "100016508",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004937",
+        "path": "contents/2026/aradodyssey/dungeon/03_skycastle/skycastle.dgn",
+        "sha256": "f660a2cb9c8bd6cce7b19f97c9064d0e7b521e2bed7b4647d1a036a0288b5d24",
+        "minimum": "35",
+        "difficulty": "2",
+        "map": "100015988",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004938",
+        "path": "contents/2026/aradodyssey/dungeon/04_lotus/behemoth.dgn",
+        "sha256": "f748cc96a2b3b618a7a1b403c394e256d084d0001d07cdc8868cb33ae166de41",
+        "minimum": "37",
+        "difficulty": "2",
+        "map": "100016004",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004939",
+        "path": "contents/2026/aradodyssey/dungeon/05_darkelf/darkelf.dgn",
+        "sha256": "ec5d4a37dcf0912e0480b5a93d25c2e33fabd019968670062cc63431d0cb5c4c",
+        "minimum": "38",
+        "difficulty": "2",
+        "map": "100016019",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004940",
+        "path": "contents/2026/aradodyssey/dungeon/06_underfoot/underfoot.dgn",
+        "sha256": "f46c8cdbd43a34940038eeaf968762f8b6bb56d3600696a839ebcf424cd6ee6d",
+        "minimum": "40",
+        "difficulty": "2",
+        "map": "100016031",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004941",
+        "path": "contents/2026/aradodyssey/dungeon/07_diregieillusion/diregieillusion.dgn",
+        "sha256": "b74c3331049746ed31b8b26a94647f7cab1a98d06d71e22320be71e75bbe3447",
+        "minimum": "42",
+        "difficulty": "2",
+        "map": "100016044",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004942",
+        "path": "contents/2026/aradodyssey/dungeon/08_diregie/diregie.dgn",
+        "sha256": "a535799a1aefbc56dba1b4a3586b2d24a4b1bffcd44d5ff02f7c5ae5d2bd1579",
+        "minimum": "44",
+        "difficulty": "2",
+        "map": "100016057",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004943",
+        "path": "contents/2026/aradodyssey/dungeon/09_snowfield/snowfield.dgn",
+        "sha256": "396b174b91f6b8adae59e42c703ec5c5855f90c4cb57336eb6b2323cb5434e99",
+        "minimum": "45",
+        "difficulty": "2",
+        "map": "100016069",
+        "huntBoss": "0",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004944",
+        "path": "contents/2026/aradodyssey/dungeon/10_timetravel/timetravel.dgn",
+        "sha256": "8ddd6069653dfa0d4b05f54eaed28ab5ce5017d7d780718945743d9274c6a5bf",
+        "minimum": "47",
+        "difficulty": "2",
+        "map": "100016081",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004945",
+        "path": "contents/2026/aradodyssey/dungeon/11_timewizard/timewizard.dgn",
+        "sha256": "749b11bef54f60520baac51fec6218f8efabaa044e2f2006ac7926b0df0c4708",
+        "minimum": "49",
+        "difficulty": "2",
+        "map": "100016096",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004946",
+        "path": "contents/2026/aradodyssey/dungeon/12_gantdefense/gantdefense.dgn",
+        "sha256": "a6d8da82d050bdadbf13981961d4f241d191da411e2a592ead2bc0afdf7b12da",
+        "minimum": "50",
+        "difficulty": "2",
+        "map": "100016108",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004947",
+        "path": "contents/2026/aradodyssey/dungeon/13_cartel/cartel.dgn",
+        "sha256": "840f57e52b7607a44282d32b2605c56beec8661dd06db8944b50061a9071550e",
+        "minimum": "52",
+        "difficulty": "2",
+        "map": "100016121",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004948",
+        "path": "contents/2026/aradodyssey/dungeon/14_wallend/wallend.dgn",
+        "sha256": "8976386937e19e3b1c525a0497282aa8edee42e0837302c78b5aed85c24d5faf",
+        "minimum": "54",
+        "difficulty": "2",
+        "map": "100016138",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004949",
+        "path": "contents/2026/aradodyssey/dungeon/15_powerstation/powerstation.dgn",
+        "sha256": "c5cd4418a699f435ac3dba5efdcf9ca37bd1072f40d9d4d52dbca99fe59bd34a",
+        "minimum": "56",
+        "difficulty": "2",
+        "map": "100016151",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004950",
+        "path": "contents/2026/aradodyssey/dungeon/16_anton/anton.dgn",
+        "sha256": "c002344aa2948e43515c609d2df1eb1eee22a47ebb0ad672545529211ddc3a64",
+        "minimum": "58",
+        "difficulty": "2",
+        "map": "100016164",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004951",
+        "path": "contents/2026/aradodyssey/dungeon/17_heavenlywarfare/heavenlywarfare.dgn",
+        "sha256": "f32098b2e3188e32b38892448c7d8ff16418edbd6fba9e1bb81adf35fbed6c4a",
+        "minimum": "60",
+        "difficulty": "2",
+        "map": "100016177",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004952",
+        "path": "contents/2026/aradodyssey/dungeon/18_defensesystem/defensesystem.dgn",
+        "sha256": "0008a6cc340c7bfc10580640ec25a2f2866cf71fdec4908c0e7719d2bb0b9730",
+        "minimum": "61",
+        "difficulty": "2",
+        "map": "100016203",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004953",
+        "path": "contents/2026/aradodyssey/dungeon/20_luke/luke.dgn",
+        "sha256": "cee0d52359e1f9af37e9c2663fb7744e495e8e8eb5299ef8fb8501b10fcadd04",
+        "minimum": "63",
+        "difficulty": "2",
+        "map": "100016204",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004954",
+        "path": "contents/2026/aradodyssey/dungeon/21_centralpark/centralpark.dgn",
+        "sha256": "757b9f3bc9686b202cdb95f90879660c2631e0b156fb3fefacc716e48ca77f60",
+        "minimum": "65",
+        "difficulty": "2",
+        "map": "100016217",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004955",
+        "path": "contents/2026/aradodyssey/dungeon/22_harlem/harlem.dgn",
+        "sha256": "bc56e7da168f948ab319793b2de46b301c51a5693675fe9168edebda29698633",
+        "minimum": "66",
+        "difficulty": "2",
+        "map": "100016229",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004956",
+        "path": "contents/2026/aradodyssey/dungeon/23_isys/isys.dgn",
+        "sha256": "5863a1d5fe48dd2b70136b5f539e2e5a5eb95197599a7bf7e8310ce33d193290",
+        "minimum": "68",
+        "difficulty": "2",
+        "map": "100016243",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004957",
+        "path": "contents/2026/aradodyssey/dungeon/24_evildomwar/evildomwar.dgn",
+        "sha256": "3eb4b11b55a5c61f2302a097a83dca06440b3c49acb442feca5eed1ded0e55cc",
+        "minimum": "70",
+        "difficulty": "2",
+        "map": "100016256",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004959",
+        "path": "contents/2026/aradodyssey/dungeon/25_loschest/loschest.dgn",
+        "sha256": "be4f9399d0a743ba2a55b2d0d71f148cac878e6f24a2ae25cd5bc02b4c6daaac",
+        "minimum": "72",
+        "difficulty": "2",
+        "map": "100016541",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004960",
+        "path": "contents/2026/aradodyssey/dungeon/26_theoculus/theoculus.dgn",
+        "sha256": "aa941820f6f0dfd12456d0f15777830c473b66964170729d6db3f0b3f726520f",
+        "minimum": "73",
+        "difficulty": "2",
+        "map": "100016277",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004961",
+        "path": "contents/2026/aradodyssey/dungeon/27_sirocco/sirocco.dgn",
+        "sha256": "4f3f6750cdb253aeed13a28c4573cc0ef95ab7f11793c5c6e86dd338113fe71b",
+        "minimum": "75",
+        "difficulty": "2",
+        "map": "100016288",
+        "huntBoss": "109019257",
+        "conditions": "[109019125]"
+      },
+      {
+        "id": "100004962",
+        "path": "contents/2026/aradodyssey/dungeon/28_mountainexile/mountainexile.dgn",
+        "sha256": "df8f771882e45f8e5bae4001bf4594bb0a12f71fa520c1d4cbfb3913f54f1d22",
+        "minimum": "77",
+        "difficulty": "2",
+        "map": "100016297",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004963",
+        "path": "contents/2026/aradodyssey/dungeon/29_blackpurgatory/blackpurgatory.dgn",
+        "sha256": "740621c349783a37cb318d85f06b5fcb076adae2909b63ea23a61ad41c6a9d56",
+        "minimum": "78",
+        "difficulty": "2",
+        "map": "100016307",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004964",
+        "path": "contents/2026/aradodyssey/dungeon/30_throneofchaos/throneofchaos.dgn",
+        "sha256": "dc50a44758265bf1c3cf50ba758b00353306f0b501f243d73deda0d46cf75d06",
+        "minimum": "80",
+        "difficulty": "2",
+        "map": "100016316",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004965",
+        "path": "contents/2026/aradodyssey/dungeon/31_ozma/ozma.dgn",
+        "sha256": "47632252b2f3d0f1e42a6f915c30e7b76c6872a9f3e44f130a183b77c7c2319e",
+        "minimum": "82",
+        "difficulty": "2",
+        "map": "100016330",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004966",
+        "path": "contents/2026/aradodyssey/dungeon/32_remedios/remedios.dgn",
+        "sha256": "76b0e3eb759a584ad2ea02ee7e8df7fcf1f60deb2aa9ee51b583c859be3e0594",
+        "minimum": "84",
+        "difficulty": "2",
+        "map": "100016338",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004968",
+        "path": "contents/2026/aradodyssey/dungeon/33_wahrheit/nobless_code.dgn",
+        "sha256": "fd5c48e9491ba996e8a3d8d750cf84e048d40a71a24dbed4538263b72b517f37",
+        "minimum": "85",
+        "difficulty": "2",
+        "map": "100015973",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004967",
+        "path": "contents/2026/aradodyssey/dungeon/33_wahrheit/destroy_castle.dgn",
+        "sha256": "7833334957811a0ee202e84ccadcd7164eabdebb9e87b7175ea59783541dbb77",
+        "minimum": "87",
+        "difficulty": "2",
+        "map": "100016345",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004969",
+        "path": "contents/2026/aradodyssey/dungeon/34_gaebolg/gaebolg.dgn",
+        "sha256": "424565b3df5b046f5aef44cf4b5cd3e164db46fa708afbc13b00f6e0dc97abd4",
+        "minimum": "89",
+        "difficulty": "2",
+        "map": "100016373",
+        "huntBoss": "109019141",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004970",
+        "path": "contents/2026/aradodyssey/dungeon/35_stolenlandispins/stolenlandispins.dgn",
+        "sha256": "8f7bcdf91b26f8c41150b055dff6872ae0e3cf331629c30d6b29e524116bf3dc",
+        "minimum": "90",
+        "difficulty": "2",
+        "map": "100016382",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004971",
+        "path": "contents/2026/aradodyssey/dungeon/36_bakal/bakal.dgn",
+        "sha256": "5c4337c0135320a49e5cff4b1612632c612d3411c2e0a8a386c5195b419f17a6",
+        "minimum": "92",
+        "difficulty": "2",
+        "map": "100016385",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004972",
+        "path": "contents/2026/aradodyssey/dungeon/37_dimensioncloister/dimensioncloister.dgn",
+        "sha256": "e8a5ff1171691a6401d39ed416d9641ee0582702b8442822598afb3decfa8b30",
+        "minimum": "94",
+        "difficulty": "2",
+        "map": "100016396",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004973",
+        "path": "contents/2026/aradodyssey/dungeon/38_seon1/seon1.dgn",
+        "sha256": "6054f1e0f0eafde20a761585f5eefac29cb1d26a2a76e2fb3439dd2a3f8461d5",
+        "minimum": "96",
+        "difficulty": "2",
+        "map": "100016400",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004974",
+        "path": "contents/2026/aradodyssey/dungeon/39_seon2/seon2.dgn",
+        "sha256": "861f5fe93dba3318ad3346fd9918dccff2bf1c0e15e82eb920286ce2db824ff6",
+        "minimum": "98",
+        "difficulty": "2",
+        "map": "100016410",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004975",
+        "path": "contents/2026/aradodyssey/dungeon/40_duskyisland/duskyisland.dgn",
+        "sha256": "d70eba57287053425cda76a46cf2a09cb19c803ca1422b96cf9d82003c67ca3b",
+        "minimum": "99",
+        "difficulty": "2",
+        "map": "100016418",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004976",
+        "path": "contents/2026/aradodyssey/dungeon/41_ashrahan/ashrahan.dgn",
+        "sha256": "a4cc41c42e460b0b3a42b5bc93d777ddcc2636a07423fff74e8e95e03ef66c0f",
+        "minimum": "100",
+        "difficulty": "2",
+        "map": "100016423",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004977",
+        "path": "contents/2026/aradodyssey/dungeon/42_forestofawakening/forestofawakening.dgn",
+        "sha256": "13619445b612a470d0433c5410cd2891835a205292e9db09c7c6b298b0924782",
+        "minimum": "103",
+        "difficulty": "2",
+        "map": "100016430",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004978",
+        "path": "contents/2026/aradodyssey/dungeon/43_joongcheon1/joongcheon1.dgn",
+        "sha256": "d048fb8a4ee7d2f41bdf84c66f4c3778fa46866d58698f0b8ce786e20cb64893",
+        "minimum": "105",
+        "difficulty": "2",
+        "map": "100016439",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004979",
+        "path": "contents/2026/aradodyssey/dungeon/44_joongcheon2/joongcheon2.dgn",
+        "sha256": "90770f1dd7f81dc15a2ce981a56b4920eac39c932fd5e11dabc6a47fbd96f40f",
+        "minimum": "106",
+        "difficulty": "2",
+        "map": "100016451",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004980",
+        "path": "contents/2026/aradodyssey/dungeon/45_venus/venus.dgn",
+        "sha256": "82f87d78205435751f3fb6cd2263193d793a375fe0925a002e8c21a30f851a4c",
+        "minimum": "108",
+        "difficulty": "2",
+        "map": "100016461",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004981",
+        "path": "contents/2026/aradodyssey/dungeon/46_artificialgod/artificialgod.dgn",
+        "sha256": "f86135231bd46c7be81e008822c94daecec31efd3864ef04769441901dc30fff",
+        "minimum": "110",
+        "difficulty": "2",
+        "map": "100016468",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004982",
+        "path": "contents/2026/aradodyssey/dungeon/47_inaeduskwar/inaeduskwar.dgn",
+        "sha256": "fd81a4e812386f728884c620613aa182c7c7f694751dcf30b8dbb93fe419a7be",
+        "minimum": "111",
+        "difficulty": "2",
+        "map": "100016475",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004983",
+        "path": "contents/2026/aradodyssey/dungeon/48_delegie/delegie.dgn",
+        "sha256": "cee62a41b510d2d7f29b5e4b9ef455c8cbea5b725543114f44d79e9ed7ad6949",
+        "minimum": "113",
+        "difficulty": "2",
+        "map": "100016483",
+        "huntBoss": "109019257",
+        "conditions": "[]"
+      },
+      {
+        "id": "100004990",
+        "path": "contents/2026/aradodyssey/dungeon/final_seria/final_seria.dgn",
+        "sha256": "1955e98f5bfc69bd32e235fc457f628d734230e336a6cb5ac35937e37f65ba86",
+        "minimum": "114",
+        "difficulty": "2",
+        "map": "100017501",
+        "huntBoss": "109019498",
+        "conditions": "[]"
+      }
+    ],
+    "runtimeManualListAdded": false
+  },
+  "nativeEvidence": {
+    "database": "c1000f62",
+    "input": "client/DFO.exe.i64",
+    "nativeMode": [
+      {
+        "addr": "0x142E5EDA0",
+        "code": "__int64 sub_142E5EDA0()\n{\n  void (__fastcall ***v0)(_QWORD); // rbx\n  unsigned int v1; // edi\n  int v2; // eax\n  __int64 v3; // rcx\n  __int64 v4; // rax\n  __int64 v6; // [rsp+48h] [rbp+10h]\n\n  v0 = nullptr; /*0x142e5edb4*/\n  v1 = 0; /*0x142e5edb6*/\n  v2 = sub_145241BF0(a1: qword_14E66C090); /*0x142e5edbf*/\n  if ( v2 == 68 || v2 == 73 ) /*0x142e5edcc*/\n  {\nLABEL_5:\n    v1 = 2; /*0x142e5edd8*/\n    goto LABEL_6; /*0x142e5edd8*/\n  }\n  if ( v2 != 76 ) /*0x142e5edd1*/\n  {\n    if ( v2 != 78 ) /*0x142e5edd6*/\n      goto LABEL_6; /*0x142e5edd6*/\n    goto LABEL_5; /*0x142e5edd6*/\n  }\n  v1 = 4; /*0x142e5ee3a*/\nLABEL_6:\n  v3 = qword_14E634250; /*0x142e5eddd*/\n  if ( qword_14E634250 == 0 ) /*0x142e5ede7*/\n  {\n    v4 = sub_146E8BA20(a1: 344); /*0x142e5edee*/\n    v6 = v4; /*0x142e5edf3*/\n    __wind /*0xf1c000000000001c*/\n    {\n      if ( v4 != 0 ) /*0x142e5edfb*/\n        v0 = (void (__fastcall ***)(_QWORD))sub_1407498E0(a1: v4); /*0x142e5ee05*/\n    }\n    __unwind\n    {\n      j_j_scalable_free(a1: v6, a2: 344); /*0x148be3442*/\n    }\n    qword_14E634250 = (__int64)v0; /*0x142e5ee08*/\n    (**v0)(a1: v0); /*0x142e5ee15*/\n    v3 = qword_14E634250; /*0x142e5ee17*/\n  }\n  if ( sub_14074CCD0(a1: v3) ) /*0x142e5ee1e*/\n    return 3; /*0x142e5ee2a*/\n  return v1; /*0x142e5ee2f*/\n}",
+        "line_count": 48,
+        "total_lines": 48,
+        "truncated": false,
+        "cursor": {
+          "done": true
+        },
+        "refs": [
+          {
+            "addr": "0x145241bf0",
+            "name": "sub_145241BF0"
+          },
+          {
+            "addr": "0x14e66c090",
+            "name": "qword_14E66C090"
+          },
+          {
+            "addr": "0x14e634250",
+            "name": "qword_14E634250"
+          },
+          {
+            "addr": "0x146e8ba20",
+            "name": "sub_146E8BA20"
+          },
+          {
+            "addr": "0x1407498e0",
+            "name": "sub_1407498E0"
+          },
+          {
+            "addr": "0x146e9f3a0",
+            "name": "j_j_scalable_free"
+          },
+          {
+            "addr": "0x14074ccd0",
+            "name": "sub_14074CCD0"
+          }
+        ]
+      },
+      {
+        "addr": "0x142E60CF0",
+        "code": "char sub_142E60CF0()\n{\n  int v0; // eax\n  int v1; // eax\n  int v2; // eax\n  int v3; // eax\n  __int64 v4; // rax\n  char result; // al\n\n  v0 = sub_145241BF0(a1: qword_14E66C090) - 68; /*0x142e60d00*/\n  if ( v0 == 0 ) /*0x142e60d03*/\n    return 1; /*0x142e60d03*/\n  v1 = v0 - 5; /*0x142e60d05*/\n  if ( v1 == 0 ) /*0x142e60d08*/\n    return 1; /*0x142e60d08*/\n  v2 = v1 - 1; /*0x142e60d0a*/\n  if ( v2 == 0 ) /*0x142e60d0d*/\n    return 1; /*0x142e60d0d*/\n  v3 = v2 - 2; /*0x142e60d0f*/\n  if ( v3 == 0 ) /*0x142e60d12*/\n    return 1; /*0x142e60d12*/\n  if ( v3 == 2 ) /*0x142e60d17*/\n    return 1; /*0x142e60d17*/\n  v4 = sub_14021A200(); /*0x142e60d19*/\n  result = sub_14074CCD0(a1: v4); /*0x142e60d21*/\n  if ( result != 0 ) /*0x142e60d28*/\n    return 1; /*0x142e60d2f*/\n  return result; /*0x142e60d2a*/\n}",
+        "line_count": 29,
+        "total_lines": 29,
+        "truncated": false,
+        "cursor": {
+          "done": true
+        },
+        "refs": [
+          {
+            "addr": "0x145241bf0",
+            "name": "sub_145241BF0"
+          },
+          {
+            "addr": "0x14e66c090",
+            "name": "qword_14E66C090"
+          },
+          {
+            "addr": "0x14021a200",
+            "name": "sub_14021A200"
+          },
+          {
+            "addr": "0x14074ccd0",
+            "name": "sub_14074CCD0"
+          }
+        ]
+      },
+      {
+        "addr": "0x14074CCD0",
+        "code": "bool __fastcall sub_14074CCD0(__int64 a1)\n{\n  __int64 v2; // rcx\n  __int64 v3; // rax\n  void (__fastcall ***v4)(_QWORD); // rcx\n  __int64 v6; // [rsp+48h] [rbp+10h]\n\n  v2 = qword_14E634248; /*0x14074cce2*/\n  if ( qword_14E634248 == 0 ) /*0x14074ccec*/\n  {\n    v3 = sub_146E8BA20(a1: 2496); /*0x14074ccf3*/\n    v6 = v3; /*0x14074ccf8*/\n    __wind /*0xf1c000000000001c*/\n    {\n      if ( v3 != 0 ) /*0x14074cd00*/\n        v4 = (void (__fastcall ***)(_QWORD))sub_1456918F0(a1: v3); /*0x14074cd0a*/\n      else\n        v4 = nullptr; /*0x14074cd0f*/\n    }\n    __unwind\n    {\n      j_j_scalable_free(a1: v6, a2: 2496); /*0x148b90fa2*/\n    }\n    qword_14E634248 = (__int64)v4; /*0x14074cd11*/\n    (**v4)(a1: v4); /*0x14074cd1b*/\n    v2 = qword_14E634248; /*0x14074cd1d*/\n  }\n  return (unsigned __int8)sub_145695000(a1: v2, a2: 662) != 0 /*0x14074cd4c*/\n      && ((unsigned __int8)sub_14074CFF0(a1) != 0 || (unsigned __int8)sub_14074CF40(a1) != 0);\n}",
+        "line_count": 30,
+        "total_lines": 30,
+        "truncated": false,
+        "cursor": {
+          "done": true
+        },
+        "refs": [
+          {
+            "addr": "0x14e634248",
+            "name": "qword_14E634248"
+          },
+          {
+            "addr": "0x146e8ba20",
+            "name": "sub_146E8BA20"
+          },
+          {
+            "addr": "0x1456918f0",
+            "name": "sub_1456918F0"
+          },
+          {
+            "addr": "0x146e9f3a0",
+            "name": "j_j_scalable_free"
+          },
+          {
+            "addr": "0x145695000",
+            "name": "sub_145695000"
+          },
+          {
+            "addr": "0x14074cff0",
+            "name": "sub_14074CFF0"
+          },
+          {
+            "addr": "0x14074cf40",
+            "name": "sub_14074CF40"
+          }
+        ]
+      }
+    ],
+    "registrationExcerpt": "              if ( v254 == 0 ) /*0x145b251a3*/\n                goto LABEL_492; /*0x145b251a3*/\n              if ( *(_BYTE *)(v254 + 6264) == 0 ) /*0x145b251b0*/\n                goto LABEL_492; /*0x145b251b0*/\n              sub_140AD4570(); /*0x145b251b6*/\n              if ( sub_142E60CF0() == 0 ) /*0x145b251c5*/\n                goto LABEL_492; /*0x145b251c5*/\n              v255 = sub_140AD4570(); /*0x145b251cb*/\n              if ( (unsigned __int8)sub_142E60CE0(a1: v255) != 0 ) /*0x145b251dd*/\n                goto LABEL_492; /*0x145b251dd*/\n              v256 = 0; /*0x145b251e3*/\n              v257 = v320; /*0x145b251e6*/\n              v258 = v325; /*0x145b251eb*/\n              while ( 1 ) /*0x145b251f0*/\n              {\n                v259 = qword_14E638EF8; /*0x145b251f0*/\n                if ( qword_14E638EF8 == nullptr ) /*0x145b251fa*/\n                {\n                  v260 = sub_146E8BA20(a1: 2704); /*0x145b25201*/\n                  v336 = (int *)v260; /*0x145b25206*/\n                  __wind /*0xf1c000000000019c*/\n                  {\n                    if ( v260 != 0 ) /*0x145b2520d*/\n                      v261 = (_LocaleUpdate *)sub_142E58CC0(a1: v260); /*0x145b25217*/\n                    else\n                      v261 = nullptr; /*0x145b2521c*/\n                  }\n                  __unwind\n                  {\n                    j_j_scalable_free(a1: v336, a2: 2704); /*0x148d856c5*/\n                  }\n                  qword_14E638EF8 = v261; /*0x145b2521f*/\n                  (**(void (__fastcall ***)(_LocaleUpdate *))v261)(a1: v261); /*0x145b25229*/\n                  v259 = qword_14E638EF8; /*0x145b2522b*/\n                }\n                v262 = sub_142E5FFA0(a1: v259, a2: v256); /*0x145b2523a*/\n                if ( v262 == 0 ) /*0x145b25240*/\n                  goto LABEL_481; /*0x145b25240*/\n                v263 = sub_145EFAFB0(); /*0x145b25246*/\n                v264 = sub_145B8C670(a1: v263); /*0x145b25253*/\n                if ( (unsigned int)sub_145B8C670(a1: v262) == v264 ) /*0x145b2525f*/\n                {\n                  v265 = sub_14520C690(); /*0x145b25261*/\n                  sub_145B99610(a1: v262, a2: v265); /*0x145b2526b*/\n                }\n                v266 = sub_145B8C670(a1: v262); /*0x145b25273*/\n                if ( (unsigned __int8)sub_145DE4360(a1: v258, a2: 0, a3: 5, a4: v266, a5: v262, a6: 0, a7: 0, a8: 1) == 0 ) /*0x145b2529f*/\n                  goto LABEL_481; /*0x145b2529f*/\n                v318 = 0; /*0x145b252a5*/\n                v327 = 0; /*0x145b252aa*/\n                v267 = (_DWORD *)sub_144D24C10(a1: v257); /*0x145b252b6*/\n                v268 = sub_145EFAFB0(); /*0x145b252b9*/\n                v269 = *v267 * sub_145B8C670(a1: v268); /*0x145b252c8*/\n                v270 = sub_145EFAFB0(); /*0x145b252cb*/\n                sub_144D23AB0(a1: v257, a2: (unsigned int)&v318, a3: (unsigned int)&v327, a4: v270, a5: v269); /*0x145b252e3*/\n                v271 = sub_145EFAFB0(); /*0x145b252e8*/\n                v272 = (*(__int64 (__fastcall **)(__int64))(*(_QWORD *)v271 + 736LL))(a1: v271); /*0x145b252f3*/\n                v273 = v318; /*0x145b252f9*/\n                if ( v272 == 0 ) /*0x145b252ff*/\n                  break; /*0x145b252ff*/\n                if ( v272 == 1 ) /*0x145b25304*/\n                {\n                  v273 = v318 + 100; /*0x145b25306*/\nLABEL_473:\n                  v318 = v273; /*0x145b2530e*/\n                }\n                (*(void (__fastcall **)(__int64, __int64, _QWORD, _QWORD))(*(_QWORD *)v262 + 408LL))( /*0x145b25312*/\n                  a1: v262,\n                  a2: v273,\n                  a3: v327,\n                  a4: 0);\n                v274 = (*(__int64 (__fastcall **)(__int64))(*(_QWORD *)v262 + 1680LL))(a1: v262); /*0x145b2532b*/\n                sub_145E79FD0(a1: v274); /*0x145b25334*/\n                v275 = (*(__int64 (__fastcall **)(__int64))(*(_QWORD *)v262 + 1680LL))(a1: v262); /*0x145b2533f*/\n                LOBYTE(v276) = 1; /*0x145b25345*/\n                sub_145E7B0F0(a1: v275, a2: v276); /*0x145b2534a*/\n                v278 = qword_14E638EF8; /*0x145b2534f*/\n                if ( qword_14E638EF8 == nullptr ) /*0x145b25359*/\n                {\n                  v279 = sub_146E8BA20(a1: 2704); /*0x145b25360*/\n                  v348 = (_DWORD *)v279; /*0x145b25365*/\n                  __wind /*0xf1c0000000000184*/\n                  {\n                    if ( v279 != 0 ) /*0x145b2536c*/\n                      v280 = (_LocaleUpdate *)sub_142E58CC0(a1: v279); /*0x145b25376*/\n                    else\n                      v280 = nullptr; /*0x145b2537b*/\n                  }\n                  __unwind\n                  {\n                    j_j_scalable_free(a1: v348, a2: 2704); /*0x148d855c5*/\n                  }\n                  qword_14E638EF8 = v280; /*0x145b2537e*/\n                  (**(void (__fastcall ***)(_LocaleUpdate *))v280)(a1: v280); /*0x145b25388*/\n                  v278 = qword_14E638EF8; /*0x145b2538a*/\n                }\n                LOBYTE(v277) = 1; /*0x145b25391*/\n                sub_142E64210(a1: v278, a2: v277); /*0x145b25393*/\n                (*(void (__fastcall **)(__int64, _QWORD))(*(_QWORD *)v262 + 8456LL))(a1: v262, a2: 0); /*0x145b253a0*/\n                (*(void (__fastcall **)(__int64, _QWORD))(*(_QWORD *)v262 + 5264LL))(a1: v262, a2: 0); /*0x145b253ae*/\n                LOBYTE(v281) = 1; /*0x145b253b7*/\n                (*(void (__fastcall **)(__int64, __int64))(*(_QWORD *)v262 + 320LL))(a1: v262, a2: v281); /*0x145b253bc*/\n                (*(void (__fastcall **)(__int64, __int64))(*(_QWORD *)v262 + 1968LL))(a1: v262, a2: 1); /*0x145b253cf*/\n                v282 = *(_QWORD *)v262; /*0x145b253d5*/\n                LOBYTE(v314) = 1; /*0x145b253d8*/\n                v313[0] = 0; /*0x145b253dd*/\n                LOBYTE(Format) = 1; /*0x145b253e2*/\n                LOBYTE(v310) = 0; /*0x145b253ec*/\n                (*(void (__fastcall **)(__int64, _QWORD, _QWORD, _QWORD, _DWORD, _QWORD, _DWORD, _DWORD, int, int))(v282 + 3544))( /*0x145b253fc*/\n                  a1: v262,\n                  a2: 0,\n                  a3: 0,\n                  a4: 0,\n                  a5: v310,\n                  a6: 0,\n                  a7: (_DWORD)Format,\n                  a8: *(_DWORD *)v313,\n                  a9: v314,\n                  a10: v315);\n                LOBYTE(v283) = 1; /*0x145b25405*/\n                (*(void (__fastcall **)(__int64, __int64))(*(_QWORD *)v262 + 3576LL))(a1: v262, a2: v283); /*0x145b2540a*/\n                (*(void (__fastcall **)(__int64, _QWORD))(*(_QWORD *)v262 + 1456LL))(a1: v262, a2: 0); /*0x145b25418*/\n                sub_145C710A0(a1: v262); /*0x145b25421*/\n                sub_145CA3EA0(a1: v262); /*0x145b25429*/\n                v284 = (*(__int64 (__fastcall **)(__int64))(*(_QWORD *)v262 + 1680LL))(a1: v262); /*0x145b25434*/\n                sub_145E71FB0(a1: v284, a2: 0); /*0x145b2543f*/\nLABEL_481:\n                if ( (int)++v256 >= 3 ) /*0x145b2544b*/\n                {\n                  v285 = 0; /*0x145b25451*/\n                  v11 = v344; /*0x145b25454*/\n                  v59 = v341; /*0x145b25458*/\n                  do /*0x145b254bd*/\n                  {\n                    v286 = qword_14E638EF8; /*0x145b25460*/\n                    if ( qword_14E638EF8 == nullptr ) /*0x145b2546a*/\n                    {\n                      v287 = sub_146E8BA20(a1: 2704); /*0x145b25471*/\n                      v344 = v287; /*0x145b25476*/\n                      __wind /*0xf1c000000000016c*/\n                      {\n                        if ( v287 != 0 ) /*0x145b2547d*/\n                          v288 = (_LocaleUpdate *)sub_142E58CC0(a1: v287); /*0x145b25487*/\n                        else\n                          v288 = nullptr; /*0x145b2548c*/\n                      }\n                      __unwind\n                      {\n                        j_j_scalable_free(a1: v344, a2: 2704); /*0x148de54e5*/\n                      }\n                      qword_14E638EF8 = v288; /*0x145b2548f*/\n                      (**(void (__fastcall ***)(_LocaleUpdate *))v288)(a1: v288); /*0x145b25499*/\n                      v286 = qword_14E638EF8; /*0x145b2549b*/\n                    }\n                    v289 = sub_142E5FFA0(a1: v286, a2: (unsigned int)v285); /*0x145b254a4*/\n                    if ( v289 != 0 ) /*0x145b254ac*/\n                      sub_145C70460(a1: v289, a2: 0); /*0x145b254b3*/\n                    ++v285; /*0x145b254b8*/\n                  }\n                  while ( v285 < 3 ); /*0x145b254bd*/\nLABEL_492:\n                  if ( *(_DWORD *)(v11 + 2740) == 120 ) /*0x145b254cc*/\n                  {\n                    v290 = sub_145F0BA60(a1: qword_14E683C08); /*0x145b254d9*/\n                    if ( v290 != 0 ) /*0x145b254e1*/\n                    {\n                      v291 = sub_145F01580(a1: v290, a2: 3, a3: 0); /*0x145b254f6*/\n                      if ( v291 != 0 ) /*0x145b254fc*/\n                      {\n                        v292 = sub_144CDBE30(a1: qword_14E683C30); /*0x145b25509*/\n                        if ( v292 != 0 ) /*0x145b25511*/\n                        {\n                          v293 = *(unsigned __int16 **)(v292 + 264); /*0x145b25517*/\n                          for ( n = *(unsigned __int16 **)(v292 + 272); v293 != n; v293 += 96 ) /*0x145b25528*/\n                          {\n                            v295 = sub_1445078B0(a1: v291, a2: *v293); /*0x145b25536*/\n                            v296 = v295; /*0x145b2553b*/",
+    "interpretation": "Existing native registration block gates source byte6264, native elite channel predicate and active-state getter, then uses three original references and145DE4360. No new DLL hook or forced native mode3; existing mode0-to2 adapter remains scoped to original mode2 server selection and frozen native identity. Native mode3 semantic not identified here and is passed through. Actual Odyssey native mode/channel/loader acceptance requires live."
+  },
+  "nativeLimitation": "No assumption that native mode3 is Odyssey; unknown special branch retained. Existing adapter only changes native mode0 to2 in exact N1754 mode2 frozen scope. Native Odyssey preparation/channel/load/registration and AI have no live proof yet.",
+  "verification": {
+    "owned": {
+      "build": {
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-owned-build.log"
+      },
+      "vet": {
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "vet",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-owned-vet.log"
+      },
+      "test": {
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "test",
+          "-json",
+          "./...",
+          "-count=1"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-owned-test.log",
+        "passed": 3794,
+        "skipped": 281,
+        "failures": [],
+        "baselineFailures": [],
+        "newFailures": []
+      },
+      "binary": {
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "-o",
+          "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-owned-candidate.exe",
+          "./cmd/wireprobe"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-owned-binary.log"
+      }
+    },
+    "root": {
+      "build": {
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-root-build.log"
+      },
+      "vet": {
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "vet",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-root-vet.log"
+      },
+      "test": {
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "test",
+          "-json",
+          "./...",
+          "-count=1"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-root-test.log",
+        "passed": 3648,
+        "skipped": 206,
+        "failures": [],
+        "baselineFailures": [],
+        "newFailures": []
+      },
+      "binary": {
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "-o",
+          "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-root-candidate.exe",
+          "./cmd/wireprobe"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-root-binary.log"
+      }
+    }
+  },
+  "collectorFixtureCount": 79,
+  "artifacts": {
+    "sharedCandidate": {
+      "path": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-root-candidate.exe",
+      "sha256": "ff58957c01603c1f01b8dc11ed1db64f9baf37e02444edc01fe4f4bbddec2f5a",
+      "bytes": 29676032
+    },
+    "isolatedCandidate": {
+      "path": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-owned-candidate.exe",
+      "sha256": "fb46269778c7f83c8e855631f7fe25e43777b1df851553034b3124d0436faeb9",
+      "bytes": 30630400
+    },
+    "dll": {
+      "path": "F:\\projects\\agents\\reverse\\115us\\client-patchs\\adventure-elite\\dist\\AdventureElite.dll",
+      "sha256": "941656906dac3e0f7c8c1e9430ca390eac8d88013dd528539d35661aa689e005",
+      "bytes": 225792
+    },
+    "launcher": {
+      "path": "F:\\projects\\agents\\reverse\\115us\\server\\work\\dfo-lan\\bin\\dfolauncher-adventure-elite.exe",
+      "sha256": "aed177c46cb700afbb77d75d2f8aa3b5061dde82ac3f629901436722d3752a79",
+      "bytes": 16971776
+    },
+    "default": {
+      "path": "F:\\projects\\agents\\reverse\\115us\\server\\work\\dfo-lan\\bin\\wireprobe-pvf.exe",
+      "sha256": "a6f269603887f18fa8bb60814a655641f12c5eeaf1a07f89d840e166a393be6c",
+      "bytes": 29897216
+    }
+  },
+  "changedSources": [
+    {
+      "path": "scripts/collect-adventure-elite.ps1",
+      "sha256": "de900f9e48ac382f903ef8e2b1e4b93fc5dcc28450fc0ec37d9ec4a21e764f02"
+    },
+    {
+      "path": "scripts/test-adventure-elite-capture.ps1",
+      "sha256": "60cf807cb6b066ee0802e7fb1346161618aceceb41adb301e670ac96bee5fdfd"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_combat_diagnostic.go",
+      "sha256": "d4bf3ab8b384b93ba942eba93498b4028b5b0f259afc8f54b2cb05c50afce8f5"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_entry_probe.go",
+      "sha256": "b0ddfd4a6216f6e04bb45faddc3928b93451b51f08da088d744883cb66ede13a"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_entry_probe_test.go",
+      "sha256": "50bda64b3d052a9a58dd5322d9a80722d7f8cb1f35c1035ec55b1a0d24451708"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_odyssey_test.go",
+      "sha256": "148efea42b23acaaa1ea6c1db95a73ad74374951926ac66bb4279cdb3fc63fd5"
+    }
+  ],
+  "environment": "DFO_ADVENTURE_ELITE=1, explicit user request retained. OdysseyRole debug launcher override unchanged; live must use a real Odyssey character to observe native flags.",
+  "schemaChanged": false,
+  "pvfChanged": false,
+  "dllChanged": false,
+  "defaultPublished": false,
+  "liveAccepted": false,
+  "priorDuplication": "Type22/publishedID10 compatibility policy remains duplicated against etc/channel_info.etc [server], unchanged and pending existing migration evidence.",
+  "referenceSearch": {
+    "officialHistoricalSquad": "https://www.dfoneople.com/news/updates/2021/Sirocco-Squad-Mode",
+    "officialBindingChange": "https://www.dfoneople.com/news/updates/2424/Black-Purgatory-Guide-and-Squad-Mode",
+    "finding": "No official Odyssey elite compatibility evidence found; old squads are investigation leads only, not115 protocol authority."
+  },
+  "rollback": "F:/projects/agents/reverse/115us/.tmp/adventure-elite/ordinary-odyssey-delivery-backup; prior candidate1c9f5842 and manifest copied before deployment.",
+  "manualBatch": [
+    "Launch once with DFO_ADVENTURE_ELITE=1 and scripts/启动游戏-奥德赛.cmd --source-build; select real existing Odyssey character and keep saved squad.",
+    "Open elite page once and source-appropriate ordinary dungeon selection; use normal single-player Mode0. Native mode/channel/identity must remain original scoped path.",
+    "Enter eligible Odyssey dungeon, observe APC body and AI; let APC hit/kill a regular enemy, pickup once, cross a door.",
+    "Finish naturally through source Boss/clear and result/reward, return once and observe Odyssey journal/level.",
+    "Reenter same dungeon or next source-permitted stage once, observe APC and attack, then exit game normally. Stop at first failure and preserve same session; do not repeatedly retry or resave squad."
+  ],
+  "unclosed": [
+    "Native Odyssey APC appearance/AI/registration",
+    "All50 native maps, Odyssey bosses/doors and growth rewards",
+    "Native special mode3 identity and behavior",
+    "APC HP/MP/death/cooldown continuity and reference release",
+    "Story noncombat protection and unmatched native death calls",
+    "CMD2062/seamless option5",
+    "Legion/raid/special teams"
+  ]
+}

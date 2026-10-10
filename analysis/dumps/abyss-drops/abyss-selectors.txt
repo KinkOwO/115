@@ -1,0 +1,519 @@
+=== 10362480  kind=stackable  stackable_type=[virtual]
+    path=stackable/10362001/10362480.stk
+    cells=34
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=476635871    resolved=<13::name_10362480>
+                           reference=<13::name_10362480>
+    [   1] type=8 value=476635871    <13::name_10362480>
+    [   2] type=3 value=157673483    [grade]
+    [   3] type=0 value=1            
+    [   4] type=3 value=86949813     [rarity]
+    [   5] type=0 value=3            
+    [   6] type=3 value=157673543    [usable job]
+    [   7] type=6 value=147067661    [all]
+    [   8] type=3 value=157673569    [/usable job]
+    [   9] type=3 value=157673499    [attach type]
+    [  10] type=6 value=157673527    [trade]
+    [  11] type=3 value=157673597    [minimum level]
+    [  12] type=0 value=1            
+    [  13] type=3 value=157673629    [icon]
+    [  14] type=6 value=137129317    Item/stackable/consumption.img
+    [  15] type=0 value=1589         
+    [  16] type=3 value=209147603    [stackable type]
+    [stackable type]       value=455000885    resolved=[virtual]
+    [  17] type=6 value=455000885    [virtual]
+    [  18] type=0 value=0            
+    [  19] type=3 value=157673993    [move wav]
+    [  20] type=6 value=157934313    BONE_TOUCH
+    [  21] type=3 value=457850573    [smart drop group id]
+    [  22] type=0 value=21250        
+    [  23] type=3 value=476635911    [mulit open limit]
+    [  24] type=0 value=1            
+    [  25] type=3 value=442782279    [booster info]
+    [  26] type=3 value=149531251    [etc]
+    [  27] type=0 value=1            
+    [  28] type=0 value=490000001    
+    [  29] type=0 value=10000        
+    [  30] type=0 value=1            
+    [  31] type=3 value=218227229    [/etc]
+    [  32] type=3 value=442782339    [/booster info]
+    [  33] type=3 value=460540985    [instantly open]
+
+=== 10362481  kind=stackable  stackable_type=[virtual]
+    path=stackable/10362001/10362481.stk
+    cells=34
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=476635975    resolved=<13::name_10362481>
+                           reference=<13::name_10362481>
+    [   1] type=8 value=476635975    <13::name_10362481>
+    [   2] type=3 value=157673483    [grade]
+    [   3] type=0 value=1            
+    [   4] type=3 value=86949813     [rarity]
+    [   5] type=0 value=3            
+    [   6] type=3 value=157673543    [usable job]
+    [   7] type=6 value=147067661    [all]
+    [   8] type=3 value=157673569    [/usable job]
+    [   9] type=3 value=157673499    [attach type]
+    [  10] type=6 value=157673527    [trade]
+    [  11] type=3 value=157673597    [minimum level]
+    [  12] type=0 value=1            
+    [  13] type=3 value=157673629    [icon]
+    [  14] type=6 value=137129317    Item/stackable/consumption.img
+    [  15] type=0 value=1589         
+    [  16] type=3 value=209147603    [stackable type]
+    [stackable type]       value=455000885    resolved=[virtual]
+    [  17] type=6 value=455000885    [virtual]
+    [  18] type=0 value=0            
+    [  19] type=3 value=157673993    [move wav]
+    [  20] type=6 value=157934313    BONE_TOUCH
+    [  21] type=3 value=457850573    [smart drop group id]
+    [  22] type=0 value=21251        
+    [  23] type=3 value=476635911    [mulit open limit]
+    [  24] type=0 value=1            
+    [  25] type=3 value=442782279    [booster info]
+    [  26] type=3 value=149531251    [etc]
+    [  27] type=0 value=1            
+    [  28] type=0 value=490000001    
+    [  29] type=0 value=10000        
+    [  30] type=0 value=1            
+    [  31] type=3 value=218227229    [/etc]
+    [  32] type=3 value=442782339    [/booster info]
+    [  33] type=3 value=460540985    [instantly open]
+
+=== 10362482  kind=stackable  stackable_type=[virtual]
+    path=stackable/10362001/10362482.stk
+    cells=34
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=476636153    resolved=<13::name_10362482>
+                           reference=<13::name_10362482>
+    [   1] type=8 value=476636153    <13::name_10362482>
+    [   2] type=3 value=157673483    [grade]
+    [   3] type=0 value=1            
+    [   4] type=3 value=86949813     [rarity]
+    [   5] type=0 value=3            
+    [   6] type=3 value=157673543    [usable job]
+    [   7] type=6 value=147067661    [all]
+    [   8] type=3 value=157673569    [/usable job]
+    [   9] type=3 value=157673499    [attach type]
+    [  10] type=6 value=157673527    [trade]
+    [  11] type=3 value=157673597    [minimum level]
+    [  12] type=0 value=1            
+    [  13] type=3 value=157673629    [icon]
+    [  14] type=6 value=137129317    Item/stackable/consumption.img
+    [  15] type=0 value=1589         
+    [  16] type=3 value=209147603    [stackable type]
+    [stackable type]       value=455000885    resolved=[virtual]
+    [  17] type=6 value=455000885    [virtual]
+    [  18] type=0 value=0            
+    [  19] type=3 value=157673993    [move wav]
+    [  20] type=6 value=157934313    BONE_TOUCH
+    [  21] type=3 value=457850573    [smart drop group id]
+    [  22] type=0 value=21252        
+    [  23] type=3 value=476635911    [mulit open limit]
+    [  24] type=0 value=1            
+    [  25] type=3 value=442782279    [booster info]
+    [  26] type=3 value=149531251    [etc]
+    [  27] type=0 value=1            
+    [  28] type=0 value=490000001    
+    [  29] type=0 value=10000        
+    [  30] type=0 value=1            
+    [  31] type=3 value=218227229    [/etc]
+    [  32] type=3 value=442782339    [/booster info]
+    [  33] type=3 value=460540985    [instantly open]
+
+=== 10362483  kind=stackable  stackable_type=[virtual]
+    path=stackable/10362001/10362483.stk
+    cells=34
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=476636331    resolved=<13::name_10362483>
+                           reference=<13::name_10362483>
+    [   1] type=8 value=476636331    <13::name_10362483>
+    [   2] type=3 value=157673483    [grade]
+    [   3] type=0 value=1            
+    [   4] type=3 value=86949813     [rarity]
+    [   5] type=0 value=3            
+    [   6] type=3 value=157673543    [usable job]
+    [   7] type=6 value=147067661    [all]
+    [   8] type=3 value=157673569    [/usable job]
+    [   9] type=3 value=157673499    [attach type]
+    [  10] type=6 value=157673527    [trade]
+    [  11] type=3 value=157673597    [minimum level]
+    [  12] type=0 value=1            
+    [  13] type=3 value=157673629    [icon]
+    [  14] type=6 value=137129317    Item/stackable/consumption.img
+    [  15] type=0 value=1589         
+    [  16] type=3 value=209147603    [stackable type]
+    [stackable type]       value=455000885    resolved=[virtual]
+    [  17] type=6 value=455000885    [virtual]
+    [  18] type=0 value=0            
+    [  19] type=3 value=157673993    [move wav]
+    [  20] type=6 value=157934313    BONE_TOUCH
+    [  21] type=3 value=457850573    [smart drop group id]
+    [  22] type=0 value=21253        
+    [  23] type=3 value=476635911    [mulit open limit]
+    [  24] type=0 value=1            
+    [  25] type=3 value=442782279    [booster info]
+    [  26] type=3 value=149531251    [etc]
+    [  27] type=0 value=1            
+    [  28] type=0 value=490000001    
+    [  29] type=0 value=10000        
+    [  30] type=0 value=1            
+    [  31] type=3 value=218227229    [/etc]
+    [  32] type=3 value=442782339    [/booster info]
+    [  33] type=3 value=460540985    [instantly open]
+
+=== 10362484  kind=stackable  stackable_type=[virtual]
+    path=stackable/10362001/10362484.stk
+    cells=34
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=476636397    resolved=<13::name_10362484>
+                           reference=<13::name_10362484>
+    [   1] type=8 value=476636397    <13::name_10362484>
+    [   2] type=3 value=157673483    [grade]
+    [   3] type=0 value=1            
+    [   4] type=3 value=86949813     [rarity]
+    [   5] type=0 value=3            
+    [   6] type=3 value=157673543    [usable job]
+    [   7] type=6 value=147067661    [all]
+    [   8] type=3 value=157673569    [/usable job]
+    [   9] type=3 value=157673499    [attach type]
+    [  10] type=6 value=157673527    [trade]
+    [  11] type=3 value=157673597    [minimum level]
+    [  12] type=0 value=1            
+    [  13] type=3 value=157673629    [icon]
+    [  14] type=6 value=137129317    Item/stackable/consumption.img
+    [  15] type=0 value=1589         
+    [  16] type=3 value=209147603    [stackable type]
+    [stackable type]       value=455000885    resolved=[virtual]
+    [  17] type=6 value=455000885    [virtual]
+    [  18] type=0 value=0            
+    [  19] type=3 value=157673993    [move wav]
+    [  20] type=6 value=157934313    BONE_TOUCH
+    [  21] type=3 value=457850573    [smart drop group id]
+    [  22] type=0 value=21254        
+    [  23] type=3 value=476635911    [mulit open limit]
+    [  24] type=0 value=1            
+    [  25] type=3 value=442782279    [booster info]
+    [  26] type=3 value=149531251    [etc]
+    [  27] type=0 value=1            
+    [  28] type=0 value=490000001    
+    [  29] type=0 value=10000        
+    [  30] type=0 value=1            
+    [  31] type=3 value=218227229    [/etc]
+    [  32] type=3 value=442782339    [/booster info]
+    [  33] type=3 value=460540985    [instantly open]
+
+=== 10355161  kind=stackable  stackable_type=[virtual]
+    path=stackable/10355001/10355161.stk
+    cells=32
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=474111117    resolved=<13::name_10355161>
+                           reference=<13::name_10355161>
+    [   1] type=8 value=474111117    <13::name_10355161>
+    [   2] type=3 value=157673483    [grade]
+    [   3] type=0 value=1            
+    [   4] type=3 value=86949813     [rarity]
+    [   5] type=0 value=3            
+    [   6] type=3 value=157673543    [usable job]
+    [   7] type=6 value=147067661    [all]
+    [   8] type=3 value=157673569    [/usable job]
+    [   9] type=3 value=157673499    [attach type]
+    [  10] type=6 value=157673527    [trade]
+    [  11] type=3 value=157673597    [minimum level]
+    [  12] type=0 value=1            
+    [  13] type=3 value=157673629    [icon]
+    [  14] type=6 value=137129317    Item/stackable/consumption.img
+    [  15] type=0 value=1589         
+    [  16] type=3 value=209147603    [stackable type]
+    [stackable type]       value=455000885    resolved=[virtual]
+    [  17] type=6 value=455000885    [virtual]
+    [  18] type=0 value=0            
+    [  19] type=3 value=157673993    [move wav]
+    [  20] type=6 value=157934313    BONE_TOUCH
+    [  21] type=3 value=457850573    [smart drop group id]
+    [  22] type=0 value=21306        
+    [  23] type=3 value=442782279    [booster info]
+    [  24] type=3 value=149531251    [etc]
+    [  25] type=0 value=1            
+    [  26] type=0 value=490000001    
+    [  27] type=0 value=10000        
+    [  28] type=0 value=1            
+    [  29] type=3 value=218227229    [/etc]
+    [  30] type=3 value=442782339    [/booster info]
+    [  31] type=3 value=460540985    [instantly open]
+
+=== 10362485  kind=stackable  stackable_type=[virtual]
+    path=stackable/10362001/10362485.stk
+    cells=34
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=476636575    resolved=<13::name_10362485>
+                           reference=<13::name_10362485>
+    [   1] type=8 value=476636575    <13::name_10362485>
+    [   2] type=3 value=157673483    [grade]
+    [   3] type=0 value=1            
+    [   4] type=3 value=86949813     [rarity]
+    [   5] type=0 value=3            
+    [   6] type=3 value=157673543    [usable job]
+    [   7] type=6 value=147067661    [all]
+    [   8] type=3 value=157673569    [/usable job]
+    [   9] type=3 value=157673499    [attach type]
+    [  10] type=6 value=157673527    [trade]
+    [  11] type=3 value=157673597    [minimum level]
+    [  12] type=0 value=1            
+    [  13] type=3 value=157673629    [icon]
+    [  14] type=6 value=137129317    Item/stackable/consumption.img
+    [  15] type=0 value=1589         
+    [  16] type=3 value=209147603    [stackable type]
+    [stackable type]       value=455000885    resolved=[virtual]
+    [  17] type=6 value=455000885    [virtual]
+    [  18] type=0 value=0            
+    [  19] type=3 value=157673993    [move wav]
+    [  20] type=6 value=157934313    BONE_TOUCH
+    [  21] type=3 value=457850573    [smart drop group id]
+    [  22] type=0 value=21255        
+    [  23] type=3 value=476635911    [mulit open limit]
+    [  24] type=0 value=1            
+    [  25] type=3 value=442782279    [booster info]
+    [  26] type=3 value=149531251    [etc]
+    [  27] type=0 value=1            
+    [  28] type=0 value=490000001    
+    [  29] type=0 value=10000        
+    [  30] type=0 value=1            
+    [  31] type=3 value=218227229    [/etc]
+    [  32] type=3 value=442782339    [/booster info]
+    [  33] type=3 value=460540985    [instantly open]
+
+=== 10362486  kind=stackable  stackable_type=[virtual]
+    path=stackable/10362001/10362486.stk
+    cells=32
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=476636727    resolved=<13::name_10362486>
+                           reference=<13::name_10362486>
+    [   1] type=8 value=476636727    <13::name_10362486>
+    [   2] type=3 value=157673483    [grade]
+    [   3] type=0 value=1            
+    [   4] type=3 value=86949813     [rarity]
+    [   5] type=0 value=3            
+    [   6] type=3 value=157673543    [usable job]
+    [   7] type=6 value=147067661    [all]
+    [   8] type=3 value=157673569    [/usable job]
+    [   9] type=3 value=157673499    [attach type]
+    [  10] type=6 value=157673527    [trade]
+    [  11] type=3 value=157673597    [minimum level]
+    [  12] type=0 value=1            
+    [  13] type=3 value=157673629    [icon]
+    [  14] type=6 value=137129317    Item/stackable/consumption.img
+    [  15] type=0 value=1589         
+    [  16] type=3 value=209147603    [stackable type]
+    [stackable type]       value=455000885    resolved=[virtual]
+    [  17] type=6 value=455000885    [virtual]
+    [  18] type=0 value=0            
+    [  19] type=3 value=157673993    [move wav]
+    [  20] type=6 value=157934313    BONE_TOUCH
+    [  21] type=3 value=457850573    [smart drop group id]
+    [  22] type=0 value=21256        
+    [  23] type=3 value=442782279    [booster info]
+    [  24] type=3 value=149531251    [etc]
+    [  25] type=0 value=1            
+    [  26] type=0 value=490000001    
+    [  27] type=0 value=10000        
+    [  28] type=0 value=1            
+    [  29] type=3 value=218227229    [/etc]
+    [  30] type=3 value=442782339    [/booster info]
+    [  31] type=3 value=460540985    [instantly open]
+
+=== 10355162  kind=stackable  stackable_type=[virtual]
+    path=stackable/10355001/10355162.stk
+    cells=32
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=474111183    resolved=<13::name_10355162>
+                           reference=<13::name_10355162>
+    [   1] type=8 value=474111183    <13::name_10355162>
+    [   2] type=3 value=157673483    [grade]
+    [   3] type=0 value=1            
+    [   4] type=3 value=86949813     [rarity]
+    [   5] type=0 value=3            
+    [   6] type=3 value=157673543    [usable job]
+    [   7] type=6 value=147067661    [all]
+    [   8] type=3 value=157673569    [/usable job]
+    [   9] type=3 value=157673499    [attach type]
+    [  10] type=6 value=157673527    [trade]
+    [  11] type=3 value=157673597    [minimum level]
+    [  12] type=0 value=1            
+    [  13] type=3 value=157673629    [icon]
+    [  14] type=6 value=137129317    Item/stackable/consumption.img
+    [  15] type=0 value=1589         
+    [  16] type=3 value=209147603    [stackable type]
+    [stackable type]       value=455000885    resolved=[virtual]
+    [  17] type=6 value=455000885    [virtual]
+    [  18] type=0 value=0            
+    [  19] type=3 value=157673993    [move wav]
+    [  20] type=6 value=157934313    BONE_TOUCH
+    [  21] type=3 value=457850573    [smart drop group id]
+    [  22] type=0 value=21307        
+    [  23] type=3 value=442782279    [booster info]
+    [  24] type=3 value=149531251    [etc]
+    [  25] type=0 value=1            
+    [  26] type=0 value=490000001    
+    [  27] type=0 value=10000        
+    [  28] type=0 value=1            
+    [  29] type=3 value=218227229    [/etc]
+    [  30] type=3 value=442782339    [/booster info]
+    [  31] type=3 value=460540985    [instantly open]
+
+=== 10362487  kind=stackable  stackable_type=[virtual]
+    path=stackable/10362001/10362487.stk
+    cells=32
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=476636819    resolved=<13::name_10362487>
+                           reference=<13::name_10362487>
+    [   1] type=8 value=476636819    <13::name_10362487>
+    [   2] type=3 value=157673483    [grade]
+    [   3] type=0 value=1            
+    [   4] type=3 value=86949813     [rarity]
+    [   5] type=0 value=3            
+    [   6] type=3 value=157673543    [usable job]
+    [   7] type=6 value=147067661    [all]
+    [   8] type=3 value=157673569    [/usable job]
+    [   9] type=3 value=157673499    [attach type]
+    [  10] type=6 value=157673527    [trade]
+    [  11] type=3 value=157673597    [minimum level]
+    [  12] type=0 value=1            
+    [  13] type=3 value=157673629    [icon]
+    [  14] type=6 value=137129317    Item/stackable/consumption.img
+    [  15] type=0 value=1589         
+    [  16] type=3 value=209147603    [stackable type]
+    [stackable type]       value=455000885    resolved=[virtual]
+    [  17] type=6 value=455000885    [virtual]
+    [  18] type=0 value=0            
+    [  19] type=3 value=157673993    [move wav]
+    [  20] type=6 value=157934313    BONE_TOUCH
+    [  21] type=3 value=457850573    [smart drop group id]
+    [  22] type=0 value=21257        
+    [  23] type=3 value=442782279    [booster info]
+    [  24] type=3 value=149531251    [etc]
+    [  25] type=0 value=1            
+    [  26] type=0 value=490000001    
+    [  27] type=0 value=10000        
+    [  28] type=0 value=1            
+    [  29] type=3 value=218227229    [/etc]
+    [  30] type=3 value=442782339    [/booster info]
+    [  31] type=3 value=460540985    [instantly open]
+
+=== 10362488  kind=stackable  stackable_type=[virtual]
+    path=stackable/10362001/10362488.stk
+    cells=32
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=476636885    resolved=<13::name_10362488>
+                           reference=<13::name_10362488>
+    [   1] type=8 value=476636885    <13::name_10362488>
+    [   2] type=3 value=157673483    [grade]
+    [   3] type=0 value=1            
+    [   4] type=3 value=86949813     [rarity]
+    [   5] type=0 value=3            
+    [   6] type=3 value=157673543    [usable job]
+    [   7] type=6 value=147067661    [all]
+    [   8] type=3 value=157673569    [/usable job]
+    [   9] type=3 value=157673499    [attach type]
+    [  10] type=6 value=157673527    [trade]
+    [  11] type=3 value=157673597    [minimum level]
+    [  12] type=0 value=1            
+    [  13] type=3 value=157673629    [icon]
+    [  14] type=6 value=137129317    Item/stackable/consumption.img
+    [  15] type=0 value=1589         
+    [  16] type=3 value=209147603    [stackable type]
+    [stackable type]       value=455000885    resolved=[virtual]
+    [  17] type=6 value=455000885    [virtual]
+    [  18] type=0 value=0            
+    [  19] type=3 value=157673993    [move wav]
+    [  20] type=6 value=157934313    BONE_TOUCH
+    [  21] type=3 value=457850573    [smart drop group id]
+    [  22] type=0 value=21258        
+    [  23] type=3 value=442782279    [booster info]
+    [  24] type=3 value=149531251    [etc]
+    [  25] type=0 value=1            
+    [  26] type=0 value=490000001    
+    [  27] type=0 value=10000        
+    [  28] type=0 value=1            
+    [  29] type=3 value=218227229    [/etc]
+    [  30] type=3 value=442782339    [/booster info]
+    [  31] type=3 value=460540985    [instantly open]
+
+=== 10355163  kind=stackable  stackable_type=[virtual]
+    path=stackable/10355001/10355163.stk
+    cells=32
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=474111481    resolved=<13::name_10355163>
+                           reference=<13::name_10355163>
+    [   1] type=8 value=474111481    <13::name_10355163>
+    [   2] type=3 value=157673483    [grade]
+    [   3] type=0 value=1            
+    [   4] type=3 value=86949813     [rarity]
+    [   5] type=0 value=3            
+    [   6] type=3 value=157673543    [usable job]
+    [   7] type=6 value=147067661    [all]
+    [   8] type=3 value=157673569    [/usable job]
+    [   9] type=3 value=157673499    [attach type]
+    [  10] type=6 value=157673527    [trade]
+    [  11] type=3 value=157673597    [minimum level]
+    [  12] type=0 value=1            
+    [  13] type=3 value=157673629    [icon]
+    [  14] type=6 value=137129317    Item/stackable/consumption.img
+    [  15] type=0 value=1589         
+    [  16] type=3 value=209147603    [stackable type]
+    [stackable type]       value=455000885    resolved=[virtual]
+    [  17] type=6 value=455000885    [virtual]
+    [  18] type=0 value=0            
+    [  19] type=3 value=157673993    [move wav]
+    [  20] type=6 value=157934313    BONE_TOUCH
+    [  21] type=3 value=457850573    [smart drop group id]
+    [  22] type=0 value=21308        
+    [  23] type=3 value=442782279    [booster info]
+    [  24] type=3 value=149531251    [etc]
+    [  25] type=0 value=1            
+    [  26] type=0 value=490000001    
+    [  27] type=0 value=10000        
+    [  28] type=0 value=1            
+    [  29] type=3 value=218227229    [/etc]
+    [  30] type=3 value=442782339    [/booster info]
+    [  31] type=3 value=460540985    [instantly open]
+
+=== 10362489  kind=stackable  stackable_type=[virtual]
+    path=stackable/10362001/10362489.stk
+    cells=32
+    [   0] type=3 value=157673341    [name]
+    [name]                 value=476637175    resolved=<13::name_10362489>
+                           reference=<13::name_10362489>
+    [   1] type=8 value=476637175    <13::name_10362489>
+    [   2] type=3 value=157673483    [grade]
+    [   3] type=0 value=1            
+    [   4] type=3 value=86949813     [rarity]
+    [   5] type=0 value=3            
+    [   6] type=3 value=157673543    [usable job]
+    [   7] type=6 value=147067661    [all]
+    [   8] type=3 value=157673569    [/usable job]
+    [   9] type=3 value=157673499    [attach type]
+    [  10] type=6 value=157673527    [trade]
+    [  11] type=3 value=157673597    [minimum level]
+    [  12] type=0 value=1            
+    [  13] type=3 value=157673629    [icon]
+    [  14] type=6 value=137129317    Item/stackable/consumption.img
+    [  15] type=0 value=1589         
+    [  16] type=3 value=209147603    [stackable type]
+    [stackable type]       value=455000885    resolved=[virtual]
+    [  17] type=6 value=455000885    [virtual]
+    [  18] type=0 value=0            
+    [  19] type=3 value=157673993    [move wav]
+    [  20] type=6 value=157934313    BONE_TOUCH
+    [  21] type=3 value=457850573    [smart drop group id]
+    [  22] type=0 value=21259        
+    [  23] type=3 value=442782279    [booster info]
+    [  24] type=3 value=149531251    [etc]
+    [  25] type=0 value=1            
+    [  26] type=0 value=490000001    
+    [  27] type=0 value=10000        
+    [  28] type=0 value=1            
+    [  29] type=3 value=218227229    [/etc]
+    [  30] type=3 value=442782339    [/booster info]
+    [  31] type=3 value=460540985    [instantly open]
+

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/attendance"
 	"dfolan/internal/boostup"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
@@ -30,10 +31,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 type gatewayRuntime struct {
+	// Wire team sequences are unique across connections in this runtime.
+	bakalTeamSequence     atomic.Uint32
 	onlineGM              *onlineGMRegistry
 	config                Config
 	accountOptionsPayload []byte
@@ -41,6 +45,7 @@ type gatewayRuntime struct {
 	apocalypseClock       *legion.ApocalypseClock
 	boosterCatalog        *BoosterCatalog
 	boostCatalog          *boostup.Catalog
+	attendanceCatalog     *attendance.Catalog
 	boostEventInfo        []byte
 	attendance            *workflow.AttendanceService
 	online                *workflow.RoutineService
@@ -55,47 +60,57 @@ type gatewayRuntime struct {
 	raidTeams             raidTeamRegistry
 	channelTowns          map[uint32]catalog.TownArea
 	channelGuides         map[uint32]uint32
+	azureFlip             *azureFlipConfig
 	channelInfo           *catalog.ChannelInfo
-	developmentAccount    int64
-	dungeonCatalog        *catalog.DungeonCatalog
-	fatigueService        *character.FatigueService
-	gameHost              string
-	gameStore             *database.Store
-	hub                   *lanHub
-	itemService           *inventory.ItemService
-	journalRules          *catalog.EquipmentJournalRules
-	lootService           *loot.Service
-	lotteryPools          *lotteryItemCatalog
-	moonConfig            *moonSoloConfig
-	oathGradePair         [2]uint16
-	oathGradeTable        *inventory.OathGradeTable
-	oathInjectSpecs       []oathInjectSpec
-	oathProgressSet       map[uint32]bool
-	odysseyChoices        odysseyWeaponChoices
-	omenInfoBytes         []byte
-	omenState             bool
-	progressionService    *character.ProgressionService
-	questService          *quest.Service
-	raw                   []byte
-	rankingRules          *ranking.Rules
-	socialProfiles        bool
-	responses             map[uint16][]byte
-	rewards               reward.Notifier
-	selectProbe           *protocol.SelectProbeState
-	selectionBoxes        *catalog.SelectionBoxes
-	shopPilot             *cashshop.Pilot
-	shopService           *workflow.ShopService
-	skinCatalog           map[uint32]catalog.SkinStorageEntry
-	townArrivalScenes     map[uint32]catalog.TownArrivalScene
-	townCatalog           catalog.TownArea
-	townPolicy            townEntryPolicy
-	tutorialDungeons      *catalog.DungeonCatalog
-	tutorialRoutes        *catalog.TutorialCatalog
-	unifiedCharacTemplate []byte
-	unsealService         *workflow.UnsealService
-	vaultService          *workflow.VaultService
-	wearService           *workflow.WearService
-	worldService          *world.Service
+	// raidEntrances 是 PVF 解析的入口规则；巴卡尔状态由本地 legion 实现管理。
+	// channelSpawns 是各内容频道的专属城镇落点（见 prepareRuntime 的投影）。
+	channelSpawns      map[uint32]database.WorldPosition
+	developmentAccount int64
+	dungeonCatalog     *catalog.DungeonCatalog
+	fatigueService     *character.FatigueService
+	gameHost           string
+	gameStore          *database.Store
+	hub                *lanHub
+	itemService        *inventory.ItemService
+	journalRules       *catalog.EquipmentJournalRules
+	lootService        *loot.Service
+	// nativeBakalRaidRules / nativeBakalRewardService：巴卡尔攻坚战（contents/2022/
+	// bakalraid）的规则直读与奖励账本；nil = 该内容未装载。
+	nativeBakalRaidRules     *catalog.NativeBakalRaidRules
+	nativeBakalRewardService *workflow.NativeBakalRewardService
+	lotteryPools             *lotteryItemCatalog
+	moonConfig               *moonSoloConfig
+	oathGradePair            [2]uint16
+	oathGradeTable           *inventory.OathGradeTable
+	oathInjectSpecs          []oathInjectSpec
+	oathProgressSet          map[uint32]bool
+	deferredClearSet         map[uint32]bool
+	odysseyChoices           odysseyWeaponChoices
+	omenInfoBytes            []byte
+	attunementRewardSpec     string
+	omenState                bool
+	progressionService       *character.ProgressionService
+	questService             *quest.Service
+	raw                      []byte
+	rankingRules             *ranking.Rules
+	socialProfiles           bool
+	responses                map[uint16][]byte
+	rewards                  reward.Notifier
+	selectProbe              *protocol.SelectProbeState
+	selectionBoxes           *catalog.SelectionBoxes
+	shopPilot                *cashshop.Pilot
+	shopService              *workflow.ShopService
+	skinCatalog              map[uint32]catalog.SkinStorageEntry
+	townArrivalScenes        map[uint32]catalog.TownArrivalScene
+	townCatalog              catalog.TownArea
+	townPolicy               townEntryPolicy
+	tutorialDungeons         *catalog.DungeonCatalog
+	tutorialRoutes           *catalog.TutorialCatalog
+	unifiedCharacTemplate    []byte
+	unsealService            *workflow.UnsealService
+	vaultService             *workflow.VaultService
+	wearService              *workflow.WearService
+	worldService             *world.Service
 }
 
 type townEntryPolicy struct {
@@ -170,7 +185,6 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		ApocalypsePath:        startup.ApocalypseCatalog,
 		AttunementPath:        startup.AttunementRewards,
 		ContentPolicyPath:     startup.PVFContentPolicy,
-		BoostChallenge:        startup.BoostUpChallenge,
 	}, runtimeCatalogAdapters())
 	// PrepareCatalogs can return partially acquired catalogs alongside an error.
 	if pvfCatalogs != nil {
@@ -355,13 +369,24 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if oathProgressErr != nil {
 		return nil, nil, fmt.Errorf("bad -oath-progress-dungeons: %v", oathProgressErr)
 	}
+	deferredClearSet, deferredClearErr := parseDungeonIDSet(startup.DeferredClearDungeons)
+	if deferredClearErr != nil {
+		return nil, nil, fmt.Errorf("bad -deferred-clear-dungeons: %v", deferredClearErr)
+	}
+	if len(deferredClearSet) > 0 {
+		log.Printf("dungeon clear banner deferred to leaving the run on %s"+
+			"（领主死亡只发掉落，不推 NOTI31；见 next171 的实机取证）", startup.DeferredClearDungeons)
+	}
 	switch {
 	case len(oathGradePair) == 2 && (oathGradePair[0] != 0 || oathGradePair[1] != 0):
 		log.Printf("oath grades: overridden to primer=%d oath=%d (diagnostic)", oathGradePair[0], oathGradePair[1])
 	case startup.OathGradesFromGear:
 		log.Printf("oath grades: derived from worn oath/primer gear (%d known items, diagnostic)", oathGradeTable.Len())
 	case omenState:
-		log.Printf("oath grades: hidden boss driven by an omen full settlement on %s", startup.OathProgressDungeons)
+		// 2026-10-07 起隐藏 BOSS 由**两条线的档位**决定（客户端 nox_index_checker：
+		// oath_max==45 → 奥尔特尔；oath_max<45 && primer_max==45 → 监视者），
+		// 不再由征兆满档保底驱动。征兆那套 orthaire_pending 已惰性化（见 omen_state.go）。
+		log.Printf("oath grades: primer/oath rolled per run (hidden boss is tier-driven on %s)", startup.OathProgressDungeons)
 	case startup.OathProgressClears > 0:
 		log.Printf("oath grades: hidden-boss pity every %d clear(s) of %s", startup.OathProgressClears, startup.OathProgressDungeons)
 	default:
@@ -384,6 +409,13 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if len(omenInfoBytes) > 0 {
 		log.Printf("omen info (noti 2836): injecting %d bytes: %s", len(omenInfoBytes), hex.EncodeToString(omenInfoBytes))
 	}
+	// 调律之边界的奖励通知（noti 2859）诊断注入。同样在启动期校验：
+	// 长度写错必须在这里就失败，而不是等到玩家进本那一刻。
+	attunementRewardBytes, attunementRewardErr := attunementRewardSpec(startup.AttunementReward)
+	if attunementRewardErr != nil {
+		return nil, nil, fmt.Errorf("bad -attunement-reward: %v", attunementRewardErr)
+	}
+	logAttunementRewardInjection(startup.AttunementReward, attunementRewardBytes)
 	// 掉落调参（与官服的显式差异）。这里是**保留入口**的数值差异：关掉时表保持官方原值。
 	attunementRebalance := loot.Rebalance{}
 	if startup.AttunementRebalance {
@@ -508,6 +540,15 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	// facts, driving CMD507 action 169 (damage font) registration. Nil when no
 	// item index is configured, which disables the skin flow.
 	var skinCatalog map[uint32]catalog.SkinStorageEntry
+	// vaultRules 是运行期装配的金库规则，供奖励侧的"金库扩容"复用**同一份**对象。
+	//
+	// 装配顺序：奖励服务（下面 loot 分支）比金库服务（本函数末尾的 startup.VaultRules 分支）早，
+	// 所以奖励侧拿的是惰性访问器；写在这里是因为两处都需要看到它。
+	//
+	// 为什么必须共用同一份：金库容量落在 `character_vaults.config_version` 上，而金库入口的
+	// 判据是"该列 == 规则里的 SourceSHA256"（internal/workflow/vault.go）。用别的身份建行，
+	// 这个角色之后每次入场都会被判成"需要迁移配置"——实机表现就是**建完号进不去游戏**。
+	var vaultRules *inventory.VaultRules
 	if startup.CharacterStorage != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -662,10 +703,16 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 				return nil, nil, e
 			}
 		}
-		developmentAccount, e = s.DevelopmentAccount(ctx, "probe")
+		developmentAccount, e = s.DevelopmentAccount(ctx, startup.Account)
 		if e != nil {
+			// UPSERT 带 WHERE accounts.development_only：名字已被正式账号占用时没有返回行，
+			// 而不是报错。不包这一层，玩家看到的只是启动期一条裸 ErrNotFound。
+			if errors.Is(e, database.ErrNotFound) {
+				return nil, nil, fmt.Errorf("account %q 已存在但不是开发账号（accounts.development_only=0），换一个名字", startup.Account)
+			}
 			return nil, nil, e
 		}
+		log.Printf("login account: %s (id=%d)", startup.Account, developmentAccount)
 	}
 	if startup.EntryAdditionProbe && !startup.EntryBasicProbe {
 		return nil, nil, errors.New("addition requires a basic actor")
@@ -942,6 +989,35 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		log.Printf("loaded equipment catalog: %d rows, %d droppable, from %s",
 			len(gear.Rows), len(gear.DropPool()), startup.EquipmentCatalog)
+		// [MOD-CAPABILITY-20261006] 给**奖励/邮件路径**的装备目录挂上完整定义目录。
+		//
+		// 为什么：`mods/scripts/*.lua` 里的规则脚本用 send_mail 发装备时，旧口径要求
+		// 模板先在掉落目录里，再在 3,174 行的装备选集里取到耐久 —— 于是"发一件毕业装备"
+		// 这种**内容侧**的诉求被**掉落表**锁死（现场：`模板 500950043 不在奖励目录里`）。
+		//
+		// 口径（业主 2026-10-06）：**能不能发是服务端能力，发什么由 mod 决定**。
+		// 所以这里把"PVF 里存在的装备都能取到定义"这条能力交给奖励路径；具体发哪一件、
+		// 发不发，仍然只写在 mod 的脚本里，服务端不持有任何内容清单。
+		//
+		// 与穿戴目录共用同一个实例（OpenFullEquipment 是幂等的），所以不额外占内存；
+		// 真正的定义是按需解析并带 LRU 缓存的（见 inventory.FullEquipmentCatalog）。
+		if startup.EquipmentFullCatalog != "" || pvfCatalogs.Equipment != nil {
+			full, fullErr := pvfCatalogs.OpenFullEquipment(startup.EquipmentFullCatalog, c.Source.Checksum)
+			if fullErr != nil {
+				return nil, nil, fullErr
+			}
+			if full != pvfCatalogs.Equipment {
+				resources.add(func() { full.Close() })
+			}
+			gear.Full = full
+			log.Printf("reward/mail equipment: %d PVF definitions available on demand (mod scripts may mail any of them)", full.RecordCount())
+		} else {
+			log.Printf("warning: full equipment catalog is not enabled; mod reward scripts can only mail equipment that is already in the drop catalog")
+		}
+		// [FIX-20261007 时装孔显示] 运行时角色服务注入完整装备目录：
+		// 此前 character.New 只给 Service{Store,Catalog,Rules}，Equipment 恒为 nil，
+		// 导致背包/穿戴下发路径的 DefaultAvatarSockets 补孔参数拿到 nil 直接跳过
+		//（下发包 options 全 0，客户端不显示孔）。gear 已含 Full 目录，挂上即可。
 		if characters != nil && gear != nil {
 			characters.Equipment = gear
 			characters.WeaponSkinRecipes = pvfCatalogs.WeaponSkinRecipes
@@ -1017,7 +1093,20 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		// Event-triggered Lua rewards reuse the same catalog as the completion
 		// awarder. The rule scripts are embedded in the binary.
-		if rewards := buildRewardService(gameStore, &inventory.Awarder{Catalog: c, Rules: bag, Equipment: gear}); rewards != nil {
+		// 皮肤仓库"全解锁"的清单来源：运行期皮肤目录（模板 → skin key）。
+		// 闭包是**惰性**的：奖励脚本在建号时才用，那时目录早已装配完毕；不在这里做快照，
+		// 免得目录装配顺序一变（或没准备 skins 域）就静默拿到空清单。
+		skinUnlocks := func() []database.AccountSkin {
+			out := make([]database.AccountSkin, 0, len(skinCatalog))
+			for template, entry := range skinCatalog {
+				out = append(out, database.AccountSkin{SourceTemplate: template, SkinKey: entry.SkinKey()})
+			}
+			return out
+		}
+		// 金库规则同样在奖励服务之后才装配（见下面 startup.VaultRules 分支）⇒ 惰性访问器。
+		// 规则对象在函数外层声明，两处共用同一份；这里只转发。
+		vaultRulesLookup := func() *inventory.VaultRules { return vaultRules }
+		if rewards := buildRewardService(gameStore, &inventory.Awarder{Catalog: c, Rules: bag, Equipment: gear}, skinUnlocks, vaultRulesLookup); rewards != nil {
 			if progressionService != nil {
 				progressionService.Rewards = rewards
 			}
@@ -1058,8 +1147,22 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		lootService.CardPolicy = &cards
 		// 维纳斯终局翻牌第一排随机装备位池子（115 级魔法/神器常规部位）。
-		venusFlipGearPool = append([]uint32(nil), pvfCatalogs.FlipGearPool...)
-		log.Printf("loaded native flip gear pool: %d source templates; existing level115 rarity2/3 policy retained", len(venusFlipGearPool))
+		flipGearPool, e := legion.LoadVenusFlipGearPool(startup.VenusFlipGear)
+		if e != nil {
+			return nil, nil, e
+		}
+		venusFlipGearPool = flipGearPool.Templates
+		log.Printf("loaded venus flip gear pool: %d templates from %s", len(flipGearPool.Templates), startup.VenusFlipGear)
+		// 末世录翻牌专用池（业主 2026-10-08 方案 A）：115 级、按 rarity 2/3/4
+		// 分三档（魔法/神器/史诗）。维纳斯那个池子只有 rarity 2/3、缺 SS，
+		// 所以单独生成一份（见 internal/toolcmd/flippool）。
+		apocFlipPool, e := legion.LoadApocalypseFlipGearPool(startup.ApocalypseFlipGear)
+		if e != nil {
+			return nil, nil, e
+		}
+		apocalypseFlipGearPool = apocFlipPool
+		log.Printf("loaded apocalypse flip gear pool: %s (%d templates) from %s",
+			legion.ApocalypseFlipGearPoolStats(apocFlipPool), len(apocFlipPool.Tiers), startup.ApocalypseFlipGear)
 		if pvfCatalogs.Boxes != nil || startup.Boxes != "" {
 			boxes, boxErr := pvfCatalogs.LoadBoxes(startup.Boxes, lootService.Catalog.Source.Checksum)
 			if boxErr != nil {
@@ -1234,6 +1337,8 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		if e != nil {
 			return nil, nil, e
 		}
+		// 让奖励侧的金库扩容用**同一份**规则（身份 + 初始档 + 合法档位表）。见上面的惰性访问器。
+		vaultRules = &rules
 		vaultService = &workflow.VaultService{Store: gameStore, VaultService: inventory.VaultService{Rules: rules}}
 		if wearService != nil {
 			vaultService.Equipment = wearService.Catalog
@@ -1475,7 +1580,10 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		if boosterCatalog == nil || len(boosterCatalog.Definitions) == 0 {
 			return nil, nil, errors.New("attunement rewards need -booster-catalog: the table pays wrappers, and without the box catalog they cannot be opened at drop time")
 		}
-		boxes := boosterBoxSource{catalog: boosterCatalog, serverUnwrap: true}
+		boxes := boosterBoxSource{catalog: boosterCatalog}
+		// 调律之边界专用：按「客户端是否有开箱入口」决定拆不拆。
+		// 与上面的 boxes 同源同目录，只是多一条判据 —— 所以两者不会互相漂移。
+		instantlyOpenBoxes := boosterBoxSource{catalog: boosterCatalog, serverUnwrap: true}
 		empties, unopenable, e := attunement.ValidateBoxes(boxes)
 		if e != nil {
 			return nil, nil, e
@@ -1485,6 +1593,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		lootService.Attunement = attunement
 		lootService.RewardBoxes = boxes
+		lootService.InstantlyOpenBoxes = instantlyOpenBoxes
 		// 征兆系统（omen）：**默认生效**，无开关 —— 它是玩法本身。
 		// 与上面的固定玩法行为保持一致。
 		if omenRewards {
@@ -1604,7 +1713,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			return nil, nil, errors.New("Moon 需要频道目录的 PVF 直读投影（preparePVFChannels 未装载）")
 		}
 		var moonErr error
-		moonConfig, moonErr = defaultMoonSoloConfig(pvfCatalogs.ChannelDirectory, pvfCatalogs.ChannelTowns, dungeonCatalog, lootService)
+		moonConfig, moonErr = defaultMoonSoloConfig(pvfCatalogs.ChannelDirectory, pvfCatalogs.ChannelTowns, dungeonCatalog, lootService, boosterCatalog)
 		if moonErr != nil {
 			return nil, nil, moonErr
 		}
@@ -1613,6 +1722,22 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		}
 		if err = worldService.ValidatePosition(255, false, moonConfig.Entry); err != nil {
 			return nil, nil, errors.New(fmt.Sprint("Moon source entry: ", err))
+		}
+		// 源驱动翻牌的装配结果打进启动日志：实机对账先看这一行（块 / 组 / 池大小 / 条目数）。
+		log.Printf("月湖单人翻牌（源驱动）：%s", moonConfig.RewardPool)
+	}
+	// 蔚蓝号（征服频道 102）：同一套源驱动翻牌，结算层取该频道的 [guide dungeon index]。
+	// 装配失败**不致命** —— 蔚蓝号还有原先那条通用翻牌可用，但日志必须刺眼
+	// （D4：宁缺勿编，不许静默降级）。
+	var azureFlip *azureFlipConfig
+	if dungeonCatalog != nil && lootService != nil && pvfCatalogs.ChannelDirectory != nil {
+		guide := channelGuidesFromDirectory(pvfCatalogs.ChannelDirectory)[azureMainChannelType]
+		cfg, azErr := azureFlipPolicy(lootService, dungeonCatalog, guide, boosterCatalog)
+		if azErr != nil {
+			log.Printf("warning: 蔚蓝号源驱动翻牌未装配（退回通用翻牌）：%v", azErr)
+		} else {
+			azureFlip = cfg
+			log.Printf("蔚蓝号翻牌（源驱动）：结算层=%d %s", cfg.Policy.SettlementDungeon, cfg.Note)
 		}
 	}
 	if itemService != nil {
@@ -1625,7 +1750,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		return nil, nil, err
 	}
 	// Starter Boost 662 装配：目录来自 PVF 直读（preparePVFBoostUp），NOTI108 活动清单
-	// 只在开关打开时冻结一次。表体是**频道门 + 活动行合并后的那一张**（见
+	// 只在活动生效时冻结一次。表体是**频道门 + 活动行合并后的那一张**（见
 	// event_info_variant.go）：客户端对 108 是整表替换，只发活动行的第二条会被
 	// 进城那条频道门表抹掉，城里就没有活动礼物图标。
 	var boostCatalog *boostup.Catalog
@@ -1638,13 +1763,14 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			// 这里保持一致：活动整体不装配，玩家照常进镇，不伪造内容。
 			log.Printf("warning: Starter Boost 662 disabled; PVF direct-read boostup domain is not prepared (-pvf-catalogs 加 boostup 才开启)")
 			startup.BoostUpEvent = false
-			startup.BoostUpChallenge = false
 		} else if characters == nil || lootService == nil || worldService == nil {
 			return nil, nil, errors.New("Starter Boost 需要持久化角色、掉落与世界服务")
 		} else {
 			// 选角（CMD8）与进城 announce 发同一条表；参考实现
 			// `活动Boost与胶囊教学-20260927` 的两个发送点用的也是同一个快照。
-			rows, ok := buildTownEventInfoTable(startup.BoostUpChallenge)
+			// challenge 恒为真：毕业后的 665 是玩法内容，不是开关（§6），
+			// 源没绑上时由 boostup_challenge 的 fail-closed 分支拒绝，不伪造进度。
+			rows, ok := buildTownEventInfoTable(true)
 			if !ok {
 				return nil, nil, errors.New("Starter Boost 事件表合并失败（频道门表形状异常）")
 			}
@@ -1757,54 +1883,61 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		accountOptionsPayload: accountOptionsPayload,
 		apocalypseCatalog:     apocalypseCatalog,
 		apocalypseClock:       apocalypseClock,
-		boosterCatalog:        boosterCatalog,
-		boostCatalog:          boostCatalog,
-		boostEventInfo:        boostEventInfo,
-		characters:            characters,
-		channelDirectory:      pvfCatalogs.ChannelDirectory,
-		raidEntrances:         pvfCatalogs.RaidEntrances,
-		legionContents:        pvfCatalogs.LegionContents,
-		channelInfo:           pvfCatalogs.ChannelInfo,
-		channelTowns:          pvfCatalogs.ChannelTowns,
-		channelGuides:         channelGuidesFromDirectory(pvfCatalogs.ChannelDirectory),
-		developmentAccount:    developmentAccount,
-		dungeonCatalog:        dungeonCatalog,
-		fatigueService:        fatigueService,
-		gameHost:              gameHost,
-		gameStore:             gameStore,
-		hub:                   hub,
-		itemService:           itemService,
-		journalRules:          journalRules,
-		lootService:           lootService,
-		lotteryPools:          lotteryPools,
-		moonConfig:            moonConfig,
-		oathGradePair:         oathGradePair,
-		oathGradeTable:        oathGradeTable,
-		oathInjectSpecs:       oathInjectSpecs,
-		oathProgressSet:       oathProgressSet,
-		odysseyChoices:        odysseyChoices,
-		omenInfoBytes:         omenInfoBytes,
-		omenState:             omenState,
-		progressionService:    progressionService,
-		questService:          questService,
-		raw:                   raw,
-		responses:             responses,
-		rewards:               rewardNotifier,
-		selectProbe:           selectProbe,
-		selectionBoxes:        selectionBoxes,
-		shopPilot:             shopPilot,
-		shopService:           shopService,
-		skinCatalog:           skinCatalog,
-		townArrivalScenes:     townArrivalScenes,
-		townCatalog:           townCatalog,
-		townPolicy:            townPolicy,
-		tutorialDungeons:      tutorialDungeons,
-		tutorialRoutes:        tutorialRoutes,
-		unifiedCharacTemplate: unifiedCharacTemplate,
-		unsealService:         unsealService,
-		vaultService:          vaultService,
-		wearService:           wearService,
-		worldService:          worldService,
+		// 巴卡尔：规则与奖励服务仅在内容装载时注入（nil = 待机区不绑定拒绝）。
+		nativeBakalRaidRules:     pvfCatalogs.NativeBakal,
+		nativeBakalRewardService: newBakalRewardService(gameStore, lootService, pvfCatalogs.NativeBakal),
+		boosterCatalog:           boosterCatalog,
+		boostCatalog:             boostCatalog,
+		attendanceCatalog:        pvfCatalogs.Attendance,
+		boostEventInfo:           boostEventInfo,
+		characters:               characters,
+		channelDirectory:         pvfCatalogs.ChannelDirectory,
+		raidEntrances:            pvfCatalogs.RaidEntrances,
+		legionContents:           pvfCatalogs.LegionContents,
+		channelInfo:              pvfCatalogs.ChannelInfo,
+		channelTowns:             pvfCatalogs.ChannelTowns,
+		channelGuides:            channelGuidesFromDirectory(pvfCatalogs.ChannelDirectory),
+		developmentAccount:       developmentAccount,
+		dungeonCatalog:           dungeonCatalog,
+		fatigueService:           fatigueService,
+		gameHost:                 gameHost,
+		gameStore:                gameStore,
+		hub:                      hub,
+		itemService:              itemService,
+		journalRules:             journalRules,
+		lootService:              lootService,
+		lotteryPools:             lotteryPools,
+		moonConfig:               moonConfig,
+		azureFlip:                azureFlip,
+		oathGradePair:            oathGradePair,
+		oathGradeTable:           oathGradeTable,
+		oathInjectSpecs:          oathInjectSpecs,
+		oathProgressSet:          oathProgressSet,
+		deferredClearSet:         deferredClearSet,
+		odysseyChoices:           odysseyChoices,
+		omenInfoBytes:            omenInfoBytes,
+		attunementRewardSpec:     startup.AttunementReward,
+		omenState:                omenState,
+		progressionService:       progressionService,
+		questService:             questService,
+		raw:                      raw,
+		responses:                responses,
+		rewards:                  rewardNotifier,
+		selectProbe:              selectProbe,
+		selectionBoxes:           selectionBoxes,
+		shopPilot:                shopPilot,
+		shopService:              shopService,
+		skinCatalog:              skinCatalog,
+		townArrivalScenes:        townArrivalScenes,
+		townCatalog:              townCatalog,
+		townPolicy:               townPolicy,
+		tutorialDungeons:         tutorialDungeons,
+		tutorialRoutes:           tutorialRoutes,
+		unifiedCharacTemplate:    unifiedCharacTemplate,
+		unsealService:            unsealService,
+		vaultService:             vaultService,
+		wearService:              wearService,
+		worldService:             worldService,
 	}
 	return prepared, resources.close, nil
 }

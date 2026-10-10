@@ -9,9 +9,6 @@ import (
 // openGameListeners reserves the whole contiguous channel port block before
 // advertising any channel. A rejected neighbour releases the partial block;
 // only an ephemeral base address may choose a different block on retry.
-func openGameListeners(addr string, extra int) ([]net.Listener, error) {
-	return openGameListenersWith(addr, extra, net.Listen)
-}
 
 func openGameListenersWith(addr string, extra int, listen func(string, string) (net.Listener, error)) ([]net.Listener, error) {
 	host, port, err := net.SplitHostPort(addr)
@@ -56,12 +53,4 @@ func openGameListenersWith(addr string, extra int, listen func(string, string) (
 		closeGameListeners(block)
 	}
 	return nil, fmt.Errorf("reserve game listener block %s (+%d): %w", addr, extra, last)
-}
-
-func closeGameListeners(block []net.Listener) {
-	for _, listener := range block {
-		if listener != nil {
-			_ = listener.Close()
-		}
-	}
 }

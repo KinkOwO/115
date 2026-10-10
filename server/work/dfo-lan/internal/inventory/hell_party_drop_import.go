@@ -4,6 +4,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"fmt"
+	"log"
 	"sort"
 )
 
@@ -27,17 +28,28 @@ func ImportHellPartyDropPool(a *pvf.Archive, index catalog.ItemIndex, excluded [
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 	var pool []EquipmentDrop
+	missing := 0
+	var missingSamples []string
 	for n, id := range ids {
 		if n%1024 == 0 {
 			a.ReleaseReadCaches()
 		}
 		s, err := catalog.ResolveScript(a, index.Items[id].Path)
 		if err != nil {
-			return nil, err
+			// devpack 基线差异：对方历史整合的物品源脚本不在本基线 PVF（见
+			// 合并记录-20261005-devpack服务端合并.md）。跳过并计数，其余照常。
+			missing++
+			if len(missingSamples) < 8 {
+				missingSamples = append(missingSamples, fmt.Sprintf("%d %v", id, err))
+			}
+			continue
 		}
 		if candidate, ok := hellPartyDropCandidate(equipmentDefinitionFromScript(id, s)); ok {
 			pool = append(pool, candidate)
 		}
+	}
+	if missing > 0 {
+		log.Printf("PVF hell party drop pool: %d equipment scripts missing (devpack baseline gap); samples: %v", missing, missingSamples)
 	}
 	return pool, nil
 }

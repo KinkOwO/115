@@ -41,24 +41,8 @@ const attunementMaterial = 10362432
 //
 // Opt in with ATTUNEMENT_REWARD_INTEGRATION=1: it loads the 295 MB dungeon
 // catalog.
-// dungeonType reads a dungeon script's [dungeon type] string cell, which is what
-// names the mode a dungeon belongs to.
-func dungeonType(d catalog.DungeonDefinition) string {
-	for i, c := range d.Script.Cells {
-		if c.Type != 3 || c.Text != "[dungeon type]" {
-			continue
-		}
-		for j := i + 1; j < len(d.Script.Cells) && d.Script.Cells[j].Type != 3; j++ {
-			switch d.Script.Cells[j].Type {
-			case 6:
-				return d.Script.Cells[j].Text
-			case 8:
-				return d.Script.Cells[j].Reference
-			}
-		}
-	}
-	return ""
-}
+// dungeonType 走 catalog 的同一个读取器（生产路径用的也是它，避免两份实现）。
+func dungeonType(d catalog.DungeonDefinition) string { return catalog.DungeonType(d) }
 
 func TestAttunementBossPaysTheUnwrappedRewards(t *testing.T) {
 	if os.Getenv("ATTUNEMENT_REWARD_INTEGRATION") != "1" {

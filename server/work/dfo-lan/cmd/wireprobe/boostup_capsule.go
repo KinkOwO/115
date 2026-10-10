@@ -19,9 +19,9 @@ import (
 // boostCapsuleAction 是胶囊在 CMD507 上的 [action type] 编号（S-0904 实测）。
 const boostCapsuleAction = 337
 
-func (w *worldSession) useStackableAction(p []byte) ([]outboundPacket, error) {
+func (w *worldSession) useStackableAction(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if len(p) >= 11 && binary.LittleEndian.Uint32(p[7:]) == boostCapsuleAction {
-		return w.useBoostCapsule(p)
+		return w.useBoostCapsule(p, event)
 	}
 	return w.recoverFatiguePotion(p)
 }
@@ -113,7 +113,13 @@ func boostCapsuleRefresh(w *worldSession, role database.Character, r loot.BoostC
 	if e != nil {
 		return nil, e
 	}
-	plan := []outboundPacket{{"boost_capsule_consumed", 0, 14, delta}, {"boost_capsule_training", 0, 2638, status}, {"boost_capsule_roster", 0, 2639, roster}, {"boost_capsule_skills", 0, 19, skills}}
+	plan := []outboundPacket{{"boost_capsule_consumed", 0, 14, delta}, {"boost_capsule_training", 0, 2638, status}}
+	// NOTI2639 走同一道客户端上限护栏（见 boostup_roster.go 的 maxVerifiedBoostRosterBytes）。
+	// 这里传 false：胶囊路径没有"快照必须两个包"的契约，超限宁可不发这一帧。
+	if pkt, ok := boostRosterFrame("boost_capsule_roster", roster, false); ok {
+		plan = append(plan, pkt)
+	}
+	plan = append(plan, outboundPacket{"boost_capsule_skills", 0, 19, skills})
 	plan, e = appendSkillPresetRestore(plan, w.characters, role, "skill_preset_restored_after_boost_capsule")
 	if e != nil {
 		return nil, e
@@ -124,7 +130,9 @@ func boostCapsuleRefresh(w *worldSession, role database.Character, r loot.BoostC
 	ack := []byte{1, byte(r.Slot), byte(r.Slot >> 8), 0, 0x51, 1, 0, 0}
 	return append(plan, outboundPacket{"boost_capsule_ack", 1, 507, ack}), nil
 }
-func (w *worldSession) useBoostCapsule(p []byte) ([]outboundPacket, error) {
+func (w *worldSession) useBoostCapsule(p []byte, events ...func(map[string]any)) ([]outboundPacket, error) {
+var event func(map[string]any)
+if len(events) > 0 { event = events[0] }
 	r, e := protocol.DecodeBoostCapsule115(p)
 	if e != nil {
 		return nil, e
@@ -228,6 +236,13 @@ func (w *worldSession) useBoostCapsule(p []byte) ([]outboundPacket, error) {
 			return nil, e
 		}
 		plan = append(plan, unlock...)
+		// 直升落地后把主线一次性标为完成（boost-story-skip-v2，幂等收据）。
+		// 失败只由 boostStorySkipNow 记事件、不阻断本帧串：胶囊已经提交，
+		// 下一次进城镇的登录钩子会按同一张收据重试。
+		skip, skipErr := w.boostStorySkipNow(ctx, event)
+		if skipErr == nil {
+			plan = append(plan, skip...)
+		}
 	}
 	//  donor 的 partyIdentityNetworkDirty/presenceForceRefresh 挂脏位在本树不存在：
 	// boostTownRefresh 已经当场重发了城镇在场与状态包。

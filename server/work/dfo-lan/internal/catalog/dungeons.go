@@ -56,6 +56,7 @@ type DungeonDefinition struct {
 	// 14614E440 在 dungeon+0xC70!=0 时必须该标志才播放开门动画）。
 	// 见 cmd/wireprobe dungeon_flow 死亡确认处的发送点。
 	BossEntranceConditionIDs []uint32
+
 	// AttunementBoss 是「调律之边界」玩法（[dungeon type] boundary of attunement）的源领主模板。
 	// 该玩法单人、不发 CMD117，所以只有这只领主的死亡确认能结束本次挑战 ——
 	// 见 internal/dungeon/completion.go 的 tryComplete。
@@ -73,12 +74,31 @@ type DungeonDefinition struct {
 	IndividualMapMovement bool
 	// TimeoutSeconds comes from [dungeon timeout] seconds and mode0.
 	TimeoutSeconds uint32
+	// CoinLimit 是副本脚本声明的**复活币使用上限**（本局最多用几枚）。两支形态：
+	//
+	//	[coin limit] <N>                          —— 沉月湖（100004136/100004137 都是 8）
+	//	[coin info] … [normal] <N> <M> … [/coin info] —— 蔚蓝号（100004131/100004134 也是 8）
+	//
+	// 同族语义的旁证：`internal/legion/bakal_raid.go` 解析的 `[party coin limit]`
+	// 就是巴卡尔军团本的复活币上限。**形状不符保持 0** —— 其它副本的行为一个字节都不变。
+	//
+	// 用途：蔚蓝号写进 N2621 的 [32:36]（剩余次数，此前是代码常量 8）；
+	// 沉月湖写进 N2622 的 p[16]（协议里那句 "the host supplies the actual
+	// upstream-owned revival balance"）。见 next188。
+	CoinLimit uint32 `json:"coin_limit,omitempty"`
 	// RewardCard 是源 [dungeon clear result] [reward card] <N> 声明的**翻牌张数**
 	// （沉月湖第二层 100004137 为 1）。这是源对通关结算的声明，不是本地策略 ——
 	// 沉月湖单人的抽牌次数就取它，见 cmd/wireprobe 的 moon 配置推导。
 	RewardCard uint32
-	HellParty  *DungeonHellParty `json:"hell_party,omitempty"`
-	Mazes      []DungeonMaze     `json:"mazes"`
+	// RewardDecls 是源 [difficulty dropitem group list] 每个难度块声明的翻牌内容：
+	// 产物列表页名([contents]) + [item index] + [normal group index] + 基础产物
+	// ([special setinfo reward]/[special custom reward info]) + 产出效率([reward multiple info])。
+	// 2026-10-09 直读 100004137/100004136/100004131 确立形状（见 analysis/tasks/next190）。
+	// **形状不符保持空** —— 别的副本的行为一个字节都不变。解析在 dungeon_reward_decl.go，
+	// 率的量纲尚未定案，这里只记原值。
+	RewardDecls []DungeonRewardBlock `json:"reward_decls,omitempty"`
+	HellParty   *DungeonHellParty    `json:"hell_party,omitempty"`
+	Mazes       []DungeonMaze        `json:"mazes"`
 	// MazeChanceRates 非空表示这张副本按源里的 [maze chance rate] 掷骰选图，
 	// 而不是「同 quest 里 index 最小者」。
 	//
@@ -94,6 +114,76 @@ type DungeonDefinition struct {
 	// Tower is attached only after a tower's source floor/map rules are verified.
 	// Entry and progress are shared; reward packets remain tower specific.
 	Tower *TowerRuntime `json:"-"`
+}
+
+// coinLimit 读副本脚本声明的「复活币使用上限」。两种形态（见 DungeonDefinition.CoinLimit）：
+//
+//	[coin limit] <N>
+//	[coin info] … [normal] <N> <M> … [/coin info]
+//
+// 都取那个正整数 N；形状不符（缺标签、值非正整数、多条）一律返回 0，
+// 让其它副本的行为一个字节都不变。
+func coinLimit(cells []pvf.Token) uint32 {
+	if v := sectionCells(cells, "[coin limit]"); len(v) == 1 && v[0].Type == 0 && v[0].Value > 0 {
+		return uint32(v[0].Value)
+	}
+	// [coin info] 块里的难度行：形如
+	//
+	//	[coin info] 0 [normal] 8 1 [/coin info]                       （蔚蓝号，单档）
+	//	[coin info] 0 [normal] 8 1 [expert] 8 1 [master] 8 1 [/coin info]（同族，三档）
+	//
+	// ⚠️ 这些难度名是 **type=6 的子标签**，不是 type=3 的 section ——
+	// 按 type=3 匹配会一个都找不到（实测踩过）。
+	// 取 [normal]（第一档）的值：本仓这两个副本三档同值（都是 8），取哪档都等价；
+	// 将来若出现分档不同的副本，这里要改成按当前难度取。
+	open := false
+	for i, c := range cells {
+		if c.Type == 3 {
+			switch c.Text {
+			case "[coin info]":
+				open = true
+			case "[/coin info]":
+				open = false
+			}
+			continue
+		}
+		if !open || c.Type != 6 || c.Text != "[normal]" {
+			continue
+		}
+		if i+1 < len(cells) && cells[i+1].Type == 0 && cells[i+1].Value > 0 {
+			return uint32(cells[i+1].Value)
+		}
+	}
+	return 0
+}
+
+// DungeonType 读副本脚本自己的 [dungeon type] 值（`boundary of attunement` /
+// `endkeeper of order` / `stolen land ispins` …）。
+//
+// 它是**玩法的源声明**：同一条服务端逻辑要按玩法分流时（例如 noti 2859
+// 「BOUNDARY_OF_ATTUNEMENT_REWARD」只属于调律之边界），判据取这里，
+// 而不是按副本号硬编一份名单 —— 源里加了新副本，这里自动跟上。
+//
+// 取值可能是 type 6（字面量）或 type 8（引用），两种都读；没有声明时返回空串。
+// 一次声明多次出现时按源顺序取第一个（当前两个深渊各只声明一次）。
+func DungeonType(d DungeonDefinition) string {
+	for i, c := range d.Script.Cells {
+		if c.Type != 3 || c.Text != "[dungeon type]" {
+			continue
+		}
+		for j := i + 1; j < len(d.Script.Cells); j++ {
+			switch d.Script.Cells[j].Type {
+			case 6:
+				return d.Script.Cells[j].Text
+			case 8:
+				return d.Script.Cells[j].Reference
+			case 3:
+				return ""
+			}
+		}
+		return ""
+	}
+	return ""
 }
 
 type TowerRuntime struct {
@@ -359,32 +449,40 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	if individual := sectionCells(s.Cells, "[individual map movement]"); len(individual) == 1 && individual[0].Type == 0 && individual[0].Value == 1 {
 		d.IndividualMapMovement = true
 	}
+	d.CoinLimit = coinLimit(s.Cells)
 	// [reward card] 是翻牌张数（月湖第二层 100004137 = 1）。源里它写在
 	// [dungeon clear result] 段内；只在恰好一条且为非负整数时采纳 —— 形状不符就
 	// 保持 0，其它副本的行为一个字节都不变。
 	if cards := sectionCells(s.Cells, "[reward card]"); len(cards) == 1 && cards[0].Type == 0 && cards[0].Value >= 0 {
 		d.RewardCard = uint32(cards[0].Value)
 	}
-	minimum := sectionCells(s.Cells, "[minimum required level]")
-	// Native Bakal raid scripts repeat scalar level tags later in the file.
-	// Each assignment replaces the previous value; concatenating them makes
-	// all these otherwise valid raid dungeons fail ordinary scalar validation.
-	variant := sectionCells(s.Cells, "[dungeon type]")
-	if len(variant) == 1 && variant[0].Type == 6 {
-		d.Type = variant[0].Text
+	// 翻牌声明（产物列表页 + 基础产物 + 产出效率）。形状不符返回空，此处不设默认值。
+	d.RewardDecls = rewardDeclarations(s.Cells)
+	// Raid scripts include maze-local copies of level fields. Read the
+	// dungeon header separately so those copies cannot replace its gate.
+	header := s.Cells
+	for i, c := range s.Cells {
+		if c.Type == 3 && c.Text == "[maze info]" {
+			header = s.Cells[:i]
+			break
+		}
 	}
-	bakal := len(variant) == 1 && variant[0].Type == 6 && variant[0].Text == "bakal"
-	d.Bakal = bakal
-	if bakal && len(minimum) > 1 {
-		minimum = minimum[len(minimum)-1:]
+	variant := sectionCells(s.Cells, "[dungeon type]")
+	if len(variant) == 1 && (variant[0].Type == 6 || variant[0].Type == 8) {
+		d.Type = DungeonType(d)
+		d.Bakal = d.Type == "bakal"
+	}
+	minimum := consistentHellPartySection(header, "[minimum required level]")
+	if len(minimum) == 0 && len(sectionCells(header, "[minimum required level]")) == 0 {
+		minimum = consistentHellPartySection(s.Cells, "[minimum required level]")
 	}
 	if len(minimum) != 1 || minimum[0].Type != 0 || minimum[0].Value < 1 {
 		return d, fmt.Errorf("invalid [minimum required level]")
 	}
 	d.MinimumLevel = uint32(minimum[0].Value)
-	basis := sectionCells(s.Cells, "[basis level]")
-	if bakal && len(basis) > 1 {
-		basis = basis[len(basis)-1:]
+	basis := consistentHellPartySection(header, "[basis level]")
+	if len(basis) == 0 && len(sectionCells(header, "[basis level]")) == 0 {
+		basis = consistentHellPartySection(s.Cells, "[basis level]")
 	}
 	hasBasis := false
 	for _, c := range s.Cells {

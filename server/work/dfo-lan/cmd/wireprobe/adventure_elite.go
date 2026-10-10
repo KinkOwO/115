@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"dfolan/internal/adventure"
+	"dfolan/internal/adventureelite"
 	"dfolan/internal/character"
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
@@ -22,7 +23,11 @@ func (w *worldSession) adventureElitePayload(ctx context.Context, profile databa
 	if err != nil {
 		return nil, err
 	}
-	body, err := adventureElitePayloadForRoles(profile, roles, w.role.ID)
+	rows, err := w.withBoostAPCSelection(adventureEliteSelectionsForRoles(w.eliteProfileView(profile), roles, w.role.ID))
+	if err != nil {
+		return nil, err
+	}
+	body, err := protocol.AdventureEliteSelections(rows)
 	if err != nil {
 		return nil, err
 	}
@@ -30,6 +35,10 @@ func (w *worldSession) adventureElitePayload(ctx context.Context, profile databa
 }
 
 func adventureElitePayloadForRoles(profile database.AccountAdventure, roles []database.Character, activeCharacter ...int64) ([]byte, error) {
+	return protocol.AdventureEliteSelections(adventureEliteSelectionsForRoles(profile, roles, activeCharacter...))
+}
+
+func adventureEliteSelectionsForRoles(profile database.AccountAdventure, roles []database.Character, activeCharacter ...int64) []protocol.AdventureEliteSelection {
 	var active int64
 	if len(activeCharacter) > 0 {
 		active = activeCharacter[0]
@@ -59,7 +68,7 @@ func adventureElitePayloadForRoles(profile database.AccountAdventure, roles []da
 		}
 		rows = append(rows, row)
 	}
-	return protocol.AdventureEliteSelections(rows)
+	return rows
 }
 
 func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, prefix string) ([]outboundPacket, error) {
@@ -69,6 +78,14 @@ func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, pre
 	req, err := protocol.DecodeAdventureEliteSelection(p)
 	if err != nil {
 		return nil, err
+	}
+	// N1754 can release/reload the complete native mode-2 team, even when
+	// saving another mode. Never send that update during an ordinary run or
+	// unfinished scene transition. Native special-channel rules stay separate.
+	if adventureelite.Enabled() && !adventureEliteChannel(w.channelType) &&
+		(w.activeDungeon != nil || w.selectingDungeon || w.pendingTownArrival != nil ||
+			w.bleedingMineStart != nil || w.specialWarpPending) {
+		return nil, fmt.Errorf("请完成回城后再修改精锐名单或技能设置")
 	}
 	profile, err := w.prepareAdventure(ctx)
 	if err != nil {
@@ -96,7 +113,8 @@ func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, pre
 		if err = json.Unmarshal(role.State, &state); err != nil {
 			return nil, fmt.Errorf("读取精锐角色存档：%w", err)
 		}
-		if state.Level < 100 || state.Awakening < 2 {
+		// 业主指定的兼容策略：仅开关启用时取消资格，始终保留真实存档。
+		if !adventureelite.Enabled() && (state.Level < 100 || state.Awakening < 2) {
 			return nil, fmt.Errorf("精锐角色需要达到100级并完成二次觉醒或自我觉醒")
 		}
 		selected[i] = role.ID
@@ -135,12 +153,13 @@ func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, pre
 		return nil, err
 	}
 	w.adventureEliteSnapshot = sha256.Sum256(body)
+	w.syncAdventureElitePreparation(profile)
 	// 成功ACK只弹成功提示，不更新设置map；先发NOTI1754，界面才会回显。
 	return []outboundPacket{{"精锐角色设置同步", 0, 1754, body}, {"精锐角色保存完成", 1, 1719, []byte{1}}}, nil
 }
 
 // 原生142E60CF0在这些频道选择类型2的精锐容器；普通频道和矿区走类型0。
-// 另一个分支依赖活动662，尚未接入，不伪造活动或临时更改玩家频道身份。
+// 活动662的普通频道分支由boostup_apc.go单独按原生活动模式处理。
 func adventureEliteChannel(channelType uint32) bool {
 	switch channelType {
 	case 68, 73, 74, 76, 78:
@@ -157,6 +176,9 @@ func (w *worldSession) adventureEliteBusy() bool {
 // Use the same native content-to-dungeon binding that the adventure window
 // reads. No default mode is substituted when the source does not permit it.
 func (w *worldSession) adventureEliteForDungeon(ctx context.Context, id uint32) ([]outboundPacket, error) {
+	if w == nil || !adventureEliteChannel(w.channelType) {
+		return nil, fmt.Errorf("当前频道未启用客户端精锐同伴系统")
+	}
 	rules, err := adventure.Current()
 	if err != nil {
 		return nil, err
@@ -165,9 +187,7 @@ func (w *worldSession) adventureEliteForDungeon(ctx context.Context, id uint32) 
 	if !ok {
 		return nil, fmt.Errorf("当前PVF未配置副本%d的精锐同伴模式", id)
 	}
-	request := make([]byte, 2)
-	binary.LittleEndian.PutUint16(request, mode)
-	return w.loadAdventureElite(ctx, request)
+	return w.adventureEliteSnapshotPackets(ctx, mode)
 }
 
 func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outboundPacket, error) {
@@ -175,14 +195,20 @@ func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outb
 	if err != nil {
 		return nil, err
 	}
-	if mode == 3 {
+	if mode == boostAPCMode {
+		if w.boostAPCSelectionSent {
+			return w.loadBoostAPC()
+		}
 		return w.loadBoostTrainingAPC()
 	}
-	if w == nil || !adventureEliteChannel(w.channelType) {
+	if w == nil || (!adventureEliteChannel(w.channelType) && !w.ordinaryElitePreparationAllowed()) {
 		return nil, fmt.Errorf("当前频道未启用客户端精锐同伴系统，请在支持精锐的频道加载")
 	}
 	if w.adventureEliteBusy() {
 		return nil, fmt.Errorf("请在城镇加载精锐资料，不能重建正在出战的同伴")
+	}
+	if !adventureEliteChannel(w.channelType) && w.adventureElitePrepared != nil {
+		return nil, fmt.Errorf("精锐资料已经准备，请勿重复加载")
 	}
 	return w.adventureEliteSnapshotPackets(ctx, mode)
 }
@@ -194,7 +220,7 @@ func (w *worldSession) adventureEliteSnapshotPackets(ctx context.Context, mode u
 	if err != nil {
 		return nil, err
 	}
-	if len(rules.EliteContents[mode]) == 0 {
+	if len(rules.EliteContents[mode]) == 0 && mode != 2 {
 		return nil, fmt.Errorf("当前客户端资源未启用此精锐模式：%d", mode)
 	}
 	// Source permission and wire support are separate. Only content key 2's
@@ -203,6 +229,8 @@ func (w *worldSession) adventureEliteSnapshotPackets(ctx context.Context, mode u
 	if mode != 2 {
 		return nil, fmt.Errorf("精锐模式%d的账号同伴适配尚未验证", mode)
 	}
+	ordinary := !adventureEliteChannel(w.channelType)
+	// Repeated native load requests replay the same owned snapshots; no durable state is changed.
 	profile, err := w.prepareAdventure(ctx)
 	if err != nil {
 		return nil, err
@@ -218,7 +246,8 @@ func (w *worldSession) adventureEliteSnapshotPackets(ctx context.Context, mode u
 	var slots []byte
 	var companions []protocol.TagCharacter
 	seen := map[int64]bool{}
-	for _, id := range profile.Data.EliteSelections[mode] {
+	effectiveProfile := w.eliteProfileView(profile)
+	for _, id := range effectiveProfile.Data.EliteSelections[mode] {
 		if id == 0 || id == w.role.ID {
 			continue
 		}
@@ -236,7 +265,8 @@ func (w *worldSession) adventureEliteSnapshotPackets(ctx context.Context, mode u
 		if err = json.Unmarshal(role.State, &state); err != nil {
 			return nil, fmt.Errorf("读取精锐角色%s：%w", role.Name, err)
 		}
-		if state.Level < 100 || state.Awakening < 2 {
+		// 不为低等级精锐升级或补觉醒；TagCharacterSnapshot投影真实状态。
+		if !adventureelite.Enabled() && (state.Level < 100 || state.Awakening < 2) {
 			return nil, fmt.Errorf("精锐角色%s未达到100级二次觉醒条件", role.Name)
 		}
 		_, err := w.characters.AdventureEliteSkillUsage(role, profile.Data.EliteSkillUsage[mode][id])
@@ -262,7 +292,7 @@ func (w *worldSession) adventureEliteSnapshotPackets(ctx context.Context, mode u
 	if err != nil {
 		return nil, fmt.Errorf("精锐装备技能资料无法完整编码：%w", err)
 	}
-	settings, err := adventureElitePayloadForRoles(profile, roles, w.role.ID)
+	settings, err := adventureElitePayloadForRoles(effectiveProfile, roles, w.role.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +305,11 @@ func (w *worldSession) adventureEliteSnapshotPackets(ctx context.Context, mode u
 		w.adventureEliteSnapshot = signature
 		packets = append(packets, outboundPacket{"精锐角色索引变更同步", 0, 1754, settings})
 	}
-	// attempt 1/3：1382建立真实对象，1879克隆为AI同伴并应用技能开关。
+	if ordinary {
+		w.adventureElitePrepared = &adventureElitePreparation{Channel: w.channelType, Owner: w.role.ID,
+			Selected: effectiveProfile.Data.EliteSelections[mode], Settings: sha256.Sum256(settings)}
+	}
+	// 原生 layout attempt 1/3；普通事务适配 attempt 2/3。1382建立真实对象，1879克隆为AI同伴并应用技能开关。
 	return append(packets,
 		outboundPacket{fmt.Sprintf("精锐真实装备技能加载（attempt 1/3；mode=%d companions=%d）", mode, len(companions)), 0, 1382, characters},
 		outboundPacket{"精锐同伴资料加载完成", 0, 1879, done},

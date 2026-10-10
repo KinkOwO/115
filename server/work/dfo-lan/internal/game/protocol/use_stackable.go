@@ -61,13 +61,12 @@ func UseStackableSuccess(r UseStackableRequest) ([]byte, error) {
 	return add32(p, r.Template), nil
 }
 
-// UseStackableRefused is the failure shape: handler 14529fd70's failure path
-// reads u8 then two u32 after the flag. The reference names that order as
-// list, item, instance — the client's read sequence alone cannot distinguish
-// the two u32 fields, so this follows the reference and is the one field
-// ordering here that a capture should still confirm.
+// UseStackableRefused includes the framework's u16 error before the handler
+// reads list/instance/template. Official20261005-015111 refusal vector:
+// 00130000e343000056c29d00. Omitting the error shifts list to a template byte
+// and crashes14529FD70's failure cleanup (live20261006_203510).
 func UseStackableRefused(r UseStackableRequest) []byte {
-	p := append([]byte{0}, r.List)
-	p = add32(p, r.Template)
-	return add32(p, r.Instance)
+	p := []byte{0, 0x13, 0, r.List}
+	p = add32(p, r.Instance)
+	return add32(p, r.Template)
 }

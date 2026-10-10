@@ -62,3 +62,35 @@ go build -trimpath -o .tmp/koanf/wireprobe-config.exe ./cmd/wireprobe
 ```
 
 独立候选位于 `.tmp/koanf/`，没有替换日常入口或已确认二进制。源码验证不扩大现有实机 confirmed baseline。
+## 行为变更（2026-10-09）：新增 `-account` / `DFO_ACCOUNT`
+
+会话身份原先在 `prepareRuntime` 里写死成 `s.DevelopmentAccount(ctx, "probe")`。客户端连接
+payload 第 4 段那个 `probe` 只是装饰，服务端从不读它，所以改 payload 并不会换账号。现在账号名
+由 `Config.Account` 提供（`koanf:"account" default:"probe" env:"DFO_ACCOUNT"`），
+`bootstrap.go` 用它调用那条 UPSERT —— 换名即自动建号，角色与存档归属该 `accounts.id`。
+
+UPSERT 带 `WHERE accounts.development_only`：名字已被非开发账号占用时它返回 0 行而不是报错，
+现在包成一句中文错误（「已存在但不是开发账号」），不再是启动期一条裸 `ErrNotFound`。
+启动日志新增 `login account: <name> (id=<n>)`，与 `storage: engine=...` 同一口径，便于事后判责。
+
+`Config.validate()` 增加账号名门禁：只接受 1..32 个 ASCII 字母、数字、`_` 与 `-`。这个名字同时
+进 SQL 和客户端连接 payload（以 `?` 分段），所以空格、`?`、`=` 与中文在启动前就被挡掉，不等
+运行期的唯一键冲突。角色名另有跨账号唯一约束（`characters_name_unique`，按 `lower(name)`），
+换账号不会让同名角色重复出现。
+
+对照文件的同步口径（只动必要的一处，其余保持历史快照）：
+
+- `testdata/config_help.json`：新增 `-account string` 一个参数块，帮助文本换行数 209 → 211。
+  该文件按既定口径继续跟踪每一个参数（`-sole-quality-native`、`-primer-transform*`、
+  `-attunement-reward` 这些后来新增的也都在里面）。
+- `testdata/config_legacy.json`：`defaults` 增加 `"Account": "probe"`。这个映射必须覆盖所有
+  默认值非零值的字段，否则比不出真实默认值。七组向量（环境变量别名、显式参数覆盖、空值、
+  非法值、当时的默认 PVF profile、位置参数）**保持原样不扩写**：它们记录的是改造前解析器的
+  输出，后来新增的 6 个环境变量别名同样没有进向量，新参数的取值语义改由专用用例
+  `TestAccountConfigContract` 与 `TestAccountConfigValidationRejectsUnsafeNames` 钉住。
+- 该文件里的 `source_sha256` 没有任何用例读取，本轮未改动，也不主张它仍指向某个具体源码状态。
+
+已知未收口：`internal/toolcmd/storagecheck/main.go` 仍写死 `DevelopmentAccount(ctx, "probe")`。
+它是诊断入口、不在启动链上，但换账号后它会检查错的账号，需要时按同一口径补 `-account`。
+
+验证：`go test ./cmd/wireprobe -count=1` 通过（含上述两个新用例）。

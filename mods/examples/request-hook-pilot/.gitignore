@@ -1,0 +1,2 @@
+# 构建产物不入库：包由下面 README 里的两条命令现场生成（与 mods/examples/*、mods/newchar-kit 一致）。
+dist/

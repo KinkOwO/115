@@ -32,4 +32,5 @@ type Store interface {
 	RecordQuestMapClear(context.Context, int64, int64, string, uint32, string, string, []uint16) (bool, error)
 	CompleteQuestUseObjective(context.Context, int64, int64, uint16, string, string, string, uint32) (bool, error)
 	CommitOdysseyGraduation(context.Context, int64, int64, string, func(character.Character, bool) (json.RawMessage, json.RawMessage, []uint16, error)) (character.Character, bool, error)
+	CommitBoostStorySkip(context.Context, int64, int64, string, func(character.Character) ([]uint16, error)) (int, bool, error)
 }

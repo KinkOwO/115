@@ -39,6 +39,14 @@ func TestQuerySetCoversGeneratedSurface(t *testing.T) {
 		got[iface.Method(i).Name] = true
 	}
 
+	// manualSQLiteMethods are SQLite-only methods hand-implemented in
+	// sqlite_adapter_manual.go. The generated package (sqlcgen) cannot carry them
+	// (the SQLite column is a DFO-server extension, not part of the generated
+	// surface), so they are deliberately exempt from the exact-coverage check.
+	manualSQLiteMethods := map[string]bool{
+		"AccountSlotBonus": true,
+	}
+
 	var missing, extra []string
 	for name := range want {
 		if !got[name] {
@@ -46,7 +54,7 @@ func TestQuerySetCoversGeneratedSurface(t *testing.T) {
 		}
 	}
 	for name := range got {
-		if !want[name] {
+		if !want[name] && !manualSQLiteMethods[name] {
 			extra = append(extra, name)
 		}
 	}

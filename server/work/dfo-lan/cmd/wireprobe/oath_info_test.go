@@ -106,12 +106,16 @@ func TestOathInfoPacketsShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(plan) != 1 {
-		t.Fatalf("got %d packets", len(plan))
+	// 2838 之后还会跟一帧 2859「调律之边界奖励档位」（档位是 45 ⇒ 太初演出那格，
+	// 见 attunement_reward.go）。这里只钉 2838 自己的形状，所以按 id 取。
+	var p outboundPacket
+	for _, cand := range plan {
+		if cand.ID == 2838 {
+			p = cand
+		}
 	}
-	p := plan[0]
 	if p.ID != 2838 {
-		t.Fatalf("id = %d, want 2838", p.ID)
+		t.Fatalf("id = %d, want 2838（plan=%+v）", p.ID, plan)
 	}
 	if p.Name != "oath_system_grades" {
 		t.Fatalf("kind name = %q", p.Name)

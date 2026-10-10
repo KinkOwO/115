@@ -5,6 +5,7 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/legion"
 	"fmt"
+	"time"
 )
 
 // legionSession tracks the Apocalypse UI, validated difficulty and local party.
@@ -36,6 +37,51 @@ type legionSession struct {
 	// recorded, never enforced: refusing a legion packet on a channel the
 	// client accepts would look like a dropped packet rather than a decision.
 	channelType uint32
+
+	// apocalypse is the 末世录 (content 107 / channel Type 119) run tracker. It
+	// is separate from session because the two families share the envelope but
+	// not the meaning: the capture shows the apocalypse family driving its own
+	// difficulty byte, stage marks and role counter through NOTI2895, while
+	// Venus drives NOTI2655. See apocalypse_run.go for the field evidence.
+	apocalypse *legion.ApocalypseRunState
+
+	// world is the connection's world session. The apocalypse run pointer is
+	// mirrored onto it because CMD2062 DUNGEON_DIRECT_MOVE is dispatched by the
+	// dungeon layer, which has no legionSession of its own.
+	world *worldSession
+
+	// 以下是次元回廊（dimension cloister）的运行态，由 cmd/wireprobe/dimension_cloister_flow.go 驱动。
+	// 该族覆盖两个频道：Type 84「Hall of Dimensions」（内容 0x0d）与 Type 50（Evildom），
+	// 判据见 dimension_cloister_flow2_test.go；真正的副本状态在 world.activeDungeon。
+	//
+	// dimCloisterStage 是当前界序号，撤退休退时置 -1 表示"整场作废重开"。
+	// dimCloisterCleared 是已清界数，用来决定记录/终局态与奖励。
+	// dimCloisterPartyActive 标记待机区是否已建队（CMD12/CMD13 的判据）。
+	// dimCloisterWindowDeadline / dimCloisterEvents 是操作窗的待发事件队列：
+	// 开窗帧与「停留若干秒后自动确认难度」的兜底帧都排在这里，由
+	// connectionSession.cloisterWindow 的精确定时器到期后统一下发。
+	dimCloisterStage          int
+	dimCloisterCleared        int
+	dimCloisterPartyActive    bool
+	// dimCloisterPartyName 是建队请求（CMD12）里的队名；dimCloisterPartyNameReply
+	// 是那份请求自带的"名长字节"（`DecodeEvildomParty` 的 NameReplyBytes，逐字节
+	// 验证过）；队伍稳态刷新帧（N9/官服 #759）要复用同一份字节，否则客户端会当成
+	// 新队伍把界面刷回初始态。
+	dimCloisterPartyName      string
+	dimCloisterPartyNameReply []byte
+	// dimCloisterWindowAcked 标记操作窗是否已经开过（开窗 A 帧已发）。
+	// 再收到一次选择请求时说明玩家已经选了 → 回"已选" B 帧并撤掉兜底关窗。
+	dimCloisterWindowAcked    bool
+	dimCloisterWindowDeadline time.Time
+	dimCloisterEvents         []dimCloisterPendingEvent
+	// dimCloisterParty 是 CMD2045 进图确认帧里的队伍字节（原样留存，供后续帧复用）。
+	// dimCloisterStages 是本场三关的**抽定顺序**（dimCloisterRollStages 洗牌后写入，
+	// 业主 2026-10-11 定调：恢复随机关卡）；池子取 legion.DimCloisterStageDungeons
+	// （有官服进图帧列的那 3 个界：TheMan/Abyss/Charon），为空时退回固定顺序；
+	// DimCloisterAllStageDungeons 的 5 个界里 Moros/LightWoman 没有任何官服帧，
+	// 要扩到"5 选 3"必须先补那两界的官方帧列。
+	dimCloisterParty  byte
+	dimCloisterStages []uint32
 }
 
 // legionResult is one handled command: the packets to send plus the events that
@@ -68,13 +114,36 @@ type legionResult struct {
 func sideOf(id uint16) string {
 	switch id {
 	case legion.CmdRoleSelect:
-		return "dungeon"
+		// 末世录（内容107）的 CMD2355 与其它军团不同：抓包 20261008-105227 里
+		// 它在攻坚房间（CMD2062 载入的副本）内由客户端在进图后立刻发出两次，
+		// 而那个时点服务端的 activeDungeon 尚未建立（CMD2045 只负责确认作战，
+		// 不建会话）。把这一族判成 dungeon-only 会让它必被拒绝。角色分配本身
+		// 与「当前在城里还是在副本里」无关，故放宽为 either，由处理函数按
+		// 本场是否已 CMD2045 入场来把关。
+		return "either"
 	case legion.CmdFail, legion.CmdRewardEnd:
 		return "either"
 	default:
 		return "town"
 	}
 }
+
+// apocalypseChannelType is the channel Type of the 末世录 directory row
+// (configs/channel.local35.json: Apocalypse, area [apocalypse], Type 119). The
+// apocalypse family shares its envelope with Venus but not its state, so the
+// connection's channel type is what selects the right tracker.
+const apocalypseChannelType uint32 = 119
+
+// isApocalypse reports whether this connection speaks the 末世录 flow: either it
+// arrived on the Type 119 directory row, or a run was already opened on this
+// connection (the flag keeps the run working if a future channel layout moves
+// the content onto another row).
+func (s *legionSession) isApocalypse() bool {
+	return s.channelType == apocalypseChannelType || s.apocalypse != nil
+}
+
+// apocalypseRan reports whether this connection ever opened an apocalypse run.
+func (s *legionSession) apocalypseRan() bool { return s.apocalypse != nil }
 
 // handle answers one legion command. A nil packet list with no events means
 // "recognised but intentionally not answered".
@@ -92,6 +161,28 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 	case "town":
 		if inDungeon {
 			return legionResult{}, fmt.Errorf("legion opcode %d is town-side and unavailable inside a dungeon", id)
+		}
+	}
+
+	// arrivingSide is reported by the end-of-run packets, whose side is not
+	// established yet: the first live run's log is what pins it down.
+	arrivingSide := "town"
+	if inDungeon {
+		arrivingSide = "dungeon"
+	}
+
+	// 次元回廊（频道 Type 50 / Evildom）在集结区里直接选关进图：CMD2043 自带阶段
+	// 下标，服务端在那一刻就把整套进图帧列发完（官服 2026-10-09 抓包 s30 实测，
+	// 客户端 24 秒后的 CMD2045 只是确认帧）。不走末世录那条状态机。
+	if result, handled, err := s.handleDimCloister(w, p, id); handled {
+		return result, err
+	}
+
+	// 末世录（内容107/频道 Type119）走自己的玩法层：同一套信封，但难度、
+	// 阶段与角色状态都落在 NOTI2895 上，与维纳斯的 NOTI2655 不通用。
+	if s.isApocalypse() {
+		if result, handled, err := s.handleApocalypse(w, p, id, arrivingSide); handled {
+			return result, err
 		}
 	}
 
@@ -315,4 +406,10 @@ func (s *legionSession) abandonOnLeave(reason string, characterID int64) (map[st
 // taken before any formatting so the two can be compared directly.
 func legionRequestBody(p []byte) (int, string) {
 	return len(p), fmt.Sprintf("%x", p)
+}
+
+// Keep upstream event annotations on the shared legion result.
+func resultWithEvents(result legionResult, note map[string]any) legionResult {
+	result.Events = append(result.Events, note)
+	return result
 }

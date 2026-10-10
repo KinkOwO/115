@@ -1,0 +1,280 @@
+{
+  "status": "odyssey-attempt1-failed-before-native-clone; self-roster-fix-attempt2-ready",
+  "attempt": "odyssey 2/3",
+  "serverVersion": "0.3.12",
+  "dllVersion": "0.3.9",
+  "sourceParentCommit": "306c8a352bbc54a5bf27548a7851689d867e3319",
+  "remoteMerged": "gud/main 76115fcd",
+  "failureSession": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261009_011918_377182_next37",
+  "failureEvidence": {
+    "user": "奥德赛副本没有APC和队伍信息出现；角色模式由角色自身决定",
+    "anchors": [
+      {
+        "file": "events.jsonl",
+        "line": 181,
+        "kind": "adventure_elite_packet_sent",
+        "id": 1754,
+        "accepted": true,
+        "character_id": 1,
+        "odyssey": true,
+        "ordinary_source_allowed": true,
+        "frozen_preparation": null
+      },
+      {
+        "file": "events.jsonl",
+        "line": 183,
+        "kind": "client_frame",
+        "id": 1811,
+        "plain_hex": "0200000000000000"
+      },
+      {
+        "file": "events.jsonl",
+        "line": 184,
+        "kind": "adventure_elite_transaction_decision",
+        "id": 1811,
+        "accepted": false,
+        "reason": "精锐角色归属、槽位或选择已变化，请重新保存名单",
+        "character_id": 1,
+        "odyssey": true,
+        "ordinary_source_allowed": true,
+        "frozen_preparation": null
+      },
+      {
+        "file": "events.jsonl",
+        "line": 215,
+        "kind": "client_frame",
+        "id": 16,
+        "plain_hex": "46f4f5050200000000ffff000000000000000000000000000000000000000000"
+      },
+      {
+        "file": "events.jsonl",
+        "line": 269,
+        "kind": "client_frame",
+        "id": 16,
+        "plain_hex": "46f4f5050200000000ffff000000000000000000000000000000000000000000"
+      }
+    ],
+    "nativeFile": "adventure-elite-native-14344-146179687.jsonl",
+    "nativeLines": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "nativeInterpretation": "N1754 successful, modeNative[0,0] -> effective[2,2], native CMD1811 mode2 request emitted; server rejects saved current role before N1382/N1879. No lifecycle/APC/combat trace is expected after refusal; not native mode3 or map registration evidence.",
+    "readOnlyStore": {
+      "active": 1,
+      "account": 1,
+      "roles": [
+        {
+          "id": 1,
+          "name": "test",
+          "wire": 1,
+          "account": 1,
+          "rosterOrder": 1
+        },
+        {
+          "id": 2,
+          "name": "nene",
+          "wire": 2,
+          "account": 1,
+          "rosterOrder": 2
+        },
+        {
+          "id": 3,
+          "name": "glow",
+          "wire": 3,
+          "account": 1,
+          "rosterOrder": 3
+        }
+      ],
+      "selection": {
+        "elite_selections": {
+          "2": [
+            1,
+            3,
+            0
+          ]
+        }
+      }
+    },
+    "normalExit": true,
+    "capture": "F:/projects/agents/reverse/115us/.tmp/adventure-elite/odyssey-failure-capture/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261009_011918_377182_next37",
+    "captureIssues": 6
+  },
+  "fix": "Ordinary extension only: mode2 account list view masks current player ID as an empty original slot; serialize N1754, load original remaining TagCharacterSnapshot and freeze prepared IDs from the SAME effective view. Preserve saved stable IDs, slot positions, skill map, other modes, disabled/native routes and foreign/duplicate/account/skill validation.",
+  "beforeAfter": {
+    "saved": [
+      1,
+      3,
+      0
+    ],
+    "current": 1,
+    "prior": "load fails on ID1, zero companions and party UI",
+    "candidate": "transient[0,3,0], load glow only; save remains[1,3,0]; other active roles can still load test"
+  },
+  "sourceRules": "No new gameplay table or PVF rule. User-authorized ordinary extension recipient projection, original account ID->slot codec, current115 mode2 protocol and native response layout unchanged. PVF source fields and channel boundaries unchanged.",
+  "characterMode": "User per-character mode model honored. Regression explicitly unsets DFO_ODYSSEY_MODE and uses real creation option10=2. Existing global debug compatibility override not modified or used as this fix.",
+  "nativeRuntimeChanged": false,
+  "verification": {
+    "owned": {
+      "build": {
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-self-owned-build.log"
+      },
+      "vet": {
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "vet",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-self-owned-vet.log"
+      },
+      "test": {
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "test",
+          "-json",
+          "./...",
+          "-count=1"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-self-owned-test.log",
+        "passed": 3798,
+        "skipped": 281,
+        "failures": [],
+        "baselineFailures": [],
+        "newFailures": []
+      },
+      "binary": {
+        "tree": "owned",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "-o",
+          "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-self-owned-candidate.exe",
+          "./cmd/wireprobe"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-self-owned-binary.log"
+      }
+    },
+    "root": {
+      "build": {
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-self-root-build.log"
+      },
+      "vet": {
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "vet",
+          "./..."
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-self-root-vet.log"
+      },
+      "test": {
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "test",
+          "-json",
+          "./...",
+          "-count=1"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-self-root-test.log",
+        "passed": 3650,
+        "skipped": 206,
+        "failures": [],
+        "baselineFailures": [],
+        "newFailures": []
+      },
+      "binary": {
+        "tree": "root",
+        "command": [
+          "C:/Users/zonre/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.windows-amd64/bin/go.exe",
+          "build",
+          "-o",
+          "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-self-root-candidate.exe",
+          "./cmd/wireprobe"
+        ],
+        "exitCode": 0,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\odyssey-self-root-binary.log"
+      }
+    }
+  },
+  "collectorFixtures": 79,
+  "artifacts": {
+    "owned": {
+      "sha256": "8f911d24e7ad74de96c1f668de0f58ecd2c1f61bfbaf59cb2e0f995d8b49c3d2",
+      "bytes": 30630912
+    },
+    "root": {
+      "sha256": "b1fa9d74dba7d7f20277305a04b7aff85394d3c0182e03344b758dc05fd83e3f",
+      "bytes": 29676544
+    }
+  },
+  "changedSources": [
+    {
+      "path": "scripts/collect-adventure-elite.ps1",
+      "sha256": "45680bf570d66ef6f6457f472db0cea0ba01fd3621556ec76b6ce303bd950e9f"
+    },
+    {
+      "path": "scripts/test-adventure-elite-capture.ps1",
+      "sha256": "19c271387f1658a196cf83f614531a5eda5969eada2b3563696bab720421ba7e"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite.go",
+      "sha256": "ebcc81b8a3b8826766a6aff9164e29be9e9bcfdcdbdd31cc87412f9452f94465"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_preparation.go",
+      "sha256": "93d2e12fd1633064526144829b4ae4b0129582351f7b8a43bd49ed080f56e437"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_combat_diagnostic.go",
+      "sha256": "392c951c096a11801ba200185a456d63a7f719c260e0d87419ccb8aceeb2f3b9"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_entry_probe.go",
+      "sha256": "6e02225a8e3ff20b601044c6d4ab698a5d018584fef574978d2086581afa58e3"
+    },
+    {
+      "path": "server/work/dfo-lan/cmd/wireprobe/adventure_elite_self_projection_test.go",
+      "sha256": "704a417ce00ddb2a0141bd2477c17bb7a855657c2717335146c397df10595f88"
+    }
+  ],
+  "schemaChanged": false,
+  "storeModified": false,
+  "PVFChanged": false,
+  "defaultPublished": false,
+  "liveAccepted": false,
+  "priorDuplication": "Type22/publishedID10 compatibility policy still overlaps etc/channel_info.etc [server]; unchanged and retained in original migration ledger.",
+  "rollback": "F:/projects/agents/reverse/115us/.tmp/adventure-elite/ordinary-odyssey-self-delivery-backup",
+  "nextManual": "Keep saved roster, same Odyssey test role, launch existing source-build route with elite enabled. First entry should show one remaining glow APC and its party bar. On appearance let it attack, cross a door, settle naturally and reenter once in SAME session, then close normally. If no appearance, stop after first attempt; no resave, no repeated retry.",
+  "notProved": [
+    "Actual Odyssey registration/AI/doors/boss/settlement/reentry",
+    "All50 maps, growth/slot upgrades and other source modes",
+    "Native mode3 semantics",
+    "Foreign-party/special team and2062/option5",
+    "APC state continuity/ref release",
+    "Story full death trace/noncombat protection"
+  ]
+}

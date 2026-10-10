@@ -61,6 +61,19 @@ func (q *sqliteQueries) DatabaseName(ctx context.Context) (string, error) {
 	return name, nil
 }
 
+// AccountSlotBonus reads the account-level character-slot bonus granted by the
+// cash-shop Character Slot Extension Kit (takes effect on purchase). The column
+// is added to existing saves by the 0039 migration section; a missing column
+// here is a real error.
+func (q *sqliteQueries) AccountSlotBonus(ctx context.Context, accountID int64) (int32, error) {
+	var bonus int32
+	if err := q.queryRow(ctx,
+		"SELECT character_slots_bonus FROM accounts WHERE id = ?", accountID).Scan(&bonus); err != nil {
+		return 0, storageError(err)
+	}
+	return bonus, nil
+}
+
 // FixtureSchema: PostgreSQL reports current_schema() and a fixture isolates itself in
 // a temporary schema. SQLite has no schemas; D18 isolates a fixture with its own
 // database file instead, so the single schema name is the truthful answer.

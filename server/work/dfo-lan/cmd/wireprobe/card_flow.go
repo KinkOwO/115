@@ -20,7 +20,15 @@ func (w *worldSession) resetCards() {
 	w.cardAutoPickAt = time.Time{}
 }
 func (w *worldSession) cardsReady() error {
-	if w == nil || w.loot == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || !w.resultSent || w.cardPlan == nil || w.cardPlan.Run != w.activeDungeon.RunID {
+	if w == nil || w.loot == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || !w.resultSent {
+		return fmt.Errorf("cards before owned settlement")
+	}
+	// 蔚蓝号（征讨族）的奖单是**源驱动**那一份：载体是 MoonRewardPlan 而不是 CardPlan
+	// （CardPlan.Items 只有 8 格，装不下源声明的整张单子），见 azure_flip.go。
+	if w.azureFlipOwned() {
+		return nil
+	}
+	if w.cardPlan == nil || w.cardPlan.Run != w.activeDungeon.RunID {
 		return fmt.Errorf("cards before owned settlement")
 	}
 	return nil
@@ -49,6 +57,14 @@ func (w *worldSession) cardStage(id uint16, p []byte) ([]outboundPacket, error) 
 	return []outboundPacket{{"card_layout_ack", 1, 70, protocol.CardLayout()}}, nil
 }
 func (w *worldSession) grantFreeCard(index byte) ([]outboundPacket, error) {
+	// 蔚蓝号的奖单在 MoonRewardPlan 上（源驱动），领取走 ClaimMoonReward ——
+	// 与沉月湖同一个事务（按 run 幂等）。通用 PickCard 读的是 CardPlan，
+	// 那条路对蔚蓝号已经不适用（单子装不进 8 格）。
+	if w.azureFlipOwned() {
+		// 重复调用由 azureClaim 内部幂等处理（只回选中帧、不重复发奖）——
+		// **不能在这里空手返回**：玩家点牌那条 CMD71 会因此拿不到任何应答。
+		return w.azureClaim(index)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	role, receipt, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).PickCard(ctx, w.role, w.activeDungeon, *w.cardPlan, index)
@@ -92,6 +108,12 @@ func (w *worldSession) autoPickSettlementCard(now time.Time) ([]outboundPacket, 
 		packets[0].Name = "黑鸦自动翻牌背包同步"
 		packets[1].Name = "黑鸦自动翻牌选牌确认"
 	}
+	// 末世录：翻牌结束 → 这时才发终局 State3 启动通关视频（业主口径：
+	// 「通关视频应该是在翻牌后才出现」）。
+	if moviePackets, _ := w.readyApocalypseClearMovie(); len(moviePackets) > 0 {
+		packets = append(packets, moviePackets...)
+	}
+
 	return packets, nil
 }
 func (w *worldSession) cardPick(p []byte) ([]outboundPacket, error) {
@@ -108,12 +130,61 @@ func (w *worldSession) cardPick(p []byte) ([]outboundPacket, error) {
 	if r.Side != 0 {
 		return nil, fmt.Errorf("paid card policy is not enabled")
 	}
-	return w.grantFreeCard(r.Index)
+	packets, e := w.grantFreeCard(r.Index)
+	if e != nil {
+		return nil, e
+	}
+	// 末世录：玩家点牌 = 翻牌结束 → 发终局 State3 启动通关视频。
+	if moviePackets, _ := w.readyApocalypseClearMovie(); len(moviePackets) > 0 {
+		packets = append(packets, moviePackets...)
+	}
+
+	return packets, nil
 }
 func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPacket, error) {
 	r, e := protocol.DecodeSettlementExit(p)
 	if e != nil {
 		return nil, nil, e
+	}
+	// [EPLP-SEAMLESS-UNSETTLED] 小深渊现在不发 NOTI31、只发 NOTI261（见
+	// dungeon_flow.go 的通关分支），所以客户端发来的 CMD72 `01 05 01`
+	// 到达时**没有**已提交的翻牌事务，cardsReady() 必然失败。
+	//
+	// 2026-10-07 18:11 实机（会话 `_181140_`）证明：选项 5 只回「focus ACK」而
+	// 不驱动入场时，客户端会退回它自己的直进路径、自己补发
+	// `CMD2062 DUNGEON_DIRECT_MOVE`，我们再按 2062 回一套「NOTI15 + NOTI27 +
+	// 入场序列」—— 结果声音与技能都正常，**画面却停在上一次清图那一帧**。
+	//
+	// 对照黄金样本 `_170534_` 的客户端 trace：那一次**整场没有 CMD2062**，
+	// 入场完全由 CMD72 的应答驱动，模块序列
+	// `MAIN_GAME(3) -> SELECT_DUNGEON(2) -> MAIN_GAME(3)` + `Enter Dungeon`，
+	// 与本次逐条同形（连 VMem 增量模式都一样）。
+	// ⇒ 定案：选项 5 必须**由应答当场驱动入场**，不能让客户端自己走 2062。
+	unsettledSeamless := r.Option == protocol.SettlementExitSeamless && w.cardsReady() != nil
+	// 次元回廊的 CMD72：**必须在这里收住**。
+	//
+	// ★ 2026-10-10 第十三轮定案：本客户端 build 里 `N2252/N2253`（本内容的翻牌界面）
+	// 取不到 XUI 窗口 ⇒ 只要发那种帧（大表或小帧），
+	// 客户端就在 `sub_1424FDC30` 里崩（`0x146EA0C30` / `0x1424FDD35`，14 轮实机一致）。
+	// 所以本内容**不走翻牌 UI**：横幅（N31）由清关链发，结算在服务端做（奖励已入库），
+	// 玩家点「返回城镇」时走这里 —— ACK72 + `leaveDungeon()` 回集结区，与伊斯/维纳斯同形。
+	//
+	// 若不在这里拦，CMD72 会落进下面的通用翻牌/结算分支（那需要 `cardsReady()`），
+	// 对军团内容不适用。
+	if w.legion != nil && w.legion.isDimCloister() && w.activeDungeon != nil {
+		ack := outboundPacket{"settlement_focus_ack", 1, 72, protocol.SettlementExitSuccess(r)}
+		if r.State == 2 {
+			// 只更新按钮选中态：保持 run 归属，等 state1 再真正离场。
+			return nil, []outboundPacket{ack}, nil
+		}
+		route, e := w.leaveDungeon()
+		if e != nil {
+			return nil, nil, e
+		}
+		w.selectingDungeon = false
+		ack.Name = "settlement_exit_ack"
+		w.legion.dimCloisterStage = -1
+		return nil, append([]outboundPacket{ack}, route[1:]...), nil
 	}
 	if w.bakalOpening != nil {
 		return w.bakalRetreat(r)
@@ -201,7 +272,17 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 	// 苏醒之森阶段本的 CMD72 不走通用翻牌/结算（维纳斯同款形状）。演出后
 	// 退场作废 run；未终局的退场（中途 ESC）保持 run（cleared 保留，重进
 	// 按已清关序列继续）。
-	if w.forest != nil && w.activeDungeon != nil && legion.IsForestStageDungeonAny(w.activeDungeon.Definition.ID) {
+	//
+	// ★ 2026-10-09（业主实机）：Extreme 终局演出结束后**由玩家点右上角
+	// 「返回城镇」**（官服 22:08:33.821 c2s CMD72 → 22:08:34.081 ACK），
+	// 而那时副本会话已在 forestResult（CMD46）收尾（activeDungeon 为空）。
+	// 只认 activeDungeon != nil 会让这一请求落到通用路径被 cardsReady 拒成
+	// 「cards before owned settlement」，按钮永远没反应 —— 与末世录
+	// 2026-10-08 那个「点击返回城镇没有任何反应」是同一类缺口。所以终局
+	// （forest.finalDone）也在这条分支里放行。
+	forestStageOpen := w.forest != nil && w.activeDungeon != nil && legion.IsForestStageDungeonAny(w.activeDungeon.Definition.ID)
+	forestFinale := w.forest != nil && w.forest.finalDone
+	if w.forest != nil && (forestStageOpen || forestFinale) {
 		ack := outboundPacket{"settlement_focus_ack", 1, 72, protocol.SettlementExitSuccess(r)}
 		if r.State == 2 {
 			return nil, []outboundPacket{ack}, nil
@@ -212,14 +293,106 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 		}
 		w.selectingDungeon = false
 		ack.Name = "settlement_exit_ack"
+		plan := append([]outboundPacket{ack}, route[1:]...)
 		if w.forest.finalDone {
+			// 终局（视频播完点「返回城镇」）：本局结束，作废 run。右上角面板由
+			// 随后离队时的 N2565 state0e 收起（官服 22:08:45.691）。
 			w.forest = nil
-			return nil, append([]outboundPacket{ack}, route[1:]...), nil
+			return nil, plan, nil
 		}
-		return nil, append([]outboundPacket{ack}, route[1:]...), nil
+		// 中途撤退：进度保留（cleared 留在 run 里），但右上角倒计时必须重置
+		//（业主 2026-10-09：「点击撤退出去…右上角的倒计时没有刷新」）。
+		if stage := w.forestStageOfActiveRun(); stage >= 0 {
+			plan = append(plan, w.forestStageTimerReset(time.Now(), stage, "retreat")...)
+		}
+		return nil, plan, nil
 	}
-	if e = w.cardsReady(); e != nil {
-		return nil, nil, e
+	// 末世录阶段本的 CMD72 同样不走通用翻牌/结算。
+	//
+	// 实机 BUG（2026-10-08 15:40，业主报「点击返回城镇没有任何反应」）：
+	// 全清翻牌之后客户端发 CMD72（`01 02 01 00…` → State1/Option2=返回城镇），
+	// 此前没有这一分支，落到通用路径被 cardsReady() 拒成
+	// `dungeon_request_refused reason="cards before owned settlement"`，
+	// 客户端只收到 ErrCode 4，于是按钮永远没反应。
+	//
+	// ★ 未完成的撤退**不是取消**（规格：0072-结算离场.md「已推翻」段 G0452 /
+	// 2895-LEGIONINFO末世录状态.md G0452 / 2045-LEGIONENTERDUNGEON.md G0452）：
+	//
+	//	「末世录119的未完成C72撤退不再等价于cancel；保留同一在线作战，回城重建后
+	//	 恢复N2895 State2和原阶段，C2045继续当前Boss。主动C2044放弃才走取消。」
+	//	「已暂停的同一作战走ResumeApocalypse：阶段须等于保存值，全员回城写入完成
+	//	 才重建当前未完成Boss，保留RunID、难度与已清路线。」
+	//
+	// 所以这里走**挂起**路径：Ticket(ID)/Choice/Stage/Cleared 全部保留，
+	// 只置 Suspended；回城后恢复 State2 + 原 Choice/Stage（run 恢复），
+	// 玩家再点开始时用 CMD2045 带着保存阶段续关。
+	// （此前的实现照抄维纳斯做了 run.Reset()，等于把进度清成 0 —— 那正是
+	//   2 号「撤退后 UI 消失、只能从第 1 关重开」这个最大 BUG 的成因。）
+	if w.apocalypse != nil && w.activeDungeon != nil && legion.IsApocalypseStageDungeon(w.activeDungeon.Definition.ID) {
+		ack := outboundPacket{"settlement_focus_ack", 1, 72, protocol.SettlementExitSuccess(r)}
+		if r.State == 2 {
+			// 焦点帧只更新按钮选中态，不能当成退场（当成退场会让主循环
+			// 清掉 activeDungeon，随后 state1 的请求就失去自己的结算上下文）。
+			return nil, []outboundPacket{ack}, nil
+		}
+		route, e := w.leaveDungeon()
+		if e != nil {
+			return nil, nil, e
+		}
+		w.selectingDungeon = false
+		ack.Name = "settlement_exit_ack"
+		run := w.apocalypse
+		plan := append([]outboundPacket{ack}, route[1:]...)
+		if run.Rewarded {
+			// 已领奖的退场：这一局确实结束了，作废 run 并补一帧 N2895 **关闭**
+			// 右上角面板。
+			//
+			// ★ 2026-10-08 修正：这里原本发的是**等待态 State2**（Choice=FF、
+			// Stage=0），那是「准备开下一局」的形态，客户端因此**保留**军团面板
+			// —— 业主报「翻牌结束后右上角 UI 还在，退出也有 UI 残留」就是这个
+			// 成因。规格 2895-LEGIONINFO末世录状态.md / 0072-结算离场.md 的
+			// G0452 写得很清楚：
+			//
+			//	「末世录未完成撤退**先 State0 清旧副本/界面**，再在本人城镇重建后
+			//	  恢复 State2 和原 Choice/Stage/目标通关标记」
+			//
+			// 也就是 **State0 才是「收起军团窗口」的那一帧**（14069ABF0 的语义）。
+			// 通关后这一局已经结束、不需要恢复，所以直接停在 State0。
+			// 通关关闭态的形态按 2 号权威抓包 idx=654 构造（State0 + 保留
+			// 本次通关的阶段记录），不能发「全 ff 的清空态」——那会连阶段记录
+			// 一起抹掉，与抓包不符。
+			cleared := run.Stage - 1
+			run.Reset()
+			w.apocalypsePending = nil
+			w.apocalypseAdvancePending = nil
+			// ★ choice 必须归 **FF**（维纳斯 `VenusClosedInfo` 同款）：
+			// 保留难度会让 NPC 继续挂出「开始作战」——业主 2026-10-08 报
+			// 「退出没有残留，但是 NPC 头上又出现了开始」，而 2 号也有同样的
+			// BUG。规格 2895 G0376：「State0（14069ABF0 在该值关闭军团窗口并
+			// **清除选择标记**）」，所以这一帧要的是「未选难度 + 关闭」。
+			plan = append(plan, outboundPacket{
+				"apocalypse_completed_ui_cleared", 0, legion.NotiLegionInfo,
+				legion.ApocalypseInfo(legion.ApocalypseCompletedInfo(0xff, cleared)),
+			})
+			return nil, plan, nil
+		}
+		// 未完成的撤退：挂起同一作战。先按 State0 清旧副本/界面（规格 G0452：
+		// 「未完成撤退先State0清旧副本/界面，再在本人城镇重建后恢复State2」），
+		// 然后立刻恢复 State2 + 原阶段 —— 也就是客户端等价于「原状态但不在图里」，
+		// 右上角面板保留，重新点开始就走 2045 续关。
+		run.Suspended = true
+		w.apocalypsePending = nil
+		w.apocalypseAdvancePending = nil
+		plan = append(plan,
+			outboundPacket{"apocalypse_retreat_cleared", 0, legion.NotiLegionInfo, legion.ApocalypseInfo(legion.ApocalypseClosedInfo())},
+			outboundPacket{"apocalypse_retreat_restored", 0, legion.NotiLegionInfo, w.legion.apocalypseInfo()},
+		)
+		return nil, plan, nil
+	}
+	if !unsettledSeamless {
+		if e = w.cardsReady(); e != nil {
+			return nil, nil, e
+		}
 	}
 	ack := outboundPacket{"settlement_focus_ack", 1, 72, protocol.SettlementExitSuccess(r)}
 	if r.State == 2 {
@@ -253,6 +426,18 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 		if w.activeDungeon == nil || !w.activeDungeon.Completed() {
 			return nil, nil, fmt.Errorf("seamless rechallenge before a committed clear")
 		}
+		// ⚠️ 2026-10-07 18:44 实机**证伪**：小深渊一度改走「原地重置」（`seamlessRoomReset` ——
+		// 只发 ACK + NOTI28 + NOTI29 + 两条线档位 + 疲劳、不切模块、不重喂角色状态），
+		// 客户端收到 `ENUM_NOTIPACKET_START_MAP` 之后**立刻 0xC0000005**
+		//（client.log `exit=0xC0000005`；trace 最后三帧就是 DUNGEON_INFO / START_MAP / FATIGUE）。
+		// ⇒ 客户端必须先把「加载状态」建起来（NOTI27 切模块那一段，也就是屏幕上闪过的那一帧
+		// map select）才吃得下 START_MAP。这条捷径不再走；`seamlessRoomReset` 留在
+		// dungeon_flow.go 里只作取证，**不要接线**。
+		log.Printf("seamless rechallenge drives the entry itself: dungeon=%d state=%d settled=%v", w.activeDungeon.Definition.ID, r.State, !unsettledSeamless)
+		// 无缝续刷：让进图序列跳过 NOTI2（角色对象重建）—— buff/召唤物要延续。
+		// 置位后**不在这里清**：进图序列要跳过 NOTI2，CMD37 那一步还要跳过 1361
+		//（增益强化注册 = 重绑 buff），两处都靠它。
+		w.seamlessRetry = true
 		pending, route, e = w.restartDungeon()
 	case 2, 3:
 		// Current scenario option3 is "Start Next Quest". A town objective
@@ -268,7 +453,8 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 		return nil, nil, e
 	}
 	var plan []outboundPacket
-	if w.cardReceipt == nil {
+	// 无结算的无缝续刷没有翻牌事务（cardPlan == nil），补发免费牌会直接报错。
+	if !unsettledSeamless && w.cardReceipt == nil {
 		plan, e = w.grantFreeCard(0)
 		if e != nil {
 			if w.activeDungeon.Definition.ID != blackPurgatorySquadDungeon || (r.Option != 2 && r.Option != 3) {
@@ -352,5 +538,13 @@ func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, err
 	if e != nil {
 		return nil, nil, e
 	}
-	return s, append(dungeonSelectionHead(), entry...), nil
+	// ⚠️ 2026-10-07 19:14 实机**证伪**：无缝续刷曾试过「去掉 NOTI27、只留 NOTI15 门应答」
+	// （`seamlessSelectionHead`），客户端再次 0xC0000005。
+	// ⇒ **NOTI27 是必需的加载握手**：切模块那一步（屏幕上那一帧 map select）就是客户端
+	// 建立加载状态的过程，`START_MAP` 必须有它在前。`seamlessSelectionHead` 只作取证，不要接线。
+	// 无缝续刷（选项 5）要用 NOTI27 的「继续挑战」形态：头字节 `relay` = 1。
+	// 官服抓包里同一个副本冷进场是 0x00、两次继续都是 0x01（next178 §3），
+	// 而本仓此前恒为 0（客户端因此一直走「新副本」那条加载路径）。
+	// 选项 0（普通重开）保持 relay = 0。
+	return s, append(dungeonSelectionHeadFor(copy.dungeonRelayFlag() != 0), entry...), nil
 }

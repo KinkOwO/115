@@ -6,6 +6,13 @@ from repair_profile import load_profile
 
 
 class RepairProfileTests(unittest.TestCase):
+    def test_weapon_animation_profile_matches_frozen_version(self):
+        _, _, env = self.load_explicit_profile('.', {'DFO_WEAPON_SKIN_ANIMATION': 'r1'})
+        self.assertEqual(env['DFO_WEAPON_SKIN_ANIMATION'], 'r1')
+        for value in ('r2', '1', '', True):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                self.load_explicit_profile('.', {'DFO_WEAPON_SKIN_ANIMATION': value})
+
     def test_bakal_validation_entry_policy(self):
         for value in ('unlimited', 'weekly'):
             _, _, env = self.load_explicit_profile('.', {'DFO_BAKAL_MODE': value})
@@ -37,7 +44,8 @@ class RepairProfileTests(unittest.TestCase):
     def test_default_profile_keeps_full_scope_without_exports(self):
         project = pathlib.Path(__file__).resolve().parent.parent
         binary, required, env = load_profile(project / 'configs/pvf-default.json', project)
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 61)
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 62)
+        self.assertIn('transform', env['DFO_PVF_CATALOGS'].split(','))
         self.assertEqual(env['DFO_PVF_VERIFY_BASELINES'], '0')
         self.assertEqual(binary.parent, project / 'bin')
         self.assertTrue(binary.name.startswith('wireprobe-') and binary.suffix == '.exe')

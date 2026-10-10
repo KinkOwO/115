@@ -1,0 +1,17 @@
+# 狂龙战斗中卡住后闪退：CMD44消费失败应答（2026-10-06）
+
+会话20261006_203510_046215_next37。20:39:02进入狂龙100003152，源战斗房100007456，真实首领109014477已注册，随后仍在战斗。20:39:48收到恢复药CMD44，服务端报告consume receipt conflict并发送失败应答。客户端trace记录USE_STACKABLE Error ErrCode27648，之后崩溃调用栈进入14529FD70；client.log最终exit=0xC0000005。682是后续退出/报告路径，不能仅看到它就把本次异常解释成玩家主动退出。
+
+当前客户端14529FD70入口：成功标志由框架传入dl，错误码u16由r8w传入esi。失败分支1452A03B9读取list u8，1452A03DA/03E4读取instance/template两个u32，随后访问对应背包对象。崩溃栈含145AD28B2、145AD2E63、1452A07CF，属于失败消费清理链。
+
+旧UseStackableRefused只有flag/list/template/instance，漏掉框架u16错误码且把后两个字段写反。真实恢复药template10418028字节6cf79e00，产生framework错误码6c00=27648、误读容器f7=247，进入无效背包对象处理。
+
+官服20261005-015111原生向量互证：请求4b0000e343000056c29d00（后有client附加字段），拒绝应答00130000e343000056c29d00（采集尾部不参与逻辑字段）。恢复12B的flag0/error19/list/instance/template。error19是现有原生库存拒绝向量，不自行扩展其他错误码。成功12B形态不变。
+
+只读PostgreSQL核查消费事件consume:3:10418028:19842：创建于2026-09-30，template10418028、slot3、config_version为当前存档协议c638346f，但outcome.source为当前内层归档7ef2db59。新检查仅接受SaveIdentity字符串，错误拒绝了同一归档的旧表示。
+
+兼容检查仅接受当前SaveIdentity，或非空且与当前归档Checksum精确相等的旧Source。不接受不同归档、空值；不修改存档身份/SQL/schema/旧回执，不重新执行已提交消费、不重复扣物品。未改写玩家数据，数据库取证事务READ ONLY。
+
+原生失败向量与真实崩溃请求新增布局回归；同归档旧回执与外部归档拒绝新增边界测试。新程序保留所有已接入巴卡尔源事件。测试及实机边界按交付记录，客户端/PVF未修改、未自动启动游戏。
+
+候选bin/wireprobe-bakal-consume-crash-candidate.exe，SHA256 fa10402c6eeaa72c2f5c6ddf134f51121ebebcbecc9de8fc39d99d559860251c。专项/全仓vet通过，全量Go仍仅两项既有character来源兼容失败；Python25项配置检查与launch --check通过，客户端DFO/PG路线保持。默认和隔离profile指向同一候选，旧程序保留。实际闪退修复待用户手动战斗并使用恢复药验证。

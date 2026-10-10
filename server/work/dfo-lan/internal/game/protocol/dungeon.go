@@ -22,8 +22,10 @@ func DecodeDungeonGate(p []byte) (uint32, error) {
 // beyond verified mode fields remain unnamed, rather than guessed IDs.
 // The full 36-byte reader sequence is checked with the original native code.
 func EnterDungeonSelection() []byte {
-	p := []byte{0, 0, 0}      // first/relay/relay-extra, 1453032f6/307/7c4
-	p = add32(add32(p, 0), 0) // 145303871/8ec
+	p := []byte{0, 0, 0} // first/relay/relay-extra, 1453032f6/307/7c4
+	// 官服抓包（next178 §18）：offset 3 那个 u32 **两种模式都写 1**（本仓此前恒为 0）；
+	// 本仓客户端在 offset=3 处 size=4 读它（testdata/native_dungeon_gate_cursor.json）。
+	p = add32(add32(p, 1), 0) // 145303871/8ec
 	p = append(p, 0)          // u16 collection, 145303ac3
 	p = add32(p, 0)           // 145303b8f
 	p = append(p, 0, 0, 0)    // u16 collections, 145303bc6/c38/d58
@@ -33,6 +35,48 @@ func EnterDungeonSelection() []byte {
 	p = add32(p, 0)           // mode0, 145304033 (native clamps to0..1)
 	p = add16(p, 0)           // 1453040b4
 	return append(p, 0, 0)    // u32/u16 collections, 145304140/1b9
+}
+
+// EnterDungeonSelectionRelay 是 NOTI27 的**接力/继续挑战**形态。
+//
+// 官服抓包（next178 §18）里这一段的头 4 字节是 `00 01 c3 01`（冷进场是 `00 00 00 01`，
+// 而 offset 3 那个 u32 两种模式都是 1）—— 也就是**两个头字节一起变**：
+// `relay`（offset 1，客户端读点 0x145303307）= 1，`relay-extra`（offset 2，0x1453037c4）= 0xc3。
+//
+// A2 只写了 offset 1，实测无效；本轮按官服把这两个字节一起对齐（连同 EnterDungeonSelection
+// 里那个恒为 1 的 u32@3）。`relay-extra` 的**语义仍未取证** —— 这里只做「照官方那段字节写」的
+// 对齐，不解释它是什么。
+func EnterDungeonSelectionRelay() []byte {
+	p := EnterDungeonSelection()
+	p[1] = 1
+	p[2] = 0xc3
+	return p
+}
+
+// EnterDungeonSelectionSeamless 是 NOTI27 的**无缝加载进图**形态（官服极难度
+// 第一关：2026-10-08 抓包 22:05:45.580，头四字节 `01 00 00 01`）。
+//
+// 与冷进场（`00 00 00 01`）只差 offset 0 —— 客户端读点 1453032f6。
+// 前情：这一关之前客户端刚收到 N2568 PREPARE_LEGION_ENTER_DUNGEON，进入
+// `[SEAMLESS LOADING] … delay[4]` 的无缝加载态；官服在这个状态下发的就是
+// 这个形态的 NOTI27（连同 N28 @30 = 05），本仓此前一直发冷进场形态。
+func EnterDungeonSelectionSeamless() []byte {
+	p := EnterDungeonSelection()
+	p[0] = 1
+	return p
+}
+
+// EnterDungeonSelectionStageContinue 是 NOTI27 的**连战过段直进**形态（官服
+// 极难度第二/三关：抓包 22:06:15.456 / 22:06:46.792，头四字节 `00 01 01 01`）。
+//
+// 与冷进场差 offset 1（`relay`）与 offset 2（`relay-extra`）两字节，值都是 1；
+// 与深渊「再次挑战」形态（`00 01 c3 01`，见 EnterDungeonSelectionRelay）在
+// offset 2 上不同 —— 两个内容各自取证，这里照极难度那一份写。
+func EnterDungeonSelectionStageContinue() []byte {
+	p := EnterDungeonSelection()
+	p[1] = 1
+	p[2] = 1
+	return p
 }
 
 type DungeonSelection struct {
@@ -115,6 +159,15 @@ type DungeonInfoState struct {
 	Difficulty, Maze byte
 	Boss             [2]byte
 	Hell             *[2]byte
+	// Entry 是 body[30]：这次进本的**入口类型**。0 = 普通进本；5 = EPLP 无缝再次
+	// 挑战（SettlementExitSeamless）。
+	//
+	// 官服取证（2026-10-08 抓包，analysis/tasks/next178 §3）：同一个副本冷进场的
+	// 这一字节是 0x00、两次「继续挑战」（CMD72 选项 5）都是 0x05，而两次之间的其余
+	// 字段逐帧相同 —— 它就是「这是继续、不是新副本」的信号。本仓客户端在
+	// 0x1452ada9e 单独读这一个字节（testdata/native_dungeon_info_cursor.json 的
+	// offset=30/size=1），与官服那一字节**位移一致**。
+	Entry byte
 }
 
 func DungeonInfo(s DungeonInfoState) []byte {
@@ -133,7 +186,9 @@ func DungeonInfo(s DungeonInfoState) []byte {
 	p = add16(add16(p, 0), 0)
 	p = append(p, 0)
 	p = add32(p, 0xffffffff)
-	p = append(p, 0, 0, 0, 0, 0, 0, 0, 0)
+	// 23..30 是八个**各自独立**的单字节字段（客户端逐个读：0x1452ad3dd/3ec/3fb/
+	// 96d/998/9c3/a0f/a9e）。最后那一个（offset 30）是入口类型，见 Entry 的注释。
+	p = append(p, 0, 0, 0, 0, 0, 0, 0, s.Entry)
 	p = add16(add16(add16(p, 0), 0), 0)
 	return add32(p, 0)
 }
@@ -367,12 +422,16 @@ func DecodeMoveDungeonRoom(p []byte) ([2]byte, error) {
 }
 
 type DungeonRoomTransition struct {
-	// Server-only authorization for a source Bakal arena-to-entry teleport.
-	RaidReturn  bool
-	Position    [2]byte
-	LayerChange bool
-	Record      [18]byte
-	Dungeon     uint32
+	RaidReturn    bool // server-authorized native2070 return; never decoded from45
+	RaidCinematic bool // authorized source phase-shift, not ordinary enemy clear
+	RaidInRoom    bool // source same-grid portal record, preserve the existing scene
+	Position      [2]byte
+	LayerChange   bool
+	Record        [18]byte
+	Dungeon       uint32
+	// SceneExit 只由服务端设置：标记这次 layer 切换是「场景房点门」的出口，
+	// 方向是回该位置的 base。客户端的 CMD45 永远是 SceneExit=false（前进）。
+	SceneExit bool
 }
 
 func DecodeDungeonRoomTransition(p []byte) (r DungeonRoomTransition, err error) {

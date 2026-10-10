@@ -1,0 +1,123 @@
+path=etc/rewardboostinfo/endkeeperoforder/normal.ctp
+bytes=4545 sha256=f5c1966e98824dc8
+version=1 records=37
+
+=== trailer columns (4) ===
+  "[additional drop table]"    records=2 [7 12]
+  "[coupon drop table]"        records=5 [17 21 25 29 33]
+  "[dungeon index]"            records=1 [0]
+  "[fixed drop table]"         records=2 [1 4]
+
+=== records (first 40) ===
+  [0] name="[dungeon index]"        flags=1 parent=-1 cells=1 refs=0
+        floats=[1.00005014e+08]
+        ints=[100005014]
+  [1] name="[fixed drop table]"     flags=2 parent=-1 cells=0 refs=2
+  [2] name="[maze]"                 flags=1 parent=1 cells=1 refs=0
+        floats=[0]
+        ints=[0]
+  [3] name="[drop list]"            flags=2 parent=1 cells=30 refs=0
+        floats=[268667 1.0416103e+07 200000 1.0416104e+07 2000 1.0416105e+07 272000 1.0416106e+07 200000 1.0416107e+07 36000 1.0416108e+07 16000 1.0416109e+07 1500 1.041611e+07 3333 1.0416119e+07 500 1.041612e+07]
+        texts=["normal" "normal" "normal" "rare" "unique" "legendary" "epic" "primeval" "luck15" "luck30"]
+        ints=[268667 10416103 200000 10416104 2000 10416105 272000 10416106 200000 10416107 36000 10416108 16000 10416109 1500 10416110 3333 10416119 500 10416120]
+  [4] name="[fixed drop table]"     flags=2 parent=-1 cells=0 refs=2
+  [5] name="[maze]"                 flags=1 parent=4 cells=1 refs=0
+        floats=[1]
+        ints=[1]
+  [6] name="[drop list]"            flags=2 parent=4 cells=24 refs=0
+        floats=[272500 1.0416111e+07 200000 1.0416112e+07 2000 1.0416113e+07 272000 1.0416114e+07 200000 1.0416115e+07 36000 1.0416116e+07 16000 1.0416117e+07 1500 1.0416118e+07]
+        texts=["normal" "normal" "normal" "rare" "unique" "legendary" "epic" "primeval"]
+        ints=[272500 10416111 200000 10416112 2000 10416113 272000 10416114 200000 10416115 36000 10416116 16000 10416117 1500 10416118]
+  [7] name="[additional drop table]" flags=2 parent=-1 cells=0 refs=4
+  [8] name="[effect index]"         flags=1 parent=7 cells=1 refs=0
+        floats=[1]
+        ints=[1]
+  [9] name="[select prob]"          flags=1 parent=7 cells=1 refs=0
+        floats=[985200]
+        ints=[985200]
+  [10] name="[drop count]"           flags=1 parent=7 cells=1 refs=0
+        floats=[1]
+        ints=[1]
+  [11] name="[drop list]"            flags=2 parent=7 cells=3 refs=0
+        floats=[1e+06 1.0416752e+07]
+        texts=["normal"]
+        ints=[1000000 10416752]
+  [12] name="[additional drop table]" flags=2 parent=-1 cells=0 refs=4
+  [13] name="[effect index]"         flags=1 parent=12 cells=1 refs=0
+        floats=[2]
+        ints=[2]
+  [14] name="[select prob]"          flags=1 parent=12 cells=1 refs=0
+        floats=[14800]
+        ints=[14800]
+  [15] name="[drop count]"           flags=1 parent=12 cells=1 refs=0
+        floats=[1]
+        ints=[1]
+  [16] name="[drop list]"            flags=2 parent=12 cells=12 refs=0
+        floats=[675676 1.0416141e+07 202703 1.0416142e+07 101351 1.0416143e+07 20270 1.0416144e+07]
+        texts=["unique" "legendary" "epic" "primeval"]
+        ints=[675676 10416141 202703 10416142 101351 10416143 20270 10416144]
+  [17] name="[coupon drop table]"    flags=2 parent=-1 cells=0 refs=3
+  [18] name="[obtain prob]"          flags=1 parent=17 cells=1 refs=0
+        floats=[100000]
+        ints=[100000]
+  [19] name="[drop prob]"            flags=1 parent=17 cells=1 refs=0
+        floats=[0]
+        ints=[0]
+  [20] name="[drop list]"            flags=2 parent=17 cells=0 refs=0
+  [21] name="[coupon drop table]"    flags=2 parent=-1 cells=0 refs=3
+  [22] name="[obtain prob]"          flags=1 parent=21 cells=1 refs=0
+        floats=[100000]
+        ints=[100000]
+  [23] name="[drop prob]"            flags=1 parent=21 cells=1 refs=0
+        floats=[600000]
+        ints=[600000]
+  [24] name="[drop list]"            flags=2 parent=21 cells=9 refs=0
+        floats=[978570 1.041615e+07 12500 1.0417544e+07 8930 1.0417543e+07]
+        texts=["normal" "normal" "normal"]
+        ints=[978570 10416150 12500 10417544 8930 10417543]
+  [25] name="[coupon drop table]"    flags=2 parent=-1 cells=0 refs=3
+  [26] name="[obtain prob]"          flags=1 parent=25 cells=1 refs=0
+        floats=[100000]
+        ints=[100000]
+  [27] name="[drop prob]"            flags=1 parent=25 cells=1 refs=0
+        floats=[400000]
+        ints=[400000]
+  [28] name="[drop list]"            flags=2 parent=25 cells=9 refs=0
+        floats=[995140 1.0417545e+07 2780 1.0417546e+07 2080 1.0417547e+07]
+        texts=["normal" "normal" "normal"]
+        ints=[995140 10417545 2780 10417546 2080 10417547]
+  [29] name="[coupon drop table]"    flags=2 parent=-1 cells=0 refs=3
+  [30] name="[obtain prob]"          flags=1 parent=29 cells=1 refs=0
+        floats=[100000]
+        ints=[100000]
+  [31] name="[drop prob]"            flags=1 parent=29 cells=1 refs=0
+        floats=[330000]
+        ints=[330000]
+  [32] name="[drop list]"            flags=2 parent=29 cells=6 refs=0
+        floats=[999583 1.0417552e+07 417 1.0417554e+07]
+        texts=["normal" "normal"]
+        ints=[999583 10417552 417 10417554]
+  [33] name="[coupon drop table]"    flags=2 parent=-1 cells=0 refs=3
+  [34] name="[obtain prob]"          flags=1 parent=33 cells=1 refs=0
+        floats=[0]
+        ints=[0]
+  [35] name="[drop prob]"            flags=1 parent=33 cells=1 refs=0
+        floats=[1e+06]
+        ints=[1000000]
+  [36] name="[drop list]"            flags=2 parent=33 cells=3 refs=0
+        floats=[1e+06 1.0417571e+07]
+        texts=["normal"]
+        ints=[1000000 10417571]
+
+=== distinct record names ===
+      2  "[fixed drop table]"
+      2  "[maze]"
+      9  "[drop list]"
+      2  "[additional drop table]"
+      2  "[effect index]"
+      2  "[select prob]"
+      2  "[drop count]"
+      5  "[coupon drop table]"
+      1  "[dungeon index]"
+      5  "[obtain prob]"
+      5  "[drop prob]"

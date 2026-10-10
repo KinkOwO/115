@@ -166,7 +166,12 @@ func (s *Service) ApplyAwakening(role Character, stage byte) (json.RawMessage, e
 	// Evolve rows). Without this the panel reads 0 and a later ordinary Learn
 	// response (id29 with an empty persisted block) clears it again.
 	if stage == 3 {
-		state.TechniquePoints[0] = 5
+		// 三觉给的 VP 点与槽位**两页都要** —— 技能页 2 是独立的第二套加点，
+		// 但它同样在三觉后拥有进化/突破（业主 2026-10-09 20:32："第二页没有 vp 了"）。
+		// 原来只写 TechniquePoints[0]，第二页的点数永远是 0 ⇒ 面板全空。
+		for i := range state.TechniquePoints {
+			state.TechniquePoints[i] = 5
+		}
 		for i := range state.SkillVariations {
 			fillVariationSlots(&state.SkillVariations[i])
 		}

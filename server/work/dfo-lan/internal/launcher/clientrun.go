@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"dfolan/internal/accountname"
 )
 
 // This file is Stage 3 of the Python-orchestration migration
@@ -91,12 +93,25 @@ func probeUIMode(mode helperMode) string {
 
 // probePayload 复刻 channel_probe.py L608-L612。tag 是**降级后**的 tag：_next35/_next36/
 // _next37 会先降到 _next34，所以它们命中的也是同一支（7001 形态）。
-func probePayload(port int, channelCheck bool, tag string) string {
+//
+// 账号段（第 4 段）Python 写死 probe。服务端**从不读它** —— 会话身份来自 wireprobe 的
+// -account / DFO_ACCOUNT（见 cmd/wireprobe/bootstrap.go 的 UPSERT），但客户端界面显示的是
+// 这一串，所以它必须跟着会话真实账号走，否则玩家看到的名字和存档归属对不上。
+// account 为空按 probe，保持默认启动的 payload 与历史逐字节一致。
+func probePayload(port int, channelCheck bool, tag, account string) string {
+	if account == "" {
+		account = accountname.Default
+	}
 	if channelCheck || hasAnySuffix(tag, "_next30", "_next31", "_next32", "_next33", "_next34") {
 		// Python 这里写死 7001，用的不是 ready.json 里的端口。
-		return fmt.Sprintf("3?127.0.0.1?%d?probe?00000000000000000000000000000000?0?0?30?0?0?0", GatewayPort)
+		return fmt.Sprintf("3?127.0.0.1?%d?%s?00000000000000000000000000000000?0?0?30?0?0?0", GatewayPort, account)
 	}
-	return fmt.Sprintf("13?127.0.0.1?%d?probe?00000000000000000000000000000000?0?0?30?0?0?0", port)
+	return fmt.Sprintf("13?127.0.0.1?%d?%s?00000000000000000000000000000000?0?0?30?0?0?0", port, account)
+}
+
+// planPayload 是 --dry-run 计划行里的 payload：7001 形态，账号段按本次会话定型的名字。
+func planPayload(account string) string {
+	return probePayload(0, true, "", account)
 }
 
 // probeClientDir 复刻 channel_probe.py L615：环境变量优先，**键缺失**时才退回 probe 工具
@@ -206,6 +221,12 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 	if opts.ServerOnly || opts.StorageOnly {
 		return fmt.Errorf("内部错误：LaunchClient 只处理 interactive / --client-only")
 	}
+	// Validate the opt-in injection before starting any service or client.
+	featureEnv := newChildEnv(BuildServerEnv(CurrentEnv(), nil, false))
+	eliteDLL, err := adventureEliteDLL(root, featureEnv)
+	if err != nil {
+		return err
+	}
 	opts.Check = false
 	opts.DryRun = false
 
@@ -236,8 +257,10 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 	}
 	defer stopGateway()
 
-	// 1. payload（channel_probe.py L608-L612）。
-	payload := probePayload(run.Port, mode.channelCheck(), run.Session.Effective)
+	// 1. payload（channel_probe.py L608-L612）。账号段用会话真正生效的那个：startSession
+	//    已经把定型的值写进子进程环境，所以读 run.Env 就等于服务端拿到的名字。
+	payload := probePayload(run.Port, mode.channelCheck(), run.Session.Effective,
+		sessionAccount(opts.Account, run.Env.Get))
 
 	// 2. 客户端目录与其可见性告警（L613-L617）。
 	clientDir := probeClientDir(run.Env, probeDir)
@@ -273,6 +296,10 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 	if err != nil {
 		return err
 	}
+	eliteDLL, err = adventureEliteDLL(root, run.Env)
+	if err != nil {
+		return err
+	}
 	wrapper := route.Wrapper
 	// tryGoHost：只有 DFO_FORCE_PROBE_EXE 会在这里直接挡掉 Go 路径（它和包装变量同时出现时
 	// planClientLaunch 已经报错了）；能不能装隔离要等 startHostedClient 试过才知道
@@ -283,17 +310,18 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 	var hostCode int
 	if tryGoHost {
 		hostAttempt, hostCode, hostErr = startHostedClient(ClientHostOptions{
-			ClientDir:       clientDir,
-			LogPath:         filepath.Join(out, "client.log"),
-			Seconds:         55,
-			UIMode:          probeUIMode(mode),
-			BreakpointsFile: filepath.Join(out, "breakpoints.txt"),
-			Args:            []string{payload},
-			Env:             run.Env.List(),
-			Console:         probeOut,
-			Wrapper:         wrapper.Host,
-			WrapperDLL:      wrapper.DLL,
-			ErrorLog:        probeErr,
+			ClientDir:         clientDir,
+			LogPath:           filepath.Join(out, "client.log"),
+			Seconds:           55,
+			UIMode:            probeUIMode(mode),
+			BreakpointsFile:   filepath.Join(out, "breakpoints.txt"),
+			Args:              []string{payload},
+			Env:               run.Env.List(),
+			AdventureEliteDLL: eliteDLL,
+			Console:           probeOut,
+			Wrapper:           wrapper.Host,
+			WrapperDLL:        wrapper.DLL,
+			ErrorLog:          probeErr,
 		}, true)
 		if hostErr == nil {
 			// 客户端已经退出、Job 已收、隔离已拆。pid 与退出码照实上报。
@@ -312,6 +340,9 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 		}
 	}
 	if clientPID == 0 && clientExit != exitClientHostMissingExe {
+		if eliteDLL != "" {
+			return fmt.Errorf("精锐资格已启用，Go 宿主失败，不能回退到不注入的 probe.exe：%w", hostErr)
+		}
 		if wrapper.Enabled() {
 			// 启用汉化时只有"Go 宿主 + 汉化启动宿主"这一条路（probe.exe 注入不了 dll），
 			// 所以这里**不**回退：回退只会静默给出一个没汉化的客户端，而那正是本次要消灭的现象。

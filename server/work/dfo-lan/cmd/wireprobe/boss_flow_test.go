@@ -17,7 +17,7 @@ func TestBossCompletionPreflightAndReplay(t *testing.T) {
 	p := make([]byte, 16)
 	binary.LittleEndian.PutUint16(p, 3)
 	binary.LittleEndian.PutUint16(p[2:], 4096)
-	plan, e := w.bossCheck(p)
+	plan, e := w.bossCheck(p, nil)
 	if e != nil || len(plan) != 0 {
 		t.Fatal("early boss check completed", e)
 	}
@@ -43,7 +43,7 @@ func TestBossCompletionPreflightAndReplay(t *testing.T) {
 		}
 	}
 	w.completionSent = true
-	if plan, e = w.bossCheck(p); e != nil || len(plan) != 0 {
+	if plan, e = w.bossCheck(p, nil); e != nil || len(plan) != 0 {
 		t.Fatal("completion replay reopened results", e)
 	}
 }

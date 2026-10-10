@@ -13,6 +13,7 @@ import (
 // and its original channel gates, rather than only the calendar constant.
 func TestBoostPermanentAnnouncementKeepsChannelGates(t *testing.T) {
 	for _, challenge := range []bool{false, true} {
+		t.Setenv("DFO_EVENT_INFO_ACTIVITY", "off")
 		full, ok := buildTownEventInfoTable(challenge)
 		if !ok {
 			t.Fatal("build event announcement")

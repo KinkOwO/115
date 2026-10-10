@@ -127,6 +127,9 @@ type azureMainState struct {
 	// 官服那个字节一直是 8（= 上限，本局没人用币）；私服此前把它写死成 8，
 	// 所以用币复活之后客户端看到的次数不会减少（业主实机 2026-10-04）。
 	revivesLeft uint32
+	// flip 是本局**源驱动翻牌**的事务（冻结的奖单 + 已领标志），见 azure_flip.go。
+	// 开新局时由 azureStartDungeon 清空；冻结时按 run 判，不会串到下一局。
+	flip azureFlipState
 }
 
 // azureMainReviveLimit 是征讨副本的复活次数上限（官服 N2621 [32:36] 的初值 8）。
@@ -527,6 +530,8 @@ func (w *worldSession) azureStartDungeon(p []byte, now time.Time) (bool, []outbo
 		plan = append(plan, pkt)
 	}
 	// 副本会话落地（照红门分支）。
+	// 新一局：上一局的源驱动奖单必须丢掉（奖单按 run 冻结，混用会串单）。
+	w.azure.flip = azureFlipState{}
 	w.deathSent = map[uint16]bool{}
 	w.drops = nil
 	w.resetCards()

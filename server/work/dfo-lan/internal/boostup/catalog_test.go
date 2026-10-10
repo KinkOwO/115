@@ -35,6 +35,11 @@ func TestBoostUpActualSelectedSource(t *testing.T) {
 	if c.ReservedMail == nil || c.ReservedMail.Item != 590015954 || c.ReservedMail.Count != 1 {
 		t.Fatal("source reserved mail lost", c.ReservedMail)
 	}
+	// [capsule info] 里的 [quest clear item]：直升后补发的三张清券（各清一条
+	// [grade] [side] 墙任务，见 docs/protocol/boostup662-story-skip-20261006.md）。
+	if len(c.QuestClearItems) != 3 || c.QuestClearItems[0] != 10327301 || c.QuestClearItems[1] != 10327302 || c.QuestClearItems[2] != 10327303 {
+		t.Fatal("source quest clear items lost", c.QuestClearItems)
+	}
 	if len(c.JournalDiscounts) != 1 || c.JournalDiscounts[0] != (JournalDiscount{Step: 10, Phase: 2, Condition: 0, Gold: 100, Material: 0}) {
 		t.Fatal("source journal discount lost", c.JournalDiscounts)
 	}

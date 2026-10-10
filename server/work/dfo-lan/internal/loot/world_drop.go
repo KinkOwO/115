@@ -26,10 +26,12 @@ func ParseWorldDropPercent(value string) (uint32, error) {
 
 func rollWorldItems(c catalog.LootCatalog, seed uint32, level byte) (Outcome, error) {
 	out := Outcome{NextSeed: seed}
-	if c.OrdinaryWorldDropPercent > 10000 {
+	if c.OrdinaryWorldDropPercent > worldDropMaxPercent {
 		return out, fmt.Errorf("invalid ordinary world drop multiplier")
 	}
-	if c.WorldDrop == nil || c.OrdinaryWorldDropPercent == 0 || level == 0 || level > 199 {
+	// mod 倍率在这里现读（不是构造目录时固化）：没有 mod 设置时与目录值逐位相同。
+	percent := effectiveWorldDropPercent(c)
+	if c.WorldDrop == nil || percent == 0 || level == 0 || level > 199 {
 		return out, nil
 	}
 	row, ok := c.WorldDrop.Levels[uint32(level)]
@@ -51,7 +53,7 @@ func rollWorldItems(c catalog.LootCatalog, seed uint32, level byte) (Outcome, er
 	if total == 0 {
 		return out, nil
 	}
-	threshold := total * uint64(c.OrdinaryWorldDropPercent) / 100
+	threshold := total * uint64(percent) / 100
 	if threshold == 0 {
 		return out, nil
 	}

@@ -10,7 +10,8 @@ class RestoredProfileTests(unittest.TestCase):
         module = pathlib.Path(__file__).resolve().parents[1]
         _, _, env = load_profile(module / 'configs/pvf-default.json', module)
         domains = env['DFO_PVF_CATALOGS'].split(',')
-        self.assertEqual(len(domains), 61)
+        self.assertEqual(len(domains), 62)
+        self.assertIn('transform', domains)
         self.assertTrue({'attendance-login', 'attendance-weekly', 'attendance-online', 'attendance-daily', 'membership'}.issubset(domains))
         self.assertEqual(env['DFO_LOCAL_GM'], '1')
         self.assertEqual(env['DFO_ELITE_COMPANION_PILOT'], 'all')

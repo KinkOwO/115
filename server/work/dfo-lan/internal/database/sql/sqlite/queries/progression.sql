@@ -247,7 +247,18 @@ SELECT EXISTS(SELECT 1 FROM character_events WHERE character_id=sqlc.arg(charact
 AND event_key IN('odyssey-graduate-reward-v1','odyssey-honor-mail-v1'));
 
 -- name: OmenState :one
-SELECT held,orthaire_pending FROM character_omen_state WHERE character_id=sqlc.arg(character_id) AND dungeon_id=sqlc.arg(dungeon_id);
+SELECT held,orthaire_pending,misses FROM character_omen_state WHERE character_id=sqlc.arg(character_id) AND dungeon_id=sqlc.arg(dungeon_id);
+
+-- name: SaveOmenMisses :exec
+-- Writes only the consecutive-miss counter, for the same reason SaveOmenHeld
+-- writes only held: these columns advance at different moments, so writing the
+-- whole row back would clobber what the other path just wrote. The CAST keeps the
+-- int64 width on this side too (see SaveOmenHeld).
+INSERT INTO character_omen_state(character_id,dungeon_id,misses,updated_at)
+VALUES(sqlc.arg(character_id),sqlc.arg(dungeon_id),CAST(sqlc.arg(misses) AS INTEGER),
+(CAST((julianday('now') - 2440587.5) * 86400000000 AS INTEGER)))
+ON CONFLICT(character_id,dungeon_id) DO UPDATE SET misses=EXCLUDED.misses,
+updated_at=(CAST((julianday('now') - 2440587.5) * 86400000000 AS INTEGER));
 
 -- name: SaveOmenHeld :exec
 -- PostgreSQL casts `held` to bigint even though the column is integer, so the

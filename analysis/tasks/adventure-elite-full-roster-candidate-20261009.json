@@ -1,0 +1,436 @@
+{
+  "status": "candidate; manual full-roster first entry and repeat appearance pending",
+  "attempt": "new-role compatibility 2/3; previous pet-key projection 1/3 removed server refusal but did not restore appearance",
+  "failureSession": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261009_032359_422014_next37",
+  "userReport": "还是没有",
+  "serverCandidateValid": true,
+  "actualServerVersion": "0.3.14",
+  "actualDLLVersion": "0.3.9",
+  "rootPid": 66920,
+  "runTick": 153666140,
+  "normalExitObserved": true,
+  "serverDecisions": [
+    {
+      "line": 166,
+      "kind": "adventure_elite_transaction_decision",
+      "accepted": true,
+      "characterId": 4,
+      "selected": [
+        1,
+        3,
+        2
+      ],
+      "packets": [
+        {
+          "id": 1382,
+          "bytes": 9920
+        },
+        {
+          "id": 1879,
+          "bytes": 2
+        }
+      ]
+    }
+  ],
+  "nativeCompletionAnchors": [
+    {
+      "traceVersion": 2,
+      "processId": 66920,
+      "runTick": 153666140,
+      "sequence": 2,
+      "ordinal": 1,
+      "tick": 154006984,
+      "thread": 57700,
+      "opcode": 1382,
+      "phase": "scope-closed",
+      "traceDropped": 0,
+      "remaining": 0,
+      "headerCount": -1,
+      "headerMode": -1,
+      "ownerWireId": -1,
+      "companionCount": -1,
+      "currentChannel": 22,
+      "currentOwner": 4,
+      "entryChannel": 22,
+      "entryOwner": 4,
+      "preparedChannel": 22,
+      "managerField40": 0,
+      "weakAlive": 0,
+      "weakStrong": [
+        -1,
+        -1,
+        -1
+      ],
+      "preparationScope": 1,
+      "scopeReason": "transaction-matched",
+      "nonEmpty": 0,
+      "modeSeen": 0,
+      "modeCalls": 0,
+      "modeNative": [
+        0,
+        0
+      ],
+      "modeEffective": [
+        0,
+        0
+      ],
+      "predicateSeen": 7,
+      "predicateCalls": 7,
+      "predicateNative": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "predicateEffective": [
+        1,
+        1,
+        1,
+        0
+      ],
+      "flushSeen": 0,
+      "requestObserved": 0,
+      "readerSuccess": 1,
+      "exceptionCode": 0,
+      "exceptionIp": 0,
+      "pending": {
+        "thread": 57700,
+        "channel": 22,
+        "owner": 4,
+        "waiting": 1,
+        "info": 1,
+        "deadline": 154016609
+      }
+    },
+    {
+      "traceVersion": 2,
+      "processId": 66920,
+      "runTick": 153666140,
+      "sequence": 3,
+      "ordinal": 1,
+      "tick": 154006984,
+      "thread": 57700,
+      "opcode": 1879,
+      "phase": "before",
+      "traceDropped": 0,
+      "remaining": 16,
+      "headerCount": -1,
+      "headerMode": 2,
+      "ownerWireId": -1,
+      "companionCount": -1,
+      "currentChannel": 22,
+      "currentOwner": 4,
+      "entryChannel": 22,
+      "entryOwner": 4,
+      "preparedChannel": 22,
+      "managerField40": 0,
+      "weakAlive": 0,
+      "weakStrong": [
+        -1,
+        -1,
+        -1
+      ],
+      "preparationScope": 1,
+      "scopeReason": "transaction-matched",
+      "nonEmpty": 0,
+      "modeSeen": 0,
+      "modeCalls": 0,
+      "modeNative": [
+        0,
+        0
+      ],
+      "modeEffective": [
+        0,
+        0
+      ],
+      "predicateSeen": 0,
+      "predicateCalls": 0,
+      "predicateNative": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "predicateEffective": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "flushSeen": 0,
+      "requestObserved": 0,
+      "readerSuccess": 0,
+      "exceptionCode": 0,
+      "exceptionIp": 0,
+      "pending": {
+        "thread": 57700,
+        "channel": 22,
+        "owner": 4,
+        "waiting": 1,
+        "info": 1,
+        "deadline": 154016609
+      }
+    },
+    {
+      "traceVersion": 2,
+      "processId": 66920,
+      "runTick": 153666140,
+      "sequence": 3,
+      "ordinal": 1,
+      "tick": 154007359,
+      "thread": 57700,
+      "opcode": 1879,
+      "phase": "after",
+      "traceDropped": 0,
+      "remaining": 14,
+      "headerCount": -1,
+      "headerMode": -1,
+      "ownerWireId": -1,
+      "companionCount": -1,
+      "currentChannel": 22,
+      "currentOwner": 4,
+      "entryChannel": 22,
+      "entryOwner": 4,
+      "preparedChannel": 22,
+      "managerField40": 0,
+      "weakAlive": 3,
+      "weakStrong": [
+        1,
+        1,
+        1
+      ],
+      "preparationScope": 1,
+      "scopeReason": "transaction-matched",
+      "nonEmpty": 0,
+      "modeSeen": 0,
+      "modeCalls": 0,
+      "modeNative": [
+        0,
+        0
+      ],
+      "modeEffective": [
+        0,
+        0
+      ],
+      "predicateSeen": 0,
+      "predicateCalls": 0,
+      "predicateNative": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "predicateEffective": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "flushSeen": 0,
+      "requestObserved": 0,
+      "readerSuccess": 1,
+      "exceptionCode": 0,
+      "exceptionIp": 0,
+      "pending": {
+        "thread": 57700,
+        "channel": 22,
+        "owner": 4,
+        "waiting": 1,
+        "info": 1,
+        "deadline": 154016609
+      }
+    },
+    {
+      "traceVersion": 2,
+      "processId": 66920,
+      "runTick": 153666140,
+      "sequence": 3,
+      "ordinal": 1,
+      "tick": 154007359,
+      "thread": 57700,
+      "opcode": 1879,
+      "phase": "scope-closed",
+      "traceDropped": 0,
+      "remaining": 14,
+      "headerCount": -1,
+      "headerMode": -1,
+      "ownerWireId": -1,
+      "companionCount": -1,
+      "currentChannel": 22,
+      "currentOwner": 4,
+      "entryChannel": 22,
+      "entryOwner": 4,
+      "preparedChannel": 22,
+      "managerField40": 0,
+      "weakAlive": 3,
+      "weakStrong": [
+        1,
+        1,
+        1
+      ],
+      "preparationScope": 1,
+      "scopeReason": "transaction-matched",
+      "nonEmpty": 0,
+      "modeSeen": 0,
+      "modeCalls": 0,
+      "modeNative": [
+        0,
+        0
+      ],
+      "modeEffective": [
+        0,
+        0
+      ],
+      "predicateSeen": 0,
+      "predicateCalls": 0,
+      "predicateNative": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "predicateEffective": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "flushSeen": 0,
+      "requestObserved": 0,
+      "readerSuccess": 1,
+      "exceptionCode": 0,
+      "exceptionIp": 0,
+      "pending": {
+        "thread": 0,
+        "channel": 0,
+        "owner": 0,
+        "waiting": 0,
+        "info": 0,
+        "deadline": 0
+      }
+    }
+  ],
+  "captureGap": {
+    "nativeRecords": 12,
+    "lifecycleRecords": 0,
+    "entryRecords": 0,
+    "combatRecords": 0,
+    "note": "N1382 consumed all9920bytes; N1879 returned successfully with3strong actor refs and0 create-predicate calls. Old observer required calls==8, so lifecycle and entry identity never armed."
+  },
+  "nativeEvidence": {
+    "database": "client/DFO.exe.i64",
+    "session": "c1000f62",
+    "done": "142E5B060 reads u16mode at142E5B0EE; 142E5B2C1 looks up selected actor and142E5B2CC goes to existing-actor branch if found; missing actor invokes1444FABF0 at142E5B5E2. Both converge through native manager references and UI refresh.",
+    "predicate": "1444FABF0 calls142E60CF0 at1444FAC66; existing-actor branch does not. Therefore predicateCalls8 is not a necessary completion condition, notably when none of the three selected slots is empty.",
+    "identity": "1754 native mode2 request -> matched1382 owner4/count3 plus predicates7 -> mode2done. g_prepareTLS.active already checks request thread/channel/owner/deadline and completed info.",
+    "registration": "EliteEntryIdentity requires armed/current owner/channel/thread; EliteRegistrationScope still requires current native player CRef, stable unique kind5 companion identities/bindings/owner refs, matching dungeon, fresh scene membership and native manager state."
+  },
+  "change": "Remove predicate-call-count requirement only from successful matched N1879 lifecycle arming. No native callback substitution, new hook, packet/layout, actor pointer mutation or registration rule weakening.",
+  "sourceChain": "Existing PVF-driven channel/dungeon permission and original server compact roster retained; client native completion observer enables existing registration. No new content definitions.",
+  "knownDuplicateRules": "Existing Type22/publishedID10 compatibility duplicates etc/channel_info.etc [server]; inventory/creature_list.go pet names/experience duplicate equipment/creature scripts and creature/exptable.tbl. Kept in prior ledger, untouched by this callback fix.",
+  "verification": {
+    "oldCodeRegression": {
+      "command": "python .tmp/adventure-elite/run-native-completion-test.py",
+      "compiled": true,
+      "exitCode": 5,
+      "reason": "zero-predicate valid mode2 completion did not arm"
+    },
+    "newCodeRegression": {
+      "sameCommand": true,
+      "exitCode": 0,
+      "cases": [
+        "zero create-predicate completion",
+        "eight predicate completion",
+        "missing info rejected",
+        "expired request rejected",
+        "wrong mode rejected"
+      ],
+      "originalCallbackCount": 5
+    },
+    "dllBuild": {
+      "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-adventure-elite.ps1 -ClientExe F:/projects/agents/reverse/115us/client/DFO.exe",
+      "tree": "owned",
+      "exitCode": 0,
+      "cppTestGroups": 13,
+      "flags": "MSVC x64 /W4 /WX /O2 /MT",
+      "clientLaunched": false
+    },
+    "collector": {
+      "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-adventure-elite-capture.ps1",
+      "exitCode": 0,
+      "fixtureCases": 87
+    },
+    "Go": "No Go source changed; four task Go source hashes and both local build dependencies still match preceding full build/vet/test: owned3853pass/282skip, shared3910pass/269skip, no failures/newFailures. Changed collector scripts passed87fixtures. Remote already merged e4cc3ba1; no additional remote commits.",
+    "startupFixtureBothImages": true,
+    "nonGameEnvironmentSmokes": [
+      {
+        "value": "",
+        "injectedReturn": 203,
+        "pluginReturn": 0,
+        "statusVersion": "0.3.10"
+      },
+      {
+        "value": "0",
+        "injectedReturn": 203,
+        "pluginReturn": 0,
+        "statusVersion": "0.3.10"
+      },
+      {
+        "value": "1",
+        "injectedReturn": 13,
+        "pluginReturn": 13,
+        "statusVersion": "0.3.10"
+      },
+      {
+        "value": "true",
+        "injectedReturn": 203,
+        "pluginReturn": 0,
+        "statusVersion": "0.3.10"
+      },
+      {
+        "value": "01",
+        "injectedReturn": 203,
+        "pluginReturn": 0,
+        "statusVersion": "0.3.10"
+      },
+      {
+        "value": " 1",
+        "injectedReturn": 203,
+        "pluginReturn": 0,
+        "statusVersion": "0.3.10"
+      }
+    ],
+    "packageSchemaAndContentHashesChecked": true
+  },
+  "artifact": {
+    "DLLVersion": "0.3.10",
+    "DLLBytes": 225792,
+    "DLLSha256": "a46493c61f54fef1ec52852cd8e02383722a10d53587db343a96fc09b6f89099",
+    "serverVersion": "0.3.14",
+    "serverSha256": "8eae14a07d2f280bf846e81e25575cc338774e4a6b38c730bb25959b31afd19d"
+  },
+  "PVFChanged": false,
+  "playerStoreModified": false,
+  "schemaChanged": false,
+  "defaultPublished": false,
+  "sourceRollback": ".tmp/adventure-elite/full-roster-source-backup",
+  "deliveryRollback": ".tmp/adventure-elite/full-roster-delivery-backup",
+  "remaining": [
+    "Manual three-member new-role first entry/party HUD/APC and one repeat entry still pending",
+    "Full creature progression supplemental notifications and full death coverage retained as separate gaps",
+    "Military/raid parties and multiple consecutive Odyssey transitions not expanded",
+    "Packaged plugin install/uninstall remains outside current direct-injection candidate verification; no client installation performed"
+  ],
+  "changedFiles": [
+    "client-patchs/adventure-elite/src/native-trace.h",
+    "client-patchs/adventure-elite/src/native-completion-test.cpp",
+    "client-patchs/adventure-elite/src/adventure-elite.cpp",
+    "client-patchs/adventure-elite/build-mod.py",
+    "scripts/build-adventure-elite.ps1",
+    "scripts/collect-adventure-elite.ps1",
+    "scripts/test-adventure-elite-capture.ps1",
+    "client-patchs/adventure-elite/README.md",
+    "docs/todo/adventure-elite-ordinary-plan.md",
+    "analysis/tasks/adventure-elite-full-roster-candidate-20261009.json"
+  ]
+}

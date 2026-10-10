@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// toks 只是让下面的用例表读起来像 PVF 字段本身。
 func toks(ts ...pvf.Token) []pvf.Token { return ts }
 
 func TestDefaultSocketsFromFields(t *testing.T) {
@@ -66,16 +67,34 @@ func TestDefaultSocketsFromFields(t *testing.T) {
 	if len(ss5) != 3 || ss5[0] != avatarMultiSocket || ss5[1] != avatarMultiSocket || ss5[2] != avatarPlatinumSocket {
 		t.Fatalf("festive aura default sockets = %v, want [65519 65519 16]", ss5)
 	}
+
+	// 尾部 socket 个数与声明 N 不一致时（截断/异版脚本）不猜，返回空，
+	// 避免把不存在的孔补进存档。
+	fields6 := map[string][]pvf.Token{
+		"[avatar type select]": toks(
+			pvf.Token{Type: 0, Value: 9},
+			pvf.Token{Type: 3, Text: "[C socket]"},
+		),
+	}
+	if ss6 := defaultSocketsFromFields(fields6); len(ss6) != 0 {
+		t.Fatalf("mismatched count = %v, want empty", ss6)
+	}
 }
 
 func TestDefaultAvatarSocketsWritesWireFormat(t *testing.T) {
 	c := &EquipmentCatalog{}
-	// 无定义 → 30 字节全 0（0 孔）。
+	// 无定义（也不带 Full）→ 30 字节全 0（0 孔）。
 	opts := c.DefaultAvatarSockets(0)
-	if len(opts) != 30 {
-		t.Fatalf("len = %d, want 30", len(opts))
+	if len(opts) != avatarSocketOptionsSize {
+		t.Fatalf("len = %d, want %d", len(opts), avatarSocketOptionsSize)
 	}
 	if binary.LittleEndian.Uint16(opts[0:]) != 0 {
 		t.Fatalf("slot0 = %d, want 0", binary.LittleEndian.Uint16(opts[0:]))
+	}
+
+	// nil catalog 不能 panic。
+	var nilCatalog *EquipmentCatalog
+	if got := nilCatalog.DefaultAvatarSockets(115500002); len(got) != avatarSocketOptionsSize {
+		t.Fatalf("nil catalog len = %d, want %d", len(got), avatarSocketOptionsSize)
 	}
 }

@@ -137,4 +137,36 @@ func TestLearningResponseKeepsVariationBlocksForThirdAwakening(t *testing.T) {
 	}
 }
 
+// auto set 之后的批量加点包：Tree=0 而 Mode=1 —— Mode 是"这次是 auto set 批量"
+// 的标志，不是页。响应的 mode 必须跟 Tree 走；用 Mode 会发出"页号=0 但 mode=1"
+// 的自相矛盾帧，客户端据此不刷新 VP 面板（实机 2026-10-09 23:42：auto set 后
+// enhance 看起来没设置，重登才恢复 —— 登录走 VariationRestore，那里 mode=tree
+// 是自洽的，所以重登正常）。
+func TestLearningResponseVariationModeFollowsTreeNotMode(t *testing.T) {
+	s, c := loadAwakeningGrantFixture(t)
+	job, adv, prof := findThirdAwakeningSample(t, c)
+	st := State{Level: 100, Advancement: byte(adv), Awakening: 3, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills, SkillPoints: [2]uint16{10, 10}, TechniquePoints: [2]uint16{5, 5}}
+	raw, e := json.Marshal(st)
+	if e != nil {
+		t.Fatal(e)
+	}
+	role := Character{Profession: job, ConfigVersion: c.Source.SaveIdentity(), State: raw}
+	got, e := s.LearningResponse(role, protocol.SkillPurchase{Tree: 0, Mode: 1})
+	if e != nil {
+		t.Fatal(e)
+	}
+	p, e := protocol.SkillPurchaseSuccess(0, 10, 5, nil)
+	if e != nil {
+		t.Fatal(e)
+	}
+	fillVariationSlots(&st.SkillVariations[0])
+	want, e := protocol.SkillPurchaseVariations(p, 0, st.SkillVariations[0].Intensions, st.SkillVariations[0].Options)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if string(got) != string(want) {
+		t.Fatalf("Mode=1 时响应的 mode 跟了 Mode 而不是 Tree:\n got %x\nwant %x", got, want)
+	}
+}
+
 // 存量三觉角色（VP 账本为 0）选角登录时补发到 5；已对齐与未三觉都是 no-op。

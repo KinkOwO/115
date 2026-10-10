@@ -1,5 +1,16 @@
 # DFO 服务端源码与启动脚本交接包
 
+
+## 精锐助战：已确认范围与特殊频道准入
+
+`DFO_ADVENTURE_ELITE=1`沿现有Go启动链启用隔离服务端及DLL注入。普通五房通关、多次回城后入场、再次挑战和结算重新选图已确认；普通剧情ID5/Quest3146的APC出现本轮已确认，两名原生登记成功。该剧情日志还记录五房、17个有精锐来源证据的普通击杀、任务3146物品/经验事务、后继3147及结算回城；原生死亡函数调用与实际CMD39存在一项采集缺口，不能称完整剧情覆盖。奥德赛/直进2062/特殊队伍与对象释放仍待证。实际剧情服务端1c9f5842、DLL94165690；默认程序/PVF/存档结构保持。详见[说明](../client-patchs/adventure-elite/README.md)、[计划](../docs/todo/adventure-elite-ordinary-plan.md)及[确认基线](work/dfo-lan/docs/protocol/next79-confirmed-baseline-20261003.md)。
+
+后续确认：奥德赛转场/重进名单保持与沉月湖特殊频道 APC 出场已分别收口。服务端0.3.19/7b14d95e已获业主“多个频道均有效”确认，统一取消精锐接入层的频道类别限制；原特殊副本入口负责队伍、难度、阶段与结算，已有真人队伍门禁和DLL0.3.10/a46493c6保持。以已保存名单、DFO_ADVENTURE_ELITE=1和`scripts/启动游戏-SQLite.cmd --source-build`重启即可使用；无需逐个副本重新保存名单。确认范围为已测试多个频道的APC使用；每个副本/阶段与多人真人队伍兼容仍待分别取证。完整build/vet/test通过（4116通过/273跳过），真实PVF全发布频道行及采集夹具通过；详见[多频道确认记录](../analysis/tasks/adventure-elite-special-confirmed-20261010.json)。
+
+## Bot 独立通道候选（2026-10-06）
+
+新增 `go run ./cmd/dfo-tool botclient -h`，用于服主明确选中源码候选连接、签发短期凭据和只读检查角色列表。只有手动启动前设置 `DFO_BOT_CONTROL=1` 才启用服务端操作/数据端，默认配置保持。DLL 通信候选已离线互通（`scripts/build-bot-client.ps1 -Channel`）；服务端邀请/未发布准备和有界 DLL 请求已接线，原生列表 hook、创建角色及战斗尚未接入，不需要重做已通过的场景探针。实际接线、手动命令和验收边界见 [说明](work/dfo-lan/docs/bot-client-channel.md)。
+
 ## 工具命令入口（2026-10-03）
 
 `work/dfo-lan/cmd` 现保留 `wireprobe`、`admin`、`gmtool`、`dfo-tool` 四个入口。原独立导出/审计/维护工具统一改为 `go run ./cmd/dfo-tool <原工具名> <参数>`，在 `work/dfo-lan` 下用 `go run ./cmd/dfo-tool -h` 查看清单。现有游戏启动和GM入口保持；构建工具程序用 `go build -trimpath -o bin/dfo-tool.exe ./cmd/dfo-tool`。详见 [cmd/README.md](work/dfo-lan/cmd/README.md)。
@@ -78,6 +89,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./Build-Server.ps1
 
 若Go不在PATH，给脚本加 `-Go 'D:/tools/go/bin/go.exe'`。脚本依次执行 `go test ./...`、`go vet ./...`、编译源码版；首次构建补齐bin/wireprobe-pvf.exe，已有确认PVF程序默认保留。后续已验收构建使用-UpdatePVFDefault更新默认PVF；**不覆盖原39版**。首次编译可能需要下载 `go.mod/go.sum` 中的依赖，包中没有vendor。
 
+> **装了 mod 的树（2026-10-07 补）**：`work/dfo-lan/mods/zz_mods_gen.go` 是 modkit 生成的
+> **mod 加载器**，它同时进版本库，所以仓库里提交的必须是**干净形态**（不 import 任何 mod）——
+> 只有干净形态才保证别人 clone 下来 `go build ./...`、`go test ./...` 编得过。本机装了哪些
+> mod 由启动器写在**本机**这份（装卸会写，编译前还会按 `mods/` 现状重算），所以**别把本机
+> 那份提交/推上去**；要把某个 mod 分享出去，就把它的源码一起入库。`Build-Server.ps1`
+> 编译前会机械核对加载器里 import 的每个 `dfolan/mods/<id>` 是否已被 git 跟踪，未入库直接
+> 报错中止（本机确实要带着已装 mod 编译时加 `-SkipModGenGate`）；没有 git 的解包目录只告警。
+> 完整说明见 `work/dfo-lan/mods/README.md` §加载器 `zz_mods_gen.go`。
+
 测试源码候选版：关闭同一个测试会话后，在管理员PowerShell运行：
 
 ```powershell
@@ -94,3 +114,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./Build-Server.ps1
 - 默认关闭内存观察器。日常启动只需要Python标准库；`reference/analysis-tools` 的历史分析脚本可能需要pefile/capstone/unicorn/cryptography，且含原机路径，**不能直接批量执行**。
 - 原机启动脚本只作对照，位于 `reference/original-launcher`，不要用它代替本包根目录的新入口。
 - 功能和协议详细交接看 `开发对接文档.md`。文件校验看 `MANIFEST.sha256`、`package-manifest.json`。
+
+精锐助战 v0.3.0 城镇准备候选：同一 DFO_ADVENTURE_ELITE=1 链加载隔离服务端/启动器/DLL，普通及奥德赛角色复用原生模式 2 资料事务；准备后暂拦进图，剧情/奥德赛战斗未验收。手动测试及匹配回退见 client-patchs/adventure-elite/README.md，证据见 analysis/tasks/adventure-elite-ordinary-preparation-evidence-20261008.json。

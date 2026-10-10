@@ -297,7 +297,7 @@ func (w *worldSession) bakalLoadedBoss(s *dungeon.Session, now time.Time) ([]out
 		if m.SpecificMap >= 0 && uint32(m.SpecificMap) != s.Room.Map {
 			return nil, nil
 		}
-		row, spawn, err := s.AddRaidBoss(m)
+		row, spawn, err := s.AddBakalRaidBoss(m)
 		if err != nil {
 			return nil, err
 		}

@@ -3,6 +3,8 @@ package protocol
 import (
 	"encoding/binary"
 	"fmt"
+
+	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
 // Native 1472097C0 maps [avatar inventory expansion] to action 73.
@@ -62,14 +64,20 @@ func AvatarInventoryExpansionRefused(slot uint16, full bool) []byte {
 
 // NOTI488 mode 0 (1452E5830) reads a u32 byte count and string via
 // 146D78070, then opens UI2875, the same dialog used for action 73's
-// dstr33160. The current DFO.exe redirects the reader at 146D780E9 to
-// 149185A00, which calls MultiByteToWideChar with CP_UTF8 (65001).
+// dstr33160. That reader converts the bytes with the host ANSI code page
+// (CP936 on a Simplified-Chinese machine) — the exact path mailbox.go
+// documents for its body text — so the string MUST be GBK, not UTF-8.
 // Send this after CMD64, whose handler closes UI2875 on purchase success.
 func AvatarInventoryExpansionPurchaseMessage(tier byte) ([]byte, error) {
 	if tier == 0 || tier > MaxAvatarInventoryExpansion {
 		return nil, fmt.Errorf("invalid avatar inventory expansion success")
 	}
 	text := fmt.Sprintf("装扮物品栏已扩展，当前容量：%d 格。", AvatarInventorySlots(tier))
-	encoded := []byte(text)
+	// 与 adventure.go / mailbox.go 一致：发包边界转 GBK（存档无关）。
+	// 此前误发原始 UTF-8 ⇒ 客户端按 CP936 解 ⇒ 全是乱码。
+	encoded, err := simplifiedchinese.GBK.NewEncoder().Bytes([]byte(text))
+	if err != nil {
+		return nil, fmt.Errorf("avatar inventory expansion message encode: %w", err)
+	}
 	return append(add32([]byte{0}, uint32(len(encoded))), encoded...), nil
 }

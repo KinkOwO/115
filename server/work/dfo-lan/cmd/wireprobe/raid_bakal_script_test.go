@@ -82,7 +82,7 @@ func TestBakalNativeHalfHealthStageWarpAndFinalRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Loaded = true
-	if _, _, err = s.AddRaidBoss(first); err != nil {
+	if _, _, err = s.AddBakalRaidBoss(first); err != nil {
 		t.Fatal(err)
 	}
 	w.activeDungeon = s
@@ -96,7 +96,7 @@ func TestBakalNativeHalfHealthStageWarpAndFinalRoute(t *testing.T) {
 	w.activeDungeon = next
 	next.Loaded = true
 	second, _ := opening.InitialMonster(24)
-	if _, _, err = next.AddRaidBoss(second); err != nil {
+	if _, _, err = next.AddBakalRaidBoss(second); err != nil {
 		t.Fatal(err)
 	}
 	if err = opening.DefeatMonster(24, second.ID, now); err != nil {

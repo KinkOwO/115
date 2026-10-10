@@ -111,7 +111,10 @@ func (w *worldSession) boostStepRequest(ctx context.Context, p []byte, id uint16
 		if e != nil {
 			return nil, e
 		}
-		plan = append(plan, outboundPacket{"boost_step_roster", 0, 2639, roster})
+		// 同上：训练路径没有"两个包"的契约，超限不发。
+		if pkt, ok := boostRosterFrame("boost_step_roster", roster, false); ok {
+			plan = append(plan, pkt)
+		}
 	}
 	// Captured final claim: N2639 graduation roster -> N2638 finished state
 	// -> C680 ACK. Ordinary steps have no roster and retain their old order.
@@ -126,7 +129,7 @@ func (w *worldSession) boostStepRequest(ctx context.Context, p []byte, id uint16
 				w.role = next
 				body, e := loot.BoostChallengeSnapshot(w.boostup, workflow.LootRole(next))
 				if e == nil {
-					plan = append(plan, outboundPacket{"boost_challenge_enrolled", 0, 2722, body})
+					plan = append(plan, boostChallengePackets("boost_challenge_enrolled", body)...)
 				} else {
 					log.Printf("boost challenge graduation snapshot role=%d: %v", w.role.ID, e)
 				}

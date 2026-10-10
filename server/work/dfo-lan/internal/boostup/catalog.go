@@ -17,7 +17,10 @@ const EventID uint32 = 662
 // (2038-01-19 UTC), rather than inventing an unverified zero/-1 sentinel.
 // The server has no seasonal shutdown or claim reset; extending transport
 // beyond this horizon requires separate native timestamp evidence.
-const EventEnd uint32 = 1<<31 - 1
+const (
+	EventStart uint32 = 0
+	EventEnd   uint32 = 1<<31 - 1
+)
 
 type Reward struct{ Item, Count uint32 }
 type Step struct {
@@ -43,6 +46,7 @@ type PresetCode struct {
 	Code      string
 }
 type Catalog struct {
+	TeachingAPCs           []TeachingAPC // same-source special APC references, not account characters
 	TrainingAPCs           []TrainingAPC
 	ChallengeBuffs         []ChallengeBuff
 	Challenges             []ChallengeDefinition
@@ -52,12 +56,15 @@ type Catalog struct {
 	Groups                 GroupLookup // selected-source membership; reused by equipment missions
 	Capsules               map[uint32]Capsule
 	GoalLevel, UsableLevel byte
-	FameLimit              uint32
-	Town, Area             uint32
-	Steps                  []Step
-	Gifts                  []Gift
-	BufferJobs, DualJobs   [][2]byte
-	Presets                []PresetCode // duplicate job/grow alternatives remain distinct
+	// QuestClearItems 来自 [capsule info] 里的 [quest clear item]：源为直升角色
+	// 准备的清主线墙用券（当前 115 版是三张，各清一条 [grade] [side] 墙任务）。
+	QuestClearItems      []uint32
+	FameLimit            uint32
+	Town, Area           uint32
+	Steps                []Step
+	Gifts                []Gift
+	BufferJobs, DualJobs [][2]byte
+	Presets              []PresetCode // duplicate job/grow alternatives remain distinct
 }
 type TokenSource interface {
 	Tokens(string) ([]pvf.Token, error)
@@ -82,6 +89,14 @@ func Load(src TokenSource) (*Catalog, error) {
 		return nil, err
 	}
 	c.ChallengeLevelRewards, err = ParseChallengeLevelRewards(challenge)
+	if err != nil {
+		return nil, err
+	}
+	apcs, err := src.Tokens(SpecialAPCPath)
+	if err != nil {
+		return nil, err
+	}
+	c.TeachingAPCs, err = ParseTeachingAPCs(apcs)
 	return c, err
 }
 
@@ -222,6 +237,16 @@ func Parse(cells, giftCells []pvf.Token) (*Catalog, error) {
 		return nil, fmt.Errorf("invalid capsule level: %v", e)
 	}
 	c.UsableLevel = byte(limit)
+	// [quest clear item] 在 [capsule info] 段里；本解析器按标签扁平取值（与
+	// [goal level]、[level up table] 同一口径）。源缺失 ⇒ 不补券（不把缺失
+	// 当成错误，免得整张 662 目录被一张券拖下线）；出现即必须全是正模板。
+	c.QuestClearItems = nil
+	for _, t := range values(cells, "[quest clear item]") {
+		if t.Type != 0 || t.Value <= 0 {
+			return nil, fmt.Errorf("invalid boost quest clear item")
+		}
+		c.QuestClearItems = append(c.QuestClearItems, uint32(t.Value))
+	}
 	c.FameLimit, e = number(cells, "[fame value limit]", ^uint32(0))
 	if e != nil {
 		return nil, e

@@ -25,9 +25,9 @@
     {
       "name": "server-src",
       "url": "tools/tools-server-src.zip",
-      "size": 11061610,
-      "sha256": "3f70628a40926cb0565f2a604f8f117b4166a41cfe4a20ab626a233e39714328",
-      "files": 1833,
+      "size": 11185853,
+      "sha256": "a88c963bb89e2a913dc31f4de4004b5ea4cf9abcf31ea2c70ccd31bc614431da",
+      "files": 1878,
       "check": "server/work/dfo-lan/go.mod",
       "target": "server/work/dfo-lan",
       "note": "服务端源码与嵌入资源：server/work/dfo-lan 整棵源码树（排除 docs/、configs/、runtime/）。2026-10-05 起 SQLite 是唯一存储引擎。"
@@ -35,9 +35,9 @@
     {
       "name": "server-configs",
       "url": "tools/tools-server-configs.zip",
-      "size": 795720,
-      "sha256": "8161129f6deb68142bbdaed1113b3c3484b6a0d821d39fac33db35f893f8fcd5",
-      "files": 68,
+      "size": 702718,
+      "sha256": "6e5b2483427c4545ead7b74f9fbd602f1828534feb26756cec59ea3d1e20a37b",
+      "files": 69,
       "check": "server/work/dfo-lan/configs/pvf-default.json",
       "note": "服务端运行配置（server/work/dfo-lan/configs 的**全部被跟踪文件**）。2026-10-05 按跟踪集重打：修掉旧包里 27 条已退役导出产出物（历史基线）与缺失的 26 条现行配置 —— 旧包被启动器当作发布版本，会把树里的配置降级回旧快照、并重新造出已删文件。",
       "target": "server/work/dfo-lan"
@@ -46,9 +46,9 @@
             {
       "name": "server-bin",
       "url": "tools/tools-server-bin.zip",
-      "size": 24060992,
-      "sha256": "e2cc9b3a9e51bd9f98b4ad3af7d4152a3ee3a6967f44836eea6c7700d83c32d7",
-      "files": 85,
+      "size": 23960838,
+      "sha256": "e1b63235609fb5c64e86b4ebae63f37c19010665326f53c632c232fedebac75d",
+      "files": 84,
       "check": "server/work/dfo-lan/bin/wireprobe-pvf.exe",
       "note": "预编译服务端程序（wireprobe-pvf.exe）+ Go 会话编排 CLI（dfolauncher.exe：launch/stop/check/start-storage/init-storage/prepare-inner-pvf/--host-client）+ 网络隔离探针（dfo_probe_tools/probe.exe）；有了它就不必在本机编译服务端，**且全程不需要 Python**（会话编排、内层 PVF 生成、存储初始化都由这个 CLI 完成）",
       "target": "server"

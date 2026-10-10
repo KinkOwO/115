@@ -115,7 +115,8 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 		return fail(RefusalGeneric, "窗口里的物品不是强化的消耗材料")
 	}
 	// 实机判据：左侧普通强化 tail[4]=0 + @9=367（无色小晶块）；右侧安全强化 tail[4]=1 + @9=136（安全材料）。
-	safe := r.Multiple == 1
+	// 便携强化器恒走普通强化路径（safe=false），不受 Multiple 影响。
+	safe := r.Multiple == 1 && !portable
 	if safe && !IsSafeMaterial(materialTemplate) {
 		return fail(RefusalGeneric, "安全强化需要安全强化材料（10327281 / 10327284）")
 	}
@@ -180,7 +181,13 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 	// 需求：普通强化的材料数量只看强化等级、金币吃装备等级/品质/部位；
 	// 安全强化两条都来自 [safe upgrade] 段（与普通强化是独立曲线），且只覆盖 0..11 级。
 	var needed, gold uint32
-	if safe {
+	if portable {
+		// 便携强化器固定消耗 1 个、不耗金币；等级上限与普通强化一致（客户端回包上限）。
+		if int(old) >= GoldMaxUpgradeLevel() {
+			return fail(RefusalLimit, "强化已达到客户端上限 +"+fmt.Sprint(GoldMaxUpgradeLevel())+"：更高的结果等级会让客户端判定异常并锁死强化面板")
+		}
+		needed, gold = 1, 0
+	} else if safe {
 		if int(old) >= SafePathMaxLevel() {
 			return fail(RefusalLimit, "安全强化最高到 +"+fmt.Sprint(SafePathMaxLevel()-1)+"：请改用无色小晶块")
 		}
@@ -225,10 +232,20 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 	streakKey := safeStreakKey(r.EquipmentSpace, r.EquipmentSlot, int(old))
 	var rate int
 	var ok bool
+	// 掷骰前把基值过一遍服务端层 mod 的规则：**注意 `old` 是"当前等级"，也是本次要判定的等级**，
+	// 而成功率表按"从这一级往上打"索引 —— 两边同一个数，不必 +1。
+	// 安全强化的失败补正已经算在 base 里，倍率作用在补正之后，所以 ×2 不会连 cap 一起吃。
 	if safe {
 		rate, ok = SafeSuccessPercent(int(old), streaks[streakKey])
+		if ok {
+			rate = enhanceSuccessPercent(enhanceKindSafe, int(old), rate)
+		}
 	} else {
+		// 便携强化器沿用普通强化成功率表（与无色小晶块同一张表）。
 		rate, ok = GoldSuccessPercent(int(old))
+		if ok {
+			rate = enhanceSuccessPercent(enhanceKindReinforce, int(old), rate)
+		}
 	}
 	if !ok {
 		return fail(RefusalGeneric, "当前强化等级没有成功率")
@@ -329,7 +346,9 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 	}
 
 	mode := "normal"
-	if safe {
+	if portable {
+		mode = "portable_upgrade"
+	} else if safe {
 		mode = "safe"
 	} else if portable {
 		mode = "portable"

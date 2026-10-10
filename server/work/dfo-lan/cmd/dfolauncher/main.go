@@ -6,14 +6,18 @@ package main
 
 import (
 	"context"
+	"encoding/csv"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"dfolan/internal/launcher"
+	"dfolan/internal/toolcmd/bakalreset"
 )
 
 func main() {
@@ -34,6 +38,8 @@ func main() {
 		os.Exit(runPrepareInnerPVF(os.Args[2:]))
 	case "storage-sync":
 		os.Exit(runStorageSync(os.Args[2:]))
+	case "bakal-reset":
+		os.Exit(runBakalReset(os.Args[2:]))
 	case hostClientSubcommand:
 		os.Exit(runHostClient(os.Args[1:]))
 	case "-h", "--help", "help":
@@ -90,11 +96,12 @@ Usage:
   dfolauncher prepare-inner-pvf [--root <path>] [--client <dir>] [--force] [--dry-run]
   dfolauncher storage-sync [--root <path>] [--list] [--backup]
                            [--restore <备份目录名>] [--dry-run]
+  dfolauncher bakal-reset [--root <path>] [--account <name>] [--apply] [--dry-run]
   dfolauncher check [--root <path>] [--server-only|--client-only] [--source-build] [--json-mode]
   dfolauncher launch --check|--dry-run [--root <path>]
                     [--server-only|--client-only|--storage-only]
                     [--json-mode|--repair-profile <path>] [--source-build]
-  dfolauncher launch [--root <path>] [--tag <name>]
+  dfolauncher launch [--root <path>] [--tag <name>] [--account <name>]
                     [--json-mode|--repair-profile <path>] [--source-build]
 
 Flags:
@@ -105,6 +112,10 @@ Flags:
   --force     rebuild even when the four-state gate would reuse the archive
   --dry-run   print every action without performing it
   --tag       pin the session tag (default: built from the clock)
+  --account   launch: development account this session logs in with (default: the
+              inherited DFO_ACCOUNT, then probe). bakal-reset: account whose Bakal
+              quota is restored. Roles and saves belong to that accounts row, and a
+              name that was never used creates it.
 
 prepare-inner-pvf is Stage 4 of docs/go-launch-migration-plan.md: it replaces
 scripts/ensure_inner_pvf.py + scripts/prepare_inner_pvf.py with the Go generator in
@@ -119,6 +130,13 @@ scripts/launch_local.py, and --check prints the same four lines. --dry-run adds 
 storage -> inner PVF -> gateway -> client command plan. Like the Python's own --check
 (whose _ensure_inner_pvf runs first), --check generates the inner archive when the gate
 says it is missing or stale; --dry-run never writes it.
+
+--account is passed to the gateway as DFO_ACCOUNT, and the gateway hands the same name to
+wireprobe, which owns the identity: the roles and saves of the session belong to that
+accounts row, and a name that was never used creates it. When neither --account nor an
+inherited DFO_ACCOUNT is given the variable is not added at all, so the child environment
+is byte-for-byte what it was before. An older server binary ignores the variable and keeps
+logging in as probe.
 
 --server-only really starts the game gateway in Go (Stage 2 of
 docs/go-launch-migration-plan.md): the protocol fixture, the gateway argv, ready.json
@@ -255,6 +273,10 @@ func runLaunch(args []string) int {
 	sourceBuild := flags.Bool("source-build", false, "use bin/wireprobe-handoff-source.exe")
 	repairProfile := flags.String("repair-profile", "", "override the default PVF profile")
 	tag := flags.String("tag", "", "pin the session tag (default: from the clock)")
+	// 账号名：空 = 沿用环境的 DFO_ACCOUNT = 再退 probe。GUI 启动器走环境变量注入
+	// （旧的服务端二进制会直接忽略它，而命令行参数需要能力探测才安全），这里同时给
+	// 一个显式参数是为了手敲复现某一场会话。
+	account := flags.String("account", "", "development account this session logs in with (default: DFO_ACCOUNT, then probe)")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -274,6 +296,7 @@ func runLaunch(args []string) int {
 		SourceBuild:   *sourceBuild,
 		RepairProfile: *repairProfile,
 		Tag:           *tag,
+		Account:       *account,
 	}
 	absolute, err := filepathAbs(*root)
 	if err != nil {
@@ -437,4 +460,86 @@ func filepathAbs(path string) (string, error) {
 		path = "."
 	}
 	return filepath.Abs(path)
+}
+
+// runBakalReset restores quota through the shared tool after checking all gateway images.
+func runBakalReset(args []string) int {
+	flags := flag.NewFlagSet("bakal-reset", flag.ContinueOnError)
+	root := flags.String("root", ".", "repository root")
+	account := flags.String("account", "probe", "account whose Bakal quota is restored (wireprobe defaults to probe)")
+	apply := flags.Bool("apply", false, "restore the counters; without it only preview which characters change")
+	dryRun := flags.Bool("dry-run", false, "print every action without performing it")
+	if err := flags.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			return 0
+		}
+		return 2
+	}
+	absolute, err := filepathAbs(*root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve root: %v\n", err)
+		return 1
+	}
+
+	if !*dryRun {
+		busy, err := sessionProcessesRunning()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "bakal-reset: check running processes: %v\n", err)
+			return 1
+		}
+		if busy {
+			fmt.Fprintln(os.Stderr, "请先停止游戏/网关再恢复次数，避免在线存档覆盖（检测到 DFO.exe 或 wireprobe 在运行）。")
+			return 1
+		}
+	}
+
+	configPath := filepath.Join(absolute, "server", "work", "dfo-lan", "runtime", "storage", "local.json")
+	if *dryRun {
+		fmt.Printf("Account: %s (preview)\n", *account)
+		fmt.Printf("Storage config: %s\n", configPath)
+		fmt.Println("Dry run: would open " + configPath + " and preview counters.")
+		return 0
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	fmt.Printf("Restoring Bakal weekly quota for account %q ...\n", *account)
+	if err := bakalreset.RunFromConfig(ctx, configPath, *account, *apply); err != nil {
+		fmt.Fprintf(os.Stderr, "bakal-reset: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+// sessionProcessesRunning detects the client and every wireprobe*.exe gateway,
+// including source-build and candidates, without stopping any process.
+func sessionProcessesRunning() (bool, error) {
+	out, err := exec.Command("tasklist", "/FO", "CSV", "/NH").Output()
+	if err != nil {
+		return false, err
+	}
+	return bakalSessionProcessList(string(out))
+}
+
+// tasklist's first CSV column is the image name. Include source-build and
+// candidate gateways; a match in a session label/PID column is not an image.
+func bakalSessionProcessList(out string) (bool, error) {
+	reader := csv.NewReader(strings.NewReader(out))
+	reader.FieldsPerRecord = -1
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			return false, nil
+		}
+		if err != nil {
+			return false, fmt.Errorf("parse tasklist: %w", err)
+		}
+		if len(row) == 0 {
+			continue
+		}
+		image := strings.ToLower(strings.TrimSpace(row[0]))
+		if image == "dfo.exe" || strings.HasPrefix(image, "wireprobe") && strings.HasSuffix(image, ".exe") {
+			return true, nil
+		}
+	}
 }

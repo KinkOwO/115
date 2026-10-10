@@ -28,7 +28,7 @@ func TestTrainingRoomEntryFrames(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Room.Map != 36250 || !s.Definition.NoFatigue || len(plan) < 3 || plan[0].ID != 16 || plan[len(plan)-2].ID != 28 || plan[len(plan)-1].ID != 29 {
+	if s.Room.Map != 36250 || !s.Definition.NoFatigue || len(plan) < 4 || plan[0].ID != 16 || plan[len(plan)-3].ID != 28 || plan[len(plan)-2].ID != 29 || plan[len(plan)-1].ID != 475 {
 		t.Fatalf("entry map=%d no_fatigue=%v plan=%+v", s.Room.Map, s.Definition.NoFatigue, plan)
 	}
 }

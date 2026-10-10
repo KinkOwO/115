@@ -11,6 +11,9 @@ import (
 	"dfolan/internal/reward"
 	"encoding/json"
 	"fmt"
+	"math"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -39,7 +42,11 @@ func (s *QuestService) Finish(ctx context.Context, role database.Character, r pr
 		}, quest.FinishRewards{
 			Items: questItemRewards,
 			Experience: func(d catalog.QuestDefinition, level byte) (uint32, error) {
-				return character.GrowthQuestExperience(s.Quest.Progression.Catalog, d, level)
+				base, err := character.GrowthQuestExperience(s.Quest.Progression.Catalog, d, level)
+				if err != nil {
+					return 0, err
+				}
+				return growthTopUpExperience(s.Quest.Catalog, s.Quest.Progression.Catalog.Thresholds, d, level, base)
 			},
 			Gold: func(d catalog.QuestDefinition, level byte) (uint32, error) {
 				return character.GrowthQuestGold(s.Quest.Progression.Catalog, d, level)
@@ -108,4 +115,91 @@ func rewardRecipient(c character.Character) reward.Recipient {
 	var state character.State
 	_ = json.Unmarshal(c.State, &state)
 	return reward.Recipient{AccountID: c.AccountID, CharacterID: c.ID, Name: c.Name, Level: state.Level, ConfigVersion: c.ConfigVersion}
+}
+
+// ---------------------------------------------------------------------------
+// Mainline quest experience top-up
+//
+// Story mainline quests are authored with [pre required quest] chains whose
+// minimum levels climb faster than the quest reward experience (e.g. 3145 is
+// a level-1 quest whose follower 4873 needs level 5; the 1200 base reward
+// only reaches level 2). Players who only run mainline therefore stall
+// between mainline quests. We raise the completion experience of a mainline
+// quest so the character lands exactly on the minimum level of its next
+// mainline follower. Side quests and already sufficient levels are untouched.
+// ---------------------------------------------------------------------------
+
+var (
+	mainNextMu    sync.RWMutex
+	mainNextBySrc = map[string]map[uint32]uint32{}
+)
+
+func isMainlineQuestPath(path string) bool {
+	p := strings.ToLower(path)
+	for _, seg := range []string{"new_scenario_renewal", "epic_quest", "episode_quest", "110levelscenario", "/mission/"} {
+		if strings.Contains(p, seg) {
+			return true
+		}
+	}
+	return false
+}
+
+// mainlineNextLevels maps each mainline quest id to the smallest minimum
+// level among its mainline followers (reverse [pre required quest]).
+func mainlineNextLevels(cat catalog.QuestCatalog) map[uint32]uint32 {
+	key := cat.Source.SaveIdentity()
+	mainNextMu.RLock()
+	m, ok := mainNextBySrc[key]
+	mainNextMu.RUnlock()
+	if ok {
+		return m
+	}
+	m = map[uint32]uint32{}
+	for _, q := range cat.Quests {
+		if !isMainlineQuestPath(q.Script.Path) {
+			continue
+		}
+		for _, p := range q.Prerequisites {
+			if cur, ok := m[p]; !ok || q.MinimumLevel < cur {
+				m[p] = q.MinimumLevel
+			}
+		}
+	}
+	mainNextMu.Lock()
+	mainNextBySrc[key] = m
+	mainNextMu.Unlock()
+	return m
+}
+
+// growthTopUpExperience returns the top-up amount needed for a just-finished
+// mainline quest so the character can immediately pick up the next mainline
+// quest. Cumulative thresholds follow level L -> Thresholds[L-2] (see
+// growth_rules.go ApplyGain).
+func growthTopUpExperience(cat catalog.QuestCatalog, thresholds []uint64, d catalog.QuestDefinition, level byte, base uint32) (uint32, error) {
+	if !isMainlineQuestPath(d.Script.Path) || len(thresholds) == 0 {
+		return base, nil
+	}
+	next, ok := mainlineNextLevels(cat)[d.ID]
+	if !ok || next <= uint32(level) {
+		return base, nil
+	}
+	need := uint64(0)
+	if next >= 2 && int(next)-2 < len(thresholds) {
+		need = thresholds[next-2]
+	}
+	if level >= 2 && int(level)-2 < len(thresholds) {
+		had := thresholds[level-2]
+		if need > had {
+			need -= had
+		} else {
+			need = 0
+		}
+	}
+	if need == 0 || uint64(base) >= need {
+		return base, nil
+	}
+	if need > math.MaxUint32 {
+		need = math.MaxUint32
+	}
+	return uint32(need), nil
 }

@@ -64,10 +64,11 @@ func decodeOpenEventKeys(t *testing.T, body []byte) []uint16 {
 }
 
 func TestOfficialRaidGateTablePreservedAtEntry(t *testing.T) {
+	t.Setenv("DFO_EVENT_INFO_VARIANT", "")
 	before := append([]byte(nil), eventInfoTable...)
 	body := raidChannelEventInfo(map[uint32]uint32{45: 45, 50: 50, 99: 99, 119: 119, 112: 112}, nil)
 	keys := decodeOpenEventKeys(t, body)
-	if len(keys) != 22 {
+	if len(keys) != 24 {
 		t.Fatalf("official records=%d", len(keys))
 	}
 	seen := map[uint16]bool{}
@@ -90,7 +91,7 @@ func TestOfficialRaidGateTablePreservedAtEntry(t *testing.T) {
 				t.Fatal("official gate records altered or split")
 			}
 			mergedKeys := decodeOpenEventKeys(t, p.Payload)
-			if len(mergedKeys) != 22 || mergedKeys[19] != 10017 || mergedKeys[20] != 10018 || mergedKeys[21] != 662 {
+			if len(mergedKeys) != 24 || mergedKeys[19] != 331 || mergedKeys[20] != 10017 || mergedKeys[21] != 10018 || mergedKeys[22] != 662 || mergedKeys[23] != 665 {
 				t.Fatalf("boost activities replaced raid gates: %v", mergedKeys)
 			}
 		}

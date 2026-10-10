@@ -25,6 +25,10 @@ type Store interface {
 	CharacterUnifiedOptions(context.Context, int64) (map[uint16]uint16, error)
 	AdventureLevel(context.Context, int64, int64) (uint32, error)
 	ChangeCharacterSlots(context.Context, int64, CharacterSlotChange, int) error
+	// AccountSlotBonus returns the account-level extra character-slot count
+	// (granted by the Character Slot Extension Kit on purchase); the effective
+	// cap for create/list/slot-move is Rules.MaxCharacters + this value.
+	AccountSlotBonus(context.Context, int64) (int32, error)
 	CommitSkillLocks(context.Context, int64, int64, string, string, func([]uint16) ([]uint16, error)) ([]uint16, bool, error)
 }
 

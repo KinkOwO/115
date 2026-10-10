@@ -30,7 +30,7 @@ func TestForestHardEarlyBossAdvancesWithoutSettlementOrNormalInfo(t *testing.T) 
 			t.Fatalf("phase%d: packets=%v error=%v", stage, plan, err)
 		}
 		p := plan[0]
-		if p.ID != 2565 || len(p.Payload) != 54 || binary.LittleEndian.Uint32(p.Payload[2:]) != 2 || binary.LittleEndian.Uint32(p.Payload[6:]) != 0 || binary.LittleEndian.Uint32(p.Payload[10:]) != uint32(stage+1) {
+		if p.ID != 31 || p.Name != "dungeon_clear_enabled" {
 			t.Fatalf("wrong hard transition: %+v", p)
 		}
 		if !w.forest.cleared[stage] {
@@ -41,8 +41,14 @@ func TestForestHardEarlyBossAdvancesWithoutSettlementOrNormalInfo(t *testing.T) 
 		if replay, err := w.completeDungeon(); err != nil || len(replay) != 0 || !reflect.DeepEqual(before, *w.forest) {
 			t.Fatal("duplicate boss reissued transition", err)
 		}
-		if replay, err := w.dungeonResult(make([]byte, 141)); err != nil || len(replay) != 0 || w.activeDungeon != active || !reflect.DeepEqual(before, *w.forest) {
-			t.Fatal("stale result closed hard phase", err)
+		if w.activeDungeon != active {
+			t.Fatal("completion replaced active dungeon")
+		}
+		if transition, err := w.dungeonResult(make([]byte, 141)); err != nil || len(transition) != 2 || transition[0].ID != 2565 || transition[1].ID != 2565 || binary.LittleEndian.Uint32(transition[1].Payload[10:]) != uint32(stage+1) || w.activeDungeon != nil || !reflect.DeepEqual(before, *w.forest) {
+			t.Fatal("captured CMD46 tick/window transition lost progress", err)
+		}
+		if replay, err := w.dungeonResult(make([]byte, 141)); err != nil || len(replay) != 2 || !reflect.DeepEqual(before, *w.forest) {
+			t.Fatal("result replay changed progress", err)
 		}
 	}
 }
@@ -96,7 +102,7 @@ func TestForestHardFinalRequiresAllBossesAndReplaysWithoutReward(t *testing.T) {
 	}
 	w.forest.cleared[0] = true
 	plan, _, err := w.forestRewardEnd(p)
-	if err != nil || len(plan) != 2 || plan[1].ID != 2565 || binary.LittleEndian.Uint32(plan[1].Payload[2:]) != 3 || binary.LittleEndian.Uint32(plan[1].Payload[6:]) != 1 {
+	if err != nil || len(plan) != 2 || plan[0].ID != 2565 || plan[1].ID != 2046 || binary.LittleEndian.Uint32(plan[0].Payload[2:]) != 3 || binary.LittleEndian.Uint32(plan[0].Payload[6:]) != 1 {
 		t.Fatal("wrong final state", plan, err)
 	}
 	again, _, err := w.forestRewardEnd(p)
@@ -148,7 +154,7 @@ func TestForestHardTimeoutRetainsModeAndClosesHardManager(t *testing.T) {
 		t.Fatal("hard timeout lost mode or failed to leave", plan, notes)
 	}
 	last := plan[len(plan)-1]
-	if last.ID != 2565 || binary.LittleEndian.Uint32(last.Payload[2:]) != 14 || binary.LittleEndian.Uint32(last.Payload[10:]) != ^uint32(0) {
+	if last.ID != 2565 || binary.LittleEndian.Uint32(last.Payload[2:]) != 1 || binary.LittleEndian.Uint32(last.Payload[10:]) != ^uint32(0) {
 		t.Fatal("timeout reopened normal window", last)
 	}
 }

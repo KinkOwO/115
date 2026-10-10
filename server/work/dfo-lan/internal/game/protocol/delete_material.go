@@ -179,3 +179,8 @@ func materialDeleteReply(rows []MaterialDelete, success bool, reason byte) []byt
 func VenusDirectMoveAck() []byte {
 	return []byte{1, 0xB2, 0xCE, 0x8D, 0x59, 0x40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 }
+
+// DungeonDirectMoveAck 是该 16B 成功应答的通用名：官服对军团阶段的
+// CMD2062 直进用的就是同一串字节（苏醒之森 2026-10-08 抓包 s466/s532 =
+// 01 b2ce8d5940 00000000000000000000，与维纳斯/巴卡尔样本逐字节相同）。
+func DungeonDirectMoveAck() []byte { return VenusDirectMoveAck() }

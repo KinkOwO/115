@@ -26,12 +26,13 @@ func TestDecodeSkillSlotTotal(t *testing.T) {
 		t.Fatalf("tree sentinel: %+v %v", r, e)
 	}
 
+	// ⚠️ 实验第六轮（21:5x）：tree=1 放行（受理落库，ACK 回 0）；tree>1 必须拒。
 	bad := [][]byte{
 		{0},                                  // short
 		{0, 0, 0xff, 0xff, 0xff, 0xff, 0xff}, // zero count
 		{0, 1, 5, 6},                         // missing tail
 		{0, 1, 5, 6, 0x00, 0x00, 0x00, 0x00}, // wrong tail
-		{1, 1, 5, 6, 0xff, 0xff, 0xff, 0xff}, // non-zero tree
+		{2, 1, 5, 6, 0xff, 0xff, 0xff, 0xff}, // tree>1 不受支持
 		{0, 1, 5, 5, 0xff, 0xff, 0xff, 0xff}, // source == target
 		{0, 1, 255, 6, 0xff, 0xff, 0xff, 0xff},
 		{0, 1, 5, 255, 0xff, 0xff, 0xff, 0xff},
@@ -40,5 +41,10 @@ func TestDecodeSkillSlotTotal(t *testing.T) {
 		if _, e = DecodeSkillSlotTotal(b); e == nil {
 			t.Fatalf("accepted invalid body %x", b)
 		}
+	}
+	// tree=1 是第二页布局，实验第六轮起必须受理（ACK 由 skill_flow 回 0）。
+	r, e = DecodeSkillSlotTotal([]byte{1, 1, 5, 6, 0xff, 0xff, 0xff, 0xff})
+	if e != nil || r.Tree != 1 || len(r.Pairs) != 1 {
+		t.Fatalf("tree=1 must be accepted: %+v %v", r, e)
 	}
 }

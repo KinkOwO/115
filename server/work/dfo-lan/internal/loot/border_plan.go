@@ -40,7 +40,17 @@ func (s *Session) PrepareBorderRewards(d *dungeon.Session, seed uint32) (uint32,
 	if s.RewardBoxes == nil || s.Equipment == nil {
 		return 0, fmt.Errorf("border reward source unavailable")
 	}
-	awards, next, err := s.Attunement.Roll(seed, d.Definition.ID, uint32(d.Maze.Index))
+	// 档位已预掷（进本时随 noti 2838 下发，见 cmd/wireprobe/oath_info.go）⇒ 按档位选池：
+	// 冻结下来的这份奖单与客户端珠子/天平显示的那一档必然是同一个数字。没预掷
+	// （非调律副本、或调用方没接线）则退回内部预掷，行为与旧版逐字节相同。
+	var awards []Award
+	var next uint32
+	var err error
+	if s.Tiers != (RunTiers{}) {
+		awards, next, err = s.Attunement.RollPlanned(seed, d.Definition.ID, uint32(d.Maze.Index), s.Tiers)
+	} else {
+		awards, next, err = s.Attunement.Roll(seed, d.Definition.ID, uint32(d.Maze.Index))
+	}
 	if err != nil {
 		return 0, err
 	}

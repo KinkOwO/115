@@ -8,6 +8,8 @@ import (
 // TagEquipment 将角色实例投影到145962410调用的1452C1540装备块。
 // 普通登录的DetailedEquipment保持不变；队友没有随后补发NOTI13的机会。
 // 字段映射取自1452C1EB3..1452C2123：原生临时181字节物品起点为rbp+1E0。
+// 1452C15D3/1452C2548/1452C2EF7 使用48格已读标记，槽号覆盖0..47；
+// 这是协议容器容量，不是装备玩法或资格表。36..46等扩展栏走同一行布局。
 func TagEquipment(rows []DetailedWorn) ([]byte, error) {
 	if len(rows) > 48 {
 		return nil, fmt.Errorf("队友穿戴数量超过客户端容量")
@@ -65,7 +67,25 @@ func TagEquipment(rows []DetailedWorn) ([]byte, error) {
 		}
 		// 这些区域由原生reader初始化，但不从此包读取。未接对应补充通知前
 		// 拒绝有值的实例，不能静默丢失已保存的养成数据。
-		for _, span := range [][2]int{{13, 14}, {22, 24}, {28, 56}, {60, 76}, {82, 83}, {99, 103}} {
+		// Creature EquipmentPayload writes the same instance key at +6 and
+		// +24. The compact reader 1452C1682 -> v184 -> 1452C1EB7 and
+		// constructor 14576D9EA preserve +6; neither reads +24. This
+		// duplicate is identity, not extra saved growth. Permit only the
+		// matching duplicate on the native creature/creature-skin slots.
+		spans := [][2]int{{13, 14}, {22, 56}, {60, 76}, {82, 83}, {99, 103}}
+		if avatar {
+			// +24 is the persisted appearance attachment, consumed by headerA.
+			spans = [][2]int{{13, 14}, {22, 24}, {28, 56}, {60, 76}, {82, 83}, {99, 103}}
+		}
+		if item.Slot == 26 || item.Slot == 32 {
+			key := binary.LittleEndian.Uint32(r[6:10])
+			mirror := binary.LittleEndian.Uint32(r[24:28])
+			if mirror != 0 && mirror != key {
+				return nil, fmt.Errorf("队友宠物%d实例key不一致", item.Template)
+			}
+			spans = [][2]int{{13, 14}, {22, 24}, {28, 56}, {60, 76}, {82, 83}, {99, 103}}
+		}
+		for _, span := range spans {
 			for _, value := range r[span[0]:span[1]] {
 				if value != 0 {
 					return nil, fmt.Errorf("队友装备%d含尚未接入补充通知的实例字段%d", item.Template, span[0])

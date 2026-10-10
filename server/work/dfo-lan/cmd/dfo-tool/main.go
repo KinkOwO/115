@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"dfolan/internal/toolcmd/accountlist"
+	"dfolan/internal/toolcmd/attendancecmd"
 	"dfolan/internal/toolcmd/audit36"
 	"dfolan/internal/toolcmd/charactercheck"
 	"dfolan/internal/toolcmd/dbq"
@@ -17,6 +18,7 @@ import (
 	"dfolan/internal/toolcmd/equipfields"
 	"dfolan/internal/toolcmd/equipmentfull"
 	"dfolan/internal/toolcmd/eventinfogate"
+	"dfolan/internal/toolcmd/flippool"
 	"dfolan/internal/toolcmd/framedump"
 	"dfolan/internal/toolcmd/initialrepair"
 	"dfolan/internal/toolcmd/loginchannel"
@@ -27,6 +29,8 @@ import (
 	"dfolan/internal/toolcmd/questchain"
 	"dfolan/internal/toolcmd/questrepair"
 	"dfolan/internal/toolcmd/setlevel"
+	"dfolan/internal/toolcmd/setpointdiag"
+	"dfolan/internal/toolcmd/setpointscan"
 	"dfolan/internal/toolcmd/shieldaudit"
 	"dfolan/internal/toolcmd/skillaudit"
 	"dfolan/internal/toolcmd/storagecheck"
@@ -43,6 +47,7 @@ type command struct {
 // Keep commands sorted by name. Implementations register flags only when run.
 var commands = []command{
 	{"accountlist", "maintenance", "[options]", true, 0, accountlist.Run},
+	{"attendance", "maintenance", "[options]", true, 0, attendancecmd.Run},
 	{"audit36", "audit", "[options]", true, 0, audit36.Run},
 	{"charactercheck", "maintenance", "(temporary-schema storage regression; no options)", false, 0, charactercheck.Run},
 	{"dbq", "maintenance", "[options]", true, 0, dbq.Run},
@@ -50,6 +55,7 @@ var commands = []command{
 	{"dungeonscenesaudit", "audit", "[options]", true, 0, dungeonscenesaudit.Run},
 	{"elvenmereseason", "maintenance", "[options] (preview; explicit audited account season reset)", true, 0, elvenmereseason.Run},
 	{"equipfields", "catalog", "[options]", true, 0, equipfields.Run},
+	{"flippool", "catalog", "[options]", true, 0, flippool.Run},
 	{"equipmentfull", "catalog", "[options]", true, 0, equipmentfull.Run},
 	{"eventinfogate", "audit", "[options]", true, 0, eventinfogate.Run},
 	{"framedump", "protocol", "<label> <key.bin> <stream.bin> <all|id|offset:size> [header]", false, 4, framedump.Run},
@@ -62,6 +68,8 @@ var commands = []command{
 	{"questchain", "catalog", "[options]", true, 0, questchain.Run},
 	{"questrepair", "maintenance", "[options]", true, 0, questrepair.Run},
 	{"setlevel", "maintenance", "[options]", true, 0, setlevel.Run},
+	{"setpointdiag", "audit", "[options]", true, 0, setpointdiag.Run},
+	{"setpointscan", "audit", "[options]", true, 0, setpointscan.Run},
 	{"shieldaudit", "audit", "[options]", true, 0, shieldaudit.Run},
 	{"skillaudit", "audit", "[options]", true, 0, skillaudit.Run},
 	{"storagecheck", "maintenance", "[options]", true, 0, storagecheck.Run},

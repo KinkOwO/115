@@ -1,0 +1,148 @@
+{
+  "stage": "candidate-observation-not-live-confirmed",
+  "version": "0.3.7",
+  "authority": {
+    "exe": "client/DFO.exe",
+    "idb": "client/DFO.exe.i64",
+    "idaSession": "c1000f62",
+    "exeSha256": "1d3948784e5e0f77ed744017bf82bf0c50de9421423f9e59f6f70aed609d8ffa"
+  },
+  "nativeChain": [
+    {
+      "address": "0x145DD0070",
+      "abi": "void __fastcall(uintptr_t victim, uintptr_t attackInput)",
+      "facts": [
+        "attackInput virtual+1312 with fallback +1304 resolves source actor",
+        "victim+29488 stores three-word source CRef; +35076 stores source object identity",
+        "source virtual+1984 returns combat actor; 145CE2860 reads combatActor+74020",
+        "call 145DD0226 forwards value to 145C3E8A0; return address 145DD022B"
+      ],
+      "decompile": {
+        "addr": "0x145DD0070",
+        "code": "void __fastcall sub_145DD0070(__int64 a1, __int64 a2)\n{\n  __int64 v4; // rcx\n  __int64 v5; // rbp\n  __int64 v6; // rbx\n  __int64 v7; // rax\n  void (__fastcall ***v8)(_QWORD); // rcx\n  unsigned int v9; // eax\n  __int64 v10; // rbx\n  __int64 v11; // rdx\n  __int64 v12; // rdx\n  volatile signed __int32 *v13; // rcx\n  __int64 v14; // rcx\n  __int64 v15; // rax\n  int v16; // eax\n  __int128 v17; // [rsp+28h] [rbp-30h] BYREF\n  __int128 v18; // [rsp+38h] [rbp-20h] BYREF\n  __int64 v19; // [rsp+48h] [rbp-10h]\n  __int64 v20; // [rsp+60h] [rbp+8h]\n\n  if ( (*(unsigned __int8 (__fastcall **)(__int64))(*(_QWORD *)a1 + 2640LL))(a1) == 0 ) /*0x145dd009f*/\n  {\n    v5 = 0; /*0x145dd00aa*/\n    if ( (unsigned __int8)sub_14014DEB0(a1: v4) == 0 ) /*0x145dd00ae*/\n      goto LABEL_10; /*0x145dd00ae*/\n    v6 = qword_14E650170; /*0x145dd00b0*/\n    if ( qword_14E650170 == 0 ) /*0x145dd00ba*/\n    {\n      v7 = sub_146E8BA20(a1: 1704); /*0x145dd00c1*/\n      v20 = v7; /*0x145dd00c6*/\n      __wind /*0xf1c000000000005c*/\n      {\n        if ( v7 != 0 ) /*0x145dd00ce*/\n          v8 = (void (__fastcall ***)(_QWORD))sub_1438CB040(a1: v7); /*0x145dd00d8*/\n        else\n          v8 = nullptr; /*0x145dd00dd*/\n      }\n      __unwind\n      {\n        j_j_scalable_free(a1: v20, a2: 1704); /*0x148dda122*/\n      }\n      qword_14E650170 = (__int64)v8; /*0x145dd00e0*/\n      (**v8)(a1: v8); /*0x145dd00ea*/\n      v6 = qword_14E650170; /*0x145dd00ec*/\n    }\n    v9 = (*(__int64 (__fastcall **)(__int64))(*(_QWORD *)a1 + 256LL))(a1); /*0x145dd00f9*/\n    if ( (unsigned __int8)sub_1438CE940(a1: v6, a2: v9, a3: a2) == 0 ) /*0x145dd010e*/\n    {\nLABEL_10:\n      v10 = 0; /*0x145dd0114*/\n      if ( a2 != 0 ) /*0x145dd011a*/\n      {\n        v10 = (*(__int64 (__fastcall **)(__int64))(*(_QWORD *)a2 + 1312LL))(a1: a2); /*0x145dd0128*/\n        if ( v10 == 0 ) /*0x145dd012e*/\n          v10 = (*(__int64 (__fastcall **)(__int64))(*(_QWORD *)a2 + 1304LL))(a1: a2); /*0x145dd013c*/\n      }\n      v11 = v10 + 48; /*0x145dd013f*/\n      if ( v10 == 0 ) /*0x145dd0146*/\n        v11 = 0; /*0x145dd0146*/\n      sub_146EA47F0(a1: &v18, a2: v11); /*0x145dd014f*/\n      __wind /*0xf1c0000000000044*/\n      {\n        v17 = 0; /*0x145dd0158*/\n        v12 = 0; /*0x145dd015e*/\n        if ( *((_QWORD *)&v18 + 1) != 0 ) /*0x145dd0169*/\n        {\n          v5 = v18; /*0x145dd016b*/\n          v17 = v18; /*0x145dd0170*/\n          v12 = *((_QWORD *)&v18 + 1); /*0x145dd0175*/\n          _InterlockedIncrement((volatile signed __int32 *)(*((_QWORD *)&v18 + 1) + 12LL)); /*0x145dd017d*/\n        }\n        __wind /*0xf1c0000000000038*/\n        {\n          *(_QWORD *)&v17 = *(_QWORD *)(a1 + 29488); /*0x145dd0188*/\n          *(_QWORD *)(a1 + 29488) = v5; /*0x145dd018d*/\n          v13 = *(volatile signed __int32 **)(a1 + 29496); /*0x145dd0194*/\n          *((_QWORD *)&v17 + 1) = v13; /*0x145dd019b*/\n          *(_QWORD *)(a1 + 29496) = v12; /*0x145dd01a0*/\n        }\n        __unwind\n        {\n          sub_1401DC060(a1: &v17); /*0x148b90b17*/\n        }\n        if ( v13 != nullptr && _InterlockedExchangeAdd(v13 + 3, 0xFFFFFFFF) == 1 ) /*0x145dd01bb*/\n          (*(void (__fastcall **)(volatile signed __int32 *))(*(_QWORD *)v13 + 8LL))(a1: v13); /*0x145dd01c0*/\n        *(_QWORD *)(a1 + 29504) = v19; /*0x145dd01c8*/\n      }\n      __unwind\n      {\n        sub_1401DBDF0(a1: &v18); /*0x148b90c17*/\n      }\n      v14 = *((_QWORD *)&v18 + 1); /*0x145dd01cf*/\n      if ( *((_QWORD *)&v18 + 1) != 0 /*0x145dd01e1*/\n        && _InterlockedExchangeAdd((volatile signed __int32 *)(*((_QWORD *)&v18 + 1) + 12LL), 0xFFFFFFFF) == 1 )\n      {\n        (*(void (__fastcall **)(__int64))(*(_QWORD *)v14 + 8LL))(a1: v14); /*0x145dd01e6*/\n      }\n      if ( v10 != 0 ) /*0x145dd01ec*/\n      {\n        *(_DWORD *)(a1 + 35076) = sub_145B8C670(a1: v10); /*0x145dd01f6*/\n        if ( (*(__int64 (__fastcall **)(__int64))(*(_QWORD *)v10 + 1984LL))(a1: v10) != 0 ) /*0x145dd020b*/\n        {\n          v15 = (*(__int64 (__fastcall **)(__int64))(*(_QWORD *)v10 + 1984LL))(a1: v10); /*0x145dd0213*/\n          v16 = sub_145CE2860(a1: v15); /*0x145dd021c*/\n          sub_145C3E8A0(a1, a2: v16); /*0x145dd0226*/\n        }\n      }\n    }\n  }\n}",
+        "line_count": 110,
+        "total_lines": 110,
+        "truncated": false,
+        "cursor": {
+          "done": true
+        },
+        "refs": [
+          {
+            "addr": "0x14014deb0",
+            "name": "sub_14014DEB0"
+          },
+          {
+            "addr": "0x14e650170",
+            "name": "qword_14E650170"
+          },
+          {
+            "addr": "0x146e8ba20",
+            "name": "sub_146E8BA20"
+          },
+          {
+            "addr": "0x1438cb040",
+            "name": "sub_1438CB040"
+          },
+          {
+            "addr": "0x146e9f3a0",
+            "name": "j_j_scalable_free"
+          },
+          {
+            "addr": "0x146ea47f0",
+            "name": "sub_146EA47F0"
+          },
+          {
+            "addr": "0x1401dc060",
+            "name": "sub_1401DC060"
+          },
+          {
+            "addr": "0x1401dbdf0",
+            "name": "sub_1401DBDF0"
+          },
+          {
+            "addr": "0x145b8c670",
+            "name": "sub_145B8C670"
+          },
+          {
+            "addr": "0x145ce2860",
+            "name": "sub_145CE2860"
+          },
+          {
+            "addr": "0x145c3e8a0",
+            "name": "sub_145C3E8A0"
+          },
+          {
+            "addr": "0x1438ce940",
+            "name": "sub_1438CE940"
+          }
+        ]
+      }
+    },
+    {
+      "address": "0x145C3E8A0",
+      "abi": "void __fastcall(uintptr_t actor, int value)",
+      "bytes": "8991a0680000c3",
+      "facts": [
+        "native DWORD store at actor+26784; callers include source-assignment and independent native death/clear paths"
+      ]
+    },
+    {
+      "address": "0x145CE2860",
+      "bytes": "8b8124210100c3",
+      "facts": [
+        "native reads actor+74020 without owner fallback"
+      ]
+    },
+    {
+      "address": "0x145DC86D0",
+      "abi": "uintptr_t __fastcall(uintptr_t victim,char a2,unsigned char a3)",
+      "facts": [
+        "145DC8E69 loads victim+26784 into r15d",
+        "CMD39 writer at 145DC9BDA writes opcode39",
+        "145DC9BF4 writes victim object identity u32; 145DC9C05 writes low16 of stored killer",
+        "existing Go DecodeMonsterDeath uses entity@0 and killer@4; no new packet layout"
+      ]
+    }
+  ],
+  "previousLive": {
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_205959_164276_next37",
+    "confirmed": "native registered test Lv1 and glow Lv115; user confirms moving, attacking mobs, following player",
+    "deaths": "existing CMD39 vectors have killer=65535; all blocked by first-room stage guard; source provenance pending"
+  },
+  "scope": {
+    "runtimeMutations": "none newly added; previous qualification/preparation/first-room registration retained",
+    "controllerIdWrite": false,
+    "killRewrite": false,
+    "serverUnblock": false,
+    "pvfChanged": false,
+    "schemaChanged": false,
+    "clientLaunchedByAgent": false,
+    "newC2SGuess": false
+  },
+  "guards": {
+    "0x5DD0070": "40574883ec5048c7442420feffffff48895c246848896c24704889742478488b",
+    "0x5C3E8A0": "8991a0680000c3",
+    "0x5DC86D0": "405556574154415541564157488dac24e0feffff4881ec2002000048c785d000",
+    "0x5DD01EC": "743d488bcbe87ac4dbff898704890000488b03488bcbff90c00700004885c0741e488b03488bcbff90c0070000488bc8e83f26f1ff8bd0488bcfe875e6e6ff488b5c24",
+    "0x5DC9BCD": "e82ea4fa00ba27000000488bc8e801abfa00e81ca4fa00488bf8488bcbe8812adcff8bd0488bcfe8e7c0fa00e802a4fa00410fb7d7488bc8e876c5fa00"
+  },
+  "requiredLive": "single ordinary solo first room after fresh switched startup: let APC attack/kill; if monsters remain, player attacks once as optional comparison. Leave dungeon normally and close client. Do not repeat selection/save. Correlate assignment/nested store/death with CMD39; do not infer rewards/owner from FFFF.",
+  "offlineVerification": {
+    "dllSha256": "f25dc1e6f8bef397dc5ce76f0a688f14d43162d82b5bcffa788f7220fd922c59",
+    "dllBytes": 222208,
+    "startupFixtureBothImages": true,
+    "combatBudgetRows": 513,
+    "collectorFixtureCases": 44,
+    "cppTestGroups": 11,
+    "clientLaunched": false
+  },
+  "goVerification": {
+    "buildExit": 0,
+    "vetExit": 0,
+    "testExit": 0,
+    "passed": 3769,
+    "skipped": 279,
+    "failures": [],
+    "newFailures": []
+  }
+}

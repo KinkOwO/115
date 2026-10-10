@@ -6,7 +6,9 @@ setlocal
 cd /d "%~dp0"
 
 set "MODSDIR=%~dp0.."
-set "DEFAULTARGS=--scan-depth 2 --open"
+rem Default args: no --open (the browser is NOT opened automatically).
+rem Pass --open yourself when you want it.
+set "DEFAULTARGS=--scan-depth 2"
 if not "%~1"=="" set "DEFAULTARGS="
 
 if exist "%~dp0modkit-web.exe" (

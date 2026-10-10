@@ -1,0 +1,453 @@
+{
+  "status": "confirmed-ordinary-retry-and-settlement-selection",
+  "userConfirmation": "再次挑战和选择另一个副本也是正常的",
+  "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261008_234621_294907_next37",
+  "sourceCommit": "658f3ffac2884b3578e0b1502e851b28eabbe1f1",
+  "artifacts": [
+    {
+      "path": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+      "exists": true,
+      "match": true,
+      "sha256": "941656906dac3e0f7c8c1e9430ca390eac8d88013dd528539d35661aa689e005"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+      "exists": true,
+      "match": true,
+      "sha256": "5ca6128aaf37a674a63e5a0997a14f9f98271201e588fa098b53e605ff2d1384"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe",
+      "exists": true,
+      "match": true,
+      "sha256": "aed177c46cb700afbb77d75d2f8aa3b5061dde82ac3f629901436722d3752a79"
+    }
+  ],
+  "resources": [
+    {
+      "path": "client/DFO.exe",
+      "exists": true,
+      "sha256": "1d3948784e5e0f77ed744017bf82bf0c50de9421423f9e59f6f70aed609d8ffa",
+      "sameAsBuildInput": true
+    },
+    {
+      "path": "client/Script.pvf",
+      "exists": true,
+      "sha256": "5dd03873edf2c1df7aea16db5ad146a776fb8461a947be73042cabd932e66f0a",
+      "sameAsBuildInput": true
+    },
+    {
+      "path": "client/sk.dat",
+      "exists": true,
+      "sha256": "59d78371335d22dae0eaeca2a827939576e85a5f5ede4ba286f0438d2fbc6eaf",
+      "sameAsBuildInput": true
+    },
+    {
+      "path": "server/work/client-build/Script.inner.pvf",
+      "exists": true,
+      "sha256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+      "sameAsBuildInput": true
+    }
+  ],
+  "captureIssues": [],
+  "normalExitObserved": true,
+  "freshEntryCount": 7,
+  "nativeEntryCycles": [
+    {
+      "loaderOrdinal": 1,
+      "endOrdinal": 7,
+      "thread": 63832,
+      "managerActive": 0,
+      "companions": 2,
+      "nativeResults": 2,
+      "activeAdaptations": 0,
+      "allRegistered": true,
+      "adapterValid": true
+    },
+    {
+      "loaderOrdinal": 8,
+      "endOrdinal": 15,
+      "thread": 63832,
+      "managerActive": 1,
+      "companions": 2,
+      "nativeResults": 2,
+      "activeAdaptations": 1,
+      "allRegistered": true,
+      "adapterValid": true
+    },
+    {
+      "loaderOrdinal": 20,
+      "endOrdinal": 27,
+      "thread": 63832,
+      "managerActive": 1,
+      "companions": 2,
+      "nativeResults": 2,
+      "activeAdaptations": 1,
+      "allRegistered": true,
+      "adapterValid": true
+    },
+    {
+      "loaderOrdinal": 32,
+      "endOrdinal": 39,
+      "thread": 63832,
+      "managerActive": 1,
+      "companions": 2,
+      "nativeResults": 2,
+      "activeAdaptations": 1,
+      "allRegistered": true,
+      "adapterValid": true
+    },
+    {
+      "loaderOrdinal": 56,
+      "endOrdinal": 63,
+      "thread": 63832,
+      "managerActive": 1,
+      "companions": 2,
+      "nativeResults": 2,
+      "activeAdaptations": 1,
+      "allRegistered": true,
+      "adapterValid": true
+    },
+    {
+      "loaderOrdinal": 68,
+      "endOrdinal": 75,
+      "thread": 63832,
+      "managerActive": 1,
+      "companions": 2,
+      "nativeResults": 2,
+      "activeAdaptations": 1,
+      "allRegistered": true,
+      "adapterValid": true
+    },
+    {
+      "loaderOrdinal": 100,
+      "endOrdinal": 107,
+      "thread": 63832,
+      "managerActive": 1,
+      "companions": 2,
+      "nativeResults": 2,
+      "activeAdaptations": 1,
+      "allRegistered": true,
+      "adapterValid": true
+    }
+  ],
+  "retryRuns": [
+    {
+      "runId": "a1644789fbc3414226482ff654c02fd7",
+      "originRunId": "9ad517012beba6da3b6b9eafbc84193c",
+      "serverEntrySerial": 4,
+      "freshEntryIndex": 5,
+      "nativeLoaderOrdinal": 56,
+      "ownedDeaths": 5
+    }
+  ],
+  "ordinaryEntries": [
+    {
+      "runId": "9eb88a813d47592929eb777749844e31",
+      "entrySerial": 1,
+      "dungeon": 3,
+      "sourceScript": "dungeon/act1/mirkwood.dgn",
+      "sourceSha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "entryCommitted": true,
+      "ownedDeaths": 4,
+      "deaths": 4,
+      "moves": 0,
+      "pickups": 1,
+      "results": 0,
+      "cards": 0,
+      "returnCommitted": true,
+      "refusals": []
+    },
+    {
+      "runId": "d2fedadec147cd1dbda980764a285101",
+      "entrySerial": 2,
+      "dungeon": 3,
+      "sourceScript": "dungeon/act1/mirkwood.dgn",
+      "sourceSha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "entryCommitted": true,
+      "ownedDeaths": 7,
+      "deaths": 9,
+      "moves": 1,
+      "pickups": 1,
+      "results": 0,
+      "cards": 0,
+      "returnCommitted": true,
+      "refusals": []
+    },
+    {
+      "runId": "e9d4fa5bc6066220ca3e5b2464e99f44",
+      "entrySerial": 3,
+      "dungeon": 3,
+      "sourceScript": "dungeon/act1/mirkwood.dgn",
+      "sourceSha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "entryCommitted": true,
+      "ownedDeaths": 9,
+      "deaths": 9,
+      "moves": 1,
+      "pickups": 0,
+      "results": 0,
+      "cards": 0,
+      "returnCommitted": true,
+      "refusals": []
+    },
+    {
+      "runId": "9ad517012beba6da3b6b9eafbc84193c",
+      "entrySerial": 4,
+      "dungeon": 3,
+      "sourceScript": "dungeon/act1/mirkwood.dgn",
+      "sourceSha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "entryCommitted": true,
+      "ownedDeaths": 20,
+      "deaths": 27,
+      "moves": 4,
+      "pickups": 4,
+      "results": 1,
+      "cards": 3,
+      "returnCommitted": false,
+      "refusals": []
+    },
+    {
+      "runId": "34a4e2263672e480cdb6f5adaada9259",
+      "entrySerial": 5,
+      "dungeon": 3,
+      "sourceScript": "dungeon/act1/mirkwood.dgn",
+      "sourceSha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "entryCommitted": true,
+      "ownedDeaths": 16,
+      "deaths": 32,
+      "moves": 6,
+      "pickups": 5,
+      "results": 1,
+      "cards": 3,
+      "returnCommitted": true,
+      "refusals": []
+    },
+    {
+      "runId": "f55462a5799b658730df665385754a41",
+      "entrySerial": 6,
+      "dungeon": 3,
+      "sourceScript": "dungeon/act1/mirkwood.dgn",
+      "sourceSha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52",
+      "entryCommitted": true,
+      "ownedDeaths": 0,
+      "deaths": 0,
+      "moves": 0,
+      "pickups": 0,
+      "results": 0,
+      "cards": 0,
+      "returnCommitted": true,
+      "refusals": []
+    }
+  ],
+  "anchors": [
+    {
+      "line": 232,
+      "bytes": 45,
+      "checksum_ok": true,
+      "hex": "0110002d000000f90c885377005dcdea2bec0d1e994fc1e944d27878efee0eb6ad38e6b7721ec4dbfc16acd934",
+      "id": 16,
+      "kind": "client_frame",
+      "peer": "127.0.0.1:21619",
+      "plain_hex": "030000000000000000ffff000000000000000000000000000000000000000000",
+      "time": "2026-10-08T15:49:08.6219425Z",
+      "type": 1
+    },
+    {
+      "line": 326,
+      "bytes": 45,
+      "checksum_ok": true,
+      "hex": "0110002d0000006b62d0a190005dcdea2bec0d1e994fc1e944d27878efee0eb6ad38e6b7721ec4dbfc16acd934",
+      "id": 16,
+      "kind": "client_frame",
+      "peer": "127.0.0.1:21619",
+      "plain_hex": "030000000000000000ffff000000000000000000000000000000000000000000",
+      "time": "2026-10-08T15:49:20.1955032Z",
+      "type": 1
+    },
+    {
+      "line": 480,
+      "bytes": 45,
+      "checksum_ok": true,
+      "hex": "0110002d000000a8057841b9005dcdea2bec0d1e994fc1e944d27878efee0eb6ad38e6b7721ec4dbfc16acd934",
+      "id": 16,
+      "kind": "client_frame",
+      "peer": "127.0.0.1:21619",
+      "plain_hex": "030000000000000000ffff000000000000000000000000000000000000000000",
+      "time": "2026-10-08T15:49:37.6827408Z",
+      "type": 1
+    },
+    {
+      "line": 831,
+      "bytes": 45,
+      "checksum_ok": true,
+      "hex": "0110002d000000f926b8962e013fdc8bd0b656eb144d4781e29b3eb6ad3eaa73902574690fa0be0a648dd02ef2",
+      "id": 16,
+      "kind": "client_frame",
+      "peer": "127.0.0.1:21619",
+      "plain_hex": "050000000000000000ffff00000000004a0c0000000000000000000000000000",
+      "time": "2026-10-08T15:53:11.0880017Z",
+      "type": 1
+    },
+    {
+      "line": 835,
+      "bytes": 45,
+      "checksum_ok": true,
+      "hex": "0110002d000000724223b22f013fdc8bd0b656eb144d4781e29b3eb6ad3eaa73902574690fa0be0a648dd02ef2",
+      "id": 16,
+      "kind": "client_frame",
+      "peer": "127.0.0.1:21619",
+      "plain_hex": "050000000000000000ffff00000000004a0c0000000000000000000000000000",
+      "time": "2026-10-08T15:53:12.0598321Z",
+      "type": 1
+    },
+    {
+      "line": 839,
+      "bytes": 45,
+      "checksum_ok": true,
+      "hex": "0110002d0000003e7338a730015dcdea2bec0d1e994fc1e944d27878efee0eb6ad38e6b7721ec4dbfc16acd934",
+      "id": 16,
+      "kind": "client_frame",
+      "peer": "127.0.0.1:21619",
+      "plain_hex": "030000000000000000ffff000000000000000000000000000000000000000000",
+      "time": "2026-10-08T15:53:13.1512429Z",
+      "type": 1
+    },
+    {
+      "line": 1228,
+      "bytes": 29,
+      "checksum_ok": true,
+      "hex": "0148001d0000004eac81328b011091f19ad8bef8f137f7cce890f06ab4",
+      "id": 72,
+      "kind": "client_frame",
+      "peer": "127.0.0.1:21619",
+      "plain_hex": "01000100000000000000000000000000",
+      "time": "2026-10-08T15:53:55.0474978Z",
+      "type": 1
+    },
+    {
+      "line": 1242,
+      "after": {
+        "active": true,
+        "cards_active": false,
+        "combat_alive": 4,
+        "completed": false,
+        "completion_sent": false,
+        "death_sent_count": 0,
+        "drops_active": false,
+        "dungeon": 3,
+        "entry_serial": 4,
+        "level": 7,
+        "loaded": false,
+        "map": 58548,
+        "pending_town_arrival": false,
+        "result_sent": false,
+        "room_cleared": false,
+        "run_id": "a1644789fbc3414226482ff654c02fd7",
+        "selecting_dungeon": false,
+        "source_script": "dungeon/act1/mirkwood.dgn",
+        "source_sha256": "a1be702502eff219e933eb81df13dbb1c7b18a0ebf7cbcd66a7beda5e37e1e52"
+      },
+      "candidate_stage": "ordinary-reentry",
+      "entry_serial": 4,
+      "id": 72,
+      "kind": "adventure_elite_dispatch_committed",
+      "origin_run_id": "9ad517012beba6da3b6b9eafbc84193c",
+      "time": "2026-10-08T15:53:55.0494992Z"
+    },
+    {
+      "line": 1346,
+      "bytes": 45,
+      "checksum_ok": true,
+      "hex": "0110002d000000ed0d189ca4015dcdea2bec0d1e994fc1e944d27878efee0eb6ad38e6b7721ec4dbfc16acd934",
+      "id": 16,
+      "kind": "client_frame",
+      "peer": "127.0.0.1:21619",
+      "plain_hex": "030000000000000000ffff000000000000000000000000000000000000000000",
+      "time": "2026-10-08T15:54:10.7779278Z",
+      "type": 1
+    },
+    {
+      "line": 1823,
+      "bytes": 29,
+      "checksum_ok": true,
+      "hex": "0148001d000000a7b83e8509021809e230a0df6aa43c1107aeb25c3654",
+      "id": 72,
+      "kind": "client_frame",
+      "peer": "127.0.0.1:21619",
+      "plain_hex": "01010100000000000000000000000000",
+      "time": "2026-10-08T15:55:00.98494Z",
+      "type": 1
+    },
+    {
+      "line": 1829,
+      "after": {
+        "active": false,
+        "cards_active": false,
+        "completion_sent": false,
+        "death_sent_count": 0,
+        "drops_active": false,
+        "entry_serial": 5,
+        "level": 8,
+        "pending_town_arrival": false,
+        "result_sent": false,
+        "selecting_dungeon": true
+      },
+      "candidate_stage": "ordinary-reentry",
+      "entry_serial": 5,
+      "id": 72,
+      "kind": "adventure_elite_dispatch_committed",
+      "origin_run_id": "34a4e2263672e480cdb6f5adaada9259",
+      "time": "2026-10-08T15:55:00.9854761Z"
+    },
+    {
+      "line": 1830,
+      "bytes": 45,
+      "checksum_ok": true,
+      "hex": "0110002d000000c013e4c20a025dcdea2bec0d1e994fc1e944d27878efee0eb6ad38e6b7721ec4dbfc16acd934",
+      "id": 16,
+      "kind": "client_frame",
+      "peer": "127.0.0.1:21619",
+      "plain_hex": "030000000000000000ffff000000000000000000000000000000000000000000",
+      "time": "2026-10-08T15:55:03.1494979Z",
+      "type": 1
+    }
+  ],
+  "scope": "CMD72 state1 option0 retry and state1 option1 selection followed by CMD16; observed source dungeon3 only; no CMD2062 or seamless option5; user-visible selection acceptance does not certify another dungeon ID",
+  "collectorFix": "count successful CMD72 new-run commits alongside CMD16 admissions; preserve original server serial4 and retry RunID, never synthesize serial5; correlate fresh loader ordinal56 and 5 owned deaths",
+  "verification": {
+    "collectorFixtures": 78,
+    "freshGoBuildExit": 0,
+    "unchangedGoSourceVetTest": "same658f3ffa full vet/test exit0,3792pass279skip,baseline failures empty"
+  },
+  "runtimePathChanged": false,
+  "schemaChanged": false,
+  "defaultPublished": false,
+  "remaining": [
+    "story/Odyssey",
+    "direct2062/seamless5",
+    "APC resource/death continuity",
+    "native object release"
+  ],
+  "logDigests": [
+    {
+      "file": "events.jsonl",
+      "bytes": 1101283,
+      "sha256": "551013dd6d0476d04acc358c96e301eb052d1b3e73302580629af815e934e8ae"
+    },
+    {
+      "file": "adventure-elite-entry-100828-140574984.jsonl",
+      "bytes": 92968,
+      "sha256": "3abc36e89033579abcc80c1f3554bbd825f855b3413f2cb303e5a38a3eacb211"
+    },
+    {
+      "file": "adventure-elite-combat-100828-140574984.jsonl",
+      "bytes": 348777,
+      "sha256": "9a2d5b5156eb8a6070032dd7050769e3cad145591598c5f9e07de0a079ed0c40"
+    },
+    {
+      "file": "client.log",
+      "bytes": 845,
+      "sha256": "d1233e51208bfb5b08e731e38bb1f655640ec32bd5caa06e6da13086e953feb5"
+    }
+  ]
+}

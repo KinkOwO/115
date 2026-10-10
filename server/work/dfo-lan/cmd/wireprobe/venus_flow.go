@@ -47,6 +47,14 @@ import (
 // bootstrap 装载）。nil/空 = 池子不可用，第一排降级为仅材料位。
 var venusFlipGearPool []uint32
 
+// apocalypseFlipGearPool 是末世录终局翻牌随机装备位池子
+// （configs/apocalypse-flip-gear.generated.json，115 级、rarity 2/3/4 三档 =
+// 魔法/神器/史诗，bootstrap 装载）。空 = 池子不可用，翻牌降级为仅固定项。
+//
+// 为什么单建一份而不是复用 venusFlipGearPool：那个池子是 rarity 2/3
+// （魔法/神器）**没有 SS(史诗)**，凑不出三档口径。
+var apocalypseFlipGearPool legion.ApocalypseFlipGearPool
+
 // venusRun 是一次维纳斯挑战的会话状态（会话级，不落存档，同 ispins）。
 type venusRun struct {
 	// choice 是 CMD2290 Action2 确认的作战难度：0/1 普通、2 降临；

@@ -1,0 +1,160 @@
+{
+  "version": "0.3.1",
+  "base": "54ee3b56883aa951b080f414225b2696d58b1b99",
+  "scope": "diagnostic enhancement from v0.3.0; no packet layout/storage/native guard changes; no game launched",
+  "build": 0,
+  "vet": 0,
+  "test": 0,
+  "testCounts": {
+    "run": 3915,
+    "output": 8625,
+    "pass": 3635,
+    "skip": 280
+  },
+  "oldFailureSet": [],
+  "failureSet": [],
+  "cpp": "five mechanism suites passed, including escaping SEH continues search, RIP/CALL relocation/TLS/concurrent hook restoration",
+  "packageABI": "eleven authoritative disk contexts, six env values, three exports, schema/SHA/size/license verified; JSON record max integer parsed",
+  "collector": "PowerShell 5.1 fixture PASS: success, no-request reason, old PID/version, missing phase, dropped/trace cap, no writes in CheckOnly, reentrant unique fixture roots",
+  "changes": {
+    "client": [
+      "DLL-directory processId/runTick native logs",
+      "independent per-opcode budgets with explicit limit/drop markers",
+      "arrival/before/after/scope-closed",
+      "native/effective return values and seen/intercept caller bitmaps",
+      "current/entry/pending channel/owner/thread/deadline/info",
+      "N1382 header companion count and all three weak strong-counts",
+      "SEH code/IP without swallowing exceptions",
+      "initialization signature/hook/table failure steps"
+    ],
+    "server": [
+      "1719/1811 decision plus successful actual sendPlan 1754/1382/1879, including restored login view without repeated save",
+      "persistent ID vs expected wire ID",
+      "channel/odyssey/source scope/context/frozen selection; bound PVF archive checksum/channel script SHA/ordinary row/special attributes",
+      "planned elite packet bytes/SHA/hex; 256 KiB explicit omission; no second storage read"
+    ],
+    "capture": [
+      "match client ROOT_PID and DLL processId/runTick",
+      "three paired binary SHA identities and four resource input hashes",
+      "local-only raw logs plus elite-events/summary",
+      "missing/stale/truncated/error conditions explicitly marked; never certify battle"
+    ]
+  },
+  "attempt": "diagnostics only; retains ordinary transaction adaptation attempt 2/3",
+  "manualNext": "reuse existing saved squad; normal start, ordinary town open elite page, wait about 10 seconds, normal exit; no repeated save and no dungeon",
+  "artifacts": [
+    {
+      "path": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+      "bytes": 193024,
+      "sha256": "630bca38a443ec5e25ccbc884636ffcd6e5a27603e27b52f97df9119c3972835"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+      "bytes": 30287872,
+      "sha256": "7be50278fe8d564d5a7345bb73c2dbeeb6d2d54ac61f6451810e8c3ba8f9387b"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe",
+      "bytes": 16969728,
+      "sha256": "94296f900bba7495ee1f7dba3209dcbf74b9c977a0a418a70ee7d39378719232"
+    },
+    {
+      "path": "client-patchs/adventure-elite/dist/adventure-elite-eligibility-0.3.1.zip",
+      "bytes": 106651,
+      "sha256": "f710c1f784cc9dcecc3b39c5f670677776d755b5dd030b2bb79fafbc15a65ff4"
+    }
+  ],
+  "resources": [
+    {
+      "path": "client/DFO.exe",
+      "bytes": 246480896,
+      "sha256": "1d3948784e5e0f77ed744017bf82bf0c50de9421423f9e59f6f70aed609d8ffa"
+    },
+    {
+      "path": "client/Script.pvf",
+      "bytes": 760531281,
+      "sha256": "5dd03873edf2c1df7aea16db5ad146a776fb8461a947be73042cabd932e66f0a"
+    },
+    {
+      "path": "client/sk.dat",
+      "bytes": 2560,
+      "sha256": "59d78371335d22dae0eaeca2a827939576e85a5f5ede4ba286f0438d2fbc6eaf"
+    },
+    {
+      "path": "server/work/client-build/Script.inner.pvf",
+      "bytes": 771470242,
+      "sha256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f"
+    }
+  ],
+  "unverified": [
+    "new live installation/hits",
+    "ordinary town APC clone creation",
+    "battle registration/owner/room/death/story/Odyssey"
+  ],
+  "commit": "not staged/committed; previously requested hygiene second confirmation still pending",
+  "backups": {
+    "client-patchs/adventure-elite/dist/AdventureElite.dll": {
+      "path": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\logging-backup\\AdventureElite-102ef6584f9120cb6bdbd7fc5f64f4cb37a3d3e4ecdcb6e56f41659da5a70ec1.dll",
+      "sha256": "102ef6584f9120cb6bdbd7fc5f64f4cb37a3d3e4ecdcb6e56f41659da5a70ec1",
+      "bytes": 185344
+    },
+    "server/work/dfo-lan/bin/wireprobe-handoff-source.exe": {
+      "path": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\logging-backup\\wireprobe-handoff-source-a117ad4a807d4f9dab50f18f2df75c2e3eac0487e92e2b10684a3b5fd83674be.exe",
+      "sha256": "a117ad4a807d4f9dab50f18f2df75c2e3eac0487e92e2b10684a3b5fd83674be",
+      "bytes": 30322176
+    },
+    "server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe": {
+      "path": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\logging-backup\\dfolauncher-adventure-elite-94296f900bba7495ee1f7dba3209dcbf74b9c977a0a418a70ee7d39378719232.exe",
+      "sha256": "94296f900bba7495ee1f7dba3209dcbf74b9c977a0a418a70ee7d39378719232",
+      "bytes": 16969728
+    }
+  },
+  "deliveredTo": "F:\\projects\\agents\\reverse\\115us",
+  "clientRunningAtDelivery": false,
+  "finalChecks": {
+    "sharedHygiene": 0,
+    "sharedDiffCheck": 0,
+    "integrationDiffCheck": 0,
+    "integrationHygiene": 2,
+    "integrationHygieneIssue": "configs/pvf-default.json references absent bin/wireprobe-pvf.exe; second confirmation previously requested, no staging or commit",
+    "preflight": {
+      "exit": 0,
+      "candidateValid": true,
+      "artifactsMatching": 3,
+      "resourcesMatching": 4,
+      "lastRunVersion": "0.2.2",
+      "lastRunIsNewCandidate": false
+    },
+    "oldLiveCapture": "20261008_144527 correctly identified as different-or-old-client-run; no CMD1811; not evidence of new candidate failure",
+    "exports": [
+      "ModName",
+      "ModStart",
+      "ModStartInjected"
+    ],
+    "imports": [
+      "KERNEL32.dll"
+    ],
+    "collectorFixtureExit": 0,
+    "clientStarted": false
+  },
+  "changedFilesThisTurn": [
+    "client-patchs/adventure-elite/src/adventure-elite.cpp",
+    "client-patchs/adventure-elite/src/native-trace.h",
+    "client-patchs/adventure-elite/src/preparation-adapter.h",
+    "client-patchs/adventure-elite/src/trace-record.h",
+    "client-patchs/adventure-elite/src/trace-record-test.cpp",
+    "client-patchs/adventure-elite/build-mod.py",
+    "client-patchs/adventure-elite/README.md",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_diagnostic.go",
+    "server/work/dfo-lan/cmd/wireprobe/adventure_elite_diagnostic_test.go",
+    "server/work/dfo-lan/cmd/wireprobe/client_dispatch_account.go",
+    "server/work/dfo-lan/cmd/wireprobe/client_connection.go",
+    "scripts/build-adventure-elite.ps1",
+    "scripts/collect-adventure-elite.ps1",
+    "scripts/test-adventure-elite-capture.ps1",
+    "scripts/README.md",
+    "docs/todo/adventure-elite-ordinary-plan.md",
+    "analysis/tasks/adventure-elite-logging-evidence-20261008.json",
+    "CHANGELOG"
+  ]
+}

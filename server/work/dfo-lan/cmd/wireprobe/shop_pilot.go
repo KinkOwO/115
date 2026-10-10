@@ -114,6 +114,58 @@ func (l preparedBagLedger) PurchaseCashToBag(ctx context.Context, o database.Cas
 	})
 }
 
+// PurchaseCashCharacterSlots grants the account-level character-slot bonus
+// (Character Slot Extension Kit, 购买即生效) inside the same cash transaction
+// and emits the purchase response packets (CERA debit + roster refresh). No bag
+// item is delivered; the wrapped ledger (Store) owns the atomicity.
+func (l preparedBagLedger) PurchaseCashCharacterSlots(ctx context.Context, o database.CashOrder, bonus int) (database.CashReceipt, bool, error) {
+	ledger, ok := l.ledger.(cashshop.CharacterSlotLedger)
+	if !ok {
+		return database.CashReceipt{}, false, fmt.Errorf("character slot ledger missing")
+	}
+	receipt, applied, err := ledger.PurchaseCashCharacterSlots(ctx, o, bonus)
+	if err != nil {
+		return receipt, applied, err
+	}
+	packets, e := shopPilotSpaces(l.pilot, receipt, 0, true)
+	if e != nil {
+		return database.CashReceipt{}, false, e
+	}
+	if len(l.keys) != wire.SessionKeyBytes {
+		return database.CashReceipt{}, false, fmt.Errorf("purchase cipher not initialized")
+	}
+	if _, e = preparePackets(l.keys, packets); e != nil {
+		return database.CashReceipt{}, false, e
+	}
+	return receipt, applied, nil
+}
+
+// PurchaseCashSkillTreeExpansion unlocks the character's second skill type
+// (Skill Type Extension Ticket, product 3000150 / template 821) inside the same
+// cash transaction. The dispatcher appends the authoritative USERINFO1 refresh
+// because the world session lives there, not in this ledger.
+func (l preparedBagLedger) PurchaseCashSkillTreeExpansion(ctx context.Context, o database.CashOrder) (database.CashReceipt, bool, error) {
+	ledger, ok := l.ledger.(cashshop.SkillTreeLedger)
+	if !ok {
+		return database.CashReceipt{}, false, fmt.Errorf("skill tree ledger missing")
+	}
+	receipt, applied, err := ledger.PurchaseCashSkillTreeExpansion(ctx, o)
+	if err != nil {
+		return receipt, applied, err
+	}
+	packets, e := shopPilotSpaces(l.pilot, receipt, 0, true)
+	if e != nil {
+		return database.CashReceipt{}, false, e
+	}
+	if len(l.keys) != wire.SessionKeyBytes {
+		return database.CashReceipt{}, false, fmt.Errorf("purchase cipher not initialized")
+	}
+	if _, e = preparePackets(l.keys, packets); e != nil {
+		return database.CashReceipt{}, false, e
+	}
+	return receipt, applied, nil
+}
+
 func newShopPilotSession() (*shopPilotSession, error) {
 	var b [16]byte
 	if _, e := rand.Read(b[:]); e != nil {
@@ -203,6 +255,7 @@ func shopPilotSpaces(p *cashshop.Pilot, receipt database.CashReceipt, balance ui
 	var b inventory.Bag
 	expansion := false
 	avatarExpansion := false
+	closetExpansion := false
 	for _, delivery := range receipt.Deliveries {
 		if _, found, err := p.AvatarInventoryExpansion(delivery.Template); err != nil {
 			return nil, err
@@ -211,6 +264,11 @@ func shopPilotSpaces(p *cashshop.Pilot, receipt database.CashReceipt, balance ui
 		}
 		if cashshop.InventoryExpansionTier(delivery.Template) != 0 {
 			expansion = true
+		}
+		if _, found, err := p.AvatarClosetExpansion(delivery.Template); err != nil {
+			return nil, err
+		} else if found {
+			closetExpansion = true
 		}
 	}
 	if avatarExpansion {
@@ -277,6 +335,18 @@ func shopPilotSpaces(p *cashshop.Pilot, receipt database.CashReceipt, balance ui
 			return nil, err
 		}
 		vaultUpgrade = &outboundPacket{"cera_purchase_vault_expansion", 0, 66, notice}
+	} else if closetExpansion {
+		// 衣柜扩展券：购买即生效、不进背包，只需把新的衣柜槽数同步给客户端。
+		var err error
+		b, err = inventory.ReadBag(receipt.CharacterState)
+		if err != nil {
+			return nil, err
+		}
+		body, err := protocol.AvatarClosetInfo(protocol.AvatarClosetSlots(b.ClosetExpansion))
+		if err != nil {
+			return nil, err
+		}
+		update = outboundPacket{"cera_purchase_avatar_closet_expansion", 0, 1076, body}
 	} else {
 		var e error
 		b, e = inventory.ReadBag(receipt.CharacterState)

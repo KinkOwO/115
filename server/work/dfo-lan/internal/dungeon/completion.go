@@ -86,6 +86,9 @@ func (s *Session) BossCheck(r protocol.BossCheckRequest, actor uint16) error {
 	if s.completionTarget != 0 && s.completionTarget != r.Target {
 		return fmt.Errorf("conflicting boss completion target")
 	}
+	if s.RaidManaged {
+		return nil
+	}
 	s.completionTarget = r.Target
 	s.tryComplete()
 	return nil
@@ -157,6 +160,9 @@ func (s *Session) huntTargetAbsent() bool {
 // completion must not wait for those reports. Every source boss in the room
 // still requires its own death report before the run is complete.
 func (s *Session) tryComplete() {
+	if s.RaidManaged {
+		return
+	}
 	// Quest 23108's source maze continues past its boss room. The quest and
 	// dungeon [clear condition] both name the final scene map, so settling on
 	// the earlier boss map would strand the player before that objective.

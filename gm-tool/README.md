@@ -1,5 +1,16 @@
 # DFO GM 工具（独立网页版）
 
+> **2026-10-05：这个独立 GM 工具已经移除。**
+>
+> 两条入口（`Start-GMWeb.cmd` → `scripts/gmweb.py` → `bin/gmweb.exe`，以及 `GM管理台.cmd` →
+> `dashboard/gm_dashboard_proxy.py` + `bin/gmweb.exe`）都跑不起来：`gm-tool\bin\` 下**没有**
+> `gmweb.exe` / `admin.exe`，包内那份 `gm-tool\python` 也已在去 Python 那轮删除（Python 运行时只在
+> 整合包外的 `..\gm-tool\python`）。因此这些入口与它们的 Python 代理、Dashboard 前端一并删掉了。
+>
+> **GM 现在只有启动器内嵌的那一个**：启动器仓库 `gm/` → `gmbridge.exe`（Go；PostgreSQL 与 SQLite
+> 两条存储档都支持），命令行部分用服务端的 `dfo-tool accountlist` / `cmd/admin` / `dfo-tool setlevel`。
+> 下面这些小节是**历史记录**（路径多为旧的 `D:\115us\...`），保留作排查参考，不再维护。
+
 ## 2026-10-04 数据库访问收口候选
 
 Dashboard 的管理台邮件列表/发送/撤销与个人仓库发放统一转发到 Go GM 后端的认证接口。Python 不再读取数据库配置、调用 psql 或写 SQL；对应查询由服务端 storage 内的 sqlc 生成方法执行。管理台 `gm_mail` 队列仍独立于游戏 `character_mail`，不将管理台发送视为游戏内投递或领取。

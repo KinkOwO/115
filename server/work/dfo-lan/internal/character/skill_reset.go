@@ -188,5 +188,9 @@ func (s *Service) ResetResponse(role Character, tree byte) ([]byte, error) {
 	if variationUnlocked(&state) {
 		fillVariationSlots(&v)
 	}
-	return protocol.SkillPurchaseVariations(p, 0, v.Intensions, v.Options)
+	// ⚠️ mode 必须跟着 tree 走：写死 0 时，在第二页洗点/autoset 回的会是
+	// "第一页形态"的 enhance 帧，客户端据此把当前 VP 面板刷成空
+	// （数据库第二页没动 ⇒ 重登才恢复）。第二页手动加点响应本就带 mode=1
+	// 且不崩（实机 2026-10-09 23:27），所以这里用 tree 是安全的。
+	return protocol.SkillPurchaseVariations(p, tree, v.Intensions, v.Options)
 }

@@ -23,12 +23,7 @@ rem Go only (owner's rule 2026-10-05): no external launcher, no Python, no fallb
 rem storage-route.ps1 keeps the currently active storage route and calls the in-repo
 rem Go launcher with the Go-forced switches; the two route entries are the same path
 rem with an explicit route. Chinese notes for this file live in scripts\README.md.
-if not exist "server\work\dfo-lan\bin\dfolauncher.exe" (
-    echo ERROR: server\work\dfo-lan\bin\dfolauncher.exe is missing.
-    echo Build it once on a dev machine:  cd server\work\dfo-lan ^&^& go build -trimpath -o bin\dfolauncher.exe .\cmd\dfolauncher
-    pause
-    exit /b 1
-)
+rem DFO_ADVENTURE_ELITE=1 selects isolated candidates in storage-route.ps1.
 powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\storage-route.ps1" game-current %*
 set "RC=%ERRORLEVEL%"
 if not "%RC%"=="0" (

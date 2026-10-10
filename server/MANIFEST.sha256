@@ -179,7 +179,7 @@ c56fd75343773d9a2a3edf2726a8e6f3c288e37441e27e946e3e2f64de188208  work/dfo_probe
 5f3a2d991af0bd6b2844d85ac1009c0fd451dabeb1aad4de060cb7f2e015f860  work/dfo-lan/.gitignore
 36c0668f0de5d1e7a4a606324bafa9d455654144d44768162095bc081bf85e54  work/dfo-lan/bin/wireprobe-dungeon37.exe
 59c9b1d07d604d8055c92b42735824e6bb22b3f1066b442b5c8ea878acf1de9f  work/dfo-lan/bin/wireprobe-dungeon39.exe
-cfa14097ca30d0e2ddd0aa5e86c9849fc846998bcf3c092ab6d4cfa87a8a862e  work/dfo-lan/bin/wireprobe-handoff-source.exe
+cc9fd242069cb7d8ef291e9d21fca093e8f1ae06f0c1f582ed801a9c0a06bb86  work/dfo-lan/bin/wireprobe-handoff-source.exe
 c1c06b09cdf976628f2f830fb9dca195183546f5ba2b3ade9a35c518c39efa11  work/dfo-lan/bin/wireprobe-repairs.exe
 f81a3a4030316bfc32b795da1f91178e15636c22f10f61ff3fe67bbb74eb5282  work/dfo-lan/cmd/admin/main.go
 22bb27f909da04acdb6b29b81a9f6b2607ba1c751d0912b9d69d853268651fde  work/dfo-lan/cmd/dungeonaudit/main.go
@@ -841,3 +841,4 @@ f257a160aeed7f8ed2c2fc4084d8a7c6a6cc70b92107c972ba701c00fdac1444  work/dfo-lan/i
 f0121494258f6ecb8d4d0f688932e1940e08f47bc286af30b1c148aa3c1ab38d  work/dfo-lan/cmd/dfo-tool/main_test.go
 1ddb2553b25893c8ba494b6a46ca6f5b7023df866c39960ea12681a26e9a2c5c  work/dfo-lan/cmd/README.md
 15b3e89605de81557ae030e09adc4e517cd92f426f12098f4edc0483fa3de53c  README-先看这里.md
+cc9fd242069cb7d8ef291e9d21fca093e8f1ae06f0c1f582ed801a9c0a06bb86  work/dfo-lan/bin/wireprobe-pvf.exe

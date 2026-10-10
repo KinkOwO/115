@@ -40,7 +40,7 @@ const currentSourceFlags = `fixture output character-storage character-catalog c
 	vault-rules entry-addition-probe fatigue-rules progression-rules loot-catalog loot-rules
 	bag-rules card-rules channel-refresh-config game-listen equipment-wear-rules account-options
 	tutorial-routes tutorial-dungeons solo-party-bootstrap item-shop apocalypse-catalog
-	random-option-catalog venus-flip-gear pvf-catalogs channel-identity`
+	random-option-catalog venus-flip-gear apocalypse-flip-gear pvf-catalogs channel-identity`
 
 // probeSupporting 是"当前源码程序"的能力表：它自报认识上面每一个参数。
 func probeSupporting(string) map[string]bool {
@@ -111,6 +111,7 @@ func TestGatewayCommandMatchesThePythonTokenOrder(t *testing.T) {
 		"-apocalypse-catalog", at("configs", "apocalypse.generated.json"),
 		"-random-option-catalog", at("configs", "randomoption.current37.json"),
 		"-venus-flip-gear", at("configs", "venus-flip-gear.generated.json"),
+		"-apocalypse-flip-gear", at("configs", "apocalypse-flip-gear.generated.json"),
 		"-quest-equipment-catalog", "pvf",
 	}
 	if !reflect.DeepEqual(result.Args, want) {
@@ -171,6 +172,7 @@ func TestGatewayCommandForAPlainChannelTag(t *testing.T) {
 		"-output", in.Session.Out,
 		"-responses", filepath.Join(in.Session.Out, "responses.json"),
 		"-venus-flip-gear", filepath.Join(project, "configs", "venus-flip-gear.generated.json"),
+		"-apocalypse-flip-gear", filepath.Join(project, "configs", "apocalypse-flip-gear.generated.json"),
 		"-quest-equipment-catalog", "pvf",
 	}
 	if !reflect.DeepEqual(result.Args, want) {

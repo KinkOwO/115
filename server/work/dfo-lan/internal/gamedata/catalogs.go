@@ -3,6 +3,7 @@ package gamedata
 import (
 	"dfolan/internal/activity"
 	"dfolan/internal/adventure"
+	"dfolan/internal/attendance"
 	"dfolan/internal/boostup"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
@@ -63,6 +64,11 @@ type Catalogs struct {
 	OdysseyCurrency              *loot.OdysseyCurrency
 	Attunement                   *loot.AttunementRewards
 	Apocalypse                   *catalog.ApocalypseCatalog
+	BufferRental                 *catalog.BufferRentalRules
+	MaxLevelReward               *catalog.MaxLevelReward
+	NativeBakal                  *catalog.NativeBakalRaidRules
+	BoostUp                      *boostup.Catalog
+	Attendance                   *attendance.Catalog
 	MazeRates                    *catalog.MazeChanceOverlay
 	HellMaps                     *catalog.SourceMapOverlay
 	HellRules                    *catalog.HellPartyRules
@@ -73,7 +79,6 @@ type Catalogs struct {
 	World                        *catalog.WorldCatalog
 	Items                        *catalog.ItemIndex
 	ItemBasics                   *catalog.ItemBasics
-	MaxLevelReward               *catalog.MaxLevelReward
 	Equipment                    *inventory.FullEquipmentCatalog
 	AvatarDisjoint               *inventory.AvatarDisjointRules
 	AvatarSockets                *inventory.AvatarSocketRules
@@ -109,7 +114,6 @@ type Catalogs struct {
 	Dungeons, TrainingDungeons, TutorialDungeons *catalog.DungeonCatalog
 	Vault                                        *inventory.VaultRules
 	// BoostUp 是活动 662（新手成长胶囊）的原生目录；nil = 该直读域未选中。
-	BoostUp              *boostup.Catalog
 	AttendanceLogin      *activity.Login
 	AttendanceWeekly     *activity.RoutineRules
 	AttendanceActivities *activity.Catalog
@@ -155,7 +159,7 @@ type CatalogAdapters struct {
 
 func (i CatalogInputs) checksBaselines() bool { return i.VerifyBaselines }
 
-const SupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,transform,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps,layer-revisits,characters,cashshop,boxes,item-shops,boostup,attendance-login,attendance-weekly,attendance-activities,attendance-online,attendance-daily,membership"
+const SupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,transform,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps,layer-revisits,characters,cashshop,boxes,item-shops,bakal-raid,boostup,buffer-rental,attendance-login,attendance-weekly,attendance-activities,attendance-online,attendance-daily,membership"
 
 func (c *Catalogs) Selected(domain string) bool { return c != nil && c.selected[domain] }
 func (c *Catalogs) Prepared(domain string) bool { return c != nil && c.prepared[domain] }
@@ -289,6 +293,10 @@ func (c *Catalogs) validateSelectedProjections() error {
 			ready = c.MazeRates != nil
 		case "apocalypse":
 			ready = c.Apocalypse != nil
+		case "buffer-rental":
+			ready = c.BufferRental != nil
+		case "bakal-raid":
+			ready = c.NativeBakal != nil
 		case "attunement":
 			ready = c.Attunement != nil && c.Items != nil
 		case "odyssey-growth":
@@ -410,6 +418,14 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		return &result, fmt.Errorf("PVF/character source mismatch: %s versus %s", source.Snapshot().Checksum, anchorChecksum)
 	}
 	result.SourceChecksum = source.Snapshot().Checksum
+	if selected["buffer-rental"] {
+		result.BufferRental, err = source.BufferRental()
+		if err != nil {
+			return &result, fmt.Errorf("PVF buffer rental: %w", err)
+		}
+		log.Printf("PVF buffer rental rules prepared: channels=%d jobs=%d source=%s; registration transport pending", len(result.BufferRental.Channels), len(result.BufferRental.Skills), result.SourceChecksum)
+		source.ReleaseReadCaches()
+	}
 	result.RankingRules, err = ranking.Import(source.archive)
 	if err != nil {
 		return &result, fmt.Errorf("PVF ranking: %w", err)
@@ -612,6 +628,7 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 	if err := preparePVFFame(&result, source, selected, inputs); err != nil {
 		return &result, err
 	}
+	preparePVFAttendance(&result, source)
 	if err := preparePVFBoostUp(&result, source, selected, inputs); err != nil {
 		return &result, err
 	}

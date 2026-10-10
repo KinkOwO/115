@@ -22,6 +22,13 @@ func TestForestMelodyResetAfterRetreatPreservesProgress(t *testing.T) {
 			before := *run
 			w := &worldSession{forest: run}
 			plan, notes, err := w.forestOperation(request)
+			if hard {
+				// Current Extreme has no melody operation; keep its run intact.
+				if err == nil || len(plan) != 0 || !reflect.DeepEqual(before, *run) {
+					t.Fatal("hard melody reset mutated run")
+				}
+				continue
+			}
 			if err != nil || len(plan) != 2 || len(notes) != 1 {
 				t.Fatalf("reset hard=%t stage=%d: %v", hard, stage, err)
 			}

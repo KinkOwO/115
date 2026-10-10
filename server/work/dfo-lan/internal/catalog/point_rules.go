@@ -90,6 +90,9 @@ type PointRules struct {
 	OathPointBytes int
 	SetPointSHA256 string
 	OathSHA256     string
+	// AbilityGroups 是套装积分的第一层映射（模板 -> 能力组号），来自
+	// etc/equipmentgrouping.etc 的 `[ability group]`。没有它 SetPoints 算不出来。
+	AbilityGroups map[uint32][]uint32
 }
 
 // ImportPointRules 从内层归档直读两张积分表。缺任何一个都报错（不做 JSON 回落）。
@@ -122,6 +125,11 @@ func ImportPointRules(a *pvf.Archive) (PointRules, error) {
 	}
 	if out.Oath, e = ParseOathPointInfo(text); e != nil {
 		return out, fmt.Errorf("%s: %w", OathPointInfoPath, e)
+	}
+	// 套装积分的第一层映射（模板 -> 能力组）。缺了它 SetPoints 只能返回"算不出"，
+	// 而 NOTI2634 会把 Set Point 记 0 —— 所以这里和两张表一样，读不到就显式报错。
+	if out.AbilityGroups, e = abilityGroupMembership(a); e != nil {
+		return out, e
 	}
 	grouping, e := ReadScript(a, "etc/equipmentgrouping.etc")
 	if e != nil {
@@ -314,6 +322,59 @@ func (p PointRules) GradeFor(points uint32) (SetPointGrade, bool) {
 	return best, found
 }
 
+// pointGroupingPath 是「能力组」成员表：`[ability group] [index] <组号> [list] <模板…>`。
+//
+// 这是套装积分的第一层映射：`setpointinfo.cos` 的 `[info] [group] <g>` **不是装备分组**，
+// 而是这里的组号。第二层是 `[group] g + [awakening] a`（`[part set index]` 为 -1 的行用
+// 该件 `.equ` 自己的 `[part set index]` 补上）。
+//
+// 为什么在这里读而不是复用名望侧的解析器：积分规则住在本包，跨包注入一个只为拼
+// 字符串的 map 不值得；`character.FameRules.Groups` 由 fame 侧从同一文件解析给
+// `[equip grouping]` 用，两边读同一个源、同一口径，都不维护手工清单（§0.2）。
+const pointGroupingPath = "etc/equipmentgrouping.etc"
+
+// abilityGroupMembership 把 `etc/equipmentgrouping.etc` 的 `[ability group]` 块解析成
+// 模板 -> 组号。字段布局与名望侧解析器一致：`[index] <组号>` 后跟 `[list] <模板…> [/list]`。
+func abilityGroupMembership(a *pvf.Archive) (map[uint32][]uint32, error) {
+	script, err := ResolveScript(a, pointGroupingPath)
+	if err != nil {
+		return nil, err
+	}
+	out := map[uint32][]uint32{}
+	var group int64 = -1
+	pendingIndex, inList := false, false
+	for _, tok := range script.Cells {
+		if tok.Type == 3 {
+			switch tok.Text {
+			case "[ability group]", "[/ability group]":
+				group, pendingIndex, inList = -1, false, false
+			case "[index]":
+				pendingIndex, inList = true, false
+			case "[list]":
+				inList = true
+			case "[/list]":
+				inList = false
+			}
+			continue
+		}
+		if tok.Type != 0 {
+			continue
+		}
+		if pendingIndex {
+			group, pendingIndex = int64(tok.Value), false
+			continue
+		}
+		if inList && group >= 0 && tok.Value > 0 {
+			id := uint32(tok.Value)
+			out[id] = append(out[id], uint32(group))
+		}
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("%s has no [ability group] membership", pointGroupingPath)
+	}
+	return out, nil
+}
+
 // PointItem 是参与算分的一件装备：模板 + 调适档位 + 套装号（`.equ` 的 `[part set index]`，没有则 -1）。
 type PointItem struct {
 	Template     uint32
@@ -397,7 +458,11 @@ func (p PointRules) SetPoints(items []PointItem) (uint32, int) {
 	for _, it := range items {
 		contributions := map[int32]uint32{}
 		ambiguous := false
-		for _, group := range p.Groups[it.Template] {
+		groups := p.Groups
+		if groups == nil {
+			groups = p.AbilityGroups
+		}
+		for _, group := range groups[it.Template] {
 			for _, row := range p.Set.Rules {
 				if row.Group != group || row.Awakening != it.Awakening {
 					continue

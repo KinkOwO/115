@@ -25,7 +25,7 @@ README = os.path.join(HERE, "PROBE-README.md")
 INI = os.path.join(HERE, "chinese-input.ini")
 
 MOD_ID = "qol.chinese-input-probe"
-VERSION = "2.0.2"
+VERSION = "2.0.3"
 # 插件形态：落位到宿主的插件目录，由 qol.client-host 加载。
 PLUGIN_DIR = ".115us-mods"
 PLUGIN_NAME = "ChineseInputProbe.dll"

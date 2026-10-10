@@ -38,6 +38,17 @@ func (w *worldSession) canRechallenge(ctx context.Context) bool {
 }
 
 func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
+	// 次元回廊：**不走通用结算**（业主 2026-10-10 定调：「取消普通翻牌，直接用
+	// 刚刚出现的横幅和翻牌，这才是原本的东西」）。
+	//
+	// 军团本自己的那套是「横幅 N31 + 本界进度态 N2314 → 军团翻牌界面」，
+	// 而通用结算那一套（N34 `dungeon_play_result` / N37 / N35 / N261）是普通地下城的
+	// "dungeon name suc + B 评分"面板 —— 两者叠在一起就是业主看到的
+	// 「先普通翻牌结算、接着军团横幅、再军团翻牌」。
+	// 所以这里把 CMD46 整包吞掉（与伊斯/维纳斯同形）。
+	if w != nil && w.activeDungeon != nil && w.isDimCloisterChannel() {
+		return nil, nil
+	}
 	if w.ownsApocalypseDungeon() {
 		return nil, fmt.Errorf("apocalypse run has no ordinary settlement")
 	}
@@ -113,6 +124,15 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
+	// 升级事件脚本（level_up 的 grant_item / 角色待遇）是在上面这笔提交**之后**才落库的，
+	// 返回的 role 里没有它们。先回读，本轮结算帧才带得动 —— 发奖白给的前半。
+	// 回读失败就照旧编码：不能让取证动作把已通关的玩家卡在结算里。
+	committed, granted, grantErr := w.rewardStateAfterCommit(ctx, role)
+	if grantErr == nil {
+		role = committed
+	} else {
+		log.Printf("settlement reward reload failed role=%d: %v", role.ID, grantErr)
+	}
 	if tower != nil {
 		if _, err := w.store.AdvanceTowerFloor(ctx, w.account, towerPolicy(tower), tower.Floor, w.activeDungeon.RunID); err != nil {
 			return nil, err
@@ -128,7 +148,21 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 		return nil, e
 	}
 	rewards := protocol.ClearRewardState{BaseExperience: receipt.Base, ScoreExperience: receipt.Score, MonsterExperience: receipt.MonsterExperience}
-	if w.loot != nil && w.loot.CardPolicy != nil && !w.isBoostGuideRun() {
+	// 蔚蓝号（征讨族）：奖单改走**源声明驱动**，与沉月湖同一套产出模型（azure_flip.go）。
+	// 判据是策略自己记的结算层（= 频道 [guide dungeon index]），不是频道号 ——
+	// 这个频道里出现别的副本时照旧走通用翻牌。
+	azureSource := w.azureFlipActive()
+	if !azureSource && w.channelType == azureMainChannelType && w.azureFlipCfg == nil {
+		// 走到这里说明蔚蓝号结算用的是**通用翻牌**（1..4 件随机装备）——源驱动策略
+		// 没装配或没注入。启动日志里应当有 `蔚蓝号翻牌（源驱动）：结算层=…` 那一行；
+		// 没有就是装配/注入断了。宁可日志刺眼，也不要静默降级（D4）。
+		log.Printf("warning: 蔚蓝号结算走了通用翻牌（源驱动策略未装配/未注入）副本=%d", w.activeDungeon.Definition.ID)
+	}
+	if azureSource {
+		if e = w.azureFreezeReward(); e != nil {
+			return nil, e
+		}
+	} else if w.loot != nil && w.loot.CardPolicy != nil && !w.isBoostGuideRun() {
 		if w.cardPlan == nil {
 			var seed uint32
 			if e = binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
@@ -150,7 +184,14 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 			}
 		}
 	}
-	reward, e := protocol.ClearReward(rewards)
+	var reward []byte
+	if azureSource {
+		// 蔚蓝号的 .dgn 同样带 [disable clear reward]，N35 走征讨形态
+		// （ConquestClearRewardBody115），与沉月湖逐字节同源。
+		reward, e = w.azureClearRewardBody()
+	} else {
+		reward, e = protocol.ClearReward(rewards)
+	}
 	if e != nil {
 		return nil, e
 	}
@@ -173,6 +214,7 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 			return nil, err
 		}
 	}
+	preClear := w.role
 	w.role, w.level = role, experience[0]
 	// Starter Boost 662：引导通关在结算里推进训练关卡（源里的 [guide] dungeon）。
 	// 结算已经提交，补帧失败只记日志——不能让进度校验把玩家卡在已通关的副本里。
@@ -187,6 +229,9 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	}
 	plan := []outboundPacket{{"dungeon_play_result", 0, 34, notice}, {"dungeon_clear_experience", 0, 37, experience}, {"dungeon_clear_reward", 0, 35, reward}}
 	plan = append(plan, boostPlan...)
+	// 665 的通关计数就藏在这笔结算事务里，面板只认 2722：不补这一帧，玩家打完
+	// 「秩序终结者」回到城里看到的还是旧计数（实机 2026-10-06 16:43）。
+	plan = append(plan, boostChallengeClearProgress(w.boostup, preClear, w.role)...)
 	if len(itemUpdate) != 0 {
 		plan = append(plan, outboundPacket{"tower_inventory_reward", 0, 14, itemUpdate})
 	}
@@ -253,6 +298,14 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 			return nil, e
 		}
 		plan = append(plan, outboundPacket{"clear_available_quests", 0, 21, available})
+	}
+	// 后半：上面那批 14 差分只在有爬塔奖励时才发，事件脚本发进背包的东西一次都带不到。
+	// 这里按真实入库状态补一帧全量背包；没变过就是零帧，副本内也绝不补 USERINFO1。
+	catchUp, catchUpErr := w.rewardCatchUpPackets(role, granted)
+	if catchUpErr != nil {
+		log.Printf("settlement reward catch-up failed role=%d: %v", role.ID, catchUpErr)
+	} else {
+		plan = append(plan, catchUp...)
 	}
 	return plan, nil
 }

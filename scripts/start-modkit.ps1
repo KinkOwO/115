@@ -10,7 +10,8 @@
     * 已经有 modkit-web.exe 就直接跑；
     * 没有（或 -Rebuild）就用 Go 编一份 —— Go 不在 PATH 时会去整合包的
       ..\tools\go\bin\go.exe 找（本机 go 不在 PATH 上是常态）。
-    * 端口若已被占用，不重复起服务，直接打开浏览器。
+    * 端口若已被占用，不重复起服务，只把地址打出来。
+  * **默认不自动打开浏览器**（要开加 -Open）。
 
 .PARAMETER ModsDir
   要管理的 mods 目录。给了它就按它来（默认认一层）。
@@ -22,8 +23,10 @@
   监听地址，默认 127.0.0.1（不要随便改成 0.0.0.0：服务没有鉴权）。
 .PARAMETER ScanDepth
   列表认几层：1 = 直接子目录；2 = 再往下一层。默认：作者工作区 2、其它 1。
+.PARAMETER Open
+  启动后顺手用默认浏览器打开页面。**默认不打开**（业主 2026-10-06：每次弹浏览器窗口很烦）。
 .PARAMETER NoOpen
-  不自动打开浏览器。
+  兼容旧写法（等价于默认行为：不开浏览器）。
 .PARAMETER Rebuild
   强制重新编译 modkit-web.exe。
 .PARAMETER Help
@@ -34,7 +37,7 @@
 .EXAMPLE
   scripts\启动modkit.cmd -ServerMods
 .EXAMPLE
-  scripts\启动modkit.cmd -Port 9000 -NoOpen
+  scripts\启动modkit.cmd -Port 9000 -Open   # 想自动开页面时才加
 
 .NOTES
   退出码：0 = 正常退出（含用户 Ctrl+C）；1 = 环境缺失（找不到工具目录 / 编译失败）。
@@ -47,7 +50,8 @@ param(
     [int]$Port = 8931,
     [string]$Addr = '127.0.0.1',
     [int]$ScanDepth = 0,
-    [switch]$NoOpen,
+    [switch]$Open,
+    [switch]$NoOpen,  # 兼容旧命令：现在默认就不开浏览器，保留只为不报错
     [switch]$Rebuild,
     [switch]$Help
 )
@@ -135,19 +139,20 @@ try {
 } catch { $busy = $false }
 if ($busy) {
     Write-Head '已在运行'
-    Write-Info "端口 $Port 上已经有服务，直接打开页面（不再起第二个实例）。"
+    Write-Info "端口 $Port 上已经有服务，不再起第二个实例。"
     Write-Info $url
-    if (-not $NoOpen) { Start-Process $url | Out-Null }
+    if ($Open) { Start-Process $url | Out-Null }
     exit 0
 }
 
 # ---- 启动（前台运行，Ctrl+C 即停）----
 Write-Head '启动服务'
 Write-Info $url
-Write-Info '浏览器里操作；关掉本窗口或按 Ctrl+C 停止服务。'
+Write-Info '在浏览器里打开上面的地址操作；关掉本窗口或按 Ctrl+C 停止服务。'
 Write-Host ''
 
 $argv = @('--mods-dir', $ModsDir, '--scan-depth', "$ScanDepth", '--addr', "${Addr}:$Port")
-if (-not $NoOpen) { $argv += '--open' }
+# 默认**不**自动开浏览器（业主要求）；要开就加 -Open。
+if ($Open) { $argv += '--open' }
 & $exe @argv
 exit $LASTEXITCODE

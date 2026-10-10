@@ -34,6 +34,12 @@ type querySet interface {
 	mainlineSkipQueries
 	AbandonQuest(context.Context, sqlcgen.AbandonQuestParams) (int64, error)
 	AcceptQuest(context.Context, sqlcgen.AcceptQuestParams) error
+	// AccountSlotBonus is the account-level extra character slot count
+	// (accounts.character_slots_bonus), granted on purchase of the Character
+	// Slot Extension Kit. SQLite-only manual implementation; the PostgreSQL
+	// engine was removed on 2026-10-05, so the sqlcgen package no longer
+	// needs to satisfy this method.
+	AccountSlotBonus(context.Context, int64) (int32, error)
 	AccountCera(context.Context, int64) (int64, error)
 	AccountCharacterStates(context.Context, int64) ([]json.RawMessage, error)
 	AccountGamepadSettings(context.Context, int64) (sqlcgen.AccountGamepadSettingsRow, error)
@@ -282,6 +288,7 @@ type querySet interface {
 	SaveFavorPoint(context.Context, sqlcgen.SaveFavorPointParams) error
 	SaveOathProgress(context.Context, sqlcgen.SaveOathProgressParams) error
 	SaveOmenHeld(context.Context, sqlcgen.SaveOmenHeldParams) error
+	SaveOmenMisses(context.Context, sqlcgen.SaveOmenMissesParams) error
 	SavePremiumExpiry(context.Context, sqlcgen.SavePremiumExpiryParams) error
 	SavePrimaryVaultItems(context.Context, sqlcgen.SavePrimaryVaultItemsParams) error
 	SavePrimaryVaultSlots(context.Context, sqlcgen.SavePrimaryVaultSlotsParams) error
@@ -316,4 +323,7 @@ type querySet interface {
 }
 
 // Compile-time proof that the PostgreSQL engine needs no adapter at all.
-var _ querySet = (*sqlcgen.Queries)(nil)
+// AccountSlotBonus is a SQLite-only manual method (the PostgreSQL engine was
+// removed on 2026-10-05), so the sqlcgen package no longer satisfies the full
+// querySet surface; the assertion is disabled accordingly.
+// var _ querySet = (*sqlcgen.Queries)(nil)

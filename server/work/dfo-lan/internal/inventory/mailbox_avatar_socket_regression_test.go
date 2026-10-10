@@ -77,7 +77,7 @@ func TestAddMailItemFillsAvatarSocketsOnlyForAvatars(t *testing.T) {
 	if len(avatars) != 1 || avatars[0].Template != coatAvatar {
 		t.Fatalf("时装没有进时装栏：%+v", bag.Special)
 	}
-	if len(avatars[0].AvatarOptions) != 30 /* five packed u16 socket + u32 emblem entries */ {
-		t.Fatalf("时装默认孔 = %d 字节，期望 %d", len(avatars[0].AvatarOptions), 30 /* five packed u16 socket + u32 emblem entries */)
+	if len(avatars[0].AvatarOptions) != avatarSocketOptionsSize {
+		t.Fatalf("时装默认孔 = %d 字节，期望 %d", len(avatars[0].AvatarOptions), avatarSocketOptionsSize)
 	}
 }

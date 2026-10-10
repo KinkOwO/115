@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"slices"
 	"sync"
@@ -192,15 +193,21 @@ func ImportRosterBackgroundTickets(a *pvf.Archive, index catalog.ItemIndex) (*Ro
 		file int
 	}
 	entries := []entry{}
+	missing := 0
 	for _, item := range index.Items {
 		if item.Kind != "stackable" {
 			continue
 		}
 		file, ok := a.FindFile(item.Path)
 		if !ok {
-			return nil, fmt.Errorf("missing roster background source item %d", item.ID)
+			// devpack 基线差异：缺失源脚本的堆叠物品不可能是背景券，跳过。
+			missing++
+			continue
 		}
 		entries = append(entries, entry{item, file.Index})
+	}
+	if missing > 0 {
+		log.Printf("PVF roster backgrounds: %d stackable scripts missing (devpack baseline gap)", missing)
 	}
 	slices.SortFunc(entries, func(a, b entry) int { return a.file - b.file })
 	for i, row := range entries {

@@ -1,0 +1,49 @@
+{
+  "status": "confirmed-three-member-first-and-second-entry-only",
+  "userReport": "带3名修复了，但是只带1名无法进入副本",
+  "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261009_034552_507908_next37",
+  "pid": 109356,
+  "dllVersion": "0.3.10",
+  "dllSha256": "a46493c61f54fef1ec52852cd8e02383722a10d53587db343a96fc09b6f89099",
+  "serverVersion": "0.3.14",
+  "serverSha256": "8eae14a07d2f280bf846e81e25575cc338774e4a6b38c730bb25959b31afd19d",
+  "acceptedScope": [
+    "three original APC registrations in dungeon3 quest3145",
+    "three fresh registrations after town return in dungeon5 quest3146"
+  ],
+  "entryLines": [
+    [
+      1,
+      8
+    ],
+    [
+      25,
+      33
+    ]
+  ],
+  "serverEntryLines": [
+    226,
+    252,
+    885,
+    911
+  ],
+  "failureScope": {
+    "saveLines": [
+      1287,
+      1540
+    ],
+    "loadRefusalLines": [
+      1292,
+      1545
+    ],
+    "entryRefusalLines": [
+      1307,
+      1552
+    ],
+    "cause": "Successful nonempty mode2 save retained old frozen preparation while native N1754 released companions; automatic1811 rejected as already prepared,16 rejected changed settings identity"
+  },
+  "fullDeathCaptureVerified": false,
+  "allModesVerified": false,
+  "schemaChanged": false,
+  "PVFChanged": false
+}

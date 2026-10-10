@@ -200,6 +200,12 @@ func (client *gameConnection) ispinsPostSelection(roleID int64) {
 	if w == nil {
 		return
 	}
+	if client.output == nil {
+		if w.channelType == 81 {
+			w.pendingLegionEntryInfo = true
+		}
+		return
+	}
 	// 官服保活：SEC_PING_CHECK(N1719) 每 30s 一次（s4 帧 435-835、
 	// switch f645/f697 间隔实测 30s），16B 常量体，客户端回
 	// CMD1706（不在 relevantRequest 白名单，走采样记录无副作用）。
@@ -208,6 +214,12 @@ func (client *gameConnection) ispinsPostSelection(roleID int64) {
 	// （next79 §20，052757 会话 21:31:05-21:45:31 实证）。发送
 	// 失败（连接已断）即退出 goroutine。
 	go func(characterID int64) {
+		// 测试构造的 gameConnection 可以没有 output（如
+		// TestDimCloisterLoginFallsThroughForIspinsChannel）；没有输出通道时
+		// 保活 goroutine 没有意义，直接退出，避免 30s 后解引用 nil 崩溃。
+		if client.output == nil {
+			return
+		}
 		body := []byte{0, 0, 0, 0, 0xe1, 0x6b, 0xa3, 0x76, 0x3f, 0, 0, 0, 0, 0, 0, 0}
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
@@ -234,6 +246,34 @@ func (client *gameConnection) ispinsPostSelection(roleID int64) {
 	// 第一帧 c2s（场景就绪信号）再发（dispatchIspins）。
 	if w.channelType == 81 {
 		w.pendingLegionEntryInfo = true
+		return
+	}
+	// 次元回廊（实机频道 Type 84，`Channel Type : [ CHANNEL_DIMENSION_CLOISTER_LEGION ]`）
+	// 不能拿伊斯那一族的 N2254 当登录底座：同一 opcode 2254 在两个内容里是**不同
+	// 结构**（伊斯族的阶段记录 vs 次元回廊 272B 的内容行账本），而客户端的难度窗会
+	// 读这几行的旗标。2026-10-10 会话实证：那条把伊斯形态（`@117=7f`）发给了次元
+	// 回廊频道，客户端在开窗时 exit=0xC0000005。
+	if payload, isCloister, entryErr := dimCloisterLoginLedger(w.channelType, uint64(time.Now().UnixMilli())); isCloister {
+		if entryErr != nil {
+			client.event(map[string]any{"kind": "dim_cloister_ledger_restore_error", "error": entryErr.Error()})
+			return
+		}
+		go func(characterID int64, body []byte) {
+			time.Sleep(1100 * time.Millisecond)
+			if err := client.output.send(0, legion.NotiEntryCharacterInfo, body); err != nil {
+				return
+			}
+			client.event(map[string]any{"kind": "dim_cloister_entry_ledger_sent", "character_id": characterID, "plain_bytes": len(body), "trigger": "login", "channel_type": w.channelType})
+			// 周本「无限难度」与伊斯同窗（官服在场景就绪后送达）；次元回廊待机区
+			// 的周计数面板同样读这两帧。
+			if err := client.output.send(0, 781, weeklyDifficultyInfoUserStandby); err != nil {
+				return
+			}
+			if err := client.output.send(0, 782, weeklyDifficultyInfoCharacStandby); err != nil {
+				return
+			}
+			client.event(map[string]any{"kind": "weekly_difficulty_info_sent", "character_id": characterID, "place": "cloister-standby", "user_bytes": len(weeklyDifficultyInfoUserStandby), "charac_bytes": len(weeklyDifficultyInfoCharacStandby)})
+		}(roleID, payload)
 		return
 	}
 	quotaBody, quotaErr := w.ispinsLoginQuotaInfo()

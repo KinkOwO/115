@@ -98,10 +98,40 @@ func runGateway(startup Config) error {
 	if err := servermod.Boot(&servermod.BootContext{
 		Version:      versionString(),
 		ChannelCount: 0,
+		// 给 mod 一个"服务端把自己的东西放在哪"的权威答案，别让它们各猜一套。
+		RootDir: serverModuleDir(),
 	}); err != nil {
 		return err
 	}
 	log.Print(servermod.Description())
+	// —— 场景实体能力（internal/modactor）宿主接线 ——
+	//
+	// 放这里而不是更早：宿主要把 mod 造出来的假人放进 lanHub，而 hub 是
+	// prepareRuntime 里建的（bootstrap.go）。装早了拿不到 hub，装晚了 mod 的
+	// boot 钩子就想造东西了。这个位置正好在 Boot() 之前、hub 之后。
+	if err = installActorHost(prepared.hub); err != nil {
+		return fmt.Errorf("装载场景实体宿主失败：%w", err)
+	}
+	// 进程内单例，退出必须撤：runGateway 在同一进程里会被反复起停（测试就是），
+	// 留着上一次的宿主等于让下一次拿到一个指向已死 hub 的实现。
+	defer uninstallActorHost()
+	// —— 声明与注册的一致性核对 ——
+	//
+	// mod.json 里声明了钩子、Go 里却忘了注册 → "装成功、编成功、什么也没发生"，
+	// 这是最难查的一类失败（只有读 mod 源码才看得出来）。所以在开始监听之前
+	// 就把它变成**启动失败**，口径与 Boot 的 fail-closed 一致。
+	// 唯一出路是把该 mod 写进 mods/enabled.json（启动器「MOD 工具」页可做，
+	// 不需要服务端起得来）。
+	if problems, declErr := servermod.CheckDeclarations(serverModsDir()); declErr != nil {
+		return fmt.Errorf("核对 mod 声明失败：%w", declErr)
+	} else if len(problems) > 0 {
+		lines := make([]string, 0, len(problems))
+		for _, p := range problems {
+			log.Printf("servermod: %s", p)
+			lines = append(lines, p.String())
+		}
+		return fmt.Errorf("mod 声明与注册不一致（%d 个）：%s", len(problems), strings.Join(lines, "；"))
+	}
 	if _, disabled, note := servermod.EnabledInfo(); true {
 		if note != "" {
 			log.Printf("servermod: 启用清单：%s", note)
@@ -308,5 +338,12 @@ func runGateway(startup Config) error {
 			}
 		}(set)
 	}
+	// —— 周期调度与收摊 ——
+	//
+	// 两条 defer 的先后顺序是有意的（后注册先跑）：先停 ticker，再让 mod 收摊。
+	// 反过来会留一条"最后一轮 tick 还在跑、mod 却在撤实体"的缝。
+	stopModTicks := startModTicks()
+	defer servermod.Shutdown()
+	defer stopModTicks()
 	select {}
 }

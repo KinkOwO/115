@@ -119,3 +119,84 @@ func TestDungeonCloneReattachRestoresOrdinaryGearLast(t *testing.T) {
 		}
 	}
 }
+
+// TestSeamlessRetryRebuildsCloneWithoutBuffRegistration 钉住 2026-10-09 修的那条边界：
+// 「点完再次挑战，Clone 部位立刻裸体」（业主当日复现，会话 _213112_）。
+//
+// 根因是一处自相矛盾：入口那步按 350-351 的约定跳过了 N14 sent，改由
+// finishDungeonLoading 的 dungeon_worn_visuals_restored 补发（对 relay 照样生效）；
+// 而 09-30 已实机确认「NOTI14 全量穿戴刷新会重建未变化的 Clone 对象」。
+// 只补发 N14 却不重建 Clone，等于把 Clone 的覆盖外观冲掉又不修回来。
+//
+// 所以 seamlessRetry 时**必须补** Clone 重建；但绝不能顺带把 buff 注册
+// （NOTI1361）或随机属性块带回来 —— 那是 next178 §16 明确要跳的
+// 「再次挑战自动上 buff / 穿戴效果应用两次」。
+func TestSeamlessRetryRebuildsCloneWithoutBuffRegistration(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "equipment.json")
+	data, err := json.Marshal(inventory.EquipmentCatalog{
+		Source: pvf.ArchiveSnapshot{Checksum: "fixture"},
+		Rows: []inventory.EquipmentDefinition{
+			{ID: 517500000, Path: "clone.equ", SHA256: strings.Repeat("a", 64), Fields: map[string][]pvf.Token{
+				"[item category]": {{Type: 6, Text: "clear avatar"}},
+			}},
+			{ID: 112500000, Path: "default.equ", SHA256: strings.Repeat("b", 64)},
+			{ID: 101000013, Path: "weapon.equ", SHA256: strings.Repeat("c", 64)},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(path, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := inventory.LoadEquipmentCatalog(path, "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	role := database.Character{
+		ID: 5, WireID: 503, Profession: 11,
+		State: json.RawMessage(`{"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100},"inventory":{"version":"ordinary-bag-v1","worn":[{"slot":3,"template":517500000},{"slot":12,"template":101000013}]}}`),
+	}
+	w := &worldSession{
+		role: role, activeDungeon: &dungeon.Session{}, seamlessRetry: true,
+		characters: &character.Service{DetailedWornCandidate: true, Equipment: catalog},
+	}
+	plan, err := w.finishDungeonLoading(make([]byte, 16))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indices := map[string]int{}
+	for i, packet := range plan {
+		indices[packet.Name] = i
+	}
+	// 必须补上：N14 补发会重建 Clone 对象，紧跟着就得把覆盖外观修回来。
+	for _, name := range []string{"dungeon_worn_visuals_restored", "dungeon_clone_detached", "dungeon_clone_reattached"} {
+		if _, ok := indices[name]; !ok {
+			t.Fatalf("seamless retry 缺少 %s：N14 冲掉 Clone 覆盖却不修 ⇒ 玩家看到裸体（plan=%v）", name, names(plan))
+		}
+	}
+	if indices["dungeon_clone_detached"] >= indices["dungeon_clone_reattached"] {
+		t.Fatal("Clone detach 必须排在 reattach 之前")
+	}
+	// 必须仍然跳过：这些一旦回来就是「自动上 buff / 穿戴效果应用两次」的老毛病。
+	for _, name := range []string{
+		"dungeon_buff_enhancement_restored",
+		"dungeon_worn_random_options_restored",
+		"dungeon_worn_equipment_restored",
+	} {
+		if _, ok := indices[name]; ok {
+			t.Fatalf("seamless retry 不该发 %s：会重上 buff 或把穿戴效果应用两次", name)
+		}
+	}
+	if w.seamlessRetry {
+		t.Fatal("seamlessRetry 必须在 finishDungeonLoading 内消费并清零，不能漏到下一次进本")
+	}
+}
+
+func names(plan []outboundPacket) []string {
+	out := make([]string, 0, len(plan))
+	for _, packet := range plan {
+		out = append(out, packet.Name)
+	}
+	return out
+}

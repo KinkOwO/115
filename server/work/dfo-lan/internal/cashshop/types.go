@@ -20,6 +20,7 @@ type CashOrder struct {
 	VaultSpace byte `json:"vault_space,omitempty"`
 }
 type CashOrderLine struct {
+	AvatarOption  byte   `json:"avatar_option,omitempty"`
 	Product       uint32 `json:"product"`
 	Template      uint32 `json:"template"`
 	Quantity      uint32 `json:"quantity"`
@@ -51,6 +52,11 @@ type CashReceipt struct {
 	Vault          *inventory.VaultState `json:"vault,omitempty"`
 	VaultSpace     byte                  `json:"vault_space,omitempty"`
 	VaultGold      uint32                `json:"vault_gold,omitempty"`
+	// SkillTreeUnlocked marks an order that flipped the character's second skill
+	// page from locked to unlocked (Skill Type Extension Ticket). The caller
+	// re-publishes the actor's USERINFO1 so the client re-reads the selector
+	// byte without a relog.
+	SkillTreeUnlocked bool `json:"skill_tree_unlocked,omitempty"`
 }
 
 func (o CashOrder) Total() (uint64, error) {

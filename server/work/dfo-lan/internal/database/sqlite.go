@@ -227,6 +227,8 @@ var sqliteMigrationSections = []string{
 	"0035_tower_progress.sql",
 	"0036_mailbox.sql",
 	"0037_gm_mail.sql",
+	"0038_omen_pity.sql",
+	"0039_character_slots_bonus.sql",
 	"0038_character_capacity.sql",
 }
 

@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"dfolan/internal/adventureelite"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -103,7 +104,7 @@ func Check(root string, opts CheckOptions) (CheckReport, error) {
 		report.ProfileEnv = loaded.Env
 		profileRequired = loaded.Required
 		switch {
-		case opts.SourceBuild && opts.RepairProfile == "":
+		case (opts.SourceBuild && opts.RepairProfile == "") || adventureelite.Enabled():
 			// The source build keeps its own binary; the profile's binary entry in the
 			// required list is replaced by the one actually launched.
 			profileRequired = replacePath(profileRequired, loaded.Binary, report.Binary)
@@ -154,7 +155,7 @@ func Check(root string, opts CheckOptions) (CheckReport, error) {
 // still owned by launch_local.py, so it falls back to the PVF default binary.
 func selectBinary(module, settingsRoot string, settings localSettings, opts CheckOptions) string {
 	switch {
-	case opts.SourceBuild:
+	case opts.SourceBuild || adventureelite.Enabled():
 		return filepath.Join(module, "bin", "wireprobe-handoff-source.exe")
 	case opts.JSONMode && settings.ServerBinary != "":
 		binary := settings.ServerBinary
