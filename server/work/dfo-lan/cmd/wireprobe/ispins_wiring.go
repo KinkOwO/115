@@ -200,6 +200,11 @@ func (client *gameConnection) ispinsPostSelection(roleID int64) {
 	if w == nil {
 		return
 	}
+	output := client.output
+	var done <-chan struct{}
+	if client.connection != nil {
+		done = client.connection.done
+	}
 	// 官服保活：SEC_PING_CHECK(N1719) 每 30s 一次（s4 帧 435-835、
 	// switch f645/f697 间隔实测 30s），16B 常量体，客户端回
 	// CMD1706（不在 relevantRequest 白名单，走采样记录无副作用）。
@@ -207,17 +212,26 @@ func (client *gameConnection) ispinsPostSelection(roleID int64) {
 	// ~14 分钟收不到任何下行即超时，弹「请检查网络连接」并退出
 	// （next79 §20，052757 会话 21:31:05-21:45:31 实证）。发送
 	// 失败（连接已断）即退出 goroutine。
-	go func(characterID int64) {
-		body := []byte{0, 0, 0, 0, 0xe1, 0x6b, 0xa3, 0x76, 0x3f, 0, 0, 0, 0, 0, 0, 0}
-		ticker := time.NewTicker(30 * time.Second)
-		defer ticker.Stop()
-		for range ticker.C {
-			if err := client.output.send(0, 1719, body); err != nil {
-				return
+	// State-only callers have no transport. Do not leave a timer behind
+	// that will dereference their nil output after the first tick.
+	if output != nil {
+		go func(characterID int64) {
+			body := []byte{0, 0, 0, 0, 0xe1, 0x6b, 0xa3, 0x76, 0x3f, 0, 0, 0, 0, 0, 0, 0}
+			ticker := time.NewTicker(30 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-done:
+					return
+				case <-ticker.C:
+				}
+				if err := output.send(0, 1719, body); err != nil {
+					return
+				}
+				client.event(map[string]any{"kind": "sec_ping_check_sent", "character_id": characterID})
 			}
-			client.event(map[string]any{"kind": "sec_ping_check_sent", "character_id": characterID})
-		}
-	}(roleID)
+		}(roleID)
+	}
 
 	// 登录期 N2254（官服世界装载串内下发，双会话实证：普通频道
 	// announce s1 f265 / s4 f257 都带这一帧，且与既有 f257 模板
@@ -236,6 +250,9 @@ func (client *gameConnection) ispinsPostSelection(roleID int64) {
 		w.pendingLegionEntryInfo = true
 		return
 	}
+	if output == nil {
+		return
+	}
 	// 次元回廊（实机频道 Type 84，`Channel Type : [ CHANNEL_DIMENSION_CLOISTER_LEGION ]`）
 	// 不能拿伊斯那一族的 N2254 当登录底座：同一 opcode 2254 在两个内容里是**不同
 	// 结构**（伊斯族的阶段记录 vs 次元回廊 272B 的内容行账本），而客户端的难度窗会
@@ -246,18 +263,25 @@ func (client *gameConnection) ispinsPostSelection(roleID int64) {
 			client.event(map[string]any{"kind": "dim_cloister_ledger_restore_error", "error": entryErr.Error()})
 			return
 		}
+		channelType := w.channelType
 		go func(characterID int64, body []byte) {
-			time.Sleep(1100 * time.Millisecond)
-			if err := client.output.send(0, legion.NotiEntryCharacterInfo, body); err != nil {
+			timer := time.NewTimer(1100 * time.Millisecond)
+			defer timer.Stop()
+			select {
+			case <-done:
+				return
+			case <-timer.C:
+			}
+			if err := output.send(0, legion.NotiEntryCharacterInfo, body); err != nil {
 				return
 			}
-			client.event(map[string]any{"kind": "dim_cloister_entry_ledger_sent", "character_id": characterID, "plain_bytes": len(body), "trigger": "login", "channel_type": w.channelType})
+			client.event(map[string]any{"kind": "dim_cloister_entry_ledger_sent", "character_id": characterID, "plain_bytes": len(body), "trigger": "login", "channel_type": channelType})
 			// 周本「无限难度」与伊斯同窗（官服在场景就绪后送达）；次元回廊待机区
 			// 的周计数面板同样读这两帧。
-			if err := client.output.send(0, 781, weeklyDifficultyInfoUserStandby); err != nil {
+			if err := output.send(0, 781, weeklyDifficultyInfoUserStandby); err != nil {
 				return
 			}
-			if err := client.output.send(0, 782, weeklyDifficultyInfoCharacStandby); err != nil {
+			if err := output.send(0, 782, weeklyDifficultyInfoCharacStandby); err != nil {
 				return
 			}
 			client.event(map[string]any{"kind": "weekly_difficulty_info_sent", "character_id": characterID, "place": "cloister-standby", "user_bytes": len(weeklyDifficultyInfoUserStandby), "charac_bytes": len(weeklyDifficultyInfoCharacStandby)})
@@ -270,8 +294,14 @@ func (client *gameConnection) ispinsPostSelection(roleID int64) {
 		return
 	}
 	go func(characterID int64, payload []byte) {
-		time.Sleep(1100 * time.Millisecond)
-		if err := client.output.send(0, legion.NotiIspinsEntryCharacterInfo, payload); err != nil {
+		timer := time.NewTimer(1100 * time.Millisecond)
+		defer timer.Stop()
+		select {
+		case <-done:
+			return
+		case <-timer.C:
+		}
+		if err := output.send(0, legion.NotiIspinsEntryCharacterInfo, payload); err != nil {
 			return
 		}
 		client.event(map[string]any{"kind": "ispins_login_entry_character_info_sent", "character_id": characterID, "plain_bytes": len(payload)})
@@ -280,10 +310,10 @@ func (client *gameConnection) ispinsPostSelection(roleID int64) {
 		// generated.go）。官服在场景就绪（c2s 35）之后送达，
 		// 与 N2254 同窗；缺失时客户端周本计数缺省 0，伊斯
 		// 待机区点创建队伍被「本周奖励已全部领取」拦截。
-		if err := client.output.send(0, 781, weeklyDifficultyInfoUserTown); err != nil {
+		if err := output.send(0, 781, weeklyDifficultyInfoUserTown); err != nil {
 			return
 		}
-		if err := client.output.send(0, 782, weeklyDifficultyInfoCharacTown); err != nil {
+		if err := output.send(0, 782, weeklyDifficultyInfoCharacTown); err != nil {
 			return
 		}
 		client.event(map[string]any{"kind": "weekly_difficulty_info_sent", "character_id": characterID, "place": "town", "user_bytes": len(weeklyDifficultyInfoUserTown), "charac_bytes": len(weeklyDifficultyInfoCharacTown)})
