@@ -13,6 +13,17 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-10 时装栏扩展券提示乱码修复 + 寄存衣柜（Avatar Closet）购买与槽位解锁
+
+**已修复 / 已完成**：业主实机确认衣柜「购买即生效 → 槽位解锁」跑通（Tier1→2槽 / Tier2→3槽 / Tier3→4槽，商店逐级解锁）。
+- ① 时装栏扩展券**成功提示乱码**：`protocol.AvatarInventoryExpansionPurchaseMessage` 原发原始 UTF-8，客户端按 ANSI 代码页(CP936)解码 ⇒ 乱码；改走 `simplifiedchinese.GBK`（与 `adventure.go`/`mailbox.go` 同一 reader `146D78070` 一致）。
+- ② **寄存衣柜**：新增 `cashshop.TryPurchaseAvatarClosetExpansion`（按源索引路径 `…/avatar_closet/closet_expand_N.stk` 识别档位 N；**购买即生效、不进背包**）；`Bag.ClosetExpansion`；`protocol.AvatarClosetInfo(slots)`（**noti1076 首字节 = 衣柜槽数**，1..4）；空 `noti1077`（`protocol.AvatarClosetSet()` = u32 条目数 0）；`cmd1102/1103` 回 `[0x01]+字段`（`cmd1103 select` = 切换衣橱）。
+- 依据：官方 live 抓包（noti1076 每会话一帧 16B）+ 反汇编 `client/DFO.exe`：noti1076 reader `0x1449e8060`（只读 2×u32，首个=槽数）、opcode→handler 注册表 `0x14003c650`；客户端 C→S 样本 `runtime/roles_persist_*_191033_*/events.jsonl`（`cmd1102=00000000` / `cmd1103=0100000000000000`）。
+
+**未修复 / 未闭环**：**衣柜"摆放"（把时装拖进衣柜格子）未实现**。客户端拖动 = 通用 `cmd19 MOVE_ITEMSPACE`（源 `List=1` 装扮栏、目标 `List=0x21=33`）。曾试「空间 33 = 衣柜」并落存档 ⇒ **客户端整角色读档失效**（存档中未知容器键 `special_equipment["33"]`），已回退；空间 33 的语义与正确存法待证（勿再以新容器键落存档，见 `AGENTS.md` 铁律）。
+
+**bug 测试取证**：`go build ./...` / `go vet ./...` 通过；`cmd/wireprobe`、`internal/cashshop`、`internal/game/protocol`、`internal/inventory` 测试通过；提交前门禁 `scripts/check-commit-hygiene.ps1 -All` 0 命中。运行期文件（`runtime/storage/*.sqlite3*` 等）不入库。
+
 ## 2026-10-10 已支持特殊频道精锐准入多频道确认
 
 **已修复 / 已完成**：业主确认“确认多个频道均有效，可以提交了”。服务端0.3.19/7b14d95e，按当前PVF发布频道与属性复用原准备链，取消精锐名单接入层的军团/攻坚/征讨/guide/隔离城镇类别过滤；未知未发布及来源身份不匹配仍拒绝。特殊副本继续走原组队、入场、阶段、难度和结算执行器，DLL仍0.3.10/a46493c6。证据 analysis/tasks/adventure-elite-special-confirmed-20261010.json。

@@ -67,6 +67,8 @@ var commandDispatch = [...]clientDispatchStage{
 	// 签到那一站只在载荷里的活动号 == 331 时接管，其余原样放行（见 attendance_claim.go）。
 	(*gameConnection).dispatchAttendanceClaim,
 	(*gameConnection).dispatchBoostEvent,
+	// dispatchAvatarCloset 处理衣柜（寄存衣柜）的 cmd1102/1103。
+	(*gameConnection).dispatchAvatarCloset,
 	(*gameConnection).dispatchFixtureResponse,
 }
 

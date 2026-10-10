@@ -154,6 +154,9 @@ type Bag struct {
 	// Legacy inventories omit this field and keep their original avatar capacity.
 	AvatarExpansion byte                    `json:"avatar_expansion,omitempty"`
 	Expansion       byte                    `json:"expansion,omitempty"`
+	// ClosetExpansion 是衣柜（Avatar Closet）档位：0=未购买（按官方默认档 1 下发），
+	// N=已买到 Tier N。对应 PVF 商品 "Avatar Closet Expansion Kit"（3001197/8/9）。
+	ClosetExpansion byte                    `json:"closet_expansion,omitempty"`
 	Version         string                  `json:"version"`
 	Gold            uint32                  `json:"gold"`
 	Coin            uint32                  `json:"coin,omitempty"`

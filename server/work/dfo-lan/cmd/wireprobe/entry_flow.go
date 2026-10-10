@@ -133,6 +133,17 @@ type entryPayloads struct {
 	BoosterGage     []byte
 	SkillVariations []byte
 	OdysseyProgress []byte
+	// AvatarClosetInfo is the NOTI1076 ENUM_NOTIPACKET_AVATAR_CLOSET_INFO body the
+	// official server pushes on every login (16 B, byte-identical across sessions).
+	// The closet UI keeps every hanger locked - and refuses to send any closet
+	// command - until the server sends it, so it rides with the avatar container
+	// refresh after the entry barrier. A nil payload is skipped by preparePackets.
+	AvatarClosetInfo []byte
+	// AvatarClosetSet is the NOTI1077 ENUM_NOTIPACKET_CHANGE_AVATAR_CLOSET_SET body
+	// (the closet's contents/avatar sets). The client's reader (DFO.exe 0x1449e8100)
+	// starts with a u32 entry count and returns early on 0, so the empty body
+	// {0,0,0,0} is a valid "closet holds nothing" state. A nil payload is skipped.
+	AvatarClosetSet []byte
 	// SkillLocks is the NOTI2827 character option block that restores the
 	// player's locked skills. It is sent last: the forwarded evidence for this
 	// client reports a crash on town entry when 2827 arrives early in the frame
@@ -376,6 +387,8 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"skill_variations_restored", 1, 29, p.SkillVariations},
 		// Complete lists and visual refresh after the entry/actor initialization barrier.
 		outboundPacket{"avatar_inventory_restored", 0, 13, p.AvatarReady},
+		outboundPacket{"avatar_closet_info", 0, 1076, p.AvatarClosetInfo},
+		outboundPacket{"avatar_closet_set", 0, 1077, p.AvatarClosetSet},
 	)
 	// The list1 objects must exist before Clone's source lookup is restored,
 	// and subsequent worn reconstruction must consume this character's table.
