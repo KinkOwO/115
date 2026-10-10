@@ -1459,10 +1459,16 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 	var newDrops []protocol.SceneDrop
 	if !w.deathSent[uint16(r.Entity)] {
 		body := protocol.MonsterDeathConfirmed(uint16(r.Entity))
-		// 军团本（维纳斯/伊斯/苏醒之森）BOSS 击杀不掉落任何物品：官服口径只有翻牌
+		// 军团本（维纳斯/伊斯/苏醒之森/次元回廊）BOSS 击杀不掉落任何物品：官服口径只有翻牌
 		// 界面给奖励，地面金币/装备掉落是普通副本机制。在此入口整体排除，
 		// 避免 w.drops.Death 为军团 BOSS roll 出地面掉落。
-		if w.loot != nil && (!unowned || blackBoss) && w.venus == nil && w.ispins == nil && w.forest == nil && w.apocalypse == nil {
+		//
+		// ★ 次元回廊原先**漏在这个条件里**：实机会话 `..._20261010_184617_918679_next37`
+		// 里第 4 界 BOSS 死亡时按普通副本口径 roll 了一件 109 级圣职者武器 108030760
+		// （`client_trace`：`recv item - [ 108030760 : 0 ]`），放进 N38 死亡应答下发；
+		// 职业完全对不上（玩家是剑士）⇒ 客户端「击杀 BOSS 后」当场 `exit=0xC0000005`。
+		// 官服这条内容的地面掉落本来就是空的，排除它才是同族口径。
+		if w.loot != nil && (!unowned || blackBoss) && w.venus == nil && w.ispins == nil && w.forest == nil && w.apocalypse == nil && !w.isDimCloisterChannel() {
 			// 掉落会话的创建只有一处（ensureDropSession，见 border_reward_flow.go）：
 			// 调律之边界在**加载应答阶段**就要用它冻结奖单，所以这里通常是取回同一实例。
 			w.ensureDropSession()
@@ -1639,6 +1645,32 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			plan = append(plan, frames...)
 		}
 	}
+	// ★ 次元回廊每一关都是一场 boss 战（进图房间即竞技场），界清关的权威事实是
+	// 「这只领主确认死亡、房里再没有活着的领主」。这里显式把会话置为已完成，
+	// 不让它依赖 `tryComplete()` 里 `roomEnemiesDead()` 那一支 —— 那个判据要求房里
+	// **每一只** team≠0 的怪都有死亡上报，而本族的会话表是 `.dgn` 刷出来的、客户端根本
+	// 不看它，领主带走的杂兵（以及客户端本地的召唤物）永远不会上报。
+	//
+	// 这一句是「补上闸门」而不是「绕过闸门」：`Completed()` 一旦为真，接下来那句
+	// `completeDungeon()` 就会走次元回廊分支发出横幅，翻牌界面才有依据出现。
+	// 幂等：MarkCompleted 只是置一个 bool，重复调用无害。
+	if w.activeDungeon != nil && confirmed {
+		if _, ok := legion.IsDimCloisterStageDungeon(w.activeDungeon.Definition.ID); ok &&
+			w.activeDungeon.LegionArenaBossDown() {
+			w.activeDungeon.MarkCompleted()
+			// **必须在这里发 N2314 进度帧**（本界记录态 + 开窗态）：实机两轮对照证明
+			// 「有这两帧 → 军团横幅 + 翻牌界面都出现，客户端随后发 CMD2046；
+			//   删掉 → 横幅与翻牌都不出现，客户端只发 CMD46」。
+			// 本客户端缺本内容的翻牌窗口，不会主动发 CMD2046，所以必须由服务端先推。
+			//
+			// 与 CMD2046 那条路共用**同一个幂等确认**：这里发出后 `cleared` 即推进，
+			// 之后客户端真发来 CMD2046 时只回 ack、不再重发 N2314
+			//（重发会让客户端再开一次翻牌 ⇒ 无限循环）。
+			if w.legion != nil {
+				plan = append(plan, w.legion.dimCloisterAcknowledgeStage(w, w.legion.dimCloisterStage).Packets...)
+			}
+		}
+	}
 	completed, err := w.completeDungeon()
 	if err != nil {
 		// The death acknowledgement and confirmation are already in plan.
@@ -1687,6 +1719,20 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	}
 	if w.bleedingMineStart != nil {
 		return w.completeBleedingMineStage()
+	}
+	// 次元回廊 = **军团本自己的那套**（横幅 N31 + 本界进度态 N2314 → 军团翻牌界面）。
+	//
+	// 业主定调：「取消普通翻牌，直接用刚刚出现的横幅和翻牌，这才是原本的东西」——
+	// 也就是**不要**通用结算那一套（N34/N37/N35/N261，普通地下城的
+	// "dungeon name suc / B 评分"面板）。
+	//
+	// 这里只返回**横幅**；本界进度态（N2314 那一对）由 `monsterDeath` 里
+	// `dimCloisterAcknowledgeStage` 主动下发 —— 客户端不会先给我们 CMD2046
+	//（它只在收到那一对之后才发），所以触发顺序必须是服务端先推。
+	if w.activeDungeon != nil {
+		if _, ok := legion.IsDimCloisterStageDungeon(w.activeDungeon.Definition.ID); ok {
+			return w.completeDimCloisterStage()
+		}
 	}
 	// 伊斯大陆结算链（next78 §1.4）：N31 阶段 token → N2256 → N2252 →
 	// N2255 clear → N1658 → N2253 → N2254。阶段推进由 CMD2046 分支处理。

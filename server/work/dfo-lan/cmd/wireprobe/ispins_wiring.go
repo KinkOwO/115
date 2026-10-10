@@ -236,6 +236,34 @@ func (client *gameConnection) ispinsPostSelection(roleID int64) {
 		w.pendingLegionEntryInfo = true
 		return
 	}
+	// 次元回廊（实机频道 Type 84，`Channel Type : [ CHANNEL_DIMENSION_CLOISTER_LEGION ]`）
+	// 不能拿伊斯那一族的 N2254 当登录底座：同一 opcode 2254 在两个内容里是**不同
+	// 结构**（伊斯族的阶段记录 vs 次元回廊 272B 的内容行账本），而客户端的难度窗会
+	// 读这几行的旗标。2026-10-10 会话实证：那条把伊斯形态（`@117=7f`）发给了次元
+	// 回廊频道，客户端在开窗时 exit=0xC0000005。
+	if payload, isCloister, entryErr := dimCloisterLoginLedger(w.channelType, uint64(time.Now().UnixMilli())); isCloister {
+		if entryErr != nil {
+			client.event(map[string]any{"kind": "dim_cloister_ledger_restore_error", "error": entryErr.Error()})
+			return
+		}
+		go func(characterID int64, body []byte) {
+			time.Sleep(1100 * time.Millisecond)
+			if err := client.output.send(0, legion.NotiEntryCharacterInfo, body); err != nil {
+				return
+			}
+			client.event(map[string]any{"kind": "dim_cloister_entry_ledger_sent", "character_id": characterID, "plain_bytes": len(body), "trigger": "login", "channel_type": w.channelType})
+			// 周本「无限难度」与伊斯同窗（官服在场景就绪后送达）；次元回廊待机区
+			// 的周计数面板同样读这两帧。
+			if err := client.output.send(0, 781, weeklyDifficultyInfoUserStandby); err != nil {
+				return
+			}
+			if err := client.output.send(0, 782, weeklyDifficultyInfoCharacStandby); err != nil {
+				return
+			}
+			client.event(map[string]any{"kind": "weekly_difficulty_info_sent", "character_id": characterID, "place": "cloister-standby", "user_bytes": len(weeklyDifficultyInfoUserStandby), "charac_bytes": len(weeklyDifficultyInfoCharacStandby)})
+		}(roleID, payload)
+		return
+	}
 	quotaBody, quotaErr := w.ispinsLoginQuotaInfo()
 	if quotaErr != nil {
 		client.event(map[string]any{"kind": "ispins_quota_restore_error", "error": quotaErr.Error()})

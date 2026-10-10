@@ -25,7 +25,14 @@ type connectionSession struct {
 	//（业主 2026-10-09 两次实机）。所以这里用一个精确定时器把到期时刻发回主
 	// 循环——主循环独占 worldSession，状态推进仍然没有并发。
 	forestBanner chan time.Time
-	closeOnce    sync.Once
+	// cloisterWindow 是次元回廊「开始作战 3-2-1 倒计时结束」的精确到期信号。
+	//
+	// 为什么要精确信号而不是只靠 mineTicker：**这条连接上 mineTicker 根本没有
+	// 触发**（2026-10-10 实机两轮：服务端记了 dim_cloister_start_ack_sent，
+	// 却从来没有 dim_cloister_window_opened）。倒计时是客户端本地演出，
+	// 横幅与右上角 UI 要在它结束时才出现，所以窗口状态帧必须准点到。
+	cloisterWindow chan time.Time
+	closeOnce      sync.Once
 }
 
 func newConnectionSession(moonEnabled bool) *connectionSession {
@@ -36,7 +43,8 @@ func newConnectionSession(moonEnabled bool) *connectionSession {
 		dailyTicker: time.NewTicker(30 * time.Second),
 		mineTicker:  time.NewTicker(time.Second),
 		// 缓冲 1：即使主循环正在忙，定时器也不会阻塞在发送上。
-		forestBanner: make(chan time.Time, 1),
+		forestBanner:   make(chan time.Time, 1),
+		cloisterWindow: make(chan time.Time, 1),
 	}
 	if moonEnabled {
 		s.moonTicker = time.NewTicker(250 * time.Millisecond)
@@ -60,6 +68,27 @@ func (s *connectionSession) scheduleForestBanner(delay time.Duration) {
 		}
 		select {
 		case s.forestBanner <- time.Now():
+		case <-s.done:
+		}
+	}()
+}
+
+// scheduleCloisterWindow 在 delay 之后把「开始作战倒计时结束」信号交给主循环。
+// 与 scheduleForestBanner 同款：只发时间戳，不碰会话状态（worldSession 主循环独占）。
+func (s *connectionSession) scheduleCloisterWindow(delay time.Duration) {
+	if s == nil {
+		return
+	}
+	go func() {
+		timer := time.NewTimer(delay)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+		case <-s.done:
+			return
+		}
+		select {
+		case s.cloisterWindow <- time.Now():
 		case <-s.done:
 		}
 	}()
