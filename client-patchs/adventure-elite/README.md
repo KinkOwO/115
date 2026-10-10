@@ -1,4 +1,50 @@
-# 精锐小队资格与普通/剧情单人助战（DLL v0.3.9，剧情APC出现确认）
+# 精锐小队资格与普通/剧情单人助战（DLL v0.3.15，艾尔文换层 APC 出现已确认）
+
+业主确认“确认APC出现，可以提交了”。PID21376/runTick11640906首次三轮换层共9次原生启用0→1与坐标匹配，后续ordinal263三APC场景登记和主人绑定仍有效。确认仅覆盖本次艾尔文换层APC出现；不同scene剧情重挂、完整战斗/死亡/AI连续性、前次崩溃原因及modkit安装卸载仍未闭环。确认基线见 [记录](../../analysis/tasks/elite-apc-catchup-confirmed-20261011.json)。以下候选准备与失败记录保留为历史阶段。
+
+## v0.3.15：原生移除链实机命中后的启用修正（接续 attempt 3/3）
+
+业主授权“继续追踪原生移除链”。PID15920失败房间三APC原生virtual328/actor720均0，玩家为1。x64dbg硬件执行断点命中scene17C0AD600移除actor117BAA480，返回145DFFCDA；实际栈是原生场景更新→145DFF4D0→145DFFF70。原生首房加载器在登记后145B253BC调用virtual320(actor,1)，现有补救漏此步骤；当前三类APC槽320/328和机器码均核实。
+
+修正只在缺登记3秒、完整身份/场景门禁和原生登记成功后，复用已核实原生启用setter，复读必须1才继续传送。四处原生字节及两个虚表槽不符即拒绝；不直接改队列/引用或禁用原生清理。新增schema2 retentionBefore/retentionAfter诊断，登记成功不等于完整AI验收。当前EXE原生getter/setter离线回归及全部14组机制已通过；dist/scene-candidate-0315隔离构建后，用户回复“已退出”，确认无DFO进程后已替换默认DLL/包/构建清单，哈希及预检通过。v0.3.14回滚副本位于.tmp/adventure-elite/native-retention-backup-0314。取证与交付状态见analysis/tasks/elite-apc-native-removal-trace-20261011.{md,json}。本次出现确认已更新confirmed baseline，异场景剧情、AI/战斗连续性和上次崩溃原因仍未闭环。
+
+## v0.3.14：业主授权的锚点来源修正（接续 attempt 3/3，实机失败）
+
+实机更新：PID2012/runTick9432796已执行282次登记恢复与传送，全部即时坐标匹配，但APC登记随后反复丢失，业主确认仍未跟随。继续取证已获授权“继续追踪原生移除链”。软件日志断点设置期间客户端自行崩溃，尚无有效解绑调用栈或异常现场；暂不修改补救逻辑。见 analysis/tasks/elite-apc-native-removal-trace-20261011.md。下文“待实机”描述保留为当时交付步骤，本候选未验收。
+
+v0.3.13在PID8232/runTick8251828实机失败：三名首房原生登记及锚点已记录，同一scene17E554F00换层后持续unanchored-scene，没有registration-missing/restored或teleport。x64dbg只读读取DLL三项完整锚点，world均17AB70080；采样global14E66C090为04B62B00，其余scene/主人CRef/精锐CRef/编号全部相同。612条场景CRef中玩家1条、三精锐0条。原因是将145B22F50的副本加载上下文参数误当全局世界对象；离线夹具也把两者合成同一地址，漏测。
+
+第3次失败后停止运行假设，业主明确回复“继续按这个范围修正”，限定核对原生对象关系、锚点来源修正及不同地址测试。IDA确认146D2A1E2将14520CFB0取得的副本上下文传给145B22F50；加载函数另从global14E66C090调用1459A90F0。v0.3.14仅将登记锚点world改为稳定读取同一全局来源，保留注册原调用传入scene及全部身份约束；不因地址错误删掉世界代次校验。schema2补救日志增加world/anchorWorld/loaderContext字段供复查。测试先让旧代码以catchup fixture16失败，修正后通过，另覆盖全局世界缺失/变化拒绝恢复。
+
+候选在dist/scene-candidate-0314隔离构建；用户手动退出后才替换默认注入DLL。备份目录.tmp/adventure-elite/anchor-source-backup保留v0.3.13 DLL、包与构建清单。仍需手动换一次艾尔文层等待3～5秒，查看registration-anchored→registration-missing→registration-restored→teleport及AI表现；完整原生登记/战斗连续性和异场景剧情换场仍未验收。验证与产物身份见analysis/tasks/elite-apc-anchor-source-fix-20261011.{md,json}。Go、PVF、数据库、默认服务程序未改；不更新confirmed baseline、不提交未确认候选。
+
+## v0.3.13：副本状态与换层丢登记（补救 attempt 3/3，实机失败记录）
+
+用户指定 x64dbg 取证。PID7996/runTick5878656 在艾尔文下一层：原生世界状态解码为3（城镇样本为1），旧v0.3.12却要求8，日志一直是world-or-player-ineligible，未执行A*。当前场景195C52B00与本次首房登记场景相同，但710条对象CRef中玩家恰好1条，三名精锐均0条；管理器仍持有它们，strong=1且dead=0。因此单改坐标/寻路不能恢复缺失的场景登记。详细取证见analysis/tasks/elite-apc-scene-debug-20261011.md。
+
+候选两处门禁改为原生副本状态3；测试直接运行当前EXE的1459A90F0与146E920A0解码1/3，不再用返回8的stub代替。日志拆分世界/管理器/玩家门禁并带worldMode。
+
+首房原生精锐登记返回1后，记录world/scene/主人CRef/精锐CRef/对象ID锚点。只有锚点全部一致、同一活跃场景中该精锐引用持续缺失3秒，才用原生145DE4360按原调用点的八参数(scene,0,5,id,actor,0,0,1)恢复登记；复查恰好1条成员、身份/绑定/存活后，再调用原生位置setter。检查其它kind5对象编号冲突，拒绝未知、重复、外部主人与陌生场景；不直接写CRef/向量/索引，不修改控制器ID或存档。已经登记的精锐保留原生A*无路3秒补救，两个计时器独立。criterion=native-astar-or-registration-loss；日志仍schema2，新增registration-anchored/missing/restored与恢复失败原因。1024条诊断预算不影响行为。
+
+场景对象指针发生变化、无本代次原生登记锚点时记录unanchored-scene并跳过。跨场景离场/重挂及完整剧情演员保护仍未闭环，不能宣称所有剧情已修好。原生登记可触发原生入场/AI初始化，APC战斗状态连续性仍待实机观察。本候选没有改Go/PVF/SQLite/schema或默认程序；未收口、未提交。
+
+先在dist/scene-candidate-0313隔离编译，避免覆盖PID7996正在加载的旧DLL。-CandidateDirectory仅允许补丁dist子目录；打包工具--dist也拒绝越界。回退副本在.tmp/adventure-elite/scene-registration-backup（v0.3.12 DLL/构建清单）。MSVC全14组机制测试与采集兼容夹具验证结果见取证记录；离线测试不等于实机确认。modkit仍未找到，安装/卸载闭环未执行。
+
+## APC 原生寻路传送候选 v0.3.12（补救 attempt 2/3）
+
+业主实机报告 v0.3.11 的 APC 仍未跟随，随后明确要求“原生寻路无法到达就传送”。PID17816/runTick2828687 已加载旧 DLL、三名首房精锐登记成功，但没有该代次 catchup 日志；只能确认缺采样证据，不能把距离阈值判为根因。旧候选 checkpoint 保留在 analysis/tasks/elite-apc-catchup-candidate-20261010.md。
+
+本候选取消 800 单位距离条件，调用当前 EXE 的原生 A* 搜索 146D64820。每500ms在原生主人线程检查同一场景、同一主人、唯一精锐对象；只有原生 open list 已耗尽且未到玩家有效格子，连续3秒才调用原生立即位置 setter 拉至主人左右64单位附近，落点不合法时尝试玩家当前点。可达立即清计时；500次搜索上限、1024节点池上限、非目标 cost-bound 终点、地图未就绪、目标格暂阻挡、坐标不在当前地图或未知导航 getter 均为未知，清计时并跳过。3秒/500ms/落点偏移是用户补救策略，不是 PVF 内容定义。
+
+原生移动动作 `[MOVE TO ASTAR TARGET]` → 140CF13B0 → 145DCE4D0 → 146D64950 → 146D64820；网格为 16×12。网格内容取当前客户端已加载的地图数据，导航类型和通过标志直接调用 APC 原生 vtable+2632/+2896 getter（145D714E0 / 145D70740），不复制 PVF tile 类型规则或另建副本/路径表。查询使用独立114944B工作区，只借用当前只读格子指针与宽高；不清写游戏全局搜索缓存或 APC 的 AI 目标/路径缓存。节点分配 hook 只在本 DLL 的工作区查询达到上限时中止为未知，游戏其它调用原样透传。
+
+检测入口改为共同坐标组件 getter 145E08940，覆盖内联读坐标的调用者；保留原生轴参数、完整64位返回、LastError/SEH。旧包装 getter 不再 hook。只由生命周期冻结的主人线程触发，递归透传，不建后台游戏线程。初始化与所有原生调用的现场字节先核验，不匹配就拒绝。状态 `apcCatchupCriterion=native-astar-unreachable`、`apcCatchupTraceVersion=2`。DLL目录 `adventure-elite-catchup-<PID>-<runTick>.jsonl` 立即记录 started、前16次入口及拒绝原因，随后记录 path-reachable / path-unreachable / path-unknown（含路径细分与网格宽高）/ teleport。1024条日志预算不决定传送行为。
+
+只处理双方存活落地、主人/控制器绑定正确、当前场景成员向量恰好登记一次的精锐。换身份/场景/槽位/loader代次或采样中断重新计时。跨场景未登记记录 not-current-scene 并跳过：未闭环离场/重挂路径，不能用改坐标冒充挂场修复；全部剧情演出和艾尔文换层尚待实机。未改 Go、网络包、PVF、SQLite/schema/存档或默认程序。
+
+MSVC x64 /MT /W4 /WX；全14组机制测试包括直接执行本机 EXE 的 A* 代码，验证可达、完整隔墙无路、原生通行标志变化、500次上限未知、同格、隔离节点池限制和游戏原生分配透传。生产 hook 夹具验证全部字节门禁、轴/64位返回/错误/异常透传、3秒原生补救、可达/未知拒绝、身份与场景保护、日志预算耗尽仍有效。完整采集夹具支持历史v0.3.11和v0.3.12/v2，观察不自动认证实机。只改C++，本轮未重跑Go build/vet/test。
+
+候选和构建清单回退备份 `.tmp/adventure-elite/native-path-backup`（v0.3.11）；原v0.3.10备份仍在 `.tmp/adventure-elite/apc-catchup-backup`。现有Job注入路线加载dist DLL，不启动/代跑客户端。用户手动重开 `scripts\启动游戏-SQLite.cmd --source-build`，只测试一次艾尔文换层，等待3～5秒观察；成功或失败均保留本次日志，无需反复保存名单。本机仍未找到 modkit，schema2包已生成但 verify/plan/install/uninstall 未执行；不冒充安装卸载闭环。未确认前不更新CHANGELOG/confirmed baseline，不提交候选产物。取证见 analysis/tasks/elite-apc-native-path-candidate-20261011.{md,json}。
 
 普通五房通关、多次入场、再次挑战及结算重新选图沿此前确认；本轮新增普通剧情ID5/Quest3146的APC出现确认。两名原生登记成功，日志有五房及任务完成/回城，但死亡函数调用/实际包存在一项未闭合统计，详情与范围见末尾本轮确认段。其它剧情层、NonCombat保护、奥德赛、特殊队伍及对象释放仍待证。环境开关按业主要求保留。
 

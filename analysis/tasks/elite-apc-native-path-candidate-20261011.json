@@ -1,0 +1,158 @@
+{
+  "schema": 1,
+  "date": "2026-10-11",
+  "stage": "native-path-apc-catchup-candidate",
+  "version": "0.3.12",
+  "apcRescueAttempt": "2/3",
+  "humanAccepted": false,
+  "idaDatabase": "client/DFO.exe.i64",
+  "contracts": [
+    {
+      "addr": "0x146D64820",
+      "code": "__int64 __fastcall sub_146D64820(__int64 a1, int a2, int a3, int a4, int a5, int a6, char a7, __int64 a8)\n{\n  unsigned int v13; // edi\n  unsigned int v14; // ebx\n  __int64 v15; // rax\n  int v16; // r15d\n  __int64 result; // rax\n  int v18; // [rsp+90h] [rbp+28h]\n\n  v13 = abs32(a2 - a4); /*0x146d6485f*/\n  v14 = abs32(a3 - a5); /*0x146d64866*/\n  v18 = *(_DWORD *)(a1 + 114924) * (v13 + 1) + *(_DWORD *)(a1 + 114928) * (v14 + 1); /*0x146d64882*/\n  v15 = sub_146D642C0(a1); /*0x146d64889*/\n  v16 = 0; /*0x146d64891*/\n  *(_DWORD *)(v15 + 12) = a2; /*0x146d648a3*/\n  *(_DWORD *)(v15 + 16) = a3; /*0x146d648ae*/\n  *(_QWORD *)(v15 + 4) = v14 + v13; /*0x146d648bc*/\n  *(_DWORD *)v15 = v14 + v13; /*0x146d648bf*/\n  *(_QWORD *)(a1 + 112) = v15; /*0x146d648c1*/\n  do /*0x146d64922*/\n  {\n    result = *(_QWORD *)(a1 + 112); /*0x146d648c5*/\n    if ( result == 0 ) /*0x146d648cc*/\n      break; /*0x146d648cc*/\n    if ( v18 < *(_DWORD *)(result + 8) || *(_DWORD *)(result + 12) == a4 && *(_DWORD *)(result + 16) == a5 ) /*0x146d648dd*/\n      return result; /*0x146d648dd*/\n    *(_QWORD *)(a1 + 112) = *(_QWORD *)(result + 96); /*0x146d648e6*/\n    *(_QWORD *)(result + 96) = *(_QWORD *)(a1 + 216); /*0x146d648f7*/\n    *(_QWORD *)(a1 + 216) = result; /*0x146d64908*/\n    sub_146D64B70(a1, a2: result, a3: a4, a4: a5, a5: a6, a6: a7, a7: a8); /*0x146d64913*/\n    ++v16; /*0x146d64918*/\n  }\n  while ( v16 < 500 ); /*0x146d64922*/\n  return 0; /*0x146d64926*/\n}",
+      "line_count": 35,
+      "total_lines": 35,
+      "truncated": false,
+      "cursor": {
+        "done": true
+      },
+      "refs": [
+        {
+          "addr": "0x146d642c0",
+          "name": "sub_146D642C0"
+        },
+        {
+          "addr": "0x146d64b70",
+          "name": "sub_146D64B70"
+        }
+      ]
+    },
+    {
+      "addr": "0x146D64330",
+      "code": "_BOOL8 __fastcall sub_146D64330(__int64 a1, int a2, int a3, int a4, char a5, __int64 a6)\n{\n  __int64 v7; // rdx\n  int v10; // eax\n  char v11; // bl\n  __int64 v12; // rax\n  bool v14; // zf\n\n  v7 = *(_QWORD *)(a1 + 114936); /*0x146d64351*/\n  if ( v7 == 0 ) /*0x146d64361*/\n    return false; /*0x146d64361*/\n  if ( a2 < 0 ) /*0x146d6436a*/\n    return false; /*0x146d6436a*/\n  if ( a3 < 0 ) /*0x146d64373*/\n    return false; /*0x146d64373*/\n  v10 = *(_DWORD *)(a1 + 114924); /*0x146d64379*/\n  if ( a2 >= v10 ) /*0x146d64382*/\n    return false; /*0x146d64382*/\n  if ( a3 >= *(_DWORD *)(a1 + 114928) ) /*0x146d6438f*/\n    return false; /*0x146d6438f*/\n  v11 = *(_BYTE *)(a2 + a3 * v10 + v7); /*0x146d6439d*/\n  if ( v11 == 2 /*0x146d643cf*/\n    || a6 != 0\n    && (*(unsigned __int8 (__fastcall **)(__int64))(*(_QWORD *)a6 + 4272LL))(a1: a6) == 0\n    && (unsigned int)(a4 - 100) <= 1\n    && v11 == 7 )\n  {\n    return false; /*0x146d643cf*/\n  }\n  switch ( v11 ) /*0x146d643d4*/\n  {\n    case 11: /*0x146d643d4*/\n      v12 = sub_1459A9240(a1: qword_14E66C090); /*0x146d643dd*/\n      return v12 != 0 && (unsigned __int8)sub_144D10A50(a1: v12, a2, a3, a4, a5, a6) != 0; /*0x146d64404*/\n    case 1: /*0x146d643d4*/\n      return a5 != 0; /*0x146d64415*/\n    case 4: /*0x146d643d4*/\n      return true; /*0x146d64426*/\n    case 3: /*0x146d643d4*/\n      return true; /*0x146d6442b*/\n    case 5: /*0x146d643d4*/\n      v14 = a4 == 0; /*0x146d64439*/\n      break;\n    case 6: /*0x146d643d4*/\n      v14 = a4 == 100; /*0x146d64442*/\n      break;\n    default:\n      return true; /*0x146d64440*/\n  }\n  return v14; /*0x146d64449*/\n}",
+      "line_count": 51,
+      "total_lines": 51,
+      "truncated": false,
+      "cursor": {
+        "done": true
+      },
+      "refs": [
+        {
+          "addr": "0x1459a9240",
+          "name": "sub_1459A9240"
+        },
+        {
+          "addr": "0x14e66c090",
+          "name": "qword_14E66C090"
+        },
+        {
+          "addr": "0x144d10a50",
+          "name": "sub_144D10A50"
+        }
+      ]
+    },
+    {
+      "addr": "0x146D642C0",
+      "code": "__int64 __fastcall sub_146D642C0(__int64 a1)\n{\n  int v1; // eax\n  __int64 v3; // rcx\n  __int64 v4; // rcx\n\n  v1 = *(_DWORD *)(a1 + 114920); /*0x146d642c0*/\n  if ( v1 >= 1024 ) /*0x146d642ce*/\n  {\n    v1 = 0; /*0x146d642d0*/\n    *(_DWORD *)(a1 + 114920) = 0; /*0x146d642d2*/\n  }\n  v3 = a1 + 104 * (v1 + 81LL); /*0x146d642e7*/\n  *(_OWORD *)v3 = 0; /*0x146d642ea*/\n  *(_OWORD *)(v3 + 16) = 0; /*0x146d642ed*/\n  *(_OWORD *)(v3 + 32) = 0; /*0x146d642f1*/\n  *(_OWORD *)(v3 + 48) = 0; /*0x146d642f5*/\n  *(_OWORD *)(v3 + 64) = 0; /*0x146d642f9*/\n  *(_OWORD *)(v3 + 80) = 0; /*0x146d642fd*/\n  *(_QWORD *)(v3 + 96) = 0; /*0x146d64301*/\n  v4 = *(int *)(a1 + 114920); /*0x146d64305*/\n  *(_DWORD *)(a1 + 114920) = v4 + 1; /*0x146d6430f*/\n  return a1 + 104 * (v4 + 81); /*0x146d64320*/\n}",
+      "line_count": 24,
+      "total_lines": 24,
+      "truncated": false,
+      "cursor": {
+        "done": true
+      }
+    }
+  ],
+  "guards": [
+    {
+      "addr": "0x145E08940",
+      "data": "0x48 0x83 0xec 0x28 0x4c 0x8b 0x81 0x8 0x1 0x0 0x0 0x4d 0x85 0xc0 0x74 0x17 0x80 0xb9 0x10 0x1 0x0 0x0 0x0 0x74"
+    },
+    {
+      "addr": "0x146D64820",
+      "data": "0x48 0x89 0x5c 0x24 0x8 0x48 0x89 0x6c 0x24 0x10 0x48 0x89 0x74 0x24 0x18 0x57 0x41 0x54 0x41 0x55 0x41 0x56 0x41 0x57"
+    },
+    {
+      "addr": "0x146D64330",
+      "data": "0x48 0x89 0x5c 0x24 0x8 0x48 0x89 0x6c 0x24 0x10 0x48 0x89 0x74 0x24 0x18 0x57 0x41 0x56 0x41 0x57 0x48 0x83 0xec 0x30"
+    },
+    {
+      "addr": "0x146D64B70",
+      "data": "0x48 0x89 0x5c 0x24 0x8 0x48 0x89 0x6c 0x24 0x18 0x48 0x89 0x74 0x24 0x20 0x57 0x41 0x54 0x41 0x55 0x41 0x56 0x41 0x57"
+    },
+    {
+      "addr": "0x146D642C0",
+      "data": "0x8b 0x81 0xe8 0xc0 0x1 0x0 0x48 0x8b 0xd1 0x3d 0x0 0x4 0x0 0x0 0x7c 0x8 0x33 0xc0 0x89 0x81 0xe8 0xc0 0x1 0x0"
+    },
+    {
+      "addr": "0x146D64E00",
+      "data": "0x40 0x56 0x57 0x41 0x55 0x41 0x56 0x41 0x57 0x48 0x83 0xec 0x30 0x48 0xc7 0x44 0x24 0x20 0xfe 0xff 0xff 0xff 0x48 0x89"
+    },
+    {
+      "addr": "0x145D714E0",
+      "data": "0x8b 0x81 0x10 0xf 0x0 0x0 0xc3 0xcc 0xcc 0xcc 0xcc 0xcc 0xcc 0xcc 0xcc 0xcc 0x48 0x8b 0x81 0x8 0x20 0x0 0x0 0xc3"
+    },
+    {
+      "addr": "0x145D70740",
+      "data": "0x8b 0x81 0x0 0x9 0x0 0x0 0xc3 0xcc 0xcc 0xcc 0xcc 0xcc 0xcc 0xcc 0xcc 0xcc 0x48 0x89 0x5c 0x24 0x8 0x57 0x48 0x83"
+    },
+    {
+      "addr": "0x146D6491b",
+      "data": "0x41 0x81 0xff 0xf4 0x1 0x0 0x0"
+    }
+  ],
+  "previousLive": {
+    "version": "0.3.11",
+    "pid": 17816,
+    "runTick": 2828687,
+    "session": "runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261011_011052_626688_next37",
+    "catchupFileMissing": true,
+    "conclusion": "No sampling evidence; do not conclude distance threshold was the cause."
+  },
+  "policy": {
+    "delayMs": 3000,
+    "pollMs": 500,
+    "criterion": "Native open list exhausted without reaching valid player cell.",
+    "unknown": [
+      "500-iteration budget",
+      "1024-node pool limit",
+      "non-goal cost-bound terminal",
+      "missing map",
+      "blocked player cell",
+      "outside current map",
+      "unsupported getter",
+      "unregistered companion"
+    ]
+  },
+  "rollback": ".tmp/adventure-elite/native-path-backup",
+  "unclosed": [
+    "manual room/layer/cutscene acceptance",
+    "cross-scene detach/re-registration",
+    "modkit verify/plan/install/uninstall unavailable"
+  ],
+  "validation": {
+    "build": "MSVC x64 /MT /W4 /WX; build-adventure-elite.ps1 exit 0; 14 mechanism groups passed",
+    "nativeVectors": [
+      "reachable",
+      "disconnected wall",
+      "native pass flag change",
+      "500-iteration unknown",
+      "same cell",
+      "isolated pool limit",
+      "native allocator passthrough"
+    ],
+    "capture": "test-adventure-elite-capture.ps1 exit 0, historical and v0.3.12 schema2/refusal fixtures",
+    "checkOnly": "collect-adventure-elite.ps1 -CheckOnly exit 0, prior 0.3.11 status not accepted as new run",
+    "go": "not run; no Go changes in this task"
+  },
+  "artifacts": {
+    "dll": {
+      "path": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+      "bytes": 238592,
+      "sha256": "7412986a47bf473fdfb7ff321fdfe241c965c936668be482cd251597c098b492"
+    },
+    "schema2Zip": {
+      "path": "client-patchs/adventure-elite/dist/adventure-elite-eligibility-0.3.12.zip",
+      "bytes": 144621
+    }
+  }
+}

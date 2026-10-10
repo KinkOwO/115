@@ -1,0 +1,665 @@
+{
+  "schema": 1,
+  "status": "user-confirmed-Elven-APC-appearance",
+  "candidateVersion": "0.3.15",
+  "apcCatchupAttempt": "3/3",
+  "authorizedScope": "继续追踪原生移除链；核对当前渲染/AI场景并依据实际调用链修正",
+  "attemptCountNotReset": true,
+  "failedCandidate": "0.3.14",
+  "liveEvidence": {
+    "pid": 15920,
+    "runTick": 10822437,
+    "ownerThread": 22620,
+    "world": "0x049C2B00",
+    "manager": "0x1694BE080",
+    "sceneAtFailure": "0x17C0AD600",
+    "playerControl": "0x16F8CDE40",
+    "playerAlias": "0x1066FEF30",
+    "playerRetention720": 1,
+    "actors": [
+      {
+        "actor": "0x117BAA480",
+        "control": "0x1841B9520",
+        "alias": "0x117BAA4B0",
+        "id": 0,
+        "retention720": 0,
+        "sceneCRef392": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "actor": "0x1364E6A00",
+        "control": "0x187784BC0",
+        "alias": "0x1364E6A30",
+        "id": 1,
+        "retention720": 0,
+        "sceneCRef392": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "actor": "0x63E601C0",
+        "control": "0x187D9D2E0",
+        "alias": "0x63E601F0",
+        "id": 2,
+        "retention720": 0,
+        "sceneCRef392": [
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "nativeRemoval": {
+      "function": "0x145DFFF70",
+      "sceneRcx": "0x17C0AD600",
+      "actorR8": "0x117BAA480",
+      "returnAddress": "0x145DFFCDA",
+      "rsp": "0x005FF7F8",
+      "tid": "0x585C",
+      "retention720": 0,
+      "callsite": "0x145DFFCD5",
+      "returnChain": [
+        "0x145DFFCDA",
+        "0x145DFD85C",
+        "0x145E9C4F2",
+        "0x146CE04AC",
+        "0x1459A697A",
+        "0x146DE4B9A",
+        "0x148860FA2"
+      ],
+      "softwareBreakpointUsed": false,
+      "hardwareExecuteBreakpointUsed": true,
+      "configurationReportedSuccessButFieldsEmpty": true,
+      "brieflyPausedAtHardwareBreakpoint": true,
+      "breakpointRemovedThenResumed": true,
+      "finalBreakpointCount": 0,
+      "gameMemoryFieldsWritten": false
+    },
+    "laterWorldMode": 1,
+    "oldSceneReadsAfterTownNotUsedAsFailureEvidence": true,
+    "serverSession": "server/work/dfo-lan/runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261011_032455_360956_next37",
+    "captureExitCode": 0,
+    "battleCaptureGaps": 6
+  },
+  "nativeEvidence": {
+    "idb": "client/DFO.exe.i64",
+    "idbSession": "aae19eba",
+    "idbWritesOrRenames": false,
+    "originalLoaderEnableCall": "0x145B253BC virtual320(actor,1), after successful registration",
+    "enableCallBytes": "B2 01 48 8B CE FF 90 40 01 00 00",
+    "enableThunk": "0x141854970",
+    "enableThunkBytes": "E9 BB 77 C4 02",
+    "enableLeaf": "0x14449C130",
+    "enableLeafBytes": "88 91 D0 02 00 00 C3",
+    "retainedGetter": "0x14449BF20",
+    "retainedGetterBytes": "0F B6 81 D0 02 00 00 C3",
+    "allThreeApcVirtual320And328Matched": true,
+    "runtimeBytesMatchedIdb": true
+  },
+  "fix": {
+    "scope": "complete known native post-registration enable step for same-generation anchored missing APC",
+    "existingIdentityOwnershipAliveSceneDelayGuardsRetained": true,
+    "enableOnlyAfterSuccessfulNativeRegistration": true,
+    "alreadyEnabledSetterSkipped": true,
+    "nativeGetterMustReturnOneBeforeTeleport": true,
+    "retentionVirtualSlotsAndFourByteSitesGuarded": true,
+    "nativeCleanupDisabled": false,
+    "directActorFieldOrQueueWrites": false,
+    "existingRegisteredAStarPathChanged": false,
+    "differentSceneCinematicRecoveryImplemented": false,
+    "traceSchema": 2,
+    "diagnosticFields": [
+      "retentionBefore",
+      "retentionAfter"
+    ],
+    "diagnosticReasons": [
+      "registration-reactivated",
+      "reactivation-rejected"
+    ]
+  },
+  "verification": {
+    "buildCommand": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-adventure-elite.ps1 -CandidateDirectory F:/projects/agents/reverse/115us/client-patchs/adventure-elite/dist/scene-candidate-0315",
+    "buildExitCode": 0,
+    "msvc": "/W4 /WX /MT",
+    "mechanismGroupsPassed": 14,
+    "actualExeRetentionGetterSetterExecutedInOwnProcess": true,
+    "onlyActor720ChangesVerified": true,
+    "withoutEnableRegressionCompileExitCode": 0,
+    "withoutEnableRegressionExitCode": 33,
+    "withoutEnableRegressionFailure": "catchup fixture: 26",
+    "captureFixtureExitCode": 0,
+    "isolatedCheckOnlyExitCode": 0,
+    "isolatedArtifactAndResourceHashesMatch": true,
+    "ps1BomAndCrlfPassed": true,
+    "gitDiffCheckPassed": true,
+    "nativeRegisterInFixtureIsAbiStub": true,
+    "fullRenderAiCleanupNotEmulatedOffline": true,
+    "goChanged": false,
+    "goBuildVetTestRun": true,
+    "modkitVerifyPlanInstallUninstallRun": false,
+    "logs": [
+      ".tmp/adventure-elite/native-retention-build.log",
+      ".tmp/adventure-elite/native-retention-regression-build.log",
+      ".tmp/adventure-elite/native-retention-regression-run.log",
+      ".tmp/adventure-elite/native-retention-capture-test.log",
+      ".tmp/adventure-elite/native-retention-checkonly.json",
+      ".tmp/adventure-elite/native-retention-promoted-checkonly.json"
+    ],
+    "promotedCheckOnlyExitCode": 0,
+    "promotedArtifactAndResourceHashesMatch": true,
+    "closureGoVerification": "analysis/tasks/elite-apc-catchup-confirmed-20261011.json"
+  },
+  "artifact": {
+    "isolatedDll": "client-patchs/adventure-elite/dist/scene-candidate-0315/AdventureElite.dll",
+    "bytes": 245248,
+    "sha256": "8180378b06d0a106a95e75835bd4580a4d07d580d6f378a5629556a5f69244a5",
+    "package": "client-patchs/adventure-elite/dist/scene-candidate-0315/adventure-elite-eligibility-0.3.15.zip",
+    "packageBytes": 150451,
+    "backup": ".tmp/adventure-elite/native-retention-backup-0314",
+    "backupDllSha256": "b95b1319d2001eca23c529da62c48d4bbc8bbe24abe6764440ad887b35f13051",
+    "defaultDllReplaced": true,
+    "replacedAfterNoDfoProcessObserved": true,
+    "promotedHashesMatch": true,
+    "packageSha256": "7e13a2df561a19d71e7519f33be88eac1f06fca8f4b2865bf9f515fe54618c17"
+  },
+  "pending": [
+    "不同scene剧情离场/重挂未实现",
+    "完整战斗/死亡/AI连续性未验收",
+    "PID2012自行崩溃原因未闭环",
+    "modkit verify/plan/install/uninstall未执行"
+  ],
+  "clientAutomaticallyLaunchedOrPlayed": false,
+  "networkPvfStorageOrDefaultServerChanged": false,
+  "apcCatchupVerified": true,
+  "confirmedBaselineUpdated": true,
+  "changedSourceFiles": [
+    "client-patchs/adventure-elite/src/catchup-adapter.h",
+    "client-patchs/adventure-elite/src/registration-startup-test.cpp",
+    "client-patchs/adventure-elite/src/adventure-elite.cpp",
+    "client-patchs/adventure-elite/build-mod.py",
+    "scripts/build-adventure-elite.ps1",
+    "scripts/collect-adventure-elite.ps1",
+    "scripts/test-adventure-elite-capture.ps1"
+  ],
+  "confirmedScope": "本次艾尔文换层后APC出现；首次三轮恢复及后续场景登记证据，不扩大为全部剧情或完整战斗验收",
+  "confirmedBaseline": "analysis/tasks/elite-apc-catchup-confirmed-20261011.json",
+  "manualValidation": {
+    "pid": 21376,
+    "runTick": 11640906,
+    "ownerThread": 17096,
+    "serverSession": "server/work/dfo-lan/runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261011_033840_888022_next37",
+    "capture": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261011_033840_888022_next37",
+    "catchupLog": "adventure-elite-catchup-21376-11640906.jsonl",
+    "selectedWindow": {
+      "firstTick": 11669609,
+      "lastTick": 11721250,
+      "cycles": 3,
+      "slots": [
+        0,
+        1,
+        2
+      ],
+      "reactivations": 9,
+      "retentionTransitions": "all 0 to 1",
+      "teleports": 9,
+      "coordinatesMatched": 9
+    },
+    "selectedRecords": [
+      {
+        "line": 34,
+        "tick": 11669609,
+        "reason": "registration-reactivated",
+        "slot": 0,
+        "scene": 6459712512,
+        "world": 77081344,
+        "anchorWorld": 77081344,
+        "retentionBefore": 0,
+        "retentionAfter": 1,
+        "player": [
+          628,
+          293
+        ],
+        "target": [
+          0,
+          0
+        ],
+        "after": [
+          0,
+          0
+        ]
+      },
+      {
+        "line": 35,
+        "tick": 11669609,
+        "reason": "teleport",
+        "slot": 0,
+        "scene": 6459712512,
+        "world": 0,
+        "anchorWorld": 77081344,
+        "retentionBefore": -1,
+        "retentionAfter": -1,
+        "player": [
+          628,
+          293
+        ],
+        "target": [
+          564,
+          293
+        ],
+        "after": [
+          564,
+          293
+        ]
+      },
+      {
+        "line": 37,
+        "tick": 11669625,
+        "reason": "registration-reactivated",
+        "slot": 1,
+        "scene": 6459712512,
+        "world": 77081344,
+        "anchorWorld": 77081344,
+        "retentionBefore": 0,
+        "retentionAfter": 1,
+        "player": [
+          628,
+          293
+        ],
+        "target": [
+          0,
+          0
+        ],
+        "after": [
+          0,
+          0
+        ]
+      },
+      {
+        "line": 38,
+        "tick": 11669625,
+        "reason": "teleport",
+        "slot": 1,
+        "scene": 6459712512,
+        "world": 0,
+        "anchorWorld": 77081344,
+        "retentionBefore": -1,
+        "retentionAfter": -1,
+        "player": [
+          628,
+          293
+        ],
+        "target": [
+          628,
+          293
+        ],
+        "after": [
+          628,
+          293
+        ]
+      },
+      {
+        "line": 40,
+        "tick": 11669640,
+        "reason": "registration-reactivated",
+        "slot": 2,
+        "scene": 6459712512,
+        "world": 77081344,
+        "anchorWorld": 77081344,
+        "retentionBefore": 0,
+        "retentionAfter": 1,
+        "player": [
+          628,
+          293
+        ],
+        "target": [
+          0,
+          0
+        ],
+        "after": [
+          0,
+          0
+        ]
+      },
+      {
+        "line": 41,
+        "tick": 11669640,
+        "reason": "teleport",
+        "slot": 2,
+        "scene": 6459712512,
+        "world": 0,
+        "anchorWorld": 77081344,
+        "retentionBefore": -1,
+        "retentionAfter": -1,
+        "player": [
+          628,
+          293
+        ],
+        "target": [
+          692,
+          293
+        ],
+        "after": [
+          692,
+          293
+        ]
+      },
+      {
+        "line": 95,
+        "tick": 11704703,
+        "reason": "registration-reactivated",
+        "slot": 0,
+        "scene": 6459712512,
+        "world": 77081344,
+        "anchorWorld": 77081344,
+        "retentionBefore": 0,
+        "retentionAfter": 1,
+        "player": [
+          380,
+          290
+        ],
+        "target": [
+          0,
+          0
+        ],
+        "after": [
+          0,
+          0
+        ]
+      },
+      {
+        "line": 96,
+        "tick": 11704703,
+        "reason": "teleport",
+        "slot": 0,
+        "scene": 6459712512,
+        "world": 0,
+        "anchorWorld": 77081344,
+        "retentionBefore": -1,
+        "retentionAfter": -1,
+        "player": [
+          380,
+          290
+        ],
+        "target": [
+          316,
+          290
+        ],
+        "after": [
+          316,
+          290
+        ]
+      },
+      {
+        "line": 99,
+        "tick": 11704718,
+        "reason": "registration-reactivated",
+        "slot": 1,
+        "scene": 6459712512,
+        "world": 77081344,
+        "anchorWorld": 77081344,
+        "retentionBefore": 0,
+        "retentionAfter": 1,
+        "player": [
+          380,
+          290
+        ],
+        "target": [
+          0,
+          0
+        ],
+        "after": [
+          0,
+          0
+        ]
+      },
+      {
+        "line": 100,
+        "tick": 11704718,
+        "reason": "teleport",
+        "slot": 1,
+        "scene": 6459712512,
+        "world": 0,
+        "anchorWorld": 77081344,
+        "retentionBefore": -1,
+        "retentionAfter": -1,
+        "player": [
+          380,
+          290
+        ],
+        "target": [
+          380,
+          290
+        ],
+        "after": [
+          380,
+          290
+        ]
+      },
+      {
+        "line": 103,
+        "tick": 11704734,
+        "reason": "registration-reactivated",
+        "slot": 2,
+        "scene": 6459712512,
+        "world": 77081344,
+        "anchorWorld": 77081344,
+        "retentionBefore": 0,
+        "retentionAfter": 1,
+        "player": [
+          380,
+          290
+        ],
+        "target": [
+          0,
+          0
+        ],
+        "after": [
+          0,
+          0
+        ]
+      },
+      {
+        "line": 104,
+        "tick": 11704734,
+        "reason": "teleport",
+        "slot": 2,
+        "scene": 6459712512,
+        "world": 0,
+        "anchorWorld": 77081344,
+        "retentionBefore": -1,
+        "retentionAfter": -1,
+        "player": [
+          380,
+          290
+        ],
+        "target": [
+          444,
+          290
+        ],
+        "after": [
+          444,
+          290
+        ]
+      },
+      {
+        "line": 130,
+        "tick": 11721218,
+        "reason": "registration-reactivated",
+        "slot": 0,
+        "scene": 6459712512,
+        "world": 77081344,
+        "anchorWorld": 77081344,
+        "retentionBefore": 0,
+        "retentionAfter": 1,
+        "player": [
+          276,
+          331
+        ],
+        "target": [
+          0,
+          0
+        ],
+        "after": [
+          0,
+          0
+        ]
+      },
+      {
+        "line": 131,
+        "tick": 11721218,
+        "reason": "teleport",
+        "slot": 0,
+        "scene": 6459712512,
+        "world": 0,
+        "anchorWorld": 77081344,
+        "retentionBefore": -1,
+        "retentionAfter": -1,
+        "player": [
+          276,
+          331
+        ],
+        "target": [
+          212,
+          331
+        ],
+        "after": [
+          212,
+          331
+        ]
+      },
+      {
+        "line": 133,
+        "tick": 11721234,
+        "reason": "registration-reactivated",
+        "slot": 1,
+        "scene": 6459712512,
+        "world": 77081344,
+        "anchorWorld": 77081344,
+        "retentionBefore": 0,
+        "retentionAfter": 1,
+        "player": [
+          276,
+          331
+        ],
+        "target": [
+          0,
+          0
+        ],
+        "after": [
+          0,
+          0
+        ]
+      },
+      {
+        "line": 134,
+        "tick": 11721234,
+        "reason": "teleport",
+        "slot": 1,
+        "scene": 6459712512,
+        "world": 0,
+        "anchorWorld": 77081344,
+        "retentionBefore": -1,
+        "retentionAfter": -1,
+        "player": [
+          276,
+          331
+        ],
+        "target": [
+          276,
+          331
+        ],
+        "after": [
+          276,
+          331
+        ]
+      },
+      {
+        "line": 136,
+        "tick": 11721250,
+        "reason": "registration-reactivated",
+        "slot": 2,
+        "scene": 6459712512,
+        "world": 77081344,
+        "anchorWorld": 77081344,
+        "retentionBefore": 0,
+        "retentionAfter": 1,
+        "player": [
+          276,
+          331
+        ],
+        "target": [
+          0,
+          0
+        ],
+        "after": [
+          0,
+          0
+        ]
+      },
+      {
+        "line": 137,
+        "tick": 11721250,
+        "reason": "teleport",
+        "slot": 2,
+        "scene": 6459712512,
+        "world": 0,
+        "anchorWorld": 77081344,
+        "retentionBefore": -1,
+        "retentionAfter": -1,
+        "player": [
+          276,
+          331
+        ],
+        "target": [
+          340,
+          331
+        ],
+        "after": [
+          340,
+          331
+        ]
+      }
+    ],
+    "captureTotalReactivations": 30,
+    "laterLifecycle": {
+      "file": "adventure-elite-lifecycle-21376-11640906.jsonl",
+      "ordinal": 263,
+      "tick": 11984468,
+      "sceneAttached": [
+        1,
+        1,
+        1
+      ],
+      "weakStrong": [
+        1,
+        1,
+        1
+      ],
+      "controllerBound": [
+        1,
+        1,
+        1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        1
+      ]
+    },
+    "captureExitCode": 0,
+    "battleGaps": 6,
+    "battleGapDetails": [
+      "缺run.json",
+      "战斗采集身份/预算/运行改写标记门禁未通过",
+      "缺原生死亡或CMD39样本",
+      "原生死亡与CMD39计数未闭合",
+      "缺符合来源的精锐击杀者改写样本",
+      "缺服务端归属候选或新死亡记录"
+    ]
+  }
+}
