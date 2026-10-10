@@ -255,6 +255,7 @@ func shopPilotSpaces(p *cashshop.Pilot, receipt database.CashReceipt, balance ui
 	var b inventory.Bag
 	expansion := false
 	avatarExpansion := false
+	closetExpansion := false
 	for _, delivery := range receipt.Deliveries {
 		if _, found, err := p.AvatarInventoryExpansion(delivery.Template); err != nil {
 			return nil, err
@@ -263,6 +264,11 @@ func shopPilotSpaces(p *cashshop.Pilot, receipt database.CashReceipt, balance ui
 		}
 		if cashshop.InventoryExpansionTier(delivery.Template) != 0 {
 			expansion = true
+		}
+		if _, found, err := p.AvatarClosetExpansion(delivery.Template); err != nil {
+			return nil, err
+		} else if found {
+			closetExpansion = true
 		}
 	}
 	if avatarExpansion {
@@ -329,6 +335,18 @@ func shopPilotSpaces(p *cashshop.Pilot, receipt database.CashReceipt, balance ui
 			return nil, err
 		}
 		vaultUpgrade = &outboundPacket{"cera_purchase_vault_expansion", 0, 66, notice}
+	} else if closetExpansion {
+		// 衣柜扩展券：购买即生效、不进背包，只需把新的衣柜槽数同步给客户端。
+		var err error
+		b, err = inventory.ReadBag(receipt.CharacterState)
+		if err != nil {
+			return nil, err
+		}
+		body, err := protocol.AvatarClosetInfo(protocol.AvatarClosetSlots(b.ClosetExpansion))
+		if err != nil {
+			return nil, err
+		}
+		update = outboundPacket{"cera_purchase_avatar_closet_expansion", 0, 1076, body}
 	} else {
 		var e error
 		b, e = inventory.ReadBag(receipt.CharacterState)

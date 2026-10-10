@@ -618,6 +618,9 @@ func (p *Pilot) Purchase(ctx context.Context, ledger BagLedger, account, charact
 	if receipt, applied, handled, err := p.TryPurchaseAvatarInventoryExpansion(ctx, ledger, account, character, key, cart); handled || err != nil {
 		return receipt, applied, err
 	}
+	if receipt, applied, handled, err := p.TryPurchaseAvatarClosetExpansion(ctx, ledger, account, character, key, cart); handled || err != nil {
+		return receipt, applied, err
+	}
 	if receipt, applied, handled, err := p.TryPurchaseInventoryExpansion(ctx, ledger, account, character, key, cart); handled || err != nil {
 		return receipt, applied, err
 	}
