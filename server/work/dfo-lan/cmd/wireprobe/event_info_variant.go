@@ -40,8 +40,18 @@ package main
 //	plain            未合并的 19 行表 —— 复现「城里没有活动图标」。
 //	legacy           旧架构那份 54 B / 1 条 —— 更早的现场配置，仅留档取证。
 //
-// 由 `configs/pvf-default.json` 的 `environment.DFO_EVENT_INFO_VARIANT` 控制
-// （启动器读 profile 的 environment 注入子进程），**换值只需重启，不必重编**。
+// 由**进程环境变量**注入，**换值只需重启，不必重编**。
+//
+// ⚠️ 订正（2026-10-10）：这里原来写「由 configs/pvf-default.json 的 environment 控制」，
+// **不成立** —— `internal/launcher/profile.go` 的 `applyEnvironment` 对键名是**严格白名单**
+// （`pathKeys` / `flagKeys` / 若干显式分支，兜底 `default: return invalidProfileValue(key)`），
+// 键不在名单里会让 `LoadProfile` 直接报错 ⇒ **服务端起不来**。所以别往 profile 里加这类键。
+//
+// 正确的用法是在启动那个 cmd 会话里先设环境变量（启动器用 `os.Environ()` 打底拼子进程环境，
+// 见 internal/launcher/env.go 的 CurrentEnv 与 gateway.go 的 newChildEnv）：
+//
+//	set DFO_EVENT_INFO_VARIANT=plain && 调试启动-本地构建.cmd
+//	set DFO_EVENT_INFO_ACTIVITY=off   && 调试启动-本地构建.cmd
 import (
 	"dfolan/internal/boostup"
 	"dfolan/internal/game/protocol"
@@ -76,12 +86,21 @@ var townEventInfoTable = func() []byte {
 	return eventInfoTable
 }()
 
-// buildTownEventInfoTable 把活动行追加到生成表之后，得到「频道门 + 活动行」的
-// 单张表。两个生产者（本函数与选角/进城两条 108）用的行长完全一致
-// （`u16 id, u8×3, str×3, u32 start, u32 end, str×2, u8 flag`），所以这里直接
-// 复用选角那条 108 已经在用的同一个编码器，**不在这里重新敲一遍行字节**
-// （§0.2 单一规则）。challenge = 是否附带毕业后的 665 行（按 boostup 目录里
-// 是否真的绑上了挑战行决定，不靠额外的开关）。
+// buildTownEventInfoTable 把两类活动行追加到频道门表之后，得到
+// 「频道门 + 运营活动行 + Boost Up 活动行」的单张表。三个生产者（本函数与选角/进城两条 108）
+// 用的行长完全一致（`u16 id, u8×3, str×3, u32 start, u32 end, str×2, u8 flag`），所以这里
+// 直接复用同一个编码器与同一份官服切片，**不在这里重新敲一遍行字节**（§0.2 单一规则）。
+//
+//	official  event_infoTable 的 19 条军团/攻坚战页签门
+//	activity  event_info_activity.go 里按 id 列出的运营活动行（目前只有每日签到 331）
+//	boostRow  protocol.BoostOpeningEvents115 的 10017/10018/662（+ 毕业后的 665）
+//
+// 顺序固定为**官方门 → 运营活动 → Boost Up**，为的是让 665 始终是最后一行：
+// TestTownEventInfoTableCountFollowsRows 用「challenge=true 的表以 challenge=false 的表
+// 为前缀、多出来的那一段正好是 665」来钉住追加语义，插入点在末尾之前就不会破坏它。
+//
+// challenge = 是否附带毕业后的 665 行（按 boostup 目录里是否真的绑上了挑战行决定，
+// 不靠额外的开关）。activity 由 DFO_EVENT_INFO_ACTIVITY 控制（见 event_info_activity.go）。
 func buildTownEventInfoTable(challenge bool) ([]byte, bool) {
 	var args []bool
 	if challenge {
@@ -99,13 +118,20 @@ func buildTownEventInfoTable(challenge bool) ([]byte, bool) {
 	added := len(rows) - 3 // 去掉前导 count(2) 与尾部 0x00
 	boostRows := rows[2 : len(rows)-1]
 	official := base[2 : len(base)-1]
+	activity := activityEventInfoRows()
 
-	// 追加条数取编码器自己报的 count，而不是写死 3：打开 665 时这里是 4 条，
+	// 追加条数取各来源自己报的条数，而不是写死 3：打开 665 时这里是 4 条，
 	// 写死会让表头声明的行数比正文少 1，客户端按 count 读取就丢掉最后一行。
-	total := binary.LittleEndian.Uint16(base[:2]) + binary.LittleEndian.Uint16(rows[:2])
-	out := make([]byte, 0, len(base)+added)
+	// 活动行同理 —— 条数取 eventInfoActivityIDs 的长度（测试保证它与 hex 里的条数一致）。
+	activityCount := uint16(0)
+	if len(activity) > 0 {
+		activityCount = uint16(len(eventInfoActivityIDs))
+	}
+	total := binary.LittleEndian.Uint16(base[:2]) + activityCount + binary.LittleEndian.Uint16(rows[:2])
+	out := make([]byte, 0, len(base)+len(activity)+added)
 	out = append(out, byte(total), byte(total>>8))
 	out = append(out, official...)
+	out = append(out, activity...)
 	out = append(out, boostRows...)
 	return append(out, 0), true
 }

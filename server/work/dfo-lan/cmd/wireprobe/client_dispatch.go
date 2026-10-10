@@ -63,6 +63,9 @@ var commandDispatch = [...]clientDispatchStage{
 	(*gameConnection).dispatchWorldAndQuests,
 	(*gameConnection).dispatchCharacterEntry,
 	(*gameConnection).dispatchRoster,
+	// dispatchAttendanceClaim 排在 dispatchBoostEvent 之前：两者都处理 CMD680，
+	// 签到那一站只在载荷里的活动号 == 331 时接管，其余原样放行（见 attendance_claim.go）。
+	(*gameConnection).dispatchAttendanceClaim,
 	(*gameConnection).dispatchBoostEvent,
 	(*gameConnection).dispatchFixtureResponse,
 }

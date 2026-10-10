@@ -2,6 +2,7 @@ package gamedata
 
 import (
 	"dfolan/internal/adventure"
+	"dfolan/internal/attendance"
 	"dfolan/internal/boostup"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
@@ -63,6 +64,7 @@ type Catalogs struct {
 	MaxLevelReward               *catalog.MaxLevelReward
 	Bakal                        *catalog.BakalRaidRules
 	BoostUp                      *boostup.Catalog
+	Attendance                   *attendance.Catalog
 	RaidEntrances                map[uint32]catalog.RaidEntrance
 	MazeRates                    *catalog.MazeChanceOverlay
 	HellMaps                     *catalog.SourceMapOverlay
@@ -103,6 +105,8 @@ type Catalogs struct {
 	Dungeons, TrainingDungeons, TutorialDungeons *catalog.DungeonCatalog
 	Vault                                        *inventory.VaultRules
 	// BoostUp 是活动 662（新手成长胶囊）的原生目录；nil = 该直读域未选中。
+	// Attendance 是活动 331（每日签到）的原生目录；nil = 源读取失败（只降级，不熔断，
+	// 见 catalogs_attendance.go）。
 }
 
 type CatalogInputs struct {
@@ -573,6 +577,7 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 	if err := preparePVFFame(&result, source, selected, inputs); err != nil {
 		return &result, err
 	}
+	preparePVFAttendance(&result, source)
 	if err := preparePVFBoostUp(&result, source, selected, inputs); err != nil {
 		return &result, err
 	}

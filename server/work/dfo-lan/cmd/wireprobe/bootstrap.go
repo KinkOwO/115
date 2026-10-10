@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/attendance"
 	"dfolan/internal/boostup"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
@@ -42,6 +43,7 @@ type gatewayRuntime struct {
 	apocalypseClock       *legion.ApocalypseClock
 	boosterCatalog        *BoosterCatalog
 	boostCatalog          *boostup.Catalog
+	attendanceCatalog     *attendance.Catalog
 	boostEventInfo        []byte
 	characters            *character.Service
 	channelDirectory      *catalog.ChannelDirectory
@@ -1754,6 +1756,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		bakalRewardService:    newBakalRewardService(gameStore, lootService, pvfCatalogs.Bakal),
 		boosterCatalog:        boosterCatalog,
 		boostCatalog:          boostCatalog,
+		attendanceCatalog:     pvfCatalogs.Attendance,
 		boostEventInfo:        boostEventInfo,
 		characters:            characters,
 		channelDirectory:      pvfCatalogs.ChannelDirectory,
