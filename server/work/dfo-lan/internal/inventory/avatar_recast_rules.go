@@ -24,6 +24,12 @@ type AvatarRecastRules struct {
 
 // Option IDs are explicit source keys, not row offsets. Current native
 // 147184690/147189710 read four-cell stat rows and five-cell SKILL_LEVEL rows.
+// AvatarAbilityOptions parses the explicit PVF ability keys shared by recasting
+// and buying an avatar; it does not infer options from [avatar type select].
+func AvatarAbilityOptions(cells []pvf.Token) (map[uint16]string, error) {
+	return avatarRecastOptions(cells)
+}
+
 func avatarRecastOptions(cells []pvf.Token) (map[uint16]string, error) {
 	options := map[uint16]string{}
 	for i := 0; i < len(cells); {
