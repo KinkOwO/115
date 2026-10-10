@@ -243,6 +243,8 @@ if ($done.Count -gt 0 -and $selectionReturned -and $returnAccepted -and $lifeUi.
 }
 $entryDecision = @($events | Where-Object { $_.kind -eq 'adventure_elite_entry_probe' -and $_.accepted -and !$_.battle_enabled })
 $entryProbeObservations=@($events | Where-Object {$_.kind -eq 'adventure_elite_entry_probe'})
+$specialElitePackets=@($events | Where-Object {$_.kind -eq 'adventure_elite_special_packet_sent'})
+$moonEliteEntries=@($entryProbeObservations | Where-Object {$_.candidate_stage -eq 'moon-solo'})
 $odysseyEntryObservations=@($entryProbeObservations | Where-Object {$_.odyssey -eq $true -or $_.requested_source_odyssey -eq $true})
 $odysseyFlowObservations=@($events | Where-Object {$_.kind -match 'odyssey' -or $_.name -match 'odyssey' -or $_.id -in @(2856)})
 $storyEntryObservations=@($entryProbeObservations | Where-Object {$_.candidate_stage -eq 'ordinary-story' -or $_.requested_quest -gt 0})
@@ -411,7 +413,7 @@ if($status.version -in @('0.3.8','0.3.9','0.3.10')) {
     if(!$ownedWrites.Count){$ownedIssues.Add('尚无符合来源条件的精锐击杀者改写样本。')}
     if(!$serverCombat.Count -or !$ownedFresh.Count){$ownedIssues.Add('缺服务端归属候选处理或归属新死亡记录。')}
     foreach($row in $serverCombat) {
-        if($row.candidate_version -notin @('0.3.8','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17') -or $row.frozen_owner -ne $row.character_id -or $row.frozen_channel -ne $row.channel_type -or $row.client_acceptance -ne 'pending'){$ownedIssues.Add('服务端候选版本/冻结身份字段不符。')}
+        if($row.candidate_version -notin @('0.3.8','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19') -or $row.frozen_owner -ne $row.character_id -or $row.frozen_channel -ne $row.channel_type -or $row.client_acceptance -ne 'pending'){$ownedIssues.Add('服务端候选版本/冻结身份字段不符。')}
     }
     foreach($issue in $ownedIssues){$issues.Add($issue)}
 }
@@ -463,7 +465,7 @@ $summary = [ordered]@{
     postReturnCloneVerified = ($null -ne $postReturn); postReturnCloneObservation = $postReturn
     ownerIdentitySamples = $ownerSamples.Count; latestOwnerIdentityObservation = ($ownerSamples | Select-Object -Last 1)
     sceneAttachedObserved = (@($ownerSamples | Where-Object { 1 -in $_.sceneAttached }).Count -gt 0)
-    entryProbeDecisions = $entryDecision; entryProbeObservations = $entryProbeObservations; storyEntryObservations = $storyEntryObservations; odysseyEntryObservations = $odysseyEntryObservations; odysseyFlowObservations = $odysseyFlowObservations; odysseyVerified = $false; entryRecords = $entry.Count; entryGateObservations = $entryGates
+    entryProbeDecisions = $entryDecision; entryProbeObservations = $entryProbeObservations; moonEliteEntryObservations=$moonEliteEntries; specialElitePacketObservations=$specialElitePackets; storyEntryObservations = $storyEntryObservations; odysseyEntryObservations = $odysseyEntryObservations; odysseyFlowObservations = $odysseyFlowObservations; odysseyVerified = $false; entryRecords = $entry.Count; entryGateObservations = $entryGates
     entryProbeCoverageComplete = [bool]$entryComplete; latestEntryObservation = ($entryAfter | Select-Object -Last 1)
     nativeRegistrationObserved = (@($entry | Where-Object { $_.phase -eq 'native-registration-result' -and $_.nativeResult -ne 0 }).Count -gt 0)
     registrationScopeObservations = $registrationScope; registrationScopeAccepted = $registrationAllowed.Count -gt 0

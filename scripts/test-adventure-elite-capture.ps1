@@ -410,3 +410,32 @@ $warpSummary=[IO.File]::ReadAllText((Join-Path $odysseyOutput 'session/summary.j
 Assert ($warpSummary.ownedCombatIssues.Count -eq 0 -and $warpSummary.allFreshEntriesRegistered) 'Server0.3.17 changed native evidence schema'
 Assert (!$warpSummary.odysseyVerified -and !$warpSummary.battleVerified) 'stable-warp fixture fabricated live acceptance'
 Write-Host 'Server0.3.17 stable-warp capture fixture passed; manual teleport/reentry acceptance remains pending.'
+
+# Moon uses the same capture schemas. A synthetic observation is not live acceptance.
+foreach($row in $reloadRows) {
+ if($row.PSObject.Properties['candidate_version']){$row.candidate_version='0.3.18'}
+}
+$moonRows=@($reloadRows)+@(@{kind='adventure_elite_entry_probe'; candidate_version='0.3.18'; candidate_stage='moon-solo'; accepted=$true; entry_opcode=0; entry_path='existing-moon-solo-plan'; moon_attempt='1/3'})
+[IO.File]::WriteAllText((Join-Path $odysseySession 'events.jsonl'),(($moonRows | ForEach-Object {$_ | ConvertTo-Json -Depth 20 -Compress}) -join [Environment]::NewLine),$utf8)
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector -SessionPath $odysseySession -PatchDirectory $fullRosterPatch -OutputRoot $odysseyOutput | Out-Null
+Assert ($LASTEXITCODE -eq 0) 'Server0.3.18 Moon capture failed'
+$moonSummary=[IO.File]::ReadAllText((Join-Path $odysseyOutput 'session/summary.json')) | ConvertFrom-Json
+Assert ($moonSummary.ownedCombatIssues.Count -eq 0) 'Server0.3.18 changed owned combat evidence schema'
+Assert (!$moonSummary.allFreshEntriesRegistered) 'Moon entry without native loader evidence must not pass registration'
+Assert ($moonSummary.moonEliteEntryObservations.Count -eq 1) 'Moon entry observation missing'
+Assert (!$moonSummary.odysseyVerified -and !$moonSummary.battleVerified) 'Moon fixture fabricated live acceptance'
+Write-Host 'Server0.3.18 compatibility fixture passed; Moon live acceptance remains pending.'
+
+# Channel permission changes neither native capture schemas nor success criteria.
+foreach($row in $reloadRows) {
+ if($row.PSObject.Properties['candidate_version']){$row.candidate_version='0.3.19'}
+}
+$specialRows=@($reloadRows)+@(@{kind='adventure_elite_special_packet_sent'; candidate_version='0.3.19'; id=28; channel_type=81; client_acceptance='pending'})
+[IO.File]::WriteAllText((Join-Path $odysseySession 'events.jsonl'),(($specialRows | ForEach-Object {$_ | ConvertTo-Json -Depth 20 -Compress}) -join [Environment]::NewLine),$utf8)
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector -SessionPath $odysseySession -PatchDirectory $fullRosterPatch -OutputRoot $odysseyOutput | Out-Null
+Assert ($LASTEXITCODE -eq 0) 'Server0.3.19 special-channel capture failed'
+$specialSummary=[IO.File]::ReadAllText((Join-Path $odysseyOutput 'session/summary.json')) | ConvertFrom-Json
+Assert ($specialSummary.ownedCombatIssues.Count -eq 0 -and $specialSummary.allFreshEntriesRegistered) 'Server0.3.19 changed existing native evidence schema'
+Assert ($specialSummary.specialElitePacketObservations.Count -eq 1) 'Special packet observation missing'
+Assert (!$specialSummary.odysseyVerified -and !$specialSummary.battleVerified) 'Special packet fixture cannot certify live acceptance'
+Write-Host 'Server0.3.19 capture fixture passed; each special executor live acceptance remains pending.'

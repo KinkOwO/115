@@ -371,3 +371,7 @@ go run ./cmd/pvfaudit -selection-scope -pvf-archive .tmp/pvf-source-rules/Script
 本次真实审计覆盖全部 16,757 条，退出码 2 表示上述解析缺口已经记录，不表示全部可运行。通过 `go run` 执行时 Go 会把程序退出码 2 报告为 `exit status 2`，包装进程可能返回 1；编译后直接运行可读取原始退出码。
 
 新增真实归档测试通过：候选计数覆盖完整、报告限额不改变统计、问题顺序稳定、源索引不被修改、异源索引与负限额被拒绝。使用 Go 1.26.0 执行全量 `go test ./...`、`go vet ./...` 均通过；配置审计脚本在 Python 3.11 上生成的报告与系统 Python 输出一致，`git diff --check` 通过。
+
+## Boost 教程装备变换关联规则复查
+
+同源 `live/event/kor/2026/0326_boostup/boostup.evt [discount cost]` 已经由 `boostup.JournalTransformDiscount` 解析；`internal/inventory/equipment_journal_operations.go:PrepareEquipmentTransform` 仍按 `TutorialMode && unpriced` 使用此前业主明确保留的教学免单特例，未直接消费上述折扣规则。此次装备变换路由纠错仅移除错误的 panel=36 门禁，改用已领取的当前源任务，不修改费用；不能记为折扣收敛完成。后续待客户端折扣字段语义与旧特例适用范围闭环后，接通既有 reader 或明确保留授权差异，不新建第二套玩法表。证据、候选身份和本轮全量 build/vet/test 结果见 [路由纠错记录](../../../server/work/dfo-lan/docs/protocol/boostup662-transform-routing-20261010.md)。

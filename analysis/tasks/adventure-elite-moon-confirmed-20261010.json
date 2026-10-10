@@ -1,0 +1,49 @@
+{
+  "status": "user-confirmed-appearance",
+  "userAcceptance": "APC队友确认出现",
+  "scope": "Moon special channel APC appearance only; user then authorized expansion to all server-supported special channels. No blanket raid/legion/floor/rewards acceptance inferred.",
+  "candidateVersion": "0.3.18",
+  "serverSHA256": "3d10ef014b746ca1663a6221e1e09d0c01941f87a0c5318e9b530ccd1b99635a",
+  "DLLVersion": "0.3.10",
+  "DLLSHA256": "a46493c61f54fef1ec52852cd8e02383722a10d53587db343a96fc09b6f89099",
+  "candidate": "analysis/tasks/adventure-elite-moon-candidate-20261010.json",
+  "capture": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261010_044909_699398_next37",
+  "processId": 9828,
+  "runTick": 16288750,
+  "candidateValid": true,
+  "pidMatch": true,
+  "entries": [
+    {
+      "candidate_version": "0.3.18",
+      "accepted": true,
+      "entry_serial": 1,
+      "dungeon": 100004136,
+      "map": 100012763,
+      "channel_type": 101,
+      "run_id": "e29442b7c1448b51d02090f8f1a1830f",
+      "moon_resuming": false,
+      "entry_path": "existing-moon-solo-plan"
+    },
+    {
+      "candidate_version": "0.3.18",
+      "accepted": true,
+      "entry_serial": 2,
+      "dungeon": 100004137,
+      "map": 100012843,
+      "channel_type": 101,
+      "run_id": "e29442b7c1448b51d02090f8f1a1830f",
+      "moon_resuming": false,
+      "entry_path": "existing-moon-solo-plan"
+    }
+  ],
+  "issues": [
+    "缺少服务端会话文件：run.json",
+    "战斗日志进程/代次/版本不符、丢弃/上限或出现运行改写标记。",
+    "归属写入缺同线程同受害对象的原生来源父调用。",
+    "原生死亡发送与服务端 CMD39 数量不一致，不能声称覆盖完整。",
+    "缺服务端归属候选处理或归属新死亡记录。",
+    "新副本加载的RunID缺失或重复。"
+  ],
+  "gates": "build/vet/full tests exit0; 4108 passed/273 skipped; actual PVF first-entry/resume and complete offline capture fixture passed.",
+  "compatibility": "No PVF/schema/save changes; existing native one-real-member Moon party preserved."
+}
