@@ -359,6 +359,13 @@ func (client *gameConnection) serve() {
 						return
 					}
 				}
+				// 周切不等客户端来问：本函数按 now 重算账本、与上次发出的 body 不同才发，
+				// 所以挂进 30 秒 tick 不会变成周期重发；「不在副本中」沿用 C35 路径那道门。
+				if client.worldState.activeDungeon == nil {
+					if e := client.worldState.syncBakalWeeklyQuota(now, client.output.send, client.event); e != nil {
+						client.event(map[string]any{"kind": "bakal_weekly_quota_sync_failed", "error": e.Error()})
+					}
+				}
 			}
 			continue
 		}
