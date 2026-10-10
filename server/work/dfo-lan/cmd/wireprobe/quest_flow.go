@@ -13,6 +13,7 @@ import (
 	"dfolan/internal/world"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"time"
@@ -64,6 +65,16 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 		return nil, e
 	}
 	result.Role.WireID = w.role.WireID
+	// 任务/升级事件脚本的奖励（grant_item、角色待遇）是在 Finish 内部那笔提交**之后**才落库的，
+	// result.Role 里没有它们；下面每一帧都由它编码，于是东西进了库、帧里却没有 —— 发奖白给。
+	// 回读失败就照旧按原状态编码：取证动作不能把已完成的任务卡在结算里。
+	var rewardGranted rewardDelta
+	if committed, granted, e := w.rewardStateAfterCommit(ctx, result.Role); e == nil {
+		result.Role = committed
+		rewardGranted = granted
+	} else {
+		log.Printf("quest reward reload failed role=%d quest=%d: %v", result.Role.ID, r.ID, e)
+	}
 	active, e := w.quests.Active(ctx, result.Role)
 	if e != nil {
 		return nil, e
@@ -116,7 +127,10 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 	// town even though the balance is committed. Live capture 20260911T215854
 	// shows quest 3149 crediting 4300 gold with no items and no NOTI13, so the
 	// on-screen number stayed put until the next relog.
-	if len(result.Receipt.Items) > 0 || len(result.Receipt.Consumed) > 0 || result.Receipt.Gold > 0 {
+	// 事件脚本在提交之后发的那批东西也走这一帧：回执本身可能一样都不动，但库里已经多
+	// 了物品/金币/宠物，rewardGranted 就是它变了、而回执里看不见的判据。
+	if len(result.Receipt.Items) > 0 || len(result.Receipt.Consumed) > 0 || result.Receipt.Gold > 0 ||
+		rewardGranted.bag || rewardGranted.pet {
 		accountMaterial := false
 		for _, item := range result.Receipt.Items {
 			if _, ok := inventory.AccountMaterialSlot(item.Template); ok {
@@ -164,7 +178,7 @@ func (w *worldSession) finishQuest(r protocol.QuestSubmitRequest) ([]outboundPac
 	// A reward that opened an extended equipment slot has to be republished:
 	// the client keeps showing the padlock until the new unlock byte arrives
 	// in a USERINFO1 addition, even though the slot is already saved.
-	if result.Receipt.UnlockedEquipment != 0 {
+	if result.Receipt.UnlockedEquipment != 0 || rewardGranted.addition {
 		refresh, e := w.unlockRefresh(result.Role)
 		if e != nil {
 			return nil, e
