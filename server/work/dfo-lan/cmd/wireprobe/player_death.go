@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/legion"
 	"encoding/hex"
 	"fmt"
 	"time"
@@ -108,8 +109,32 @@ func (c *gameConnection) deathLeave(reason byte, sendFailClear bool) {
 	}
 	w := c.worldState
 	d := w.pilotDeath
-	if d == nil || !d.Dead || w.activeDungeon == nil {
+	if d == nil || !w.deathAttemptActive(d.Run, d.Sequence) {
 		return
+	}
+	if w.ownsApocalypseDungeon() {
+		result, err := c.legionState.prepareApocalypseDeathReturn(w, d.Run, d.Sequence)
+		if err != nil {
+			c.event(map[string]any{"kind": "apocalypse_death_return_refused", "reason": err.Error()})
+			return
+		}
+		if c.sendPlan(result.Packets, c.logCharacterResponseBody) != nil {
+			return
+		}
+		c.finishApocalypseDeathReturn(result)
+		return
+	}
+	// 维纳斯军团口径（2026-10-07 业主要求）：死亡被请离副本后，再次进入同关
+	// 必须重置关卡倒计时——清掉该阶段的冻结开始时刻，重进后从满额时限重新
+	// 起算（第三十八轮「死亡重载复用原值」的口径就此作废）。进度/难度锁/
+	// 遗物保留不变；复活币复活（不请离）不受影响，超时判定照常。
+	if w.venus != nil && w.venus.entered {
+		if stage, err := legion.VenusStageOfDungeon(w.activeDungeon.Definition.ID); err == nil &&
+			stage >= 0 && stage < len(w.venus.stageClock) {
+			w.venus.stageClock[stage] = time.Time{}
+			c.event(map[string]any{"kind": "venus_death_stage_timer_reset", "character_id": w.role.ID,
+				"stage": stage})
+		}
 	}
 	// [AZURE-DEATH-AFTER-CLEAR] 结算已经走完的**只回城、不补 FAIL_CLEAR**：
 	// 补了会把一场已经通关并发了奖的挑战标成失败。
@@ -161,4 +186,12 @@ func (w *worldSession) deathAfterSettlement() ([]outboundPacket, error) {
 		{"player_death_ack", 1, 40, []byte{1}},
 		{"player_death_state", 0, 32, body},
 	}, nil
+}
+
+// Timers are bound to one death report. An old timer must not terminate a
+// later death or a new dungeon after a revive, reconnect or room return.
+func (w *worldSession) deathAttemptActive(run string, sequence uint32) bool {
+	return w != nil && w.pilotDeath != nil && w.pilotDeath.Dead &&
+		w.activeDungeon != nil && w.pilotDeath.Run == run &&
+		w.pilotDeath.Sequence == sequence && w.activeDungeon.RunID == run
 }

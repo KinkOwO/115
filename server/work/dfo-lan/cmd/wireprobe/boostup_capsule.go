@@ -5,10 +5,10 @@ import (
 	"dfolan/internal/boostup"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/database"
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
@@ -174,6 +174,15 @@ func (w *worldSession) useBoostCapsule(p []byte) ([]outboundPacket, error) {
 	if !found {
 		return nil, fmt.Errorf("slot %d is not a source boost capsule", r.Slot)
 	}
+	// Resolve external presentation data before the character write transaction.
+	// Profile-frame restoration may initialize rows; calling it from packet
+	// preflight would open a nested SQLite write and roll back capsule use.
+	projection, e := w.characters.WithEntryProjectionSnapshot(w.role)
+	if e != nil {
+		return nil, e
+	}
+	view := *w
+	view.characters = projection
 	var plan []outboundPacket
 	next, receipt, applied, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).UseBoostCapsule(ctx, w.role, w.boostup, r.Slot, capsule.Variant,
 		func(role database.Character, target byte) (database.Character, error) {
@@ -187,14 +196,14 @@ func (w *worldSession) useBoostCapsule(p []byte) ([]outboundPacket, error) {
 			if _, _, err = boostWorldTarget(w.service, w.boostup, event, receipt.Level, w.ordinaryBoostChannel()); err != nil {
 				return err
 			}
-			plan, err = boostCapsuleRefresh(w, role, receipt, roles, false)
+			plan, err = boostCapsuleRefresh(&view, role, receipt, roles, false)
 			return err
 		}, origin)
 	if e != nil {
 		return nil, e
 	}
 	if !applied {
-		plan, e = boostCapsuleRefresh(w, next, receipt, roles, true)
+		plan, e = boostCapsuleRefresh(&view, next, receipt, roles, true)
 		if e != nil {
 			return nil, e
 		}

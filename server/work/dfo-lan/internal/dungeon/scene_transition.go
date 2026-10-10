@@ -26,7 +26,7 @@ func (s *Session) lotusClosingRevisit(r protocol.DungeonRoomTransition) bool {
 }
 
 func (s *Session) MoveScene(c catalog.DungeonCatalog, r protocol.DungeonRoomTransition) (*Session, error) {
-	if s == nil || !s.Loaded || !r.LayerChange || s.Completed() {
+	if s == nil || !s.Loaded || !r.LayerChange || (s.Completed() && !s.layerPendingUnvisited([2]byte{s.Room.X, s.Room.Y})) {
 		return nil, fmt.Errorf("scene transition requires owned cleared loaded room")
 	}
 	// [MERGE-20260928-DIAG] 每次换图重新采集决策路径。

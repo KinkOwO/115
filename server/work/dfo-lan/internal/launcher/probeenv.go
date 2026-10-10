@@ -35,29 +35,29 @@ type EnvRule struct {
 // up as a missing feature in game rather than as a start-up error.
 var probeEnvRules = []EnvRule{
 	{
-		Variable:         "DFO_ODYSSEY_COIN_RULES",
-		OverrideEnv:      "DFO_ODYSSEY_COIN_RULES",
-		DefaultRelative:  "configs/odyssey-currency.json",
+		Variable:        "DFO_ODYSSEY_COIN_RULES",
+		OverrideEnv:     "DFO_ODYSSEY_COIN_RULES",
+		DefaultRelative: "configs/odyssey-currency.json",
 	},
 	{
-		Variable:         "DFO_ODYSSEY_WEAPON_BOX",
-		OverrideEnv:      "DFO_ODYSSEY_WEAPON_BOX",
-		DefaultRelative:  "configs/odyssey-weapon-box-release.json",
+		Variable:        "DFO_ODYSSEY_WEAPON_BOX",
+		OverrideEnv:     "DFO_ODYSSEY_WEAPON_BOX",
+		DefaultRelative: "configs/odyssey-weapon-box-release.json",
 	},
 	{
-		Variable:         "DFO_ODYSSEY_GROWTH",
-		OverrideEnv:      "DFO_ODYSSEY_GROWTH",
-		DefaultRelative:  "configs/odyssey-growth-release.json",
+		Variable:        "DFO_ODYSSEY_GROWTH",
+		OverrideEnv:     "DFO_ODYSSEY_GROWTH",
+		DefaultRelative: "configs/odyssey-growth-release.json",
 	},
 	{
-		Variable:         "DFO_ODYSSEY_CHAPTERS",
-		OverrideEnv:      "DFO_ODYSSEY_CHAPTERS",
-		DefaultRelative:  "configs/odyssey-chapters-release.json",
+		Variable:        "DFO_ODYSSEY_CHAPTERS",
+		OverrideEnv:     "DFO_ODYSSEY_CHAPTERS",
+		DefaultRelative: "configs/odyssey-chapters-release.json",
 	},
 	{
-		Variable:         "DFO_ODYSSEY_CHAPTER_DROP",
-		OverrideEnv:      "DFO_ODYSSEY_CHAPTER_DROP",
-		DefaultRelative:  "configs/odyssey-chapter-drop-release.json",
+		Variable:        "DFO_ODYSSEY_CHAPTER_DROP",
+		OverrideEnv:     "DFO_ODYSSEY_CHAPTER_DROP",
+		DefaultRelative: "configs/odyssey-chapter-drop-release.json",
 	},
 	{
 		// The one rule whose override is not named by its own variable: the Python tests

@@ -146,8 +146,8 @@ type SoleEquipmentInfo struct {
 	// 客户端自己播这段动画，服务端**不消费**它们。解析出来只有一个用途：回包时机的
 	// 对照实验 —— 实机 2026-10-02 发现"三件里只有时长最短的那件播了动画"，怀疑是
 	// ack 回得太早让客户端判定已完成、直接跳过演出（见 cmd/wireprobe/sole_flow.go）。
-	CreateMovieTime int `json:"create_movie_time,omitempty"`
-	CreateWaitTime  int `json:"create_wait_time,omitempty"`
+	CreateMovieTime int   `json:"create_movie_time,omitempty"`
+	CreateWaitTime  int   `json:"create_wait_time,omitempty"`
 	Boundaries      []int `json:"boundaries,omitempty"`
 }
 

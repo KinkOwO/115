@@ -36,7 +36,7 @@ func preparePVFAdventure(c *Catalogs, s *Source, selected map[string]bool, i Cat
 	}
 	c.AdventureRules = direct
 	s.ReleaseReadCaches()
-	log.Printf("PVF adventure prepared: levels=%d shops=%d items=%d; limits, prices, experience and reset rules retained", len(direct.Experience), len(direct.Shops), len(direct.Items))
+	log.Printf("PVF adventure prepared: levels=%d shops=%d items=%d symbols=%d elite_modes=%d; native elite dungeon bindings retained", len(direct.Experience), len(direct.Shops), len(direct.Items), len(direct.Symbols), len(direct.EliteContents))
 	return nil
 }
 
@@ -54,7 +54,24 @@ func auditAdventureRules(old, direct *adventure.Rules) error {
 		}
 		baseline.SourceChecksum = direct.SourceChecksum
 	}
-	return auditPVFCatalog(&baseline, direct)
+	// The legacy projection predates symbols. Compare its original scope only;
+	// the newly imported source map is independently validated by ImportRules.
+	comparison := *direct
+	if len(baseline.Symbols) == 0 {
+		comparison.Symbols = nil
+	}
+	if len(baseline.EliteContents) == 0 {
+		comparison.EliteContents = nil
+	}
+	comparison.Sources = make(map[string]string, len(direct.Sources))
+	for k, v := range direct.Sources {
+		if (k == "etc/airshipcustomobject.etc" && len(baseline.Symbols) == 0) ||
+			(k == adventure.EliteContentsPath && len(baseline.EliteContents) == 0) {
+			continue
+		}
+		comparison.Sources[k] = v
+	}
+	return auditPVFCatalog(&baseline, &comparison)
 }
 
 func (c *Catalogs) InstallAdventureRules() (func(), error) {
@@ -576,6 +593,10 @@ func preparePVFSpecial(c *Catalogs, s *Source, selected map[string]bool, inputs 
 			}
 		}
 		c.Apocalypse = direct
+		c.LegionContents, err = s.LegionContents()
+		if err != nil {
+			return err
+		}
 		log.Printf("PVF apocalypse prepared: records=%d operations=%d phases=%d duty records=%d; positional rewards and operation behavior retained", direct.RecordCount, len(direct.Operations), len(direct.PhaseClock), len(direct.Duties.Records))
 		s.ReleaseReadCaches()
 	}

@@ -1,0 +1,12 @@
+{
+  "unknown_prefix": 0,
+  "fatigue_fields": [0, 0, 0],
+  "cash": 0,
+  "quest_fields": [0, 0, 0, 0],
+  "world_kind": 0,
+  "tutorial_flag": 0,
+  "tutorial_completed": [],
+  "tail_u16": [0, 0],
+  "arena_broadcast": 0,
+  "fatigue_tail": 0
+}

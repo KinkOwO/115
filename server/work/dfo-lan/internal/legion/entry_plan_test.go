@@ -64,6 +64,17 @@ func TestApocalypseEntryPlanUsesSourceDestinations(t *testing.T) {
 	if p.Destinations[0] != 100005112 || p.Destinations[5] != 100004994 || p.Waiting.X != 727 || p.MinimumLevel != 115 {
 		t.Fatal(p)
 	}
+	// Alter source rules while preserving the native six-record wire shape.
+	content.LimitLevel = 120
+	content.Waiting = catalog.LegionAreaPoint{Town: 300, Area: 4, X: 33, Y: 44}
+	content.Recruiting = catalog.LegionAreaPoint{Town: 301, Area: 5, X: 55, Y: 66}
+	content.SelectLimit = 600
+	contents.Contents["Apocalypse"] = content
+	c.PhaseClock[0].Seconds = 4200
+	p, e = BuildEntryPlan(contents, c, dc, dungeon.ValidateSelection)
+	if e != nil || p.MinimumLevel != 120 || p.Waiting != content.Waiting || p.Recruiting != content.Recruiting || p.SelectionTimeout.Seconds() != 600 || p.PhaseSeconds[0].Seconds() != 4200 {
+		t.Fatalf("source rules did not propagate: %+v %v", p, e)
+	}
 	delete(dc.Dungeons, content.Dungeons[2].Dungeon)
 	if _, e = BuildEntryPlan(contents, c, dc, dungeon.ValidateSelection); e == nil {
 		t.Fatal("missing phase accepted")

@@ -81,7 +81,7 @@ type TransformPaymentOption struct {
 
 // TransformNeedRow 是 `[need …]` 里的一条 `[info]`：一个稀有度 + 它的可选付法。
 type TransformNeedRow struct {
-	Rarity  string                  `json:"rarity"`
+	Rarity  string                   `json:"rarity"`
 	Options []TransformPaymentOption `json:"options,omitempty"`
 }
 
@@ -204,7 +204,7 @@ func ImportEquipmentTransformSystem(a *pvf.Archive) (EquipmentTransformSystem, e
 	return parsed, nil
 }
 
-// transformRarityFromHead 从 `115 \`rare\`` 这类头里取稀有度名。
+// transformRarityFromHead 从 `115 \`rare\“ 这类头里取稀有度名。
 func transformRarityFromHead(head string) (string, bool) {
 	i := strings.IndexByte(head, '`')
 	if i < 0 {

@@ -97,6 +97,16 @@ type EntryBasicProbe struct {
 	Fame          uint32
 	SeasonLevel   uint32
 	BasePercent   byte // 城镇队伍面板的状态比例；战斗血蓝另从场景角色读取。
+	// The 160-byte header's +0x2c/+0x30 are actor decorations, separate
+	// from NOTI1546's skin-storage selection vector. 145640441 copies
+	// +0x2c to info+0x62c; PARTY_INFO and mode-0 refresh pass that ID to
+	// 145588150, which loads the actual party portrait animation.
+	PartyFrameID   uint32
+	RequestFrameID uint32
+	// Native 14563FF79 reads header+0x6c into info+0x658, then
+	// 145BF28A0 writes the town model's weapon override at +0x1218.
+	// 145BD6777 gives slot 12 priority over weapon-avatar layers when set.
+	WeaponSkinID uint32
 
 	// Appearance is the per-slot state the native 0x145639840 block carries,
 	// one entry per slot the packet speaks about. Slots the packet does not
@@ -174,6 +184,9 @@ func UserInfoBasicProbe(s EntryBasicProbe) ([]byte, error) {
 	// 0x14563ecd2 consumes all 160 bytes before the actor ID. Two inline
 	// zero-terminated strings start at +0x1b and +0x5f; these remain empty.
 	p = append(p, make([]byte, 160)...)
+	binary.LittleEndian.PutUint32(p[5+0x2c:], s.PartyFrameID)
+	binary.LittleEndian.PutUint32(p[5+0x30:], s.RequestFrameID)
+	binary.LittleEndian.PutUint32(p[5+0x6c:], s.WeaponSkinID)
 	// 145640467从头部+0x34复制28字节至临时角色+0x638；
 	// 145640FFA经14023F600/1401F2380覆盖名单，不能用零值抹掉频道资格。
 	copy(p[5+0x34:5+0x34+28], r.ContentClearFlags[:])

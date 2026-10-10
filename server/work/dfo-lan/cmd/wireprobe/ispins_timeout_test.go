@@ -1,9 +1,9 @@
 package main
 
 import (
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/database"
 	"testing"
 	"time"
 )

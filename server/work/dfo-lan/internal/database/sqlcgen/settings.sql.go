@@ -889,7 +889,7 @@ func (q *Queries) SaveTutorialFlag(ctx context.Context, arg SaveTutorialFlagPara
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -1124,7 +1124,7 @@ func (q *Queries) UnlockRosterBackground(ctx context.Context, arg UnlockRosterBa
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}

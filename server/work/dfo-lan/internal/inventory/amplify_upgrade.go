@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 const amplifyUpgradeModel = "amplify-upgrade-v1"
@@ -223,12 +224,15 @@ type AmplifyUpgradeReceipt struct {
 	Result         byte                          `json:"result"` // 0 成功 / 1 失败
 	Penalty        string                        `json:"penalty"`
 	Destroyed      bool                          `json:"destroyed"`
+	JournalAdded   []JournalRegistration         `json:"journal_added,omitempty"`
+	JournalSkipped []JournalSkip                 `json:"journal_skipped,omitempty"`
 	// Protected：本次增幅失败落在「会碎」区间，但背包里有增幅保护券，装备被保住（等级归零）。
 	Protected bool `json:"protected,omitempty"`
 	// ProtectionSlot：被消耗的那张增幅保护券在背包里的槽位（客户端增幅窗口没有保护券槽，
 	// 请求里恒为 0xffff，这是服务端全背包查找后找到的位置）。
 	ProtectionSlot    uint16 `json:"protection_slot,omitempty"`
 	Safe              bool   `json:"safe"` // 是否走安全增幅（材料不同、失败无惩罚）
+	Portable          bool   `json:"portable,omitempty"`
 	MaterialSlot      uint16 `json:"material_slot"`
 	MaterialRemaining uint32 `json:"material_remaining"`
 	MaterialSpent     uint32 `json:"material_spent"`
@@ -277,6 +281,27 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 		return nil, out, Refuse(RefusalUnsupported, "该装备没有次元属性，不能增幅（先用增幅书打红字）")
 	}
 	level := amplifyLevel(row[:])
+	var tool BagItem
+	portable := false
+	for _, item := range bag.Items {
+		if item.Slot == r.TicketSlot {
+			tool = item
+			portable = IsPortableEnhancement(item.Template, 1)
+			break
+		}
+	}
+	if portable {
+		if space != r.EquipmentSpace {
+			return nil, out, Refuse(RefusalItems, "一次性增幅的目标装备已移动")
+		}
+		if err = s.validatePortable(role, r, tool, gear, d, level); err != nil {
+			return nil, out, err
+		}
+		bag, err = spendPortableMaterials(bag, tool.Template, r.TicketSlot, time.Now().Unix())
+		if err != nil {
+			return nil, out, err
+		}
+	}
 
 	// 安全增幅按「券槽」位放的材料模板区分（与强化用材料区分 ticket/gold/safe 同套路）。
 	safe := false
@@ -288,7 +313,14 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 	}
 
 	var count, gold uint32
-	if safe {
+	if portable {
+		// One native portable action spends one tool, with the existing ordinary
+		// amplification probability and penalty. No normal material/Gold cost.
+		if _, ok := AmplifyMaterialCount(level); !ok {
+			return nil, out, Refuse(RefusalLimit, "增幅等级超出已支持的规则范围")
+		}
+		count, gold = 1, 0
+	} else if safe {
 		// ★ 官方条件原文（dfoneople「Safe Amplification」）："+9 or lower Amplified"。
 		// 也就是**当前 +9 时仍然可以用安全增幅打到 +10**，可行区间是「当前等级 <= +9」。
 		// 早期写成 level >= 9 就拒绝，正好把官方表最后一档 +9→+10（x320 / 5,084,870 Gold）挡掉了 ——
@@ -328,7 +360,11 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 		if item.Slot != r.TicketSlot {
 			continue
 		}
-		if safe {
+		if portable {
+			if item.Template != tool.Template {
+				return nil, out, Refuse(RefusalItems, "一次性增幅道具已变化")
+			}
+		} else if safe {
 			if !IsAmplifySafeMaterial(item.Template) {
 				return nil, out, Refuse(RefusalMaterials, "增幅材料槽位放的不是安全增幅材料（槽 %d 里是模板 %d，需要 10327282）",
 					r.TicketSlot, item.Template)
@@ -412,7 +448,7 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 	out = AmplifyUpgradeReceipt{
 		Request: r, Equipment: gear, EquipmentSpace: space, EquipmentSlot: r.EquipmentSlot,
 		AmplifyType: ampType, LevelBefore: byte(level), LevelAfter: newLevel,
-		Result: result, Penalty: penalty, Destroyed: destroyed, Protected: protected, ProtectionSlot: protectionSlot, Safe: safe,
+		Result: result, Penalty: penalty, Destroyed: destroyed, Protected: protected, ProtectionSlot: protectionSlot, Safe: safe, Portable: portable,
 		MaterialSlot: r.TicketSlot, MaterialRemaining: remaining, MaterialSpent: count,
 		GoldSpent: gold, Gold: bag.Gold, SuccessPercent: percent,
 	}
@@ -443,6 +479,12 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 	next, err := SaveBag(role.State, bag)
 	if err != nil {
 		return nil, out, err
+	}
+	if destroyed {
+		next, out.JournalAdded, out.JournalSkipped, err = s.registerDestroyedEquipment(next, gear)
+		if err != nil {
+			return nil, out, err
+		}
 	}
 	return next, out, nil
 }

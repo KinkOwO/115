@@ -51,18 +51,37 @@ func (s *sortSession) handle(service *workflow.WearService, w *worldSession, p, 
 	if e != nil {
 		return nil, e
 	}
-	bagBody, e := protocol.InventoryRestore(b.Rows(), b.Expansion)
-	if e != nil {
-		return nil, e
-	}
 	// A replay still gets the answer: the client's latch clears on the answer,
 	// not on the state change.
 	name := "item_sort_committed"
 	if !applied {
 		name = "item_sort_replayed"
 	}
-	return []outboundPacket{
-		{name, 1, 20, protocol.SortItemSuccess()},
-		{"item_sort_inventory_restored", 0, 13, bagBody},
-	}, nil
+	plan := []outboundPacket{{name, 1, 20, protocol.SortItemSuccess(r.List)}}
+	// [FIX-20261007 特殊容器整理] 整理后的权威排列必须走与登录同通道的
+	// NOTI 13 整体恢复（登录 avatar_inventory_restored / creature_inventory_restored
+	// 即是如此）：客户端识别 NOTI 13 + 对应 space 为"容器整体替换"，清空旧显示
+	// 后重填。实测两种错误做法均异常：NOTI 14 全量（槽位更新通道）被客户端当
+	// 增量叠加（旧行不消失，"出现两个"）；restore=true 但走 NOTI 14 则闪退。
+	var body []byte
+	var restoreName string
+	switch r.List {
+	case 0:
+		restoreName = "item_sort_inventory_restored"
+		body, e = protocol.InventoryRestore(b.Rows(), b.Expansion)
+	case 1:
+		restoreName = "avatar_inventory_restored"
+		body, e = inventory.SpecialEquipmentRestorePayload(saved.State, 1)
+	case 7:
+		restoreName = "creature_inventory_restored"
+		body, e = inventory.PetContainerRestorePayload(saved.State)
+	}
+	if e != nil {
+		return nil, e
+	}
+	if len(body) > 0 {
+		plan = append(plan, outboundPacket{restoreName, 0, 13, body})
+	}
+
+	return plan, nil
 }

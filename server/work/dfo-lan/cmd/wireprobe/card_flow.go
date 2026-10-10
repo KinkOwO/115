@@ -115,6 +115,9 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 	if e != nil {
 		return nil, nil, e
 	}
+	if w.bakalOpening != nil {
+		return w.bakalRetreat(r)
+	}
 	// [ISPINS-ARENA-BOSS] 伊斯大陆的 CMD72 全部不走通用翻牌/结算：官服 s4
 	// 整场没有一帧 69/70/71（阶段奖励由 N2256/N2252 承载），撤退休退
 	// （source=0）更发生在副本未完成时。回城复用 leaveDungeon（回到进本前
@@ -254,7 +257,9 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 	case 2, 3:
 		// Current scenario option3 is "Start Next Quest". A town objective
 		// returns to the owned town; preserve the active quest for NPC handling.
-		route, e = w.leaveDungeon()
+		// Settlement return keeps ordinary fake teammates; explicit leave-party
+		// actions still use leaveDungeon and release the roster/transport.
+		route, e = w.leaveDungeonToTown(true)
 		if e == nil {
 			route = route[1:]
 		}
@@ -273,6 +278,15 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 			// 无法发奖不能阻断回城；不发送领取成功，也不删除待领奖单。
 			log.Printf("黑鸦翻牌暂未领取，保留奖单等待重登补发：角色=%d 挑战=%s 错误=%v", w.role.ID, w.cardPlan.Run, e)
 			plan = nil
+		}
+	}
+	if pending != nil && (r.Option == 0 || r.Option == protocol.SettlementExitSeamless) {
+		// Both restart routes pass through N27, which retires dungeon entities.
+		// Rebind the complete owned roster after that head and before N28;
+		// prepare it only after routing and the automatic card have succeeded.
+		route, e = w.rebindRobotRechallenge(route)
+		if e != nil {
+			return nil, nil, e
 		}
 	}
 	ack.Name = "settlement_exit_ack"
@@ -330,7 +344,7 @@ func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, err
 	if e != nil {
 		return nil, nil, e
 	}
-	s, e := dungeon.Select(*copy.dungeons, sel, copy.level, accepted)
+	s, e := dungeon.Select(*copy.dungeons, sel, copy.level, accepted, copy.localRobotMonsterAuthority())
 	if e != nil {
 		return nil, nil, e
 	}

@@ -29,6 +29,7 @@ const (
 	// 官服实测用的是 266（服务端分配），本地不需要真实分配器。
 	azureMainSoloPartyID = 1
 )
+
 // azureMainPhasePlaying 是 N2621 阶段字段（[0:4]）的「进行中」值。
 // 官服 14 帧实测：进本与整个战斗期恒为 2，只有结算段才 3/4/5。
 const azureMainPhasePlaying uint32 = 2
@@ -108,7 +109,6 @@ func (w *worldSession) azureRoomClearedInfo(now time.Time) (outboundPacket, bool
 	w.azure.cleared = append(w.azure.cleared, [2]byte{w.activeDungeon.Room.X, w.activeDungeon.Room.Y})
 	return w.azureMainInfo(now), true
 }
-
 
 // azureMainState 是蔚蓝号会话状态。M2 只需要"队伍已创建"这一个事实。
 type azureMainState struct {

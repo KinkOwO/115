@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"dfolan/internal/database"
 	"dfolan/internal/game/wire"
-	"dfolan/internal/legion"
 	"encoding/binary"
 	"io"
 	"net"
@@ -20,6 +19,7 @@ func TestIspinsDispatchStartPushesWaitingStateFromSnapshot(t *testing.T) {
 	events := make(chan map[string]any, 16)
 	c := &gameConnection{gatewayRuntime: &gatewayRuntime{}, bootstrapped: true, selectedCharacterID: 7, keys: make([]byte, wire.SessionKeyBytes), worldState: &worldSession{channelType: 81, role: database.Character{ID: 7, WireID: 7}}, event: func(e map[string]any) { events <- e }}
 	c.output = newConnectionOutput(server, c.keys, "test", c.event)
+	c.worldState.dungeons = ispinsCardFixtureCatalog()
 	body := make([]byte, 24)
 	body[13] = 101
 	result := make(chan dispatchAction, 1)
@@ -57,12 +57,19 @@ func TestIspinsDispatchStartPushesWaitingStateFromSnapshot(t *testing.T) {
 	if got := <-result; got != dispatchHandled {
 		t.Fatal(got)
 	}
+	order := c.worldState.ispins.order
+	want, err := c.worldState.ispinsWaitInfo()
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Change state after the start dispatch. Its scheduled notice must still
 	// describe the original waiting stage and owner, not this mutable state.
 	c.worldState.ispins.cleared[0] = true
 	c.selectedCharacterID = 99
 	kind, id, plain := read()
-	want, _ := legion.IspinsInfoPayload("wait0", [5]byte{})
+	for i, index := range order {
+		binary.LittleEndian.PutUint32(want[19+8*i:], uint32(index))
+	}
 	if kind != 0 || id != 2255 || len(plain) < len(want) || !bytes.Equal(plain[:len(want)], want) {
 		t.Fatal("missing native wait0 notice", kind, id)
 	}

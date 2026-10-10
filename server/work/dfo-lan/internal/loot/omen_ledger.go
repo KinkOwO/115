@@ -1,6 +1,9 @@
 package loot
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 // OmenLedger 按角色保存征兆累积数。
 //
@@ -92,4 +95,37 @@ func (o *OmenLedger) Advance(character int64, dungeon, seed uint32) (OmenOutcome
 	o.held[character] = out.After
 	o.last[character] = out
 	return out, out.Awards, nil
+}
+
+// preview computes a candidate without consuming a ledger sequence or state.
+func (o *OmenLedger) preview(character int64, dungeon, seed uint32) (OmenOutcome, []Award, error) {
+	if o == nil || o.reward == nil {
+		return OmenOutcome{Dungeon: dungeon, Seed: seed}, nil, nil
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	out, err := o.reward.AdvanceOmen(seed, dungeon, o.held[character])
+	return out, out.Awards, err
+}
+
+// commit rejects concurrent changes rather than overwriting another clear.
+func (o *OmenLedger) commit(character int64, out OmenOutcome) error {
+	if o == nil || o.reward == nil {
+		return nil
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	// AdvanceOmen clamps invalid held values; compare using that same rule.
+	held := o.held[character]
+	if n := o.reward.OmenStagesCount(out.Dungeon); n > 0 && int(held) >= n {
+		held = uint32(n - 1)
+	}
+	if held != out.Held {
+		return fmt.Errorf("omen state changed before drop publication")
+	}
+	o.seq++
+	out.Seq = o.seq
+	o.held[character] = out.After
+	o.last[character] = out
+	return nil
 }

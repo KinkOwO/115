@@ -8,9 +8,9 @@ import (
 
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/database"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/database"
 	"dfolan/internal/workflow"
 )
 
@@ -144,10 +144,10 @@ func TestOpenBoosterItemSelectionBoxUsesSourceCount(t *testing.T) {
 	store := newMockBoosterStore(char)
 
 	req := make([]byte, 12)
-	binary.LittleEndian.PutUint16(req[0:2], 65)           // box slot
-	binary.LittleEndian.PutUint32(req[2:6], 1)            // box amount
-	binary.LittleEndian.PutUint16(req[6:8], 0)            // category [0 0]
-	binary.LittleEndian.PutUint32(req[8:12], 100401592)   // pick
+	binary.LittleEndian.PutUint16(req[0:2], 65)         // box slot
+	binary.LittleEndian.PutUint32(req[2:6], 1)          // box amount
+	binary.LittleEndian.PutUint16(req[6:8], 0)          // category [0 0]
+	binary.LittleEndian.PutUint32(req[8:12], 100401592) // pick
 
 	w := &worldSession{role: char, loot: lootSvc, selectionBoxes: boxes}
 	plan, err := w.openBoosterItem(context.Background(), store, nil, lootSvc, nil, odysseyWeaponChoices{}, req, req)

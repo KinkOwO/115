@@ -44,7 +44,7 @@ func TestDecodeDeleteItemsRejectsMaterialOnlyShape(t *testing.T) {
 func TestDecodeDeleteItemsRejectsMalformed(t *testing.T) {
 	cases := [][]byte{
 		nil,
-		{1, 0, 0, 0},                                    // no protobuf content
+		{1, 0, 0, 0}, // no protobuf content
 		{0x11, 0, 0, 0, 0x10, 0, 0x1a, 0x0b, 0x08, 0x01}, // truncated entry
 	}
 	for i, c := range cases {

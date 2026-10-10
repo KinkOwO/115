@@ -50,15 +50,18 @@ type LaunchOptions struct {
 // LaunchReport is everything launch --check / --dry-run reports, plus the raw material the
 // tests compare against the Python's own output.
 type LaunchReport struct {
-	Storage     string // "SQLite <path>", worded as the Python's line was
-	Binary      string
-	DataMode    string
-	ClientDir   string
-	InnerPVF    InnerPVFStatus
-	ProfilePath string
-	ProfileEnv  map[string]string
-	Required    []string
-	Plan        []PlanStep
+	Storage string // "SQLite <path>", worded as the Python's line was
+	// StorageUninitialized marks a read-only default plan, not an existing save.
+	// Only the GUI's actual Start action initializes a missing active configuration.
+	StorageUninitialized bool
+	Binary               string
+	DataMode             string
+	ClientDir            string
+	InnerPVF             InnerPVFStatus
+	ProfilePath          string
+	ProfileEnv           map[string]string
+	Required             []string
+	Plan                 []PlanStep
 	// ChannelIdentity is launcher.local.json's channel_identity. The real launch needs it:
 	// it decides both the DFO_CHANNEL_IDENTITY switch and the gateway's -channel-identity.
 	ChannelIdentity bool
@@ -76,6 +79,7 @@ type LaunchReport struct {
 // generation attempt had failed.
 type InnerPVFStatus struct {
 	Path       string
+	Explicit   bool
 	Manifest   string
 	Checked    bool
 	NeedsBuild bool
@@ -144,7 +148,18 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 	if err != nil {
 		return report, err
 	}
-	storage, err := loadStorageFile(filepath.Join(storageDir, "local.json"))
+	storagePath := filepath.Join(storageDir, "local.json")
+	storage, err := loadStorageFile(storagePath)
+	if errors.Is(err, errStorageMissing) && (opts.Check || opts.DryRun) {
+		// Lstat distinguishes a genuinely absent active configuration from a broken
+		// link or a concurrently created file. Never substitute defaults for those.
+		if _, statErr := os.Lstat(storagePath); errors.Is(statErr, os.ErrNotExist) {
+			plannedPath := filepath.Join(storageDir, "dfolan.sqlite3")
+			storage = storageFile{Driver: "sqlite", SQLitePath: &plannedPath}
+			report.StorageUninitialized = true
+			err = nil
+		}
+	}
 	if err != nil {
 		return report, err
 	}
@@ -168,6 +183,9 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 	// SQLite: no service to start, so the storage line is just the file the engine opens.
 	// The path is echoed verbatim, as the Python's f-string did.
 	report.Storage = "SQLite " + *storage.SQLitePath
+	if report.StorageUninitialized {
+		report.Storage += "（尚未初始化；只读预检未创建配置或数据库）"
+	}
 
 	binary := ""
 	switch {
@@ -258,11 +276,17 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 		// --client-only serves no local content, so it needs no inner archive.
 	case profile.Env["DFO_PVF_CATALOGS"] == "":
 		// No native profile: the gateway reads JSON and never opens the inner archive.
+	case profile.Env["DFO_PVF_ARCHIVE"] != "" && !strings.EqualFold(filepath.Clean(profile.Env["DFO_PVF_ARCHIVE"]), filepath.Clean(innerPVF)):
+		// A prepared repair archive belongs to its candidate, not the default cache.
+		innerPVF = profile.Env["DFO_PVF_ARCHIVE"]
+		report.InnerPVF = InnerPVFStatus{Path: innerPVF, Explicit: true, Reason: "Explicit candidate archive", Message: "Explicit candidate archive: " + innerPVF}
 	default:
 		// --dry-run is a Go-only switch that must stay read-only, so it reports the verdict
 		// without building; --check is NOT read-only, because the Python's --check was not
 		// either (its _ensure_inner_pvf ran first and rebuilt the 760 MB archive).
-		report.InnerPVF = ensureInnerPVFForLaunch(client, innerPVF, manifest, !opts.DryRun)
+		// A first-install preview also stays read-only even when --check was used
+		// without --dry-run. Initialization remains an explicit Start operation.
+		report.InnerPVF = ensureInnerPVFForLaunch(client, innerPVF, manifest, !opts.DryRun && !report.StorageUninitialized)
 	}
 
 	for _, path := range profile.Required {
@@ -273,18 +297,19 @@ func LaunchPlan(root string, opts LaunchOptions) (LaunchReport, error) {
 
 	if opts.DryRun {
 		input := planInput{
-			module:      module,
-			storageDir:  storageDir,
-			probeDir:    probeDir,
-			innerPVF:    innerPVF,
-			manifest:    manifest,
-			client:      client,
-			binary:      binary,
-			storage:     storage,
-			opts:        opts,
-			catalogs:    profile.Env["DFO_PVF_CATALOGS"],
-			innerStatus: report.InnerPVF,
-			now:         time.Now(),
+			module:               module,
+			storageDir:           storageDir,
+			probeDir:             probeDir,
+			innerPVF:             innerPVF,
+			manifest:             manifest,
+			client:               client,
+			binary:               binary,
+			storage:              storage,
+			storageUninitialized: report.StorageUninitialized,
+			opts:                 opts,
+			catalogs:             profile.Env["DFO_PVF_CATALOGS"],
+			innerStatus:          report.InnerPVF,
+			now:                  time.Now(),
 		}
 		if report.Plan, err = launchPlanSteps(input); err != nil {
 			return report, err
@@ -339,6 +364,8 @@ type storageFile struct {
 	SQLitePath *string `json:"sqlite_path"`
 }
 
+var errStorageMissing = errors.New("Storage missing. Follow README first-time setup; no database was changed.")
+
 // loadStorageFile reads runtime/storage/local.json. Unlike LoadStorageConfig (used by the
 // stop path) it refuses to continue without the file: the launch chain cannot know which
 // engine to use, and the Python said so with "Storage missing".
@@ -346,8 +373,7 @@ func loadStorageFile(path string) (storageFile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return storageFile{}, fmt.Errorf(
-				"Storage missing. Follow README first-time setup; no database was changed.")
+			return storageFile{}, errStorageMissing
 		}
 		return storageFile{}, err
 	}
@@ -370,7 +396,7 @@ func loadStorageFile(path string) (storageFile, error) {
 func validateStorage(storage storageFile) error {
 	switch driver := strings.ToLower(strings.TrimSpace(storage.Driver)); driver {
 	case "", "sqlite":
-		if storage.SQLitePath == nil || *storage.SQLitePath == "" {
+		if storage.SQLitePath == nil || strings.TrimSpace(*storage.SQLitePath) == "" {
 			return fmt.Errorf(
 				"Storage driver 'sqlite' requires sqlite_path in runtime/storage/local.json.")
 		}
@@ -419,18 +445,19 @@ func regularFile(path string) bool {
 // planInput is everything the --dry-run plan needs, so the plan builder stays testable
 // without a live environment.
 type planInput struct {
-	module      string
-	storageDir  string
-	probeDir    string
-	innerPVF    string
-	manifest    string
-	client      string
-	binary      string
-	storage     storageFile
-	opts        LaunchOptions
-	catalogs    string
-	innerStatus InnerPVFStatus
-	now         time.Time
+	module               string
+	storageDir           string
+	probeDir             string
+	innerPVF             string
+	manifest             string
+	client               string
+	binary               string
+	storage              storageFile
+	storageUninitialized bool
+	opts                 LaunchOptions
+	catalogs             string
+	innerStatus          InnerPVFStatus
+	now                  time.Time
 }
 
 // launchPlanSteps builds the 存储 -> 内层 PVF -> 网关 -> 客户端 plan. The order is the one
@@ -459,6 +486,10 @@ func storageStep(in planInput) PlanStep {
 	path := ""
 	if in.storage.SQLitePath != nil {
 		path = *in.storage.SQLitePath
+	}
+	if in.storageUninitialized {
+		return PlanStep{Step: step, Target: "(待首次初始化)",
+			Detail: "本地存储尚未初始化；此为只读计划，实际启动时由启动器初始化配置；未创建配置或数据库：" + path}
 	}
 	return PlanStep{
 		Step:   step,
@@ -502,8 +533,12 @@ func gatewayStep(in planInput, out string) PlanStep {
 		return PlanStep{Step: step, Target: "(跳过)",
 			Detail: "--storage-only：起库后直接返回，不起网关"}
 	}
-	detail := fmt.Sprintf("-fixture %s -output %s；由本进程（Go）直接拉起（cwd=server\\）",
-		filepath.Join(out, "channelinfo.bin"), out)
+	cwd := "server\\"
+	if in.innerStatus.Explicit {
+		cwd = gatewayWorkingDirectory(in.module, in.innerStatus)
+	}
+	detail := fmt.Sprintf("-fixture %s -output %s；由本进程（Go）直接拉起（cwd=%s）",
+		filepath.Join(out, "channelinfo.bin"), out, cwd)
 	if in.catalogs == "" {
 		detail += "；JSON 模式：继承环境里的 DFO_PVF_* 会被全部清除"
 	} else {

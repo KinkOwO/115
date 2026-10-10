@@ -8,6 +8,22 @@ import (
 	"sort"
 )
 
+// The town model uses a separate override from the combat actor. Keep both
+// bound to the saved choice, without inventing a weapon in an empty slot.
+// Zero clears the override and restores the unchanged worn weapon avatar.
+func weaponSkinForAppearance(raw json.RawMessage) uint32 {
+	bag, err := inventory.ReadBag(raw)
+	if err != nil || bag.WeaponSkin == 0 {
+		return 0
+	}
+	for _, item := range bag.Worn {
+		if item.Slot == inventory.WeaponSlot && item.Template != 0 {
+			return bag.WeaponSkin
+		}
+	}
+	return 0
+}
+
 // wornAppearance projects the worn set onto the list-row block the client
 // reads when it builds its equipment array.
 //
@@ -35,6 +51,7 @@ func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 			// → 145BD63D0 → 145BEE6C0）正是读那个字段，所以覆盖它才能让重登后
 			// 仍然显示幻化外观。
 			WeaponSkin uint32 `json:"weapon_skin"`
+			TitleSkin  uint32 `json:"title_skin"`
 		} `json:"inventory"`
 	}
 	if err := json.Unmarshal(raw, &state); err != nil {
@@ -83,12 +100,27 @@ func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 			bySlot[byte(inventory.WeaponSlot)] = state.Inventory.WeaponSkin
 		}
 	}
+	// 强化/增幅等级投影（强化特效逻辑说明.md §4）：从穿戴装备实例的 record[10]
+	// 低 5 位读取等级，随外观行一并送到客户端，供其按 packed>>1 重建武器/增幅光效。
+	// 幻化（clone/look/weapon_skin）只换外观模板，等级取自该槽真实穿戴装备的 record，
+	// 因此按 bag.Worn 的槽位读取，而不是 bySlot 里已被覆盖的模板。
+	levelBySlot := map[byte]byte{}
+	for _, item := range bag.Worn {
+		if item.Slot >= 48 || len(item.Record) <= 10 {
+			continue
+		}
+		levelBySlot[byte(item.Slot)] = item.Record[10] & 0x1f
+	}
 	var rows []protocol.Equipment
+	if state.Inventory.TitleSkin != 0 && bySlot[13] != 0 {
+		bySlot[13] = state.Inventory.TitleSkin
+	}
 	for slot, itemID := range bySlot {
 		row := protocol.Equipment{Slot: slot, Item: itemID}
 		if slot == skinSlot {
 			row.Model = skinModel
 		}
+		row.UpgradeLevel = levelBySlot[slot]
 		rows = append(rows, row)
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Slot < rows[j].Slot })

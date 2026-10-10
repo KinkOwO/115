@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"dfolan/internal/boostup"
 	"dfolan/internal/catalog"
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
@@ -33,7 +32,7 @@ var (
 	// 看到的"点确定就回到装备变换界面"一致。2145 保留为可调（env），默认不用。
 	equipmentCraftConfirmWindow  byte = 1
 	equipmentCraftConfirmVariant byte = 0
-	// 装备生成（请求头 [12] == 0）走**另一扇窗**。
+	// 装备生成（归一化 Action == 0）走**另一扇窗**。
 	//
 	// 实机 2026-09-29 12:46：在「生成单个部位」里选件 → 客户端发 `action=0` 的 2259 →
 	// 我们回 3937（= 装备变换）⇒ 客户端很可能就此离开了生成窗口，玩家再点「生成」毫无反应
@@ -132,11 +131,11 @@ func (w *worldSession) equipmentJournalBoard(role database.Character) ([]outboun
 //
 // 请求侧两个关键字节（`EquipmentCraftRequest`）：
 //
-//	[12] Action    = 0 装备生成 / 1 装备变换
+//	Action = native +115 的生成标志归一化：0 装备生成 / 1 装备变换
 //	[13] PayOption = 玩家点的**付款方式序号**（1 起，对应 [create cost] 里 [cost] 行的顺序）
 //
-// 执行时机：`[12]==1`（变换）实机是「变换 → 确定」**两次**同指纹请求 ⇒ 等第二次；
-// `[12]==0`（生成）**只有一次**请求 ⇒ 单步执行（`-equipment-craft-execute-on` 可覆盖）。
+// 执行时机：`Action==1`（变换）实机是「变换 → 确定」**两次**同指纹请求 ⇒ 等第二次；
+// `Action==0`（生成）**只有一次**请求 ⇒ 单步执行（`-equipment-craft-execute-on` 可覆盖）。
 //
 // 成本校验 / 扣料 / 发装备由 `inventory.ItemService.CreateEquipment` 完成，**严格按 `[13]` 扣**。
 //
@@ -157,7 +156,7 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 	now := time.Now().UnixNano()
 	key := craftFingerprint(r, slots, templates)
 	confirm := key != "" && key == w.craftPending && now-w.craftPendingAt >= equipmentCraftConfirmGap
-	// 应答窗口按动作号选：生成（[12]==0）→ 2145 那一支；变换（[12]==1）→ 3937 那一支。
+	// 应答窗口按动作号选：生成（Action==0）→ 2145 那一支；变换（Action==1）→ 3937 那一支。
 	step, window, variant := "open", equipmentCraftWindow, equipmentCraftVariant
 	name := "equipment_craft_opened"
 	switch {
@@ -200,7 +199,7 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 	//
 	// ★ 无论哪条失败分支，都**只记日志、绝不回包** —— 客户端在 2259 上没有失败分支，
 	//   两次实测收到 Error 都 `exit=0xC0000005`。
-	if (r.Action == 1 || w.boostJournalSwap(r)) && len(templates) > 0 {
+	if r.Action == 1 && len(templates) > 0 {
 		if equipmentTransformApply == "observe" {
 			log.Printf("equipment craft TRANSFORM-PLAN (observe): requested=%d slots=%v templates=%v",
 				len(templates), slots, templates)
@@ -225,9 +224,7 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 			}
 			return plan, nil
 		}
-		if applied {
-			w.role = saved
-		}
+		w.role = saved
 		// ★ 刷新下发（这一步之前一直缺，所以"动画播完却没换装"）：
 		//
 		// 实机 trace 证明客户端在 2259 应答之后**不会再发任何请求**（Seq 129 之后全是
@@ -236,6 +233,21 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 		// `inventory.WornSpaceUpdate` + NOTI14（见 reinforcement_flow.go / enchant_flow.go /
 		// refine_flow.go / inherit_flow.go，都是这个形状）。
 		if applied {
+			accountRaw, aErr := w.store.AccountMaterials(ctx, saved.AccountID)
+			if aErr == nil {
+				var account inventory.AccountMaterials
+				account, aErr = inventory.ReadAccountMaterials(accountRaw)
+				if aErr == nil {
+					var refresh []outboundPacket
+					refresh, aErr = accountMaterialRefreshPackets(account, saved, w.activeDungeon != nil)
+					if aErr == nil {
+						plan = append(plan, refresh...)
+					}
+				}
+			}
+			if aErr != nil {
+				log.Printf("equipment transform: account material refresh failed: %v", aErr)
+			}
 			if wornBody, e := inventory.WornSpaceUpdate(w.role.State); e == nil && len(wornBody) > 0 {
 				plan = append(plan, outboundPacket{"equipment_transform_worn_refreshed", 0, 14, wornBody})
 			}
@@ -284,15 +296,15 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 			len(templates), len(receipt.Pairs), receipt.Gold, receipt.Option, len(receipt.Skipped), applied)
 		if event != nil {
 			event(map[string]any{"kind": "equipment_craft_transform_done", "character_id": w.role.ID,
-				"requested": len(templates), "pairs": receipt.Pairs, "materials": receipt.Materials,
-				"gold": receipt.Gold, "option": receipt.Option, "skipped": receipt.Skipped,
+				"requested": len(templates), "pairs": receipt.Pairs, "materials": receipt.Materials, "refunds": receipt.Refunds,
+				"gold": receipt.Gold, "vault_gold": receipt.VaultGold, "option": receipt.Option, "skipped": receipt.Skipped,
 				"applied": applied, "source": receipt.Source})
 		}
 		return plan, nil
 	}
 	// 执行时机：
-	//   「变换」([12]==1) 实机是"变换 → 确定"**两次**请求（同指纹）⇒ 等第二次；
-	//   「生成」([12]==0) 实机**只有一次**请求（2026-09-29 12:46 / 13:13 两次会话都只 1 条，
+	//   「变换」(Action==1) 实机是"变换 → 确定"**两次**请求（同指纹）⇒ 等第二次；
+	//   「生成」(Action==0) 实机**只有一次**请求（2026-09-29 12:46 / 13:13 两次会话都只 1 条，
 	//     点「装备生成」不会再来第二条）⇒ 单步执行。
 	want := len(templates) > 0 && (r.Action == 0 || confirm)
 	switch equipmentCraftExecuteOn {
@@ -344,6 +356,7 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 		//   `docs/` 里 CMD2259 的取证记录）。拒因仍写进 events.jsonl 供后续分析。
 		return plan, nil
 	}
+	w.role = saved
 	if !applied {
 		// ★ 幂等重放：这条请求之前已经提交过，**没有再扣一次**。回执也取不回来
 		// （`CommitAccountMaterialEvent` 在重放路径上只回账号材料的 counts）。
@@ -385,39 +398,13 @@ func (w *worldSession) equipmentCraft(p []byte, event func(map[string]any)) ([]o
 	if event != nil {
 		event(map[string]any{"kind": "equipment_craft_done", "character_id": w.role.ID,
 			"template": receipt.Template, "placed_slot": receipt.Slot, "group": receipt.Group,
-			"cost_option": receipt.Cost, "gold": receipt.Gold})
+			"cost_option": receipt.Cost, "gold": receipt.Gold, "vault_gold": receipt.VaultGold})
 	}
 	return plan, nil
 }
 
-// boostJournalPanel / boostJournalContext 是 **662 教学期装备库窗口**的标识
-// （实机 2026-10-04 帧：`u32@0=36`、`u32@8=0x054131D0`）。
-//
-// 该窗口的 `[12]` 实测为 **0**，但它与既有取证的两对来源不符
-// （`panel=164 / context=0x46ece836` = 变换，`panel=0 / context=0x005ff2f9` = 生成，
-// 见 `analysis/tasks/next126-装备库制作CMD2259阶段一落地.md` §9），且请求点名的是
-// 「槽位 + 图鉴已登记的目标」—— 正是变换的输入形状（把图鉴那件换到点名槽位）。
-// ⇒ 该窗口在教学轨道内按**变换**分派。
-// ⚠️ **只看 panel，不要钉 context**：实测两天两个不同的值
-// （2026-10-04 、2026-10-05 ）—— 它随窗口实例变，不是窗口标识。
-// 前一次就是因为把 context 钉死成常量而没命中，学员号仍走了生成路径（落背包、不是互换）。
-const boostJournalPanel = 36
-
-// boostJournalSwap 判定这次 2259 是否来自教学期图鉴窗口、且角色仍在 662 训练轨道。
-// 两个条件都满足才改派为变换；出关或换窗口一律回到按 `[12]` 分派。
-func (w *worldSession) boostJournalSwap(r protocol.EquipmentCraftRequest) bool {
-	if w == nil || w.boostup == nil || w.role.ID == 0 {
-		return false
-	}
-	if r.Panel != boostJournalPanel {
-		return false
-	}
-	st, e := boostup.ReadState(w.role.State)
-	return e == nil && st.Activated && !st.Training.Finished
-}
-
 // craftFingerprint 把一次 2259 请求压成一个字符串指纹。
-// 只用**语义字段**（面板 + 被点选的槽与模板），不含每帧变化的密钥材料 ——
+// 只用动作、付法与被点选的槽和模板；未初始化前缀不参与确认指纹。
 // 那正是"两步同一指纹"的前提。
 func craftFingerprint(r protocol.EquipmentCraftRequest, slots, templates []uint32) string {
 	if len(slots) == 0 {
@@ -427,7 +414,7 @@ func craftFingerprint(r protocol.EquipmentCraftRequest, slots, templates []uint3
 	for i := range slots {
 		parts = append(parts, fmt.Sprintf("%d:%d", slots[i], templates[i]))
 	}
-	return fmt.Sprintf("%d/%s", r.Panel, strings.Join(parts, ","))
+	return fmt.Sprintf("%d/%d/%s", r.Action, r.PayOption, strings.Join(parts, ","))
 }
 
 func (w *worldSession) journalRules() *catalog.EquipmentJournalRules {

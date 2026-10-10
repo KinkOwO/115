@@ -26,6 +26,17 @@ func dungeonRequest(id uint16) bool {
 // Implemented commands and explicitly observed features are decoded on every
 // request. Unknown commands retain the existing eight-body sampling limit.
 func observedGameRequest(id uint16) bool {
+	if id == 1430 || id == 1436 || id == 1726 {
+		return true
+	}
+	// Venus operation/phase exit remain unsupported; retain every verified
+	// request for its own protocol audit, including retries after the cap.
+	if id == legion.CmdVenusOperationSelect || id == legion.CmdVenusEndAtPhase4 {
+		return true
+	}
+	if id == 12 || id == 650 || id == 652 || id == 1902 || id == 656 || id == 657 || id == 658 || id == 661 || id == 1353 || id == 2121 || id == 2070 || id == 2071 || id == 2072 || id == 2073 || id == 2074 || id == 2089 {
+		return true
+	}
 	if mailboxRequest(id) || id >= 2316 && id <= 2328 {
 		return true
 	}
@@ -38,7 +49,7 @@ func observedGameRequest(id uint16) bool {
 		return true
 	case 173, 191, 201, 205, 206, 256, 272, 295, 305, 306, 307, 308, 393, 430, 433, 449, 450, 451, 467:
 		return true
-	case 469, 483, 495, 500, 502, 507, 527, 623, 627, 637, 649, 681, 684, 777, 795, 806, 848:
+	case 404, 405, 560, 469, 483, 495, 500, 502, 507, 527, 623, 627, 637, 649, 681, 684, 777, 795, 806, 848:
 		return true
 	case 857, 1301, 1395, 1406, 1417, 1418, 1421, 1422, 1426, 1438, 1461, 1462, 1551, 1554, 1565, 1592, 1719:
 		return true

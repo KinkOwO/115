@@ -101,7 +101,9 @@
     "VaultPurchaseRelease": false,
     "VaultRules": "",
     "WorldCatalog": "",
-    "WorldRules": "configs/world-probe.json"
+    "WorldRules": "configs/world-probe.json",
+    "AttunementQuantityMultiplier": 1,
+    "AttunementRarityWeightMultiplier": 1
   },
   "cases": [
     {

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -31,7 +32,7 @@ var sqliteMigrationSQL embed.FS
 
 const sqliteInitialMigrationFile = "sql/sqlite/migrations/0001_initial.sql"
 
-// sqliteDSN builds the connection string described in the design doc §5.1.
+// sqliteDSN builds the connection string described in the design doc 搂5.1.
 //
 // Values are joined by hand rather than through url.Values: the driver parses
 // the raw query itself, and percent-encoding the parentheses in values such as
@@ -39,10 +40,6 @@ const sqliteInitialMigrationFile = "sql/sqlite/migrations/0001_initial.sql"
 // validated by the driver (a typo fails the connection instead of being ignored),
 // which is the behavior we want for a save-compatibility-critical setting.
 func sqliteDSN(path string, busyTimeoutMS int) string {
-	slashed := filepath.ToSlash(path)
-	if !strings.HasPrefix(slashed, "/") {
-		slashed = "/" + slashed // C:/x -> /C:/x so the URI becomes file:///C:/x
-	}
 	params := strings.Join([]string{
 		// Writers serialize through BEGIN IMMEDIATE; this is what replaces every
 		// PostgreSQL row lock (FOR UPDATE / FOR NO KEY UPDATE / FOR SHARE).
@@ -62,21 +59,36 @@ func sqliteDSN(path string, busyTimeoutMS int) string {
 		// treating it as a string.
 		"_dqs=0",
 	}, "&")
-	return "file://" + slashed + "?" + params
+	return sqliteFileURI(path) + "?" + params
+}
+
+// sqliteFileURI encodes the filename, not the driver query. Literal '%' and '#'
+// must survive SQLite's URI parser; otherwise an existing save can be mistaken
+// for a different empty file. Keep the Windows /C:/ path form and path separators.
+func sqliteFileURI(path string) string {
+	slashed := filepath.ToSlash(path)
+	if !strings.HasPrefix(slashed, "/") {
+		slashed = "/" + slashed
+	}
+	return (&url.URL{Scheme: "file", Path: slashed}).String()
 }
 
 // openSQLite opens (creating if needed) a SQLite database with the engine-wide
 // settings above and a bounded pool: database/sql imposes no limit by default and
 // every connection carries its own page cache, so an unbounded pool would both
 // waste memory and amplify write contention.
-func openSQLite(ctx context.Context, path string, maxOpenConns, busyTimeoutMS int) (*sql.DB, error) {
+func openSQLite(ctx context.Context, path string, maxOpenConns, busyTimeoutMS int, durable ...bool) (*sql.DB, error) {
 	if strings.TrimSpace(path) == "" {
 		return nil, errors.New("sqlite path is required")
 	}
 	if maxOpenConns < 1 {
 		maxOpenConns = 1
 	}
-	db, err := sql.Open("sqlite", sqliteDSN(path, busyTimeoutMS))
+	dsn := sqliteDSN(path, busyTimeoutMS)
+	if len(durable) > 0 && durable[0] {
+		dsn = strings.Replace(dsn, "_synchronous=NORMAL", "_synchronous=FULL", 1)
+	}
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -215,6 +227,7 @@ var sqliteMigrationSections = []string{
 	"0035_tower_progress.sql",
 	"0036_mailbox.sql",
 	"0037_gm_mail.sql",
+	"0038_character_capacity.sql",
 }
 
 // migrateSQLiteAll brings a fresh (or already migrated) SQLite database up to the

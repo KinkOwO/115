@@ -65,7 +65,7 @@ func TestSkinFamilyMatchesRegistryLoader(t *testing.T) {
 		{" Instant Emoticon ", SkinFamilyInstantEmoticon},
 		// `[type]` `weapon skin` is family class 4, but its page belongs to the replication
 		// path, so it stays unclassified here rather than gaining a page frame.
-		{"weapon skin", SkinFamilyUnknown},
+		{"weapon skin", SkinFamilyWeaponShape},
 		{"", SkinFamilyUnknown},
 	} {
 		if got := (SkinStorageEntry{SkinType: tc.label}).Family(); got != tc.want {

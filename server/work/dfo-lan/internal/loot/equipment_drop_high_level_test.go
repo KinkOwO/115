@@ -13,7 +13,8 @@ import (
 // 而是掉落池里根本没有那个等级的装备：
 //   - 装备目录 grade>=22 的 2430 件 rarity 全部 >=1，而掉落池准入当时拒绝 rarity>1；
 //   - rarity=0 的 744 件又全在 grade<=20；
-//   ⇒ 池子只剩 grade<=20 的 1534 件，等级 >=22 的副本一件都掉不出来。
+//     ⇒ 池子只剩 grade<=20 的 1534 件，等级 >=22 的副本一件都掉不出来。
+//
 // 这里把 level 53/113 的 BOSS 掉落当作回归闸门：必须掉出装备，且不再有空窗口。
 func TestEquipmentDropsAboveLowLevelDungeons(t *testing.T) {
 	c, e := catalog.LoadLoot("../../configs/loot.next25.json")

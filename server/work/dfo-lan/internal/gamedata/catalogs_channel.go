@@ -24,11 +24,21 @@ func preparePVFChannels(c *Catalogs, s *Source) error {
 		return err
 	}
 	c.ChannelDirectory, c.ChannelInfo = dir, info
+	c.RaidEntrances, err = s.RaidEntrances(dir)
+	if err != nil {
+		return err
+	}
 
 	// 特殊频道各有**自己的城镇**：征讨/军团这类频道里角色只能在门口的专属城镇活动，
 	// 落点必须从该城镇的地图直读，不能沿用普通城镇。
 	towns := map[uint32]catalog.TownArea{}
 	for _, channelType := range dir.Types() {
+		if entry, bound := c.RaidEntrances[channelType]; bound && entry.Recruiting != nil {
+			// Delezie explicitly names its recruitment area in the native CTP.
+			// Do not choose a waiting area by probing map availability or flags.
+			towns[channelType] = *entry.Recruiting
+			continue
+		}
 		a, ok := dir.Attributes(channelType)
 		if !ok || a.Town <= 0 {
 			continue

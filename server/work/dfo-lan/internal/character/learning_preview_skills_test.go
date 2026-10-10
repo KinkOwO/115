@@ -77,6 +77,7 @@ func TestKnightPreviewSkillsEligibilityAndLearning(t *testing.T) {
 	baseState := State{
 		Level:         15,
 		Advancement:   0,
+		SourcePath:    prof.Path,
 		SourceSHA256:  prof.RawSHA256,
 		InitialSkills: prof.InitialSkills,
 		LearnedSkills: [2]map[uint16]byte{

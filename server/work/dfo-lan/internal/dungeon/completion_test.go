@@ -115,7 +115,7 @@ func TestOdysseyBossCheckImmediateCompletion(t *testing.T) {
 // [ISPINS-ARENA-BOSS] 军团阶段本（伊斯大陆 nemaug 100002987）的结算回归：
 // 源迷宫把 boss 坐标标在 (0,0)/100006472，官服 s4 却在 start 房 (1,1)/100006476
 // 开打并结算（帧 451/337/495）。未置 ArenaBoss 时 BossCheck 必须维持拒绝
-//（2026-10-03 实测回归原因：`boss check target is not a source boss in this
+// （2026-10-03 实测回归原因：`boss check target is not a source boss in this
 // room`，整场无结算）；置位后 CMD117 受理 + 死亡驱动结算双路可用。
 func TestIspinsArenaBossCompletion(t *testing.T) {
 	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")

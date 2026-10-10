@@ -17,15 +17,16 @@ const (
 	LegionInfoSize     = 2 + LegionInfoBody
 )
 
-// Current 2.38.3.25: 1424FE570 -> 142AC2A50/29E0/2970 ->
+// Current 2.38.3.25: 1424FDDB0 -> 142AC2290/2220/21B0 ->
 // mode virtual32/48/64 -> mode+116/120/124. These are NOT balances.
 // The former Entry/Reward/uint64 Phase labels misidentified adjacent u32s.
 type LegionInfoState struct {
-	OperationChoice byte   // @2: zero-based difficulty, CTP lookup is choice+1
-	State           uint32 // @3: operation confirmation explicitly requires 2
-	Outcome         uint32 // @7: independent mode status, not a wallet balance
-	Stage           uint32 // @11: CMD2045 entry index; also selects the6x12 row
-	Following       uint32 // @15: independent field, not high bits of Stage
+	OperationChoice byte      // @2: zero-based difficulty, CTP lookup is choice+1
+	State           uint32    // @3: operation confirmation explicitly requires 2
+	Outcome         uint32    // @7: independent mode status, not a wallet balance
+	Stage           uint32    // @11: CMD2045 entry index; also selects the6x12 row
+	Following       uint32    // @15: independent field, not high bits of Stage
+	Roles           [4]uint32 // @107: actual party seat order, 0 unset / 1 scout / 2 guardian
 }
 
 // DefaultLegionInfoState 是客户端初始化器写死的初值（14 / 4 / -1）。
@@ -47,7 +48,7 @@ func WaitingLegionInfoState() LegionInfoState {
 //	0 u16FFFF  2 u8OperationChoice  3 u32State  7 u32Outcome
 //	11 u32Stage 15 u32Following 19 u8=0 21 u16=0 23 u32FFFFFFFF
 //	27 6×12记录：byte0=FF/u64@4=FFFFFFFFFFFFFFFF，余3B清零
-//	107 16 字节清零    123 u32 0x01010101 127 u8 0         128 16 字节清零
+//	107 4×u32队员角色 123 u32 0x01010101 127 u8 0         128 16 字节清零
 //	144 u64 0          152/168/184 各 16 字节清零          200 u32 0
 //
 // 合计 204。
@@ -63,11 +64,17 @@ func LegionInfo(content uint16, state LegionInfoState) []byte {
 	binary.LittleEndian.PutUint32(b[15:], state.Following)
 	binary.LittleEndian.PutUint32(b[23:], 0xFFFFFFFF)
 	binary.LittleEndian.PutUint32(b[99:], 0xFFFFFFFF)
+	// 1424FDDB0 -> 14069A4D0 copies body+107 to manager+D3. Native
+	// 14069B4E0 compares this array by the real party seat;14069B820 then
+	// applies each role through140690F90. An ACK alone does not update it.
+	for seat, role := range state.Roles {
+		binary.LittleEndian.PutUint32(b[107+4*seat:], role)
+	}
 	// Native constructor defaults only. Production Apocalypse projection
 	// replaces these four shortcut-open bytes with the shared live/frozen
 	// schedule;14069A9C0 tests byte==1, not a u32 balance or party count.
 	binary.LittleEndian.PutUint32(b[123:], 0x01010101)
-	// 1471B4530 is not a memset: unset destination and timestamp are -1.
+	// 1471B0F60 is not a memset: unset destination and timestamp are -1.
 	for i := 0; i < 6; i++ {
 		off := 27 + 12*i
 		b[off] = 255

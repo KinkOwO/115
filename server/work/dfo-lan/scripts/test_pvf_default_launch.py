@@ -26,10 +26,15 @@ def arguments(**overrides):
 
 
 class DefaultPVFLaunchTests(unittest.TestCase):
+    def test_inner_validation_failure_stops_launch(self):
+        with mock.patch.object(launch, 'ensure_inner_pvf', side_effect=RuntimeError('checksum mismatch')):
+            with self.assertRaisesRegex(RuntimeError, 'checksum mismatch'):
+                launch._ensure_inner_pvf(pathlib.Path('unused-client'), arguments())
+
     def test_explicit_pvf_profile_uses_current_default_scope(self):
         binary, required, env = launch.gateway_configuration(arguments(pvf_mode=True), {'server_binary': 'legacy.exe'})
-        _, configured, profile = launch.load_profile(launch.DEFAULT_PVF_PROFILE, launch.PROJECT)
-        self.assertEqual(binary, launch.PROJECT / 'bin/wireprobe-pvf.exe')
+        configured_binary, configured, profile = launch.load_profile(launch.DEFAULT_PVF_PROFILE, launch.PROJECT)
+        self.assertEqual(binary, configured_binary)
         self.assertEqual(env, profile)
         self.assertEqual(required, configured)
         self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 55)

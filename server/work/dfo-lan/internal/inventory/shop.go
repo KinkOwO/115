@@ -28,7 +28,7 @@ func classifyStackableSlot(r BagRules, stackableType string) ([2]uint16, bool) {
 	}
 	switch {
 	case strings.HasPrefix(norm, "[material]") && strings.HasSuffix(norm, "4"):
-		return [2]uint16{345, 359}, true
+		return [2]uint16{361, 375}, true
 	case strings.HasPrefix(norm, "[material]"):
 		return [2]uint16{121, 176}, true
 	case strings.HasPrefix(norm, "[quest]"):
@@ -36,7 +36,7 @@ func classifyStackableSlot(r BagRules, stackableType string) ([2]uint16, bool) {
 	case strings.HasPrefix(norm, "[material expert job]"):
 		return [2]uint16{233, 288}, true
 	case strings.HasPrefix(norm, "[avatar emblem]"):
-		return [2]uint16{289, 344}, true
+		return [2]uint16{289, 360}, true
 	default:
 		if rng, ok := r.Slots["[throw]"]; ok && rng != [2]uint16{} {
 			return rng, false
@@ -124,7 +124,7 @@ func (b Bag) addStackable(r BagRules, template, count uint32, stackableType stri
 	b.Items = append([]BagItem(nil), b.Items...)
 	for i, it := range b.Items {
 		occupied[it.Slot] = true
-		if it.Template == template && (r.Quick(it.Slot) || it.Slot >= slots[0] && it.Slot <= slots[1]) && it.Amount < limit {
+		if b.OrdinarySlotUnlocked(it.Slot) && it.Template == template && (r.Quick(it.Slot) || it.Slot >= slots[0] && it.Slot <= slots[1]) && it.Amount < limit {
 			added := min(count, limit-it.Amount)
 			b.Items[i].Amount += added
 			count -= added
@@ -137,7 +137,7 @@ func (b Bag) addStackable(r BagRules, template, count uint32, stackableType stri
 	// 2. Allocate the first unoccupied slot in the category range
 	for n := uint32(slots[0]); n <= uint32(slots[1]); n++ {
 		slot := uint16(n)
-		if !occupied[slot] {
+		if b.OrdinarySlotUnlocked(slot) && !occupied[slot] {
 			b.Items = append(b.Items, BagItem{Slot: slot, Template: template, Amount: count})
 			return b, slot, nil
 		}

@@ -28,7 +28,7 @@ func (q *Queries) AbandonQuest(ctx context.Context, arg AbandonQuestParams) (int
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -76,7 +76,7 @@ func (q *Queries) ClearActQuests(ctx context.Context, arg ClearActQuestsParams) 
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -108,7 +108,7 @@ func (q *Queries) ClearQuests(ctx context.Context, arg ClearQuestsParams) (int64
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -190,7 +190,7 @@ func (q *Queries) CompleteQuestObjective(ctx context.Context, arg CompleteQuestO
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -229,7 +229,7 @@ func (q *Queries) CompleteQuestUseObjective(ctx context.Context, arg CompleteQue
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -418,7 +418,7 @@ func (q *Queries) MarkMeetNPCQuest(ctx context.Context, arg MarkMeetNPCQuestPara
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -555,7 +555,7 @@ func (q *Queries) RecordQuestMapClear(ctx context.Context, arg RecordQuestMapCle
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -614,7 +614,7 @@ func (q *Queries) RepairLegacyQuest(ctx context.Context, arg RepairLegacyQuestPa
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}

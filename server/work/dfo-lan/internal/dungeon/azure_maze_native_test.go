@@ -3,8 +3,8 @@ package dungeon_test
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
-	"dfolan/internal/gamedata"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/gamedata"
 	"os"
 	"testing"
 )

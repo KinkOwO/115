@@ -36,6 +36,9 @@ func (b *EnhancementItemImport) Consume(s catalog.ItemScript) error {
 		return nil
 	}
 	fields := ticketFields(s.Cells)
+	if err := c.importPortable(id, item.Path, fields); err != nil {
+		return err
+	}
 	if _, ok := fields["[equipment reinforcement ticket]"]; ok {
 		c.ReinforcementTickets[id] = reinforcementTicket{Path: item.Path, Fields: fields}
 	}

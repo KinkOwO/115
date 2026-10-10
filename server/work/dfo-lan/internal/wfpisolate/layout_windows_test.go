@@ -20,45 +20,45 @@ import (
 // offsetsFor 把当前布局常量整理成"字段名 -> 偏移"，方便逐项比对。
 func testLayout() map[string]int {
 	return map[string]int{
-		"FWPM_DISPLAY_DATA0.name":                displayDataName,
-		"FWPM_DISPLAY_DATA0.description":         displayDataDescr,
-		"FWPM_SESSION0.sessionKey":               sessionKeyOff,
-		"FWPM_SESSION0.displayData":              sessionDisplayOff,
-		"FWPM_SESSION0.flags":                    sessionFlagsOff,
-		"FWPM_SESSION0.txnWaitTimeoutInMSec":     sessionTxnOff,
-		"FWPM_SESSION0.processId":                sessionPidOff,
-		"FWPM_SESSION0.sid":                      sessionSidOff,
-		"FWPM_SESSION0.username":                 sessionUsernameOff,
-		"FWPM_SESSION0.kernelMode":               sessionKernelOff,
-		"FWP_BYTE_BLOB.size":                     byteBlobLen,
-		"FWP_BYTE_BLOB.data":                     byteBlobData,
-		"FWP_VALUE0.type":                        valueType,
-		"FWP_VALUE0.value":                       valueData,
-		"FWPM_SUBLAYER0.subLayerKey":             subLayerKeyOff,
-		"FWPM_SUBLAYER0.displayData":             subLayerDisplayOff,
-		"FWPM_SUBLAYER0.flags":                   subLayerFlagsOff,
-		"FWPM_SUBLAYER0.providerKey":             subLayerProviderOff,
-		"FWPM_SUBLAYER0.providerData":            subLayerDataOff,
-		"FWPM_SUBLAYER0.weight":                  subLayerWeightOff,
-		"FWPM_FILTER_CONDITION0.fieldKey":        conditionField,
-		"FWPM_FILTER_CONDITION0.matchType":       conditionMatch,
-		"FWPM_FILTER_CONDITION0.conditionValue":  conditionValueAt,
-		"FWPM_ACTION0.type":                      actionType,
-		"FWPM_FILTER0.filterKey":                 filterKeyOff,
-		"FWPM_FILTER0.displayData":               filterDisplayOff,
-		"FWPM_FILTER0.flags":                     filterFlagsOff,
-		"FWPM_FILTER0.providerKey":               filterProviderOff,
-		"FWPM_FILTER0.providerData":              filterProviderData,
-		"FWPM_FILTER0.layerKey":                  filterLayerKeyOff,
-		"FWPM_FILTER0.subLayerKey":               filterSubLayerKeyOf,
-		"FWPM_FILTER0.weight":                    filterWeightOff,
-		"FWPM_FILTER0.numFilterConditions":       filterNumCondOff,
-		"FWPM_FILTER0.filterCondition":           filterConditionsOff,
-		"FWPM_FILTER0.action":                    filterActionOff,
-		"FWPM_FILTER0.rawContext":                filterRawContextOff,
-		"FWPM_FILTER0.reserved":                  filterReservedOff,
-		"FWPM_FILTER0.filterId":                  filterIdOff,
-		"FWPM_FILTER0.effectiveWeight":           filterEffectiveOff,
+		"FWPM_DISPLAY_DATA0.name":               displayDataName,
+		"FWPM_DISPLAY_DATA0.description":        displayDataDescr,
+		"FWPM_SESSION0.sessionKey":              sessionKeyOff,
+		"FWPM_SESSION0.displayData":             sessionDisplayOff,
+		"FWPM_SESSION0.flags":                   sessionFlagsOff,
+		"FWPM_SESSION0.txnWaitTimeoutInMSec":    sessionTxnOff,
+		"FWPM_SESSION0.processId":               sessionPidOff,
+		"FWPM_SESSION0.sid":                     sessionSidOff,
+		"FWPM_SESSION0.username":                sessionUsernameOff,
+		"FWPM_SESSION0.kernelMode":              sessionKernelOff,
+		"FWP_BYTE_BLOB.size":                    byteBlobLen,
+		"FWP_BYTE_BLOB.data":                    byteBlobData,
+		"FWP_VALUE0.type":                       valueType,
+		"FWP_VALUE0.value":                      valueData,
+		"FWPM_SUBLAYER0.subLayerKey":            subLayerKeyOff,
+		"FWPM_SUBLAYER0.displayData":            subLayerDisplayOff,
+		"FWPM_SUBLAYER0.flags":                  subLayerFlagsOff,
+		"FWPM_SUBLAYER0.providerKey":            subLayerProviderOff,
+		"FWPM_SUBLAYER0.providerData":           subLayerDataOff,
+		"FWPM_SUBLAYER0.weight":                 subLayerWeightOff,
+		"FWPM_FILTER_CONDITION0.fieldKey":       conditionField,
+		"FWPM_FILTER_CONDITION0.matchType":      conditionMatch,
+		"FWPM_FILTER_CONDITION0.conditionValue": conditionValueAt,
+		"FWPM_ACTION0.type":                     actionType,
+		"FWPM_FILTER0.filterKey":                filterKeyOff,
+		"FWPM_FILTER0.displayData":              filterDisplayOff,
+		"FWPM_FILTER0.flags":                    filterFlagsOff,
+		"FWPM_FILTER0.providerKey":              filterProviderOff,
+		"FWPM_FILTER0.providerData":             filterProviderData,
+		"FWPM_FILTER0.layerKey":                 filterLayerKeyOff,
+		"FWPM_FILTER0.subLayerKey":              filterSubLayerKeyOf,
+		"FWPM_FILTER0.weight":                   filterWeightOff,
+		"FWPM_FILTER0.numFilterConditions":      filterNumCondOff,
+		"FWPM_FILTER0.filterCondition":          filterConditionsOff,
+		"FWPM_FILTER0.action":                   filterActionOff,
+		"FWPM_FILTER0.rawContext":               filterRawContextOff,
+		"FWPM_FILTER0.reserved":                 filterReservedOff,
+		"FWPM_FILTER0.filterId":                 filterIdOff,
+		"FWPM_FILTER0.effectiveWeight":          filterEffectiveOff,
 	}
 }
 
@@ -104,9 +104,9 @@ func TestLayoutOffsetsMatchSDK(t *testing.T) {
 		"FWPM_FILTER0.filterCondition":          120,
 		"FWPM_FILTER0.action":                   128,
 		"FWPM_FILTER0.rawContext":               152,
-		"FWPM_FILTER0.reserved":                 160,
-		"FWPM_FILTER0.filterId":                 168,
-		"FWPM_FILTER0.effectiveWeight":          176,
+		"FWPM_FILTER0.reserved":                 168,
+		"FWPM_FILTER0.filterId":                 176,
+		"FWPM_FILTER0.effectiveWeight":          184,
 	}
 	got := testLayout()
 	for name, wantOffset := range want {
@@ -132,7 +132,9 @@ func TestLayoutOffsetsMatchSDK(t *testing.T) {
 //	DD 16 / Blob 16 data@8 / Value 16 value@8
 //	Session 72 display@16 flags@32 txn@36 pid@40 sid@48 user@56 km@64
 //	SubLayer 72 display@16 flags@32 provKey@40 provData@48 weight@64
-//	Cond 40 match@16 value@24 / Action 20 guid@4 / Filter 192（action@128 id@168 eff@176）
+//	Cond 40 match@16 value@24 / Action 20 guid@4 / Filter 200 (action@128 id@176 eff@184).
+//
+// The filter context union must include its GUID arm (16 bytes), not only UINT64.
 func TestLayoutSizesMatchSDK(t *testing.T) {
 	cases := []struct {
 		name string
@@ -145,9 +147,9 @@ func TestLayoutSizesMatchSDK(t *testing.T) {
 		{"FWP_VALUE0", valueSize, 16},
 		{"FWPM_SUBLAYER0", subLayerSize, 72},
 		{"FWPM_FILTER_CONDITION0", conditionSize, 40},
-		{"FWPM_ACTION0", actionSize, 24},
-		{"FWPM_FILTER0", filterSize, 192},
-		{"GUID", guidSize, 16},	}
+		{"FWPM_ACTION0", actionSize, 20},
+		{"FWPM_FILTER0", filterSize, 200},
+		{"GUID", guidSize, 16}}
 	for _, testCase := range cases {
 		if testCase.got != testCase.want {
 			t.Errorf("%s = %d，want %d", testCase.name, testCase.got, testCase.want)

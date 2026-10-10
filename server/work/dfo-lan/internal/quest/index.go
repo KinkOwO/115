@@ -24,20 +24,22 @@ type Entry struct {
 	// Collisions are the mutually exclusive branch peers: the available list
 	// hides a quest whose collision peer is already accepted or completed,
 	// and Accept refuses it.
-	Collisions         []uint32
-	GrowTypes          []int32
-	TargetCharacters   []targetCharacter
-	TargetUsable       bool
-	NPC                uint32
-	NPCReach           NPCReachObjective
-	Range              RangeObjective
-	Seek               SeekObjective
-	UseItem            uint32
-	Seeking            SeekingItemObjective
-	HuntDungeon        uint32
-	HuntEnemy          uint32
-	HuntMonster        uint32
-	UnderClear         UnderClearObjective
+	Collisions       []uint32
+	GrowTypes        []int32
+	TargetCharacters []targetCharacter
+	TargetUsable     bool
+	Grade            string
+	PaysOnForceClear bool
+	NPC              uint32
+	NPCReach         NPCReachObjective
+	Range            RangeObjective
+	Seek             SeekObjective
+	UseItem          uint32
+	Seeking          SeekingItemObjective
+	HuntDungeon      uint32
+	HuntEnemy        uint32
+	HuntMonster      uint32
+	UnderClear       UnderClearObjective
 }
 
 // Index precomputes those properties once per catalog load. The hot paths —
@@ -148,6 +150,7 @@ func BuildIndex(c catalog.QuestCatalog) *Index {
 			Jobs: d.Jobs, Prerequisites: d.Prerequisites, PrerequisiteGroups: groups,
 			Collisions: d.Collisions,
 		}
+		e.Grade, e.PaysOnForceClear = Grade(d), RewardableOnForceClear(d)
 		e.TargetCharacters, e.TargetUsable = targetCharacters(d.Script.Cells)
 		for _, g := range cells(d.Script.Cells, "[grow type]") {
 			if g.Type != 0 {

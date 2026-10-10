@@ -32,7 +32,9 @@ type Session struct {
 	Monsters       []protocol.DungeonMonster
 	Tournament     *TournamentRun
 	Loaded         bool
-	Dead           map[uint16]bool
+	// Derived from the current source boss-map script, never from a timer.
+	BossRoomSpecialPassive bool
+	Dead                   map[uint16]bool
 	// 沉月湖（Moon Lake）单人攻坚状态。只有该频道启用了 moonConfig 时才会被写入，
 	// 普通副本与军团全程保持零值。
 	MoonFirstGrid                     [5]byte
@@ -54,13 +56,17 @@ type Session struct {
 	PhaseHistory                      []MoonCompletedPhase
 	// Unowned marks a monster this character did not kill. It dies and the
 	// room clears, but it pays no loot and no experience.
-	Unowned       map[uint16]bool
-	Visited       map[uint32][]protocol.DungeonMonster
-	ScriptWarps   map[uint32]bool
-	NextEntity    uint16
-	Extra         uint16
-	WeeklyRewards [100]byte
-	SeasonRewards [100]byte
+	Unowned               map[uint16]bool
+	Visited               map[uint32][]protocol.DungeonMonster
+	ScriptWarps           map[uint32]bool
+	NextEntity            uint16
+	localMonsterAuthority bool
+	Extra                 uint16
+	WeeklyRewards         [100]byte
+	SeasonRewards         [100]byte
+	ElvenmereLastFloor    byte
+	ElvenmereWeekStart    int64
+	ElvenmereStartFloor   byte
 	// companions are friendly map-native APCs already encountered in this
 	// run. A later room that does not declare the same AIC receives a dynamic
 	// NOTI29 row through the client's native SourceIndex=10000 branch.
@@ -88,8 +94,8 @@ type Session struct {
 	sceneBaseRooms map[[2]byte]uint32
 }
 
-func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, accepted map[uint16]bool) (*Session, error) {
-	return selectRun(c, r, level, accepted, false)
+func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, accepted map[uint16]bool, localAuthority ...bool) (*Session, error) {
+	return selectRun(c, r, level, accepted, false, localAuthority...)
 }
 
 // SelectGuide 只放开「普通选图不许进 [tutorial dungeon]」这一条：662 新手成长活动的
@@ -97,7 +103,7 @@ func Select(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, a
 // 路线、不置 inTutorial。选项校验、迷宫选择、疲劳与结算字段全部沿用同一条 Select
 // 路径，且这里反向要求该副本确实是教程房，不能被用来绕过任何普通副本的门禁。
 // 调用方必须先按源核对「本职业本关的引导房 ID」才允许走到这里。
-func SelectGuide(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, accepted map[uint16]bool) (*Session, error) {
+func SelectGuide(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, accepted map[uint16]bool, localAuthority ...bool) (*Session, error) {
 	d, ok := c.Dungeons[r.ID]
 	if !ok {
 		return nil, fmt.Errorf("dungeon absent from imported source")
@@ -105,10 +111,10 @@ func SelectGuide(c catalog.DungeonCatalog, r protocol.DungeonSelection, level by
 	if !d.Tutorial {
 		return nil, fmt.Errorf("dungeon %d is not a source tutorial dungeon", r.ID)
 	}
-	return selectRun(c, r, level, accepted, true)
+	return selectRun(c, r, level, accepted, true, localAuthority...)
 }
 
-func selectRun(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, accepted map[uint16]bool, allowTutorial bool) (*Session, error) {
+func selectRun(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, accepted map[uint16]bool, allowTutorial bool, localAuthority ...bool) (*Session, error) {
 	d, ok := c.Dungeons[r.ID]
 	if !ok {
 		return nil, fmt.Errorf("dungeon absent from imported source")
@@ -153,13 +159,35 @@ func selectRun(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte
 		return nil, err
 	}
 	selected := chosen
+	if d.ID == 100003126 && c.Elvenmere != nil && len(c.Elvenmere.Areas) > 0 {
+		floor := byte(r.Extra)
+		if floor == 0 {
+			floor = 1
+		}
+		area, e := c.Elvenmere.AreaForFloor(floor)
+		if e != nil {
+			return nil, e
+		}
+		selected.Rooms = append([]catalog.DungeonRoom(nil), chosen.Rooms...)
+		found := false
+		for i := range selected.Rooms {
+			if [2]byte{selected.Rooms[i].X, selected.Rooms[i].Y} == selected.Start {
+				selected.Rooms[i].Map = area.WaitingMap
+				selected.Rooms[i].Alternates = nil
+				found = true
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("elvenmere source maze lacks its waiting room")
+		}
+	}
 	if r.Mode == 1 {
 		selected, err = hellPartyMaze(chosen, *d.HellParty)
 		if err != nil {
 			return nil, err
 		}
 	}
-	s, err := newSession(c, d, selected)
+	s, err := newSession(c, d, selected, localAuthority...)
 	if err != nil {
 		return nil, err
 	}
@@ -191,24 +219,21 @@ func selectRun(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte
 		if err != nil {
 			return nil, err
 		}
+		if s.localMonsterAuthority {
+			for i := range actors {
+				actors[i].Entity = uint16(4096 + i*8)
+			}
+			for i := range run.Opening.Path {
+				run.Opening.Path[i].Entity = uint16(4096 + i*8)
+			}
+		}
 		s.Tournament = run
 		s.Monsters = actors
 		s.Visited[s.Room.Map] = actors
-		s.NextEntity = uint16(4096 + len(actors))
+		s.NextEntity = uint16(4096 + len(actors)*int(s.monsterEntityStride()))
 	}
-	if d.ID == 100003126 && s.Extra > 1 {
-		// 跳区入场（如从第 36、61、86 层开始），前面的层数标记为已通关/已领奖
-		start := int(s.Extra)
-		if start > 100 {
-			start = 100
-		}
-		for i := 0; i < start-1; i++ {
-			s.WeeklyRewards[i] = 1
-			if (i+1)%5 == 0 {
-				s.SeasonRewards[i] = 1
-			}
-		}
-	}
+	// Elvenmere reward flags are restored from the character's durable claims
+	// at entry. Selecting a later zone cannot manufacture earlier claims.
 	return s, nil
 }
 
@@ -317,7 +342,7 @@ func resolveRoomMap(c catalog.DungeonCatalog, r catalog.DungeonRoom) (catalog.Du
 // newSession builds the owned run for an already-resolved maze. Both the
 // ordinary quest/town entry and the job tutorial entry share it so a tutorial
 // room is spawned by exactly the same verified source rules.
-func newSession(c catalog.DungeonCatalog, d catalog.DungeonDefinition, chosen catalog.DungeonMaze) (*Session, error) {
+func newSession(c catalog.DungeonCatalog, d catalog.DungeonDefinition, chosen catalog.DungeonMaze, localAuthority ...bool) (*Session, error) {
 	s := &Session{Definition: d, Maze: chosen, StartedAt: time.Now()}
 	var run [16]byte
 	if _, e := rand.Read(run[:]); e != nil {
@@ -356,6 +381,8 @@ func newSession(c catalog.DungeonCatalog, d catalog.DungeonDefinition, chosen ca
 		return nil, fmt.Errorf("start map not imported")
 	}
 	s.Room = start
+	s.BossRoomSpecialPassive = bossRoomWithSpecialPassive(c, s.Maze, s.Room)
+	s.localMonsterAuthority = len(localAuthority) > 0 && localAuthority[0]
 	monsters, e := fixedMonsters(script, d.BasisLevel)
 	if e != nil {
 		return nil, e
@@ -363,11 +390,16 @@ func newSession(c catalog.DungeonCatalog, d catalog.DungeonDefinition, chosen ca
 	if triggeredSpawnsSuppressed() {
 		monsters = dropTriggeredMonsters(script, monsters)
 	}
+	if s.localMonsterAuthority {
+		for i := range monsters {
+			monsters[i].Entity = uint16(4096 + i*8)
+		}
+	}
 	s.Monsters = monsters
 	s.companions = rememberCompanions(nil, monsters)
 	s.Dead = map[uint16]bool{}
 	s.Visited = map[uint32][]protocol.DungeonMonster{s.Room.Map: monsters}
-	s.NextEntity = uint16(4096 + len(monsters))
+	s.NextEntity = uint16(4096 + len(monsters)*int(s.monsterEntityStride()))
 	return s, nil
 }
 
@@ -487,13 +519,13 @@ func (s *Session) RoomCleared() bool {
 	return true
 }
 func (s *Session) Move(c catalog.DungeonCatalog, target [2]byte) (*Session, error) {
-	if s.Completed() || s.completionTarget != 0 {
+	if !s.Definition.Bakal && (s.Completed() || s.completionTarget != 0) {
 		// [MERGE-20260928-POSTBOSS-SCENE] 完成之后仍允许走向「还有剧情层图的相邻格」。
 		// 苏醒之森 100004977 在 boss 房 (5,0) 就判完成，但后面还有 (6,0) 的过场
 		// （层图 100017263，scene_route 100017262→100017263）。一律拒会把这最后一段
 		// 挡在外面 —— 实机 2026-09-28 玩家打完 boss、点地图上的传送阵，服务端回
 		// "boss completion is pending or already accepted"，传送阵过不去。
-		if !s.adjacentLayerPending(c, target) {
+		if !s.adjacentLayerPending(c, target) && !s.adjacentUnvisitedRoom(target) {
 			return nil, fmt.Errorf("boss completion is pending or already accepted")
 		}
 	}
@@ -571,7 +603,7 @@ func (s *Session) enterRoom(c catalog.DungeonCatalog, room catalog.DungeonRoom) 
 				return nil, fmt.Errorf("monster identity exhausted")
 			}
 			monsters[i].Entity = next.NextEntity
-			next.NextEntity++
+			next.NextEntity = advanceMonsterEntity(next.NextEntity, next.monsterEntityStride())
 		}
 	}
 	if !seen && next.HellParty != nil && room.Map == next.HellParty.Map {
@@ -586,12 +618,13 @@ func (s *Session) enterRoom(c catalog.DungeonCatalog, room catalog.DungeonRoom) 
 	// source index proven in native145b20dc0.
 	next.companions = rememberCompanions(s.companions, monsters)
 	var e error
-	monsters, e = appendMissingCompanions(monsters, next.companions, &next.NextEntity)
+	monsters, e = appendMissingCompanions(monsters, next.companions, &next.NextEntity, next.monsterEntityStride())
 	if e != nil {
 		return nil, e
 	}
 	next.Visited[room.Map] = monsters
 	next.Monsters = monsters
+	next.BossRoomSpecialPassive = bossRoomWithSpecialPassive(c, next.Maze, next.Room)
 	return &next, nil
 }
 
@@ -621,7 +654,11 @@ func rememberCompanions(known, monsters []protocol.DungeonMonster) []protocol.Du
 	return out
 }
 
-func appendMissingCompanions(monsters, companions []protocol.DungeonMonster, nextEntity *uint16) ([]protocol.DungeonMonster, error) {
+func appendMissingCompanions(monsters, companions []protocol.DungeonMonster, nextEntity *uint16, stride ...uint16) ([]protocol.DungeonMonster, error) {
+	step := uint16(1)
+	if len(stride) > 0 {
+		step = stride[0]
+	}
 	present := make(map[uint32]bool, len(monsters))
 	for _, m := range monsters {
 		if m.APC && m.Team == 0 {
@@ -636,7 +673,7 @@ func appendMissingCompanions(monsters, companions []protocol.DungeonMonster, nex
 			return nil, fmt.Errorf("companion identity exhausted")
 		}
 		companion.Entity = *nextEntity
-		*nextEntity++
+		*nextEntity = advanceMonsterEntity(*nextEntity, step)
 		companion.SourceIndex = dynamicAPCSourceIndex
 		companion.Team = 0
 		companion.NonCombat = true

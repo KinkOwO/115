@@ -97,6 +97,10 @@ func (s *Store) ChangeCharacterSlots(ctx context.Context, account int64, r Chara
 	if _, err = queries.LockAccount(ctx, account); err != nil {
 		return err
 	}
+	capacity, err = effectiveCharacterCapacity(ctx, queries, account, capacity)
+	if err != nil {
+		return err
+	}
 	rows, err := queries.LockCharacterRoster(ctx, account)
 	if err != nil {
 		return err

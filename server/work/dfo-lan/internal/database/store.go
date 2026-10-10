@@ -15,6 +15,7 @@ import (
 )
 
 type Config struct {
+	DurableWrites bool `json:"durable_writes,omitempty"`
 	// Driver names the storage engine. SQLite is the only engine since 2026-10-05 (owner
 	// decision, see root AGENTS.md §0.6); the field is still accepted so a profile that
 	// spells out "sqlite" keeps working unchanged. A profile that asks for the removed
@@ -61,9 +62,12 @@ type Store struct {
 	// engine owns the connection and transactions; queries is the engine's query
 	// surface, kept as a field so the ~200 existing s.queries.X(...) call sites stay
 	// untouched. Nothing above this type knows which engine is underneath.
-	engine           engine
-	queries          querySet
-	adventureEnabled bool
+	engine                      engine
+	queries                     querySet
+	adventureEnabled            bool
+	characterEventObservers     []CharacterEventAccountObserver
+	cashAccountObservers        []CashAccountObserver
+	characterAccountTxObservers []CharacterAccountTxObserver
 }
 
 // ErrNotFound keeps optional persistence results independent of the SQL driver.
@@ -175,7 +179,7 @@ func openSQLiteStore(ctx context.Context, c Config) (*Store, error) {
 	if busyTimeout <= 0 {
 		busyTimeout = 5000
 	}
-	db, err := openSQLite(ctx, c.SQLitePath, maxConns, busyTimeout)
+	db, err := openSQLite(ctx, c.SQLitePath, maxConns, busyTimeout, c.DurableWrites)
 	if err != nil {
 		return nil, err
 	}
@@ -225,6 +229,10 @@ func (s *Store) CreateCharacter(ctx context.Context, c Character, maxCharacters 
 		return c, e
 	}
 	allocation, e := queries.CharacterAllocation(ctx, account)
+	if e != nil {
+		return c, e
+	}
+	maxCharacters, e = effectiveCharacterCapacity(ctx, queries, account, maxCharacters)
 	if e != nil {
 		return c, e
 	}

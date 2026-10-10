@@ -15,6 +15,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -69,7 +70,12 @@ var payAsIsWrappers = map[uint32]string{
 
 // boosterBoxSource 把已加载的礼包目录接到奖励展开上：奖励表发的是外层包装，
 // 这里回答两个问题 —— 开一层会出什么，以及某个模板到底是不是真物品。
-type boosterBoxSource struct{ catalog *BoosterCatalog }
+type boosterBoxSource struct {
+	catalog *BoosterCatalog
+	// Source marker semantics for dropped wrappers. Explicit event auto-open
+	// consumers retain their existing behavior with the zero value.
+	serverUnwrap bool
+}
 
 func (s boosterBoxSource) RewardBox(template uint32) (loot.RewardBox, bool) {
 	if s.catalog == nil {
@@ -80,6 +86,9 @@ func (s boosterBoxSource) RewardBox(template uint32) (loot.RewardBox, bool) {
 	}
 	def, ok := s.catalog.Definitions[template]
 	if !ok || len(def.Pools) == 0 {
+		return loot.RewardBox{}, false
+	}
+	if s.serverUnwrap && def.ClientOpenPath {
 		return loot.RewardBox{}, false
 	}
 	out := loot.RewardBox{Pools: make([]loot.RewardBoxPool, 0, len(def.Pools))}
@@ -127,7 +136,10 @@ func (s boosterBoxSource) Container(template uint32) bool {
 	if _, exempt := payAsIsWrappers[template]; exempt {
 		return false
 	}
-	if _, ok := s.catalog.Definitions[template]; ok {
+	if def, ok := s.catalog.Definitions[template]; ok {
+		if s.serverUnwrap && def.ClientOpenPath {
+			return false
+		}
 		return true
 	}
 	item, ok := s.catalog.Items[template]
@@ -303,6 +315,9 @@ func (w *worldSession) openBoosterItem(
 	}
 
 	// 2. Direct contract item activation (e.g. Tactician, Conqueror, Growth, Cube, NeoPremium)
+	if cashshop.IsRestrictedContract(boxItem.Template) {
+		return nil, fmt.Errorf("契约包含尚未支持的源限制，物品已保留")
+	}
 	if contract, isContract := cashshop.ResolveContract(boxItem.Template); isContract {
 		if req.Amount != 1 || len(req.Selections) != 0 {
 			return nil, fmt.Errorf("契约道具必须单独使用一件")
@@ -526,7 +541,7 @@ func (w *worldSession) openBoosterItem(
 			// Destination 1: Avatar (kind == "avatar" or path contains "avatar" or option specified)
 			// 装扮目录有两种命名：avatar/ 与 at_avatar/；只认 "/avatar/" 会漏掉后者
 			// （实机诊断 selection_box_audit_test.go 时发现），让它落进装备分支。
-			isAvatar := kind == "avatar" || strings.Contains(itemPath, "avatar")
+			isAvatar := kind == "avatar" || (kind == "equipment" && strings.Contains(itemPath, "avatar"))
 			if !isAvatar && len(req.AvatarOptions) > 0 {
 				for _, ao := range req.AvatarOptions {
 					if ao.Template == g.Template {
@@ -560,11 +575,19 @@ func (w *worldSession) openBoosterItem(
 								dur = uint16(opts[0])
 								optMap[g.Template] = opts[1:]
 							}
+							// [FIX-20261007 时装孔] 礼包/胶囊开出时装时按 PVF 默认孔补孔，
+							// 让新时装存档即带孔（此前 avatar_options 恒空，背包不显示孔；
+							// 邮箱/商城部分路径带孔、开盒路径不带导致两件同模板一件有孔一件无孔）。
+							var sockOpts []byte
+							if w.characters != nil && w.characters.Equipment != nil {
+								sockOpts = w.characters.Equipment.DefaultAvatarSockets(g.Template)
+							}
 							b.Special[1] = append(b.Special[1], inventory.BagEquipment{
-								Slot:       s,
-								Template:   g.Template,
-								Durability: dur,
-								Period:     per,
+								Slot:          s,
+								Template:      g.Template,
+								Durability:    dur,
+								Period:        per,
+								AvatarOptions: sockOpts,
 							})
 							foundSlot = true
 							break
@@ -638,30 +661,19 @@ func (w *worldSession) openBoosterItem(
 				if durErr != nil {
 					log.Printf("booster grant %d: durability unresolved (%v); granted at 0", g.Template, durErr)
 				}
-				occupied := map[uint16]bool{}
-				for _, eq := range b.Equipment {
-					occupied[eq.Slot] = true
+				slots := [2]uint16{9, 64}
+				if lootSvc != nil && lootSvc.BagRules.EquipmentSlots != [2]uint16{} {
+					slots = lootSvc.BagRules.EquipmentSlots
 				}
-				for _, it := range b.Items {
-					occupied[it.Slot] = true
+				available, slotErr := b.EquipmentAwardSlots(slots, g.Count)
+				if slotErr != nil {
+					return nil, nil, slotErr
 				}
-				for cnt := uint32(0); cnt < g.Count; cnt++ {
-					foundSlot := false
-					for s := uint16(9); s <= 64; s++ {
-						if !occupied[s] {
-							occupied[s] = true
-							eq := inventory.BagEquipment{Slot: s, Template: g.Template, Durability: dur}
-							// 成品礼盒（如 590015876）的分类块自己声明 +12/+8；
-							// 没有声明时 selectionReinforce/Refine 为 0，盖章不生效。
-							inventory.SetCraftedStatus(&eq, selectionReinforce, selectionRefine)
-							b.Equipment = append(b.Equipment, eq)
-							foundSlot = true
-							break
-						}
-					}
-					if !foundSlot {
-						return nil, nil, fmt.Errorf("equipment inventory full")
-					}
+				for _, slot := range available {
+					eq := inventory.BagEquipment{Slot: slot, Template: g.Template, Durability: dur}
+					// Preserve the source selection's crafted reinforcement/refine.
+					inventory.SetCraftedStatus(&eq, selectionReinforce, selectionRefine)
+					b.Equipment = append(b.Equipment, eq)
 				}
 				continue
 			}
@@ -748,7 +760,20 @@ func (w *worldSession) openBoosterItem(
 	plan = append(plan, outboundPacket{"booster_main_inventory_updated", 0, 14, mainUpdate})
 
 	if res.HasAvatars && len(finalBag.Special[1]) > 0 {
-		avatarPayload, err := inventory.EquipmentPayload(1, finalBag.Special[1], false)
+		// NOTI14 is a delta: unchanged legacy stackable rows in the avatar
+		// container must not reach the native avatar period reader 145A83FA0.
+		previous := map[uint16]inventory.BagEquipment{}
+		for _, item := range curBag.Special[1] {
+			previous[item.Slot] = item
+		}
+		var changed []inventory.BagEquipment
+		for _, item := range finalBag.Special[1] {
+			old, exists := previous[item.Slot]
+			if !exists || !reflect.DeepEqual(old, item) {
+				changed = append(changed, item)
+			}
+		}
+		avatarPayload, err := inventory.EquipmentPayload(1, changed, false)
 		if err != nil {
 			return nil, err
 		}

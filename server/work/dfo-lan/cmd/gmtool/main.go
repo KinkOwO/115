@@ -12,10 +12,14 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"dfolan/internal/admin"
 	"dfolan/internal/catalog"
 	"dfolan/internal/database"
+	"dfolan/internal/localgm"
 	"dfolan/internal/managementdata"
+	"dfolan/internal/toolcmd/gmicons"
+	"dfolan/internal/toolcmd/gmremote"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -28,6 +32,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -140,6 +145,14 @@ func resolveDataFile(explicit, name string, dirs []string, fallback string) stri
 	return ""
 }
 
+func defaultRootDir() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return `D:\115us`
+	}
+	return filepath.Dir(filepath.Dir(filepath.Dir(exe)))
+}
+
 type server struct {
 	store    gmStore
 	admin    *admin.Service
@@ -149,13 +162,18 @@ type server struct {
 	loot     catalog.LootCatalog
 	started  time.Time
 	operator string
+	edition  *editionManager
 }
 
 func main() {
 	sourceFlags := managementdata.Register(flag.CommandLine)
-	root := flag.String("root", `D:\115us`, "115us 环境根目录")
+	root := flag.String("root", editionRoot(), "115us 环境根目录（默认从程序所在位置推导）")
+	remoteConfig := flag.String("remote-controller", "", "联网GM远程维护控制器配置（不准备物品目录、不打开玩家库）")
+	remoteInit := flag.String("remote-init", "", "创建远程GM服务器和服主连接文件的目录")
+	remoteHost := flag.String("remote-host", "", "远程GM服务器IP（仅用于remote-init）")
 	listen := flag.String("listen", "127.0.0.1:0", "本地监听地址")
 	openBrowser := flag.Bool("open", true, "启动后自动打开浏览器")
+	expectedDatabase := flag.String("expected-database", "", "启动器已解析的现有SQLite文件；必须是同一文件")
 	operator := flag.String("operator", "gm-tool", "审计里记录的操作用户")
 	// 兼容独立发布包 D:\115us\gm-tool 的启动参数（scripts/gmweb.py 会全部传进来）。
 	storagePath := flag.String("storage", "", "local.json 路径（默认 -root 下的 runtime/storage/local.json）")
@@ -179,7 +197,30 @@ func main() {
 	charCatalog := flag.String("character-catalog", "", "（可接受但忽略）角色模板目录")
 	progCatalog := flag.String("progression-catalog", "", "（可接受但忽略）成长目录")
 	progRules := flag.String("progression-rules", "", "（可接受但忽略）经验规则")
+	desktopIcons := flag.String("desktop-icons", "", "read-only local ImagePacks2 stdio renderer; no player storage")
 	flag.Parse()
+	if *desktopIcons != "" {
+		if err := gmicons.Run(sourceFlags.ArchivePath, *desktopIcons, os.Stdin, os.Stdout); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+	if *remoteInit != "" {
+		if err := gmremote.Provision(*remoteInit, *remoteHost); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("Remote owner files created; credentials were not printed")
+		return
+	}
+	if *remoteConfig != "" {
+		if defaultEdition != "cloud" {
+			log.Fatal("远程控制器只允许联网GM版本")
+		}
+		if err := gmremote.Run(*remoteConfig); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	// 发布包可能被解压到任意路径（不是 D:\115us），所以这几个数据文件按候选目录
 	// 自动定位：物品库同目录 → exe 的 ../configs（发布包里就是它自己的 configs）
@@ -201,14 +242,36 @@ func main() {
 		defaultDirs(filepath.Dir(itemIndexResolved)), defaultNamesClient)
 	equipmentSlotsResolved := resolveDataFile(*equipmentSlots, "equipment.slots.json",
 		defaultDirs(filepath.Dir(itemIndexResolved)), defaultEquipmentSlots)
+	if defaultEdition != "" {
+		// A packaged edition belongs to its selected root. Missing optional
+		// display tables must never fall through to cwd or a developer install.
+		dirs := []string{filepath.Join(*root, "gm-tool", "configs"), filepath.Join(moduleDir(*root), "configs")}
+		namesClientResolved = resolveDataFile(*namesClient, "names.client.json", dirs, "")
+		equipmentSlotsResolved = resolveDataFile(*equipmentSlots, "equipment.slots.json", dirs, "")
+	}
 
 	p := resolvePaths(*root)
+	if defaultEdition != "" {
+		p = editionPaths(*root, defaultEdition)
+		if *bagRules == "" {
+			*bagRules = p.bagRules
+		}
+		if sourceFlags.DropPolicy == "configs/pvf-drop-policy.json" {
+			sourceFlags.DropPolicy = filepath.Join(p.configs, "pvf-drop-policy.json")
+		}
+	}
 	if strings.TrimSpace(*storagePath) != "" {
 		p.storage = *storagePath
 	}
 	p.applyOverrides(*lootCatalog, *bagRules, *equipCatalog, itemIndexResolved, namesClientResolved, equipmentSlotsResolved)
 	// 显式给了配置路径时，configs 目录以用户给的为准（独立包不在 -root 下面）。
 	p.configs = filepath.Dir(p.bagRules)
+	if defaultEdition != "" && *clientPVF == defaultClientPVF {
+		*clientPVF = p.clientPVF
+	}
+	if defaultEdition != "" && *equipmentFull == defaultEquipmentFull {
+		*equipmentFull = p.equipmentFull
+	}
 	p.clientPVF, p.equipmentFull = *clientPVF, *equipmentFull
 
 	// 数据准备模式：只读 PVF/装备目录，写两个新文件，不连数据库。
@@ -230,13 +293,44 @@ func main() {
 	}
 
 	if sourceFlags.ArchivePath == "" {
-		sourceFlags.ArchivePath = filepath.Join(*root, "server", "work", "client-build", "Script.inner.pvf")
+		if defaultEdition != "" {
+			sourceFlags.ArchivePath = p.clientPVF
+		} else {
+			sourceFlags.ArchivePath = filepath.Join(*root, "server", "work", "client-build", "Script.inner.pvf")
+		}
+	}
+	if err := validateLoopback(*listen); err != nil {
+		log.Fatal(err)
+	}
+	if defaultEdition != "" && !sourceFlags.CheckOnly {
+		preCfg, e := database.LoadConfig(p.storage)
+		if e != nil {
+			log.Fatalf("读取存储档失败：%v", e)
+		}
+		pre, e := newEditionManager(p, preCfg, catalog.Progression{}, *expectedDatabase)
+		if e != nil {
+			log.Fatal(e)
+		}
+		if _, e = os.Stat(pre.config.SQLitePath + ".admin-guard"); e == nil && !(pre.kind == "local" && onlineReady(pre.config.SQLitePath)) {
+			log.Fatal("请先停止对应的游戏服务端，再启动GM；不会自动停服或清理管理租约")
+		} else if e != nil && !os.IsNotExist(e) {
+			log.Fatal(e)
+		}
+	}
+	log.Printf("正在准备GM原生物品目录，首次读取可能需要约一分钟：%s", sourceFlags.ArchivePath)
+	if defaultEdition == "cloud" {
+		// The cloud host has 4 GiB RAM. Bound GC's working target while walking
+		// the full source instead of retaining all intermediate projections.
+		debug.SetMemoryLimit(1200 << 20)
 	}
 	prepared, err := prepareNativeGMData(p, *sourceFlags)
 	if err != nil {
 		log.Fatalf("PVF目录准备失败：%v", err)
 	}
 	defer prepared.awarder.Equipment.Full.Close()
+	if defaultEdition != "" {
+		debug.FreeOSMemory()
+	}
 	if sourceFlags.CheckOnly {
 		if err := managementdata.Report(map[string]any{"source": prepared.awarder.Catalog.Source.Checksum, "items": prepared.index.Count(), "grant_stackables": len(prepared.awarder.Catalog.Items), "equipment_rows": len(prepared.awarder.Equipment.Rows), "storage_accessed": false}); err != nil {
 			log.Fatal(err)
@@ -253,6 +347,16 @@ func main() {
 	cfg, err := database.LoadConfig(p.storage)
 	if err != nil {
 		log.Fatalf("读取存储配置失败：%v", err)
+	}
+	var edition *editionManager
+	if defaultEdition != "" {
+		edition, err = newEditionManager(p, cfg, prepared.progression, *expectedDatabase)
+		if err != nil {
+			log.Fatal(err)
+		}
+		cfg = edition.config
+		edition.quests = prepared.quests
+		edition.skills = prepared.skills
 	}
 	// 存储档校验：SQLite 是唯一引擎，没有服务可起，这里只回报数据库文件位置。
 	// PostgreSQL 的 pg_ctl 自动拉起随引擎一起移除（2026-10-05，见根 AGENTS.md §0.6）。
@@ -278,8 +382,10 @@ func main() {
 			"  2. 检查 DFO 服务端目录下 runtime\\storage\\postgres.log。\n", err)
 	}
 	defer store.Close()
-	if err := store.MigrateGMMail(ctx); err != nil {
-		log.Fatalf("初始化管理台邮件失败：%v", err)
+	if defaultEdition == "" {
+		if err := store.MigrateGMMail(ctx); err != nil {
+			log.Fatalf("初始化管理台邮件失败：%v", err)
+		}
 	}
 
 	svc := &admin.Service{Store: store, Operator: *operator}
@@ -288,10 +394,13 @@ func main() {
 	log.Printf("GM原生目录：%d个LIST绑定；源%s；中文文本按外部显示覆盖读取", index.Count(), loot.Source.Checksum)
 
 	buf := make([]byte, 16)
-	_, _ = rand.Read(buf)
+	if _, err := rand.Read(buf); err != nil {
+		log.Fatal(err)
+	}
 	s := &server{
 		store: store, admin: svc, index: index, paths: p,
 		token: hex.EncodeToString(buf), loot: loot, started: time.Now(), operator: *operator,
+		edition: edition,
 	}
 
 	mux := http.NewServeMux()
@@ -306,12 +415,42 @@ func main() {
 	mux.HandleFunc("/api/grant", s.auth(s.handleGrant))
 	mux.HandleFunc("/api/history", s.auth(s.handleHistory))
 	s.registerDashboardRoutes(mux)
+	if edition != nil {
+		s.registerEditionRoutes(mux)
+	}
+	mux.HandleFunc("/api/backup/list", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/backup/save", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/backup/restore", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/world/areas", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/world/position", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/world/teleport", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/state/quests", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/quests/accepted", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/state/level", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/state/skills", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/state/bag", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/vault/account", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/vault/account/gold", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/vault/character", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/skin/catalog", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/skin/account", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/skin/unlock", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/skin/character", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/equip/list", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/equip/apply", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/fatigue", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/fatigue/write", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/materials", s.auth(s.handleUnavailableAPI))
+	mux.HandleFunc("/api/materials/write", s.auth(s.handleUnavailableAPI))
 
 	ln, err := net.Listen("tcp", *listen)
 	if err != nil {
 		log.Fatalf("监听失败：%v", err)
 	}
 	url := fmt.Sprintf("http://%s/?token=%s", ln.Addr().String(), s.token)
+	if edition != nil {
+		url = fmt.Sprintf("http://%s/#%s", ln.Addr().String(), s.token)
+	}
 	log.Printf("DFO 115 GM 工具已启动：%s", url)
 	log.Printf("物品索引 %d 件（客户端名字表 %d 条，汉化兜底表 %d 条）", index.Count(), len(index.namesClient), len(index.namesZH))
 	if *openBrowser {
@@ -320,7 +459,7 @@ func main() {
 			openURL(url)
 		}()
 	}
-	if err := http.Serve(ln, mux); err != nil {
+	if err := (&http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second}).Serve(ln); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -342,9 +481,58 @@ func (s *server) auth(next http.HandlerFunc) http.HandlerFunc {
 		if tok == "" {
 			tok = r.Header.Get("X-GM-Token")
 		}
-		if tok != s.token {
+		if s.token == "" || subtle.ConstantTimeCompare([]byte(tok), []byte(s.token)) != 1 {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+
+		if s.edition != nil && s.edition.kind == "local" && r.Method != http.MethodGet {
+			if _, e := os.Stat(s.edition.config.SQLitePath + ".admin-guard"); e == nil {
+				d, e := localgm.Read(s.edition.config.SQLitePath)
+				if e != nil {
+					writeErr(w, 409, "当前服务端未开放在线GM，请使用本次配套启动器：%v", e)
+					return
+				}
+				body, e := io.ReadAll(http.MaxBytesReader(w, r.Body, 65536))
+				if e != nil {
+					writeErr(w, 400, "请求过大：%v", e)
+					return
+				}
+				result, e := localgm.Call(r.Context(), d, &localgm.Request{Path: r.URL.Path, Body: body})
+				if e != nil {
+					writeErr(w, 503, "在线操作结果待确认，请保留操作编号重试：%v", e)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(result.Status)
+				w.Write(result.Body)
+				return
+			}
+		}
+		if s.edition != nil && r.Method != http.MethodGet {
+			// Only implemented, audited mutation endpoints are exposed by the two editions.
+			if r.URL.Path != "/api/grant" && r.URL.Path != "/api/gm/level" && r.URL.Path != "/api/gm/backup" && r.URL.Path != "/api/gm/command" {
+				writeErr(w, 404, "此版本未开放该操作")
+				return
+			}
+			s.edition.writeMu.Lock()
+			defer s.edition.writeMu.Unlock()
+			ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+			defer cancel()
+			release, err := s.edition.acquire(ctx, s.admin.Store)
+			if err != nil {
+				writeErr(w, 409, "请先停止对应服务端，再修改存档：%v", err)
+				return
+			}
+			defer release()
+			if r.URL.Path != "/api/gm/backup" {
+				if _, err := s.edition.backup(ctx); err != nil {
+					writeErr(w, 500, "自动备份失败，已取消修改：%v", err)
+					return
+				}
+			}
 		}
 		next(w, r)
 	}
@@ -364,6 +552,17 @@ func writeErr(w http.ResponseWriter, code int, format string, args ...any) {
 func (s *server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	if s.edition != nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(strings.ReplaceAll(editionHTML, "__EDITION__", s.edition.label())))
+		return
+	}
+	if subtle.ConstantTimeCompare([]byte(r.URL.Query().Get("token")), []byte(s.token)) != 1 || s.token == "" {
+		http.Error(w, "unauthorized", 401)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -588,6 +787,7 @@ func (s *server) handleFilters(w http.ResponseWriter, r *http.Request) {
 func (s *server) handleItems(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	f := ItemFilter{
+		Kind: query.Get("kind"), RawType: query.Get("raw_type"), Offset: atoiDefault(query.Get("offset"), 0),
 		Q:        query.Get("q"),
 		Type:     query.Get("type"),
 		Slot:     query.Get("slot"),
@@ -685,6 +885,7 @@ func (s *server) handleHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 type grantRequest struct {
+	GrantID   string `json:"grant_id"`
 	Account   int64  `json:"account"`
 	Character int64  `json:"character"`
 	Cera      int64  `json:"cera"`
@@ -734,6 +935,14 @@ func (s *server) handleGrant(w http.ResponseWriter, r *http.Request) {
 		Reason:    req.Reason,
 		Operator:  s.operator,
 	}
+	if s.edition != nil {
+		if len(req.GrantID) < 8 || len(req.GrantID) > 128 || strings.TrimSpace(req.Reason) == "" {
+			writeErr(w, 400, "需要8～128字符的操作编号和原因")
+			return
+		}
+		g.ID = req.GrantID
+		g.Operator = "gm-" + s.edition.kind
+	}
 	for _, it := range req.Items {
 		if it.Template == 0 || it.Amount == 0 {
 			continue
@@ -759,3 +968,10 @@ func (s *server) handleGrant(w http.ResponseWriter, r *http.Request) {
 }
 
 var _ = strings.TrimSpace
+
+// Missing management operations continue to return an authenticated failure.
+func (s *server) handleUnavailableAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusNotImplemented)
+	_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": "当前源码包未包含此管理功能；请使用现有发布版GM工具。"})
+}

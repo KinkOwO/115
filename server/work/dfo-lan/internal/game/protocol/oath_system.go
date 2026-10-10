@@ -45,7 +45,7 @@ func DecodeOathSystemRequest(body []byte) (OathSystemRequest, error) {
 // **我们目前只填 `[0:4)` 的 option，其余 11 字节保持 0** —— 用户报的「誓约没有积分」
 // 极可能就在这 11 字节里（誓约窗口显示 `0/750次` 与「已添加的誓约积分: 0」）。
 // 载荷总长仍发 24 字节：既有实机稳定（客户端只读前 15），改长度会重蹈 2839 的 8 字节崩溃覆辙。
-// 缺口与取证见 docs/protocol/oath-set-points-20261004.md。
+// 缺口与取证见 docs/protocol/upstream/oath-set-points-20261004.md。
 const (
 	// OathSystemInfoWireSize 是客户端解析器真正读取的字节数。
 	OathSystemInfoWireSize = 15

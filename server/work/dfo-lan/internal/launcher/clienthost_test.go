@@ -79,10 +79,10 @@ func TestParseHostClientArgvSeconds(t *testing.T) {
 // 12 = Assign。probe.json 与告警文案都建立在这些数字上。
 func TestClientHostExitCodesMatchProbe(t *testing.T) {
 	cases := map[string]struct{ got, want int }{
-		"看不到 DFO.exe":  {exitClientHostMissingExe, 3},
-		"Job 建不出来":     {exitClientHostJobError, 7},
+		"看不到 DFO.exe":    {exitClientHostMissingExe, 3},
+		"Job 建不出来":       {exitClientHostJobError, 7},
 		"CreateProcessW": {exitClientHostCreateError, 11},
-		"进不了 Job":      {exitClientHostAssignError, 12},
+		"进不了 Job":        {exitClientHostAssignError, 12},
 	}
 	for name, testCase := range cases {
 		if testCase.got != testCase.want {

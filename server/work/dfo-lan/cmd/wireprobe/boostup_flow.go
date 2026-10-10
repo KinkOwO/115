@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"dfolan/internal/boostup"
+	"dfolan/internal/character"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
-	"dfolan/internal/database"
 	"dfolan/internal/workflow"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -50,14 +52,28 @@ func (client *gameConnection) dispatchBoostEvent(requestData *clientRequest) dis
 // 韩文 18 周年通用礼物窗口（实机 2026-10-03 接线前症状）。调用点只有选角名单
 // （CMD8 userInfoMode==2，reason=character_select）与回选角（CMD7，reason=return_selection）。
 func (client *gameConnection) sendBoostChannelEvents(reason string) error {
-	if client.boostEventInfo == nil {
+	if client == nil || client.gatewayRuntime == nil || client.boostEventInfo == nil {
 		return nil
 	}
-	if err := client.output.send(0, 108, client.boostEventInfo); err != nil {
+	body := eventInfoSnapshot(client.gatewayRuntime)
+	if err := client.output.send(0, 108, body); err != nil {
 		return err
 	}
-	client.event(map[string]any{"kind": "channel_open_events_sent", "id": 108, "reason": reason, "bytes": len(client.boostEventInfo)})
+	client.event(map[string]any{"kind": "channel_open_events_sent", "id": 108, "reason": reason, "bytes": len(body)})
 	return nil
+}
+
+func boostGiftOfferSuppressed(c *boostup.Catalog, role database.Character) bool {
+	if character.CreatedAsOdyssey(role) {
+		return true
+	}
+	if c == nil || c.GoalLevel == 0 {
+		return false
+	}
+	var base struct {
+		Level byte `json:"level"`
+	}
+	return json.Unmarshal(role.State, &base) == nil && base.Level >= c.GoalLevel
 }
 
 func boostGiftAvailability(c *boostup.Catalog, role database.Character) ([]byte, error) {
@@ -68,9 +84,10 @@ func boostGiftAvailability(c *boostup.Catalog, role database.Character) ([]byte,
 	if e != nil {
 		return nil, e
 	}
+	suppress := boostGiftOfferSuppressed(c, role)
 	var rows []protocol.EventGiftState115
 	for _, g := range c.Gifts {
-		rows = append(rows, protocol.EventGiftState115{Gift: g.ID, Claimed: st.Gifts[g.ID]})
+		rows = append(rows, protocol.EventGiftState115{Gift: g.ID, Claimed: suppress || st.Gifts[g.ID]})
 	}
 	return protocol.EventGiftStates115(rows)
 }
@@ -88,7 +105,9 @@ func boostTrainingRestore(c *boostup.Catalog, role database.Character) ([]byte, 
 		v.Step = st.Training.Step
 		v.Phase = st.Training.Phase
 		if !st.Training.Finished {
-			v.Mode = 0
+			// 客户端把这一字节当轨道号（`mode == 1` = 奶系轨）用来选训练副本路线，
+			// 恒发 0 会让奶系角色精确匹配失败并回落到普通轨 `[dungeon index]`。
+			v.Mode = byte(st.Variant)
 		}
 	}
 	return protocol.BoostTrainingStatus115(v)

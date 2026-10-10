@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-
 )
 
 // CommitAccountMaterialEvent applies an account-scoped material change exactly

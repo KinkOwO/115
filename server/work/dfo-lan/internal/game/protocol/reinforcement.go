@@ -146,19 +146,20 @@ func ReinforcementTicketReply(r ReinforcementRequest, remaining uint32, old, lev
 //     真实掉级改由随后的装备行下发（客户端按行更新显示）。
 func ReinforcementGoldReply(r ReinforcementRequest, remaining uint32, old, level, result byte) ([]byte, error) {
 	if r.Mode != 0 || (r.EquipmentSpace != 0 && r.EquipmentSpace != 3) ||
-		r.TicketSpace != 0 || result > 1 || level > GoldReinforcementMaxLevel || old > GoldReinforcementMaxLevel ||
+		r.TicketSpace != 0 || (result != 0 && result != 1 && result != 3) || level > GoldReinforcementMaxLevel || old > GoldReinforcementMaxLevel ||
 		(result == 0 && level > GoldReinforcementResultCap) ||
 		(result == 1 && old != level) {
 		return nil, fmt.Errorf("金币强化结果不符合客户端规则")
 	}
-	// 金币强化同样不会摧毁（result > 1 已被上面拒绝），回显 mode 即可。
+	// Destruction uses the verified CMD80 kind=10 branch and 36-byte tail;
+	// other outcomes retain the existing mode and 35-byte layout.
 	p := []byte{1, cmd80UpgradeKind(r.Mode, result)}
 	p = binary.LittleEndian.AppendUint16(p, r.TicketSlot)
 	p = binary.LittleEndian.AppendUint32(p, remaining)
 	p = binary.LittleEndian.AppendUint16(p, 0xffff)
 	p = append(p, 1, old, result, level, r.EquipmentSpace)
 	p = binary.LittleEndian.AppendUint16(p, r.EquipmentSlot)
-	p = cmd80Tail(p, false)
+	p = cmd80Tail(p, result == 3)
 	return p, nil
 }
 

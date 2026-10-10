@@ -38,6 +38,7 @@ func (s *ItemService) CreateEquipment(
 	if e != nil {
 		return fail(e)
 	}
+	saved.WireID = role.WireID
 	return saved, result, applied, nil
 }
 func (s *ItemService) TransformEquipment(
@@ -69,13 +70,14 @@ func (s *ItemService) TransformEquipment(
 	if e != nil {
 		return fail(e)
 	}
+	saved.WireID = role.WireID
 	return saved, result, applied, nil
 }
 
 // TransformPrimers 实现装备库「誓约 / 晶体变换」（CMD2381 ENUM_CMDPACKET_PRIMER_TRANSFORM）。
 //
 // 与 TransformEquipment 同构：成本可能落在**账号共享材料**（灵魂仓库/巡礼之印按源表所在仓）
-// 与背包两处，所以走 CommitAccountMaterialEvent，让角色状态与账号仓同生共死。
+// 与背包两处，所以走 CommitAccountVault，让角色、账号材料与金库余额原子提交。
 func (s *ItemService) TransformPrimers(
 	ctx context.Context,
 	role database.Character,
@@ -137,8 +139,17 @@ func (s *ItemService) Disjoint(
 	if e = json.Unmarshal(receipt, &result); e != nil {
 		return fail(e)
 	}
-	if result.Source != s.Items.Catalog.Source.SaveIdentity() || len(result.DeletedSlots) != len(slots) {
+	if result.Source != s.Items.Catalog.Source.SaveIdentity() || result.Sequence != plan.Sequence || result.ToolSlot != r.ToolSlot || len(result.DeletedSlots) != len(slots) {
 		return fail(fmt.Errorf("disjoint receipt conflict"))
+	}
+	deleted := make(map[uint16]bool, len(result.DeletedSlots))
+	for _, slot := range result.DeletedSlots {
+		deleted[slot] = true
+	}
+	for _, slot := range slots {
+		if !deleted[slot] {
+			return fail(fmt.Errorf("disjoint receipt slot conflict"))
+		}
 	}
 	saved.WireID = role.WireID
 	return saved, result, applied, nil

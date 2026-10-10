@@ -1,0 +1,230 @@
+{
+  "schema": 1,
+  "release_id": "2026.10.11-cumulative-r5",
+  "client_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+  "mod_helper_sha256": "4e0cd9d9c76d3fee247a8be640ed164a42c7646903cc2ba40933c514728bab88",
+  "mod_policy_sha256": "0813076de2bc44b567be594a1853a34d7bfe5c6ea35222be42906708c0e241b8",
+  "publisher_sha256": "c1703fee5fcbd3a83a6f52958423a2c5fbc7fac8216d03574a0450de587c51df",
+  "files": [
+    {
+      "path": "115US单机GM桌面版.exe",
+      "bytes": 4096,
+      "sha256": "df5f74f28952006315de7d59573081a930639dd39c832b32a8b1c7f484f0a5e4",
+      "allowed_before": [
+        "7a8a7cfbd9705bf436d1f225c22744567a87e8b7f1f2a06e53282903e2bf86e0",
+        null,
+        "a1d7cc9165428f533f82a116fdd614d15a4622d5bde8594b02580345e8d111c5",
+        "f8750de0d21f610f0f980209a1cc1629da2b83e52104926c419c8fa5fe543928",
+        "6a6520f1e8ce988e1d21f6a0d26092d08736cea8577031ee2936bfbdbf77f6f1",
+        "720fd00b6babae45bf41bca7383cdb8b83346af69c5204d32d402d92e4f4d7e6",
+        "f12300773373793ab204fe2896bdd5bf37be1b605bea062793f46b27dfe5ffe0"
+      ]
+    },
+    {
+      "path": "DFO-115US本地版登录器.exe",
+      "bytes": 17770496,
+      "sha256": "59ecea1e26443199dd19b5ddcc557e14378a32b1384f8746869510edbc45931e",
+      "allowed_before": [
+        "50755050c4a1ec3fc606ef4b9cc03795769b77ef8cc1b712a3d2c25cefcdd473",
+        "4d8c1581380398e019e5d8ec6768fc962e1a359bcf3b2bfa492f4e0de7b750ac",
+        "2690af4a991df31630aedd72b2d975e1bd5a4c9f1b27c59c606aa030922b1393",
+        "3aefae7401c5d58d445b39ec370d3b746283d967c28df1f60aa1bdec5f2765d5",
+        "4f363a7a86479ac9077f953b359691118f4397debbedd08d94edf1f964850314",
+        "87127eaa1f7cfed7e9f327031c809b644d545936ce22caf9a0b574514d484d4d",
+        "ebdb6457e84e2239a95b1fe9bc1e04dcaf7b182796c71fc91fe3cb690c36dda3",
+        "ddde3adf939ee70444c2645462055a30db55da90550ae7f1a563fdfabc0bcc3e",
+        "71c9a140c8d140e2584065479429c41a61c5d9c789843b5ea86d5b0f5574bae5"
+      ]
+    },
+    {
+      "path": "local-edition.json",
+      "bytes": 377,
+      "sha256": "a2e2324f3c27bf90471da8a8dc2a4798ac841913a8a9dca643d47bfa740a7b0e",
+      "allowed_before": [
+        "0b5991e0260805c59dd3e5433a53f3b7ecbccd2ab50d03bc2633c368846f62e8",
+        "d7dcd7f82c872e4ed58fa5252a56094655904cf3b2536b723f724cbaf096b7b5",
+        "3e4eca10dea0f4ef9a26829faf571bd302a6978c1c990c02e69d7f39050ad706",
+        "07b9e1376733c46714c8d8caafde8879c36216b0dda12992257f56f9da6d67d4",
+        "01a55559e1f66737f630172e8d62d2e51c7d0b9e7b189901580782f32eb5514b",
+        "b29260b08c115004e0bca9544eec5a1bdbcbcfaf4b95adaf346f9fb6bf2035bb",
+        "1c354a9744ad200da65f2b9c97e4e71dfde23f9ba29a505b7c54b34a3e5106cf",
+        "8720c951c14ca9ce491f67cb8eac8c3e2e02007ff6613fcf87f1599313391e3f",
+        "87250142c394af51507401f3a925d276d060681b87e0d8f79b8ba87ea4e2c596"
+      ]
+    },
+    {
+      "path": "release-manifest.json",
+      "bytes": 10868,
+      "sha256": "8afd6bc5b2aafa0b4dcdc77f80dd1282faf28e36141d9de38c289a3bcf10f64e",
+      "allowed_before": [
+        null,
+        "fb7171b50613b66f02c7db2c60c2e9f792e81a5d671ba71717eba1b1310d41a1",
+        "5698c5a029f01305798f3c7fb42459647a3c8cea253312f61b038fe62e6bd20e",
+        "7305e3bdc8f8a087071054a604ec215984e8c3c75779544386c15fa6a4065531",
+        "93cd1d47c2159aea614a8e1be29e1ed382b4a958f58617bd5771b7d9f2623f20",
+        "28c09c580e5eaf0bc21c66309eb86414f30735ee68698b6155fae907353edcae",
+        "6f38515e1c3d253afa3d3152426e3759e7168b999ea030711c0724146981fd27",
+        "8135102f57cbfd53f89e3cb6cb8aa3f91d0c556bfeddc82294aca1880586c2aa"
+      ]
+    },
+    {
+      "path": "server/work/client-build/Script.inner.manifest.json",
+      "bytes": 744,
+      "sha256": "13bcc3ec09cfd76c733f091a081248c174e4a182162f2ac7cf9420ad3f7ad7f0",
+      "allowed_before": [
+        "dcc9a0bef699f4e1d36159b7928b43e7c987213c8b9bb6cfad8a8737ffae1255",
+        "b42f938649fadb143b79e8ad5eab67a82d4531af41692e1389e332cb1d617373",
+        "e0fd32d8a482bc0fcac797582190fcfff96c46b7e523867a4bfd81ccd900a420",
+        "f0384708257c26565adf0f099730fa097294435aae5606ed8535ec9469042f0b",
+        "f005a288313d5b954c635490fe61178369fcaa03c4cbacbbad1c91e588f0e7b8",
+        "13bcc3ec09cfd76c733f091a081248c174e4a182162f2ac7cf9420ad3f7ad7f0"
+      ]
+    },
+    {
+      "path": "server/work/client-build/Script.inner.pvf",
+      "bytes": 852583570,
+      "sha256": "18c170cddce927898300b4d464efeb0931f82c7b25f1453ee63cb54130fdb996",
+      "allowed_before": [
+        "e1e2fb54ce599f860a3c731e3353cfd06e29a1e2a82bbb030e09b189666f5209",
+        "83830f0693f1ceac104df5230782bf6527f2ca35580bfdf365eb94dcb2beb9ce",
+        "45c8db452291abf5f912d23515d1774aa56ced23a5b61ec95ef1f3ec8263c0dc",
+        "11eb18737c3f2d2687d76669fa2f4ddefc2c943eff826520709ca13569c9147d",
+        "e7098b3532a209fded8248b8e146f377cc4af5d688aa33423e8584bdc40271c3",
+        "18c170cddce927898300b4d464efeb0931f82c7b25f1453ee63cb54130fdb996"
+      ]
+    },
+    {
+      "path": "server/work/dfo-lan/bin/dfo-tool.exe",
+      "bytes": 15035392,
+      "sha256": "2161b104882b52f6cffde3bca15ee7dab4fbcb153c56cc84b9c628c4ac8ebfd9",
+      "allowed_before": [
+        null,
+        "7e14dbd84ed146ea765adbd09e5f699bfc7638b7b3f64a951d2b63e72e2fbc46",
+        "654e32d5aa609c0879e73fcdce2e43ca5ed050646de35ee933712007d8c8d0bb",
+        "e3c9c3769c420dd7ebbf381d1bcb6809555fdba0db0ab3fe64786210d8724926",
+        "2161b104882b52f6cffde3bca15ee7dab4fbcb153c56cc84b9c628c4ac8ebfd9"
+      ]
+    },
+    {
+      "path": "server/work/dfo-lan/bin/dfolauncher.exe",
+      "bytes": 12461056,
+      "sha256": "0c84b15cf20e381c7179497444158525446e221d4f6d9a1c7659c9391b504335",
+      "allowed_before": [
+        "e9f1d06b4944ee748f4e5fa855453df9b0ce0ff85ce9e93b5769aa5fe306c7b1",
+        "0e3c68773e1ce4406c710e48a6fa2867bb4808334e8b9927baaae08d43d71952",
+        "d5c5510513c6fd8be179ed947cd0e05a23921d968be068e33b6a8991045d631d",
+        "8eb492aa39e7b17b44596fbed249e93aa3b07d6f810fd4366f0fd14c136e218f",
+        "8243bd99e9535ab3d09c432bce00838c21c4e3315f7e845ae0bb0b07154d0b17",
+        "67330834c5878c280d1587f8a97f163694bc97c4d77d93ee08f5fc3554a49b88"
+      ]
+    },
+    {
+      "path": "server/work/dfo-lan/bin/wireprobe-pvf.exe",
+      "bytes": 27110912,
+      "sha256": "18e0df7ec3a2065af38554ca5a20e6df2d970e07f576ef907d519401165c9f9b",
+      "allowed_before": [
+        "2e58af5967b3bdccdd87a652254c6b9a40af3cbc4a01b9a4ec201b4074ca7e89",
+        "faf7f2d1a2f67bc6d5f00eca76b16ffad3dd2dfbb7b6c221dd7017f8b84e5b26",
+        "582d1c4f993a6747b8d8d578815a638ed73081ebc14e22ecc4dd42fd4f04eaaa",
+        "e4423eab6f62f50c87943b0a4289001aefdc22f19275fdaa18ff0d846e874a8c",
+        "a69eb29e32175cfeaf960b4445b76fea5401533b4960e1c87d662ed325b1d7d6",
+        "b05b1575b570218ab1a81aab76a70d7615eb15bbdd8300e2d2458c42579b4d8d",
+        "0812ce8ba1023def4fa24b3da717fa53097b4bc5b948435968af91039d29ba98",
+        "bdd92815560aee1717fd10b9529d374d25a7f52da4327f10dbfd514c6f529c20",
+        "91dcf4fc9623ab355e953e0c781f524cf1dfd450cfcd23496fa2f94f6140407a"
+      ]
+    },
+    {
+      "path": "server/work/dfo-lan/configs/channel.local35.json",
+      "bytes": 14131,
+      "sha256": "f5316285f7ac180697e0ac23d1e94b8a43c5a2e4b396c536211b8e7b30e86e90",
+      "allowed_before": [
+        "f5316285f7ac180697e0ac23d1e94b8a43c5a2e4b396c536211b8e7b30e86e90",
+        "be266ae4fc2792bf73922b4692497dad02effcfbc76649e2ca1d94dfb6542dfa"
+      ]
+    },
+    {
+      "path": "server/work/dfo-lan/configs/inventory.current37.json",
+      "bytes": 381,
+      "sha256": "69db5d5e4ecea4aec554f3dbd4b52e72bb487f89a4d4e6af5684a6aba865d6af",
+      "allowed_before": [
+        "69db5d5e4ecea4aec554f3dbd4b52e72bb487f89a4d4e6af5684a6aba865d6af",
+        "05fe82e2e8fea34f4f6562171ecba08039600fd5dc913910aa1bce367c52ccf5"
+      ]
+    },
+    {
+      "path": "server/work/dfo-lan/configs/pvf-default.json",
+      "bytes": 2178,
+      "sha256": "63b4f412d0e8c6e9a88dedd43f8b088aa114c087b52ef3f95de1c75f05471ef9",
+      "allowed_before": [
+        "169ba0a0c867fc50f31c7a68292eb2e3556385b658fcbb889e25aef7c4fe2133",
+        "4b210f9a2edecdcd0218df331eae040033fa0f2cf2372a542ca5404f8fdb1ea7",
+        "c609a5f304451342bf18df1c04b7d688c0d577b3d5f06132568800f31748bd88",
+        "f666559fbadd28a0ef316c99f8abadaa5923f622226b488825ae1b48de942b2d",
+        "ecca1308a0dc724764ec780a3633c89ca6d70bb25059dd83e6ad75e09e7e8cf2",
+        "db2f80e31cc02e64377ea9b8e676acff6193bb62c2b2f5be7f2c761b8f259c41"
+      ]
+    },
+    {
+      "path": "server/work/dfo-lan/configs/robots-template.json",
+      "bytes": 1421008,
+      "sha256": "957d4afb3dd219ddaf3adb325edba140450a67d74d34bdbf5d75d5617ad90588",
+      "allowed_before": [
+        null,
+        "957d4afb3dd219ddaf3adb325edba140450a67d74d34bdbf5d75d5617ad90588"
+      ]
+    },
+    {
+      "path": "整合内容与验收说明.txt",
+      "bytes": 8119,
+      "sha256": "7beb4264bfcea5e1a2a1bc96d4709c5574718432aa71f989ed65cef8971fb747",
+      "allowed_before": [
+        null,
+        "4335465e92a49a660f2dbecbbf4e89c76d34959579f8335e66d2c4e717633e6a",
+        "31532ca1174d2722b3ce404a07cbf40249af3ee926ff577015ba8d61deed2a16",
+        "af94145b6587d8401c361db9b1a0a9532d5f0d4793c18004fdb4e1cad45c93a1"
+      ]
+    },
+    {
+      "path": "server/work/dfo-lan/configs/attendance-calendar.json",
+      "bytes": 210,
+      "sha256": "dc3050bbd88a57f42d49cd0a46e4eaacaf0b6100ece5cf8078eb5c6b73bbc120",
+      "allowed_before": [
+        null,
+        "dc3050bbd88a57f42d49cd0a46e4eaacaf0b6100ece5cf8078eb5c6b73bbc120"
+      ]
+    },
+    {
+      "path": "server/work/dfo-lan/scripts/repair_profile.py",
+      "bytes": 7382,
+      "sha256": "77f84ef540780c5431f48f292a5ee27fea284f8b35df8f84e8029b0b534ebea3",
+      "allowed_before": [
+        null,
+        "c8b34678bc9685c4a69b61401b66b7cbc179bfb1ee26499df0f6cdfcf70e12d5",
+        "db6adee0ee6968e010c11ac0672571245901e373f6ad41ead927e805c0b402b1",
+        "77f84ef540780c5431f48f292a5ee27fea284f8b35df8f84e8029b0b534ebea3"
+      ]
+    },
+    {
+      "path": "pvfUtility2026-v3.0/密钥库/sk(115US当前客户端配套).dat",
+      "bytes": 2944,
+      "sha256": "0b669124a34cb146b23f26f3c730d2012ca9c436b01e980fa820d369b9677d11",
+      "allowed_before": [
+        null,
+        "5a75cecdc195abbfc1b91f93ae9478982bfe7a3e809c4c2dd389ebf686d15e86",
+        "c3b95e0486cc1e39c435d197f6c0a779e8092c7d6679e010c9ffa04753ff1791",
+        "0b669124a34cb146b23f26f3c730d2012ca9c436b01e980fa820d369b9677d11"
+      ]
+    }
+  ],
+  "baseline_release": "2026.10.07-original-45G",
+  "player_data_included": false,
+  "baseline_archive_sha256": "9034a4c85cdabac890e25cc1f986c4ee2faed08a9da262e7686e0d5e89037660",
+  "supported_baselines": [
+    "original45G-20261007",
+    "integrated-r2-20261010",
+    "cumulative-r3-20261010",
+    "cumulative-r4-20261011"
+  ],
+  "client_memory_limit_gib": 12
+}

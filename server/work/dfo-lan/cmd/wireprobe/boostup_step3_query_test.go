@@ -2,9 +2,9 @@ package main
 
 import (
 	"dfolan/internal/boostup"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/loot"
-	"dfolan/internal/database"
 	"encoding/binary"
 	"testing"
 )

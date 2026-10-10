@@ -153,3 +153,8 @@ server/work/client-build/Script.inner.manifest.json
 
 # mod 作者工作区（仓库根 mods/）里的启用名单是运行期状态，不入库（服务端模块的那份另有跟踪）
 /mods/enabled.json
+
+# R3 GUI build outputs and private validation fixtures
+/launcher/dist/
+/launcher/evidence/
+/launcher/self-test/

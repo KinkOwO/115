@@ -33,8 +33,8 @@ const (
 	// SoleQualityPayloadSize 是客户端固定发送的负载长度（实测 24 字节，含 13 字节信封）。
 	SoleQualityPayloadSize = 24
 
-	soleQualityFields  = 13 // 字段区起点（相对负载）
-	soleQualityMinBody = 24 // 负载最短长度（信封 13 + 字段 11）
+	soleQualityFields   = 13 // 字段区起点（相对负载）
+	soleQualityMinBody  = 24 // 负载最短长度（信封 13 + 字段 11）
 	soleQualityEnvelope = 13
 )
 

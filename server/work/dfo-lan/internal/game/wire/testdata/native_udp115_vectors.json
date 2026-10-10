@@ -1,0 +1,96 @@
+{
+  "client_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+  "scope": "Actual writer->enqueue->consumer->encoder->sendto boundary, private PE objects.",
+  "vectors": [
+    {
+      "slot": 0,
+      "actor": 2,
+      "key": 287454020,
+      "sequence": 270544960,
+      "payload_hex": "0000000004010200",
+      "raw_hex": "02004030201008008888888808a8c888199ad2ad",
+      "length": 20,
+      "sockaddr_hex": "020088b87f0000010000000000000000",
+      "native_type2_reader_accepted": true,
+      "native_type2_corrupt_rejected": true,
+      "native_type2_truncated_rejected": true,
+      "native_sequence_gate_accepted": true,
+      "native_duplicate_sequence_rejected": true,
+      "trace": [
+        "0x14665c1c0",
+        "0x147082c10",
+        "0x14708c1d0",
+        "0x147089d30",
+        "0x14708a080",
+        "0x147082100",
+        "0x147081c90",
+        "0x14708a2a0",
+        "0x147089d30"
+      ]
+    },
+    {
+      "slot": 1,
+      "actor": 65534,
+      "key": 2780219352,
+      "sequence": 0,
+      "payload_hex": "000000010401feff",
+      "raw_hex": "0201000000000800b1b1b1b3b9b34c4ec58b1ff3",
+      "length": 20,
+      "sockaddr_hex": "020088b87f0000010000000000000000",
+      "native_type2_reader_accepted": true,
+      "native_type2_corrupt_rejected": true,
+      "native_type2_truncated_rejected": true,
+      "native_sequence_gate_accepted": true,
+      "native_duplicate_sequence_rejected": true,
+      "trace": [
+        "0x14665c1c0",
+        "0x147082c10",
+        "0x14708c1d0",
+        "0x147089d30",
+        "0x14708a080",
+        "0x147082100",
+        "0x147081c90",
+        "0x14708a2a0",
+        "0x147089d30"
+      ]
+    },
+    {
+      "slot": 1,
+      "actor": 65534,
+      "key": 2780219352,
+      "sequence": 1,
+      "payload_hex": "000000010401feff",
+      "raw_hex": "0201010000000800b1b1b1b3b9b34c4e13d9f5a5",
+      "length": 20,
+      "sockaddr_hex": "020088b87f0000010000000000000000",
+      "native_type2_reader_accepted": true,
+      "native_type2_corrupt_rejected": true,
+      "native_type2_truncated_rejected": true,
+      "native_sequence_gate_accepted": true,
+      "native_duplicate_sequence_rejected": true,
+      "trace": [
+        "0x14665c1c0",
+        "0x147082c10",
+        "0x14708c1d0",
+        "0x147089d30",
+        "0x14708a080",
+        "0x147082100",
+        "0x147081c90",
+        "0x14708a2a0",
+        "0x147089d30"
+      ]
+    }
+  ],
+  "actual_selected_outer_type": 2,
+  "unreliable_length": 20,
+  "substitutions": [
+    "private bounded allocation and buffer pool",
+    "queue to private std::list transfer only; actual consumer selects send mode",
+    "empty reliable retry queue",
+    "Winsock sendto capture/htonl/htons and deterministic clock",
+    "bounded memcpy/memset",
+    "stack probing/cookie/telemetry/free noops",
+    "encoded u32 store exact byte operation; native CRC/table/transform unchanged"
+  ],
+  "game_access": false
+}

@@ -64,7 +64,7 @@ func TestCloneReattachPacketsDetachThenAssignCover(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			attached, err := protocol.DetailedEquipment([]protocol.DetailedWorn{{Slot: 3, Template: 517500000, HeaderTemplateA: tc.cover}})
+			attached, err := protocol.DetailedEquipment([]protocol.DetailedWorn{{Slot: 3, Template: 517500000, HeaderTemplateA: tc.cover, AvatarOptions: s.Equipment.DefaultAvatarSockets(517500000)}})
 			if err != nil {
 				t.Fatal(err)
 			}

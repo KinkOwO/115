@@ -2,6 +2,7 @@ package character
 
 import (
 	"dfolan/internal/catalog/pvf"
+	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	_ "embed"
 	"encoding/binary"
@@ -11,6 +12,7 @@ import (
 	"math"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 //go:embed fame_rules.json
@@ -107,9 +109,10 @@ type FameItem struct {
 }
 
 type FameBreakdown struct {
-	Total uint32        `json:"total"`
-	Items []FameItem    `json:"items"`
-	Sets  map[int]int64 `json:"sets"`
+	Total      uint32        `json:"total"`
+	SymbolFame uint32        `json:"symbol_fame,omitempty"`
+	Items      []FameItem    `json:"items"`
+	Sets       map[int]int64 `json:"sets"`
 	// SetPointTotals 是每个套装的**原始积分**（Sets 已经是过阈值表后的名望值）。
 	// 按积分档位判定的玩法需要原始量，因此这里一并导出，避免调用方重算一遍源表。
 	SetPointTotals map[int]int `json:"set_point_totals,omitempty"`
@@ -415,6 +418,55 @@ func (s *Service) EquipmentFameBreakdown(raw json.RawMessage) (FameBreakdown, er
 		total += value
 	}
 	result.SetPointTotals = points
+	if s.SymbolSockets != nil && s.SymbolSockets.Rules != nil {
+		if s.SymbolSockets.Source != s.Equipment.Source.Checksum || s.SymbolSockets.Source != rules.Source {
+			return result, fmt.Errorf("symbol fame source mismatch")
+		}
+		saved, err := inventory.ReadSymbolSockets(raw, s.SymbolSockets)
+		if err != nil {
+			return result, err
+		}
+		var symbolTotal uint64
+		for name, progress := range saved.Progress {
+			fame, err := inventory.SymbolStarFame(s.SymbolSockets, name, progress)
+			if err != nil {
+				return result, err
+			}
+			symbolTotal += uint64(fame)
+		}
+		// Independent sockets are not legacy avatar sockets. Only active emblems
+		// contribute their native direct value; buff presets are not a second outfit.
+		for name, rows := range saved.Groups {
+			if name == "buff_platinum" {
+				continue
+			}
+			for _, item := range rows {
+				if item.Template <= 1 || protocol.StoredItemExpired(item.ExpireTime, time.Now().Unix()) {
+					continue
+				}
+				value, ok := rules.Items[item.Template]
+				if !ok {
+					continue
+				}
+				if value.Value < 0 || value.Additional < 0 {
+					return result, fmt.Errorf("unverified symbol emblem fame for %d", item.Template)
+				}
+				base := value.Value
+				if base == 0 && value.Table != "" {
+					base = rules.Tables[value.Table][value.Index]
+				}
+				if base < 0 {
+					return result, fmt.Errorf("invalid source symbol emblem fame")
+				}
+				symbolTotal += uint64(base + value.Additional)
+			}
+		}
+		if symbolTotal > math.MaxInt32 {
+			return result, fmt.Errorf("symbol fame overflow")
+		}
+		result.SymbolFame = uint32(symbolTotal)
+		total += int64(symbolTotal)
+	}
 	if total < 0 || total > math.MaxInt32 {
 		return result, fmt.Errorf("角色名望超出客户端范围")
 	}

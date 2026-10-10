@@ -24,9 +24,10 @@ type EmblemStackAmount struct {
 }
 
 func (r UseEmblemRequest) Validate() error {
-	// This flow updates the avatar bag. Worn/other storage spaces require their
-	// own equipment/stat refresh and are deliberately not treated as bag slots.
-	if r.Space != 1 || r.AvatarSlot == 65535 || r.Template < 2 || len(r.Inputs) < 1 || len(r.Inputs) > 5 {
+	// Space 1 = 背包时装容器（special_equipment）；Space 3 = 穿戴视图（Worn，
+	// 时装位 slot 0-7）。客户端镶嵌面板对穿在身上的时装以 space=3 发起请求，
+	// 此前只放行 space=1，导致穿戴时装必须脱下才能镶嵌。
+	if (r.Space != 1 && r.Space != 3) || r.AvatarSlot == 65535 || r.Template < 2 || len(r.Inputs) < 1 || len(r.Inputs) > 5 {
 		return fmt.Errorf("invalid avatar emblem target or count")
 	}
 	var sockets [5]bool

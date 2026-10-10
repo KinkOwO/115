@@ -10,7 +10,13 @@ import (
 // TestLiveWFPIsolation 是唯一真的装过滤器的测试：
 //
 //	$env:DFO_WFP_LIVE_TEST='1'
-//	go test ./internal/wfpisolate/... -run LiveWFP -v        （需要管理员权限）
+//	go test -c -o wfpisolate.test.exe ./internal/wfpisolate
+//	Copy-Item wfpisolate.test.exe wfpisolate.standalone.test.exe
+//	.\wfpisolate.standalone.test.exe -test.run LiveWFP -test.v
+//
+// Run a standalone copy: cached test executables can have a different image-path
+// identity from the temporary path returned to APP_ID lookup. The standalone
+// copy also matches how the shipped launcher is installed. Requires administrator.
 //
 // 它验证的是隔离**真的生效**：装完之后回环仍然连通（否则客户端连不上本机网关），
 // 而非回环被明确拒绝（WSAEACCES）。装不上时 Skip 而不是 Fail —— 没有管理员权限是

@@ -123,29 +123,19 @@ func importFameRules(a *pvf.Archive, index catalog.ItemIndex, withItems bool) (*
 	if err != nil {
 		return nil, err
 	}
-	grouping, err := read("etc/equipmentgrouping.etc")
+	groupingScript, err := catalog.ReadScript(a, "etc/equipmentgrouping.etc")
+	if err != nil {
+		return nil, err
+	}
+	r.Sources[groupingScript.Path] = groupingScript.SHA256
+	memberships, err := catalog.EquipmentAbilityGroups(groupingScript.Cells)
 	if err != nil {
 		return nil, err
 	}
 	r.Awakening = map[uint32]map[byte]int64{}
-	for _, block := range fameSourceBlocks(grouping, "[ability group]") {
-		ids, err := fameSourceNumbers(fameSourceField(block, "[index]"))
-		if err != nil || len(ids) != 1 || ids[0] < 0 || ids[0] > math.MaxUint32 {
-			return nil, fmt.Errorf("invalid fame equipment group")
-		}
-		group := uint32(ids[0])
-		templates, err := fameSourceNumbers(fameSourceField(block, "[list]"))
-		if err != nil {
-			return nil, err
-		}
-		for _, v := range templates {
-			if v <= 0 || v > math.MaxUint32 {
-				return nil, fmt.Errorf("invalid fame group template")
-			}
-			template := uint32(v)
-			if !slices.Contains(r.Groups[template], int32(group)) {
-				r.Groups[template] = append(r.Groups[template], int32(group))
-			}
+	for template, memberships := range memberships {
+		for _, group := range memberships {
+			r.Groups[template] = append(r.Groups[template], int32(group))
 			for rank, fame := range awakening[group] {
 				if r.Awakening[template] == nil {
 					r.Awakening[template] = map[byte]int64{}

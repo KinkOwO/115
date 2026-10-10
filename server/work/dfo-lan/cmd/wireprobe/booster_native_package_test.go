@@ -87,12 +87,12 @@ func TestBoosterNativeAvatarPackagePersistsAllSelections(t *testing.T) {
 			if !reflect.DeepEqual(ack, protocol.BoosterOpenSuccess(v.Box, v.Slot, want)) {
 				t.Fatalf("ack did not list all eight grants: %x", ack)
 			}
-			// NOTI14 space 1 restores the old avatar and all eight new arrivals.
+			// NOTI14 is a delta: saved state keeps the old avatar; only the eight new arrivals are sent.
 			found := false
 			for _, packet := range packets {
 				if packet.Name == "booster_avatar_inventory_updated" {
 					found = true
-					if len(packet.Payload) < 3 || packet.Payload[0] != 1 || binary.LittleEndian.Uint16(packet.Payload[1:3]) != 9 {
+					if len(packet.Payload) < 3 || packet.Payload[0] != 1 || binary.LittleEndian.Uint16(packet.Payload[1:3]) != 8 {
 						t.Fatalf("avatar update lost items: %x", packet.Payload)
 					}
 				}

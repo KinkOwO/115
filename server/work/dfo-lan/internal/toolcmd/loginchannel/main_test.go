@@ -8,7 +8,7 @@ import (
 )
 
 func TestActualLoginProjection(t *testing.T) {
-	raw, err := os.ReadFile("../../../runtime/login_ok.bin")
+	raw, err := os.ReadFile("testdata/login_ok.bin")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -172,7 +172,7 @@ func BuildRunPlan(cat *catalog.ApocalypseCatalog, clock *ApocalypseClock, operat
 	}
 	if op.Reward != nil {
 		plan.RewardLabel = op.Reward.Label
-		plan.RewardValues = op.Reward.Values
+		plan.RewardValues = append([]float64(nil), op.Reward.Values...)
 	}
 	return plan, nil
 }

@@ -10,12 +10,29 @@ import (
 // TagCharacterSnapshot读取已有角色存档，不创建角色、不修改穿戴或技能。
 // 调用方负责从同一账号的稳定角色ID解析名单，避免账号排序后错用其他角色。
 func (s *Service) TagCharacterSnapshot(role Character) (protocol.TagCharacter, error) {
+	if role.ID == 0 || role.AccountID == 0 {
+		return protocol.TagCharacter{}, fmt.Errorf("队友缺少角色身份或源属性")
+	}
+	return s.tagCharacterSnapshot(role)
+}
+
+// TownRobotCompanionSnapshot serializes isolated synthetic inventory without
+// pretending it belongs to an account. This is codec validation only; it does
+// not enable a native party or bypass the own-account elite selection gate.
+func (s *Service) TownRobotCompanionSnapshot(role Character) (protocol.TagCharacter, error) {
+	if s == nil || role.ID >= 0 || role.AccountID != 0 || role.ConfigVersion != s.Catalog.Source.SaveIdentity() || role.WireID == 0 || role.WireID == 65535 {
+		return protocol.TagCharacter{}, fmt.Errorf("invalid synthetic companion identity")
+	}
+	return s.tagCharacterSnapshot(role)
+}
+
+func (s *Service) tagCharacterSnapshot(role Character) (protocol.TagCharacter, error) {
 	var out protocol.TagCharacter
 	var state State
 	if err := json.Unmarshal(role.State, &state); err != nil {
 		return out, err
 	}
-	if role.ID == 0 || role.AccountID == 0 || state.Level == 0 || state.SourceSHA256 == "" {
+	if state.Level == 0 || state.SourceSHA256 == "" {
 		return out, fmt.Errorf("队友缺少角色身份或源属性")
 	}
 	advance, err := state.WireAdvancement()
@@ -43,8 +60,15 @@ func (s *Service) TagCharacterSnapshot(role Character) (protocol.TagCharacter, e
 			return out, err
 		}
 		row := protocol.DetailedWorn{Slot: item.Slot, Template: item.Template,
-			Durability: item.Durability, Period: item.Period, Record: item.Record,
-			AvatarOptions: item.AvatarOptions, AvatarSockets: item.AvatarSockets}
+			Durability: item.Durability, Period: item.Period, Record: item.Record}
+		// 与 entryAdditionWithStats 同口径：头像扩展只存在于时装行（槽 ≤ 11），
+		// 槽 26~29 / 32 的宠物行在原生 reader 里没有这两格。存档里混进的块
+		// （2026-10-07 邮件补孔缺陷写过的 30 字节全零块）在这里丢掉，
+		// 不能让一个队友的坏数据把整份队友包（TagEquipment）打成拒绝。
+		if item.Slot <= 11 {
+			row.AvatarOptions = item.AvatarOptions
+			row.AvatarSockets = item.AvatarSockets
+		}
 		if item.Slot <= 11 && item.Group == 0 {
 			row.HeaderTemplateA = bag.CloneAvatarLook(item)
 			for _, look := range bag.Worn {

@@ -6,7 +6,6 @@ import (
 	"dfolan/internal/database/sqlcgen"
 	"fmt"
 	"time"
-
 )
 
 const (

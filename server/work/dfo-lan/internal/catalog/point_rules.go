@@ -12,7 +12,7 @@ import (
 // 装备 / 誓约「积分」源表（PVF 直读，2026-10-04 取证）。
 //
 // 背景：用户实机在「装备库 → 誓约」看到 `0/750次` 与「已添加的 誓约积分: 0」。
-// 取证结论（见 docs/protocol/oath-set-points-20261004.md §7）：
+// 取证结论（见 docs/protocol/upstream/oath-set-points-20261004.md §7）：
 //   - 客户端**不自己算总分**：它把服务端推来的「每角色一对 Set/Oath Point」原样存进角色实体
 //     （NOTI 2634：`u16 实体键 + u32 A + u32 B` → `实体+1872/+1876`）；
 //   - **每件**装备/晶体的分数由这两张源表给出（客户端只用它做逐件明细）；
@@ -81,6 +81,8 @@ type OathPointTable struct {
 
 // PointRules 是两张积分表的直读投影。
 type PointRules struct {
+	Groups         map[uint32][]uint32
+	GroupingSHA256 string
 	Source         pvf.ArchiveSnapshot
 	Set            SetPointTable
 	Oath           OathPointTable
@@ -120,6 +122,15 @@ func ImportPointRules(a *pvf.Archive) (PointRules, error) {
 	}
 	if out.Oath, e = ParseOathPointInfo(text); e != nil {
 		return out, fmt.Errorf("%s: %w", OathPointInfoPath, e)
+	}
+	grouping, e := ReadScript(a, "etc/equipmentgrouping.etc")
+	if e != nil {
+		return out, e
+	}
+	out.GroupingSHA256 = grouping.SHA256
+	out.Groups, e = EquipmentAbilityGroups(grouping.Cells)
+	if e != nil {
+		return out, e
 	}
 	out.Source = a.Snapshot()
 	return out, nil
@@ -378,14 +389,48 @@ func (p PointRules) oathPointForItem(it PointItem) (uint32, bool) {
 	return 0, false
 }
 
-// SetPoints 求套装积分合计。
-//
-// ⚠️ 未实现：`setpointinfo.cos` 的行键是**客户端的物品类别号**（group 51…306，其中 190/238 是
-// 晶体/誓约核心两支），而 `.equ` 里没有可用的数值 group 字段 —— 这个"模板 → group"的映射
-// 仍在取证（见 docs/protocol/oath-set-points-20261004.md §7.2/§7.3）。返回值恒 (0, 0)，
-// 调用方必须把它当"未知"而不是"该角色积分为 0"。
+// SetPoints returns the highest native part-set total (145CDE7B0), never
+// a sum of unrelated sets. Ambiguous group rows are excluded, not guessed.
 func (p PointRules) SetPoints(items []PointItem) (uint32, int) {
-	return 0, 0
+	totals := map[int32]uint64{}
+	hits := 0
+	for _, it := range items {
+		contributions := map[int32]uint32{}
+		ambiguous := false
+		for _, group := range p.Groups[it.Template] {
+			for _, row := range p.Set.Rules {
+				if row.Group != group || row.Awakening != it.Awakening {
+					continue
+				}
+				set := row.PartSetIndex
+				if set == -1 {
+					set = it.PartSetIndex
+				}
+				if set <= 0 {
+					continue
+				}
+				if old, ok := contributions[set]; ok && old != row.Value {
+					ambiguous = true
+				}
+				contributions[set] = row.Value
+			}
+		}
+		if ambiguous || len(contributions) == 0 {
+			continue
+		}
+		hits++
+		for set, value := range contributions {
+			totals[set] += uint64(value)
+		}
+	}
+	var highest uint64
+	for _, value := range totals {
+		highest = max(highest, value)
+	}
+	if highest > uint64(^uint32(0)) {
+		return 0, 0
+	}
+	return uint32(highest), hits
 }
 
 // parseIntField 取 "[tag] 123" 形式的数值（裸标签视为错误，由调用方决定是否容忍）。

@@ -18,7 +18,7 @@ func autoSkillFixture(t *testing.T) (*Service, Character, State) {
 		t.Fatal(e)
 	}
 	p := c.Professions[11]
-	return &Service{Catalog: c, Learning: l}, Character{Profession: 11, ConfigVersion: c.Source.SaveIdentity()}, State{Level: 35, Advancement: 2, AllJobsPilot: true, SourceSHA256: p.RawSHA256, InitialSkills: p.InitialSkills}
+	return &Service{Catalog: c, Learning: l}, Character{Profession: 11, ConfigVersion: c.Source.SaveIdentity()}, State{Level: 35, Advancement: 2, AllJobsPilot: true, SourcePath: p.Path, SourceSHA256: p.RawSHA256, InitialSkills: p.InitialSkills}
 }
 
 func TestAutomaticSpathaNoctis(t *testing.T) {
@@ -79,7 +79,7 @@ func TestAutomaticAllProfessionGrants(t *testing.T) {
 	for job, p := range s.Catalog.Professions {
 		for adv := range p.AdvancementSkills {
 			role.Profession = job
-			st.SourceSHA256, st.InitialSkills, st.Advancement, st.Level = p.RawSHA256, p.InitialSkills, adv, 115
+			st.SourcePath, st.SourceSHA256, st.InitialSkills, st.Advancement, st.Level = p.Path, p.RawSHA256, p.InitialSkills, adv, 115
 			if _, err := s.skillRows(role, st, 0); err != nil {
 				t.Fatalf("job%d advancement%d: %v", job, adv, err)
 			}

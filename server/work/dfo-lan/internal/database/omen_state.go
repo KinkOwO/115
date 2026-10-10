@@ -4,7 +4,6 @@ import (
 	"context"
 	"dfolan/internal/database/sqlcgen"
 	"errors"
-
 )
 
 // 征兆（omen）的**角色存档**。

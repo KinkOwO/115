@@ -51,7 +51,7 @@ func (q *Queries) AdvanceBirth(ctx context.Context, arg AdvanceBirthParams) (int
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -805,7 +805,7 @@ func (q *Queries) SaveWorld(ctx context.Context, arg SaveWorldParams) (int64, er
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -821,7 +821,7 @@ func (q *Queries) ScrubPollutedWorldPositions(ctx context.Context, towns []int64
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -862,7 +862,7 @@ func (q *Queries) StartBirth(ctx context.Context, arg StartBirthParams) (int64, 
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}

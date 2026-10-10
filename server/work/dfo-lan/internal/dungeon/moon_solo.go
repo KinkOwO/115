@@ -114,10 +114,13 @@ func (r *MoonSoloOwner) Move(c catalog.DungeonCatalog, request protocol.DungeonR
 	if e != nil {
 		return e
 	}
+	// enterRoom copies Visited; decide reuse against the pre-move map.
+	prev := r.session.Visited
 	next, e := r.session.moveMoonSecondFloor(c, request.Position)
 	if e != nil {
 		return e
 	}
+	_, r.reuseRoom = prev[next.Room.Map]
 	request.Record, request.Dungeon = record, next.Definition.ID
 	r.session = next
 	r.room++
@@ -136,6 +139,10 @@ func (r *MoonSoloOwner) StartMap() ([]byte, error) {
 		}
 	}
 	p := protocol.StartMapState{Position: [2]byte{s.Room.X, s.Room.Y}, Seed: r.seed, Map: s.Room.Map, Monsters: fixed}
+	if r.reuseRoom {
+		p.ReuseRoom = true
+		p.Monsters = nil
+	}
 	if r.transition.Dungeon == s.Definition.ID {
 		p.Transition = &r.transition.Record
 	}

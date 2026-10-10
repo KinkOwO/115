@@ -5,10 +5,14 @@
 package main
 
 import (
+	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/channelrefresh"
+	"dfolan/internal/localgm"
 	"dfolan/internal/modpolicy"
+	"dfolan/internal/ranking"
 	"dfolan/internal/servermod"
+	"dfolan/internal/social"
 	"dfolan/mods"
 	"encoding/json"
 	"errors"
@@ -18,6 +22,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,6 +30,11 @@ import (
 )
 
 func main() {
+	// Bound Go-managed memory during cold PVF preparation and later gameplay.
+	// This default is local to the gateway; an explicit operator limit wins.
+	if os.Getenv("GOMEMLIMIT") == "" {
+		debug.SetMemoryLimit(2 << 30)
+	}
 	if _, err := ispinsWeeklyLimited(); err != nil {
 		log.Fatal(err)
 	}
@@ -177,6 +187,9 @@ func runGateway(startup Config) error {
 			return err
 		}
 		channelCfg.Dungeons = prepared.channelInfo.AreaDungeons
+		if err = publishSourceRaidChannels(&channelCfg, prepared.channelDirectory, prepared.raidEntrances); err != nil {
+			return err
+		}
 		for _, ch := range channelCfg.Channels {
 			channelTypes[ch.ID] = ch.Type
 		}
@@ -227,9 +240,6 @@ func runGateway(startup Config) error {
 		listeners = append(listeners, channelListener{channel: 0, ln: l})
 	}
 	ready, _ := json.Marshal(map[string]any{"address": l.Addr().String(), "advertise": advertised, "pid": os.Getpid(), "fixture_bytes": len(raw), "channels": len(listeners)})
-	if err = os.WriteFile(filepath.Join(startup.Output, "ready.json"), ready, 0600); err != nil {
-		return err
-	}
 	f, err := os.OpenFile(filepath.Join(startup.Output, "events.jsonl"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		return err
@@ -244,7 +254,22 @@ func runGateway(startup Config) error {
 			log.Print(err)
 		}
 	}
-	fmt.Println(string(ready))
+	if prepared.rankingRules != nil {
+		rankingServer, rankingListener, e := prepared.rankingRules.Serve(ranking.LocalAddress, event)
+		if e != nil {
+			return fmt.Errorf("ranking HTTP: %w", e)
+		}
+		defer rankingServer.Close()
+		event(map[string]any{"kind": "ranking_http_ready", "address": rankingListener.Addr().String(), "source_paths": len(prepared.rankingRules.Paths), "score_writer": "unavailable"})
+	}
+	if prepared.socialProfiles {
+		communityServer, e := social.Serve(prepared.gameStore.SocialCharacterInfo, event)
+		if e != nil {
+			return fmt.Errorf("social HTTP: %w", e)
+		}
+		defer communityServer.Close()
+		event(map[string]any{"kind": "social_http_ready", "address": social.LocalAddress})
+	}
 	if endpoints != nil {
 		cl, e := channelrefresh.Serve(channelCfg, endpoints, event)
 		if e != nil {
@@ -252,6 +277,23 @@ func runGateway(startup Config) error {
 		}
 		defer cl.Close()
 		event(map[string]any{"kind": "channel_refresh_ready", "address": cl.Addr().String(), "channels": len(endpoints)})
+	}
+	if err = os.WriteFile(filepath.Join(startup.Output, "ready.json"), ready, 0600); err != nil {
+		return err
+	}
+	fmt.Println(string(ready))
+
+	if os.Getenv("DFO_LOCAL_GM") == "1" && prepared.gameStore != nil {
+		db, e := prepared.gameStore.DatabaseName(context.Background())
+		if e != nil {
+			return e
+		}
+		prepared.onlineGM = &onlineGMRegistry{database: db}
+		closeGM, e := localgm.Serve(db, prepared.onlineGM.execute)
+		if e != nil {
+			return fmt.Errorf("local GM: %w", e)
+		}
+		defer closeGM()
 	}
 	gateway := &gameGateway{runtime: prepared, channels: channelCfg, channelTypes: channelTypes, event: event}
 	for _, set := range listeners {

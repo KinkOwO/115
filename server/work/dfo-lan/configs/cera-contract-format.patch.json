@@ -1,0 +1,8 @@
+{
+  "changes": {
+    "22165": {
+      "old": "CERA Shop特殊物品：类型%d，高级类型%d高级EndTime %I64 u",
+      "new": "CERA Shop特殊物品：类型%d，高级类型%d高级EndTime %I64u "
+    }
+  }
+}

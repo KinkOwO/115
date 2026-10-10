@@ -25,11 +25,40 @@ type ceraReviveStore interface {
 // The current client's Life Token shop text (dstr 39335) prices one token at 15 CERA.
 const lifeTokenCeraCost int64 = 15
 
+// coinReviveTarget carries a session-only companion death without impersonating
+// its owner in persistence. Scope is a random room generation, empty for self.
+type coinReviveTarget struct {
+	actor uint16
+	death *odysseyDeath
+	scope string
+}
+
+func (w *worldSession) ownCoinTarget() coinReviveTarget {
+	if w == nil {
+		return coinReviveTarget{}
+	}
+	return coinReviveTarget{actor: w.role.WireID, death: w.pilotDeath}
+}
+func (v coinReviveTarget) run(w *worldSession) string {
+	if v.scope != "" {
+		return v.scope
+	}
+	return w.activeDungeon.RunID
+}
+func (v coinReviveTarget) key(prefix string) string {
+	if v.scope != "" {
+		return fmt.Sprintf("%s:robot:%s:%d:%d", prefix, v.scope, v.actor, v.death.Sequence)
+	}
+	return fmt.Sprintf("%s:%s:%d", prefix, v.death.Run, v.death.Sequence)
+}
 func (w *worldSession) lifeTokenReviveAllowed(p []byte) error {
+	return w.lifeTokenReviveAllowedFor(p, w.ownCoinTarget())
+}
+func (w *worldSession) lifeTokenReviveAllowedFor(p []byte, target coinReviveTarget) error {
 	if w == nil || w.role.ID == 0 || w.activeDungeon == nil || !w.activeDungeon.Loaded || w.resultSent {
 		return fmt.Errorf("life token revive requires owned loaded dungeon")
 	}
-	if len(p) != 8 || w.role.WireID == 0 || w.role.WireID == 65535 || binary.LittleEndian.Uint16(p) != w.role.WireID {
+	if len(p) != 8 || target.actor == 0 || target.actor == 65535 || binary.LittleEndian.Uint16(p) != target.actor {
 		return fmt.Errorf("revive actor mismatch")
 	}
 	for _, v := range p[2:] {
@@ -37,11 +66,14 @@ func (w *worldSession) lifeTokenReviveAllowed(p []byte) error {
 			return fmt.Errorf("unsupported coin request options")
 		}
 	}
-	if w.pilotDeath == nil || w.pilotDeath.Run != w.activeDungeon.RunID || !w.pilotDeath.Dead {
+	if target.death == nil || target.death.Run != target.run(w) || !target.death.Dead {
 		return fmt.Errorf("revive requires confirmed player death")
 	}
 	if w.dungeons == nil {
 		return fmt.Errorf("missing map revive rules")
+	}
+	if err := w.checkIspinsCoinUse(); err != nil {
+		return err
 	}
 	script, err := w.dungeons.MapScript(w.activeDungeon.Room.Map)
 	if err != nil {
@@ -59,18 +91,21 @@ func (w *worldSession) lifeTokenReviveAllowed(p []byte) error {
 // The event key is scoped to the dungeon death sequence so a repeated CMD41
 // cannot spend a second token, even when the character enters another run.
 func (w *worldSession) lifeTokenRevive(ctx context.Context, store dungeonReviveStore, p, frame []byte) ([]outboundPacket, error) {
+	return w.lifeTokenReviveFor(ctx, store, p, frame, w.ownCoinTarget())
+}
+func (w *worldSession) lifeTokenReviveFor(ctx context.Context, store dungeonReviveStore, p, frame []byte, target coinReviveTarget) ([]outboundPacket, error) {
 	hash := sha256.Sum256(frame)
-	if w != nil && w.activeDungeon != nil && w.pilotDeath != nil && w.pilotDeath.Run == w.activeDungeon.RunID && w.pilotDeath.Revives[hash] {
+	if w != nil && w.activeDungeon != nil && target.death != nil && target.death.Run == target.run(w) && target.death.Revives[hash] {
 		return nil, nil
 	}
-	if e := w.lifeTokenReviveAllowed(p); e != nil {
+	if e := w.lifeTokenReviveAllowedFor(p, target); e != nil {
 		return nil, e
 	}
 	if store == nil || w.loot == nil {
 		return nil, fmt.Errorf("life token storage unavailable")
 	}
 
-	key := fmt.Sprintf("dungeon-life-token-revive:%s:%d", w.pilotDeath.Run, w.pilotDeath.Sequence)
+	key := target.key("dungeon-life-token-revive")
 	saved, _, e := store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "dungeon-life-token-revive-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
 		bag, err := inventory.ReadBag(current.State)
 		if err != nil {
@@ -103,20 +138,23 @@ func (w *worldSession) lifeTokenRevive(ctx context.Context, store dungeonReviveS
 	if e != nil {
 		return nil, e
 	}
-	death, e := protocol.PlayerDeathState(w.role.WireID)
+	death, e := protocol.PlayerDeathState(target.actor)
 	if e != nil {
 		return nil, e
 	}
 	// Native1452aadea restores full HP/MP for state1; state2 restores one third.
 	death[2] = 1
-	ack := binary.LittleEndian.AppendUint16([]byte{1}, w.role.WireID)
+	if target.scope != "" {
+		death, _ = protocol.PlayerReviveState(target.actor)
+	}
+	ack := binary.LittleEndian.AppendUint16([]byte{1}, target.actor)
 	saved.WireID = w.role.WireID
 	w.role = saved
-	if w.pilotDeath.Revives == nil {
-		w.pilotDeath.Revives = map[[32]byte]bool{}
+	if target.death.Revives == nil {
+		target.death.Revives = map[[32]byte]bool{}
 	}
-	w.pilotDeath.Dead = false
-	w.pilotDeath.Revives[hash] = true
+	target.death.Dead = false
+	target.death.Revives[hash] = true
 	return []outboundPacket{
 		{"life_token_revive_ack", 1, 41, ack},
 		{"life_token_revived", 0, 32, death},
@@ -126,11 +164,14 @@ func (w *worldSession) lifeTokenRevive(ctx context.Context, store dungeonReviveS
 
 // ceraRevive charges the account once per death when the bag has no Life Token.
 func (w *worldSession) ceraRevive(ctx context.Context, store ceraReviveStore, p, frame []byte) ([]outboundPacket, error) {
+	return w.ceraReviveFor(ctx, store, p, frame, w.ownCoinTarget())
+}
+func (w *worldSession) ceraReviveFor(ctx context.Context, store ceraReviveStore, p, frame []byte, target coinReviveTarget) ([]outboundPacket, error) {
 	hash := sha256.Sum256(frame)
-	if w != nil && w.activeDungeon != nil && w.pilotDeath != nil && w.pilotDeath.Run == w.activeDungeon.RunID && w.pilotDeath.Revives[hash] {
+	if w != nil && w.activeDungeon != nil && target.death != nil && target.death.Run == target.run(w) && target.death.Revives[hash] {
 		return nil, nil
 	}
-	if e := w.lifeTokenReviveAllowed(p); e != nil {
+	if e := w.lifeTokenReviveAllowedFor(p, target); e != nil {
 		return nil, e
 	}
 	if store == nil {
@@ -138,13 +179,16 @@ func (w *worldSession) ceraRevive(ctx context.Context, store ceraReviveStore, p,
 	}
 	// Prepare the native packets before the charge. The transaction ceiling below
 	// guarantees that the final balance can also be encoded after commit.
-	death, e := protocol.PlayerDeathState(w.role.WireID)
+	death, e := protocol.PlayerDeathState(target.actor)
 	if e != nil {
 		return nil, e
 	}
 	death[2] = 1
-	ack := binary.LittleEndian.AppendUint16([]byte{1}, w.role.WireID)
-	key := fmt.Sprintf("cera-revive:%s:%d", w.pilotDeath.Run, w.pilotDeath.Sequence)
+	if target.scope != "" {
+		death, _ = protocol.PlayerReviveState(target.actor)
+	}
+	ack := binary.LittleEndian.AppendUint16([]byte{1}, target.actor)
+	key := target.key("cera-revive")
 	charged, e := store.ApplyGrant(ctx, database.Grant{
 		ID: key, AccountID: w.role.AccountID, Cera: -lifeTokenCeraCost,
 		Operator: "system", Reason: "life-token-less revive (dstr 7689)", MaxCera: math.MaxInt32,
@@ -157,11 +201,11 @@ func (w *worldSession) ceraRevive(ctx context.Context, store ceraReviveStore, p,
 		// ApplyGrant commits only a client-encodable balance for this operation.
 		return nil, e
 	}
-	if w.pilotDeath.Revives == nil {
-		w.pilotDeath.Revives = map[[32]byte]bool{}
+	if target.death.Revives == nil {
+		target.death.Revives = map[[32]byte]bool{}
 	}
-	w.pilotDeath.Dead = false
-	w.pilotDeath.Revives[hash] = true
+	target.death.Dead = false
+	target.death.Revives[hash] = true
 	return []outboundPacket{
 		{"cera_revive_ack", 1, 41, ack},
 		{"cera_revived", 0, 32, death},
@@ -173,6 +217,9 @@ func (w *worldSession) ceraRevive(ctx context.Context, store ceraReviveStore, p,
 func (w *worldSession) useCoinRevive(ctx context.Context, store ceraReviveStore, p, frame []byte, pilotEnabled bool) ([]outboundPacket, error) {
 	if w != nil && w.activeDungeon != nil && w.pilotDeath != nil && w.pilotDeath.Run == w.activeDungeon.RunID && w.pilotDeath.Revives[sha256.Sum256(frame)] {
 		return nil, nil
+	}
+	if err := w.checkIspinsCoinUse(); err != nil {
+		return nil, err
 	}
 	// 奥德赛模式口径（业主 2026-10-06，由服务端 mod 打开）：死亡不可复活 ——
 	// 这一处挡住下面三级回退全部（测试额度 / 背包复活币 / CERA），
@@ -199,6 +246,9 @@ func (w *worldSession) useCoinRevive(ctx context.Context, store ceraReviveStore,
 // 看到的次数不动（业主实机 2026-10-04）。这里只在真的复活成功（plan 非空、无错）时扣，
 // 且只在蔚蓝号频道生效；扣到 0 之后仍会回帧（客户端据此把入口灰掉）。
 func (w *worldSession) afterAzureCoinRevive(plan []outboundPacket, e error) ([]outboundPacket, error) {
+	if e == nil && len(plan) > 0 && w != nil && w.ispins != nil && w.activeDungeon != nil {
+		w.ispins.coinsUsed++
+	}
 	if e != nil || len(plan) == 0 || w == nil || w.channelType != azureMainChannelType {
 		return plan, e
 	}

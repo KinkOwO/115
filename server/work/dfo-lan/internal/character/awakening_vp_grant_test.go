@@ -32,7 +32,7 @@ func TestAwakeningProgressionGrantsPoolOnlyAtStage3(t *testing.T) {
 	job, adv, prof := findThirdAwakeningSample(t, c)
 	role := Character{Profession: job, ConfigVersion: c.Source.SaveIdentity()}
 	mk := func(level, aw byte) Character {
-		st := State{Level: level, Advancement: byte(adv), Awakening: aw, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills, SkillPoints: [2]uint16{50, 50}}
+		st := State{Level: level, Advancement: byte(adv), Awakening: aw, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills, SkillPoints: [2]uint16{50, 50}}
 		raw, e := json.Marshal(st)
 		if e != nil {
 			t.Fatal(e)
@@ -99,7 +99,7 @@ func TestLearningResponseKeepsVariationBlocksForThirdAwakening(t *testing.T) {
 	}
 	req := protocol.SkillPurchase{Tree: 0, Mode: 0}
 
-	awakened := State{Level: 100, Advancement: byte(adv), Awakening: 3, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills, SkillPoints: [2]uint16{10, 10}, TechniquePoints: [2]uint16{5, 5}}
+	awakened := State{Level: 100, Advancement: byte(adv), Awakening: 3, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills, SkillPoints: [2]uint16{10, 10}, TechniquePoints: [2]uint16{5, 5}}
 	got, e := s.LearningResponse(role(awakened), req)
 	if e != nil {
 		t.Fatal(e)
@@ -119,7 +119,7 @@ func TestLearningResponseKeepsVariationBlocksForThirdAwakening(t *testing.T) {
 	}
 
 	// 未三觉：无变体块（present=0）。
-	below := State{Level: 115, Advancement: byte(adv), Awakening: 2, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills, SkillPoints: [2]uint16{10, 10}}
+	below := State{Level: 115, Advancement: byte(adv), Awakening: 2, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills, SkillPoints: [2]uint16{10, 10}}
 	got, e = s.LearningResponse(role(below), req)
 	if e != nil {
 		t.Fatal(e)

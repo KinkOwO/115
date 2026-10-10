@@ -6,7 +6,6 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/database"
-	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"dfolan/internal/workflow"
@@ -169,50 +168,5 @@ func assertBoostWearSQL(t *testing.T, ctx context.Context, store *database.TestF
 	must115(t, e)
 	if pointState.Training.Step != 2 {
 		t.Fatal("point mission advanced without stepping", pointState.Training)
-	}
-}
-
-// 662 教学期的图鉴窗口（panel 36 / 来源窗口 0x054131D0）必须改派为**变换**。
-//
-// 教学第 10 关的目标是"把图鉴已登记的那件换到点名槽位"（业主 2026-10-04 口径），
-// 而该窗口实测发 `[12]=0`（生成）。不改派的话：走的生成路径只把装备放进背包，
-// 且成本按 [create cost] 兜档收 35,000 金币 ⇒ 学员号被拒、界面「点了没反应」。
-func TestBoostJournalWindowRoutesToTransform(t *testing.T) {
-	inTrack, e := boostup.WriteState(json.RawMessage(`{"level":115}`),
-		boostup.State{Version: 1, Activated: true, Training: boostup.Training{Step: 10, Phase: 2}})
-	must115(t, e)
-	w := &worldSession{boostup: &boostup.Catalog{}, role: database.Character{ID: 1, State: inTrack}}
-	win := protocol.EquipmentCraftRequest{Panel: boostJournalPanel, Context: 0x054131D0, Action: 0}
-
-	// ★ context 随窗口实例变（2026-10-04 0x054131D0 / 2026-10-05 0x5453070），
-	// 不是窗口标识 —— 门禁只看 panel。钉死 context 会让教学期退回生成路径（实测踩过）。
-	otherContext := win
-	otherContext.Context = 0x5453070
-	if !w.boostJournalSwap(otherContext) {
-		t.Fatal("context 变化不应影响改派（它随窗口实例变，不是标识）")
-	}
-
-	if !w.boostJournalSwap(win) {
-		t.Fatal("教学期图鉴窗口应改派为变换")
-	}
-	// 别的窗口（既有取证：panel=164 / 0x46ece836 是变换、0 / 0x005ff2f9 是生成）不改派。
-	other := win
-	other.Panel, other.Context = 164, 0x46ece836
-	if w.boostJournalSwap(other) {
-		t.Fatal("非教学窗口不应改派")
-	}
-	// 出关后不再改派：免单与改派都不得外溢。
-	finished, e := boostup.WriteState(json.RawMessage(`{"level":115}`),
-		boostup.State{Version: 1, Activated: true, Training: boostup.Training{Step: 11, Finished: true}})
-	must115(t, e)
-	w.role.State = finished
-	if w.boostJournalSwap(win) {
-		t.Fatal("出关后不应改派")
-	}
-	// 活动关闭时不改派。
-	w.role.State = inTrack
-	w.boostup = nil
-	if w.boostJournalSwap(win) {
-		t.Fatal("活动关闭时不应改派")
 	}
 }

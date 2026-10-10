@@ -34,10 +34,15 @@ type DungeonLayer struct {
 	Maps     []uint32 `json:"maps"`
 }
 type DungeonDefinition struct {
-	ID                       uint32       `json:"id"`
+	ID uint32 `json:"id"`
+	// Type preserves the native [dungeon type] string for source-bound adapters.
+	Type                     string       `json:"dungeon_type,omitempty"`
 	Script                   ScriptRecord `json:"script"`
 	MinimumLevel, BasisLevel uint32
 	Tutorial, NoFatigue      bool
+	// Bakal is the source [dungeon type] bakal. A local boss clear advances
+	// the raid battlefield and does not end navigation through this maze.
+	Bakal bool `json:"bakal,omitempty"`
 	// EnterFatigue 是源 [use fatigue only start dungeon] <N> 声明的**进本消耗**（only start = 进本只收一次）
 	// 0 表示源未声明该段，服务端回退本地策略或在策略里查 dungeon_enter_fatigue 兜底。
 	// 注意 [minimum enter fatigue] 是**门槛**而非消耗，不读它。
@@ -133,9 +138,12 @@ func (c *DungeonCatalog) DeclaredEnterFatigue() string {
 }
 
 type DungeonCatalog struct {
+	Elvenmere        *ElvenmereRules                      `json:"-"`
 	Source           pvf.ArchiveSnapshot                  `json:"source"`
 	Dungeons         map[uint32]DungeonDefinition         `json:"dungeons"`
 	IspinsOperations map[uint16]IspinsOperationDefinition `json:"ispins_operations,omitempty"`
+	StackableLimits  *StackableDungeonLimits              `json:"stackable_limits,omitempty"`
+	LegionContents   *LegionContents                      `json:"-"`
 	// Runtime imports retain map identity here; use MapScript to obtain cells.
 	Maps           map[uint32]ScriptRecord `json:"maps"`
 	Skipped        []string                `json:"skipped,omitempty"`
@@ -358,11 +366,26 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 		d.RewardCard = uint32(cards[0].Value)
 	}
 	minimum := sectionCells(s.Cells, "[minimum required level]")
+	// Native Bakal raid scripts repeat scalar level tags later in the file.
+	// Each assignment replaces the previous value; concatenating them makes
+	// all these otherwise valid raid dungeons fail ordinary scalar validation.
+	variant := sectionCells(s.Cells, "[dungeon type]")
+	if len(variant) == 1 && variant[0].Type == 6 {
+		d.Type = variant[0].Text
+	}
+	bakal := len(variant) == 1 && variant[0].Type == 6 && variant[0].Text == "bakal"
+	d.Bakal = bakal
+	if bakal && len(minimum) > 1 {
+		minimum = minimum[len(minimum)-1:]
+	}
 	if len(minimum) != 1 || minimum[0].Type != 0 || minimum[0].Value < 1 {
 		return d, fmt.Errorf("invalid [minimum required level]")
 	}
 	d.MinimumLevel = uint32(minimum[0].Value)
 	basis := sectionCells(s.Cells, "[basis level]")
+	if bakal && len(basis) > 1 {
+		basis = basis[len(basis)-1:]
+	}
 	hasBasis := false
 	for _, c := range s.Cells {
 		hasBasis = hasBasis || c.Type == 3 && c.Text == "[basis level]"
@@ -394,17 +417,7 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 		enter[0].Type == 0 && enter[0].Value > 0 && enter[0].Value <= 65535 {
 		d.EnterFatigue = uint16(enter[0].Value)
 	}
-	for i := 0; i < len(s.Cells); i++ {
-		if s.Cells[i].Type != 3 || s.Cells[i].Text != "[maze info]" {
-			continue
-		}
-		start := i + 1
-		i++
-		for i < len(s.Cells) && !(s.Cells[i].Type == 3 && s.Cells[i].Text == "[maze info]") {
-			i++
-		}
-		c := s.Cells[start:i]
-		i--
+	for _, c := range dungeonMazeSourceCells(s.Cells) {
 		if len(d.Mazes) >= 256 {
 			return d, fmt.Errorf("too many mazes")
 		}
@@ -547,6 +560,32 @@ func ParseDungeon(id uint32, s ScriptRecord) (DungeonDefinition, error) {
 	}
 	return d, nil
 }
+
+// Native DGN reader147444b30 initializes its default maze at +9f0 before
+// processing optional [maze info] and the size/map/start/boss fields. Older
+// raid scripts declare those fields directly; retain that source block rather
+// than inventing a wrapper or discarding the dungeon. Explicit blocks continue
+// to own their fields independently of the header.
+func dungeonMazeSourceCells(cells []pvf.Token) [][]pvf.Token {
+	var blocks [][]pvf.Token
+	start := -1
+	for i, t := range cells {
+		if t.Type != 3 || t.Text != "[maze info]" {
+			continue
+		}
+		if start >= 0 {
+			blocks = append(blocks, cells[start:i])
+		}
+		start = i + 1
+	}
+	if start >= 0 {
+		return append(blocks, cells[start:])
+	}
+	if len(sectionCells(cells, "[map specification]")) > 0 {
+		return [][]pvf.Token{cells}
+	}
+	return nil
+}
 func ImportDungeons(a *pvf.Archive, ids []uint32) (DungeonCatalog, error) {
 	return importDungeons(a, ids, false)
 }
@@ -606,6 +645,15 @@ func importDungeons(a *pvf.Archive, ids []uint32, lazyMaps bool) (DungeonCatalog
 			if err != nil {
 				return out, err
 			}
+			out.StackableLimits, err = importStackableDungeonLimits(a)
+			if err != nil {
+				return out, err
+			}
+			contents, err := ImportLegionContents(a)
+			if err != nil {
+				return out, err
+			}
+			out.LegionContents = &contents
 		}
 		importMap := func(mapID uint32) {
 			if _, ok := out.Maps[mapID]; ok {

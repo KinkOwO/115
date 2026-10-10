@@ -13,12 +13,48 @@ import (
 	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
+
+// 实机缺陷（业主 2026-10-07）：奶系职业直升活动第二关无法进副本。
+//
+// 客户端把 2638 的第一字节当**轨道号**用（Dump：analysis/dumps/boost-buffer-route/）：
+//   - sub_14074C6B0 训练副本路线的内层键 = (grow, mode==1)，**精确匹配、不回绕**，
+//     查不到才回落 record+4 = 普通轨 `[dungeon index]`；
+//   - sub_140C13440 按 mode==1 取 [buffer reward]；
+//   - sub_14074DEF0 按 mode!=2 判定"仍在参与"。
+//
+// 我方恒发 0 ⇒ 奶系步骤的 `[specific dungeon index]` 变体 1 行永远匹配不上，客户端
+// 请求 100004558（普通轨那张），authorizeBoostDungeon 按真实路线（100004545/…546）拒绝，
+// 日志 guide dungeon differs from current profession/step（会话
+// runtime/roles_..._20261007_175054_282824_next37/events.jsonl，第二个角色两次）。
+// 轨道字节必须跟着 boost_up115.variant 走；毕业/未参与仍是 2。
+func TestBoostTrainingFrameCarriesTrack(t *testing.T) {
+	c := &boostup.Catalog{Gifts: []boostup.Gift{{ID: 117}}}
+	for _, tc := range []struct {
+		name  string
+		state boostup.State
+		want  []byte
+	}{
+		{"普通轨进行中", boostup.State{Version: 1, Activated: true, Variant: 0, Training: boostup.Training{Step: 2}}, []byte{0, 2, 0, 0, 1}},
+		{"奶系轨进行中", boostup.State{Version: 1, Activated: true, Variant: 1, Training: boostup.Training{Step: 2}}, []byte{1, 2, 0, 0, 1}},
+		{"奶系轨毕业", boostup.State{Version: 1, Activated: true, Variant: 1, Training: boostup.Training{Step: 12, Finished: true}}, []byte{2, 12, 0, 0, 1}},
+		{"未参与", boostup.State{Version: 1, Variant: 1}, []byte{2, 0, 0, 0, 0}},
+	} {
+		role := database.Character{State: json.RawMessage(`{}`)}
+		raw, e := boostup.WriteState(role.State, tc.state)
+		must115(t, e)
+		role.State = raw
+		got, e := boostTrainingRestore(c, role)
+		must115(t, e)
+		if !bytes.Equal(got, tc.want) {
+			t.Errorf("%s: 2638 = % x, want % x", tc.name, got, tc.want)
+		}
+	}
+}
 
 // TestBoostClaimFramesAreObserved 钉住 662 的三条入站线路都在采样白名单里：
 // 漏登记的通知第 BodySampleLimit(8) 次之后不再记录正文，诊断会静默变弱。
@@ -121,9 +157,8 @@ func TestBoostDisjointMissionProgressFrame(t *testing.T) {
 }
 
 func TestBoostGiftSQLRealEntryReplayIsolationAndRollback(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("explicit isolated database required")
-	}
+	// OpenTestFixture owns a disposable SQLite file. This activity regression
+	// must run on the shipped engine without an obsolete PostgreSQL opt-in.
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 	fixture, e := database.OpenTestFixture(ctx)
@@ -156,10 +191,12 @@ func TestBoostGiftSQLRealEntryReplayIsolationAndRollback(t *testing.T) {
 	assertBoostAutoSQL(t, ctx, fixture)
 	assertBoostMailSQL(t, ctx, store)
 	version := savecontract.Identity()
-	ls := &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: version}, Items: map[uint32]catalog.LootItem{1: {ID: 1, Kind: "stackable", StackableType: "[waste]", StackLimit: 1}}},
+	// Template 1 is a resurrection coin in the current engine, not a bag item.
+	const testItem uint32 = 60001
+	ls := &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: version}, Items: map[uint32]catalog.LootItem{testItem: {ID: testItem, Kind: "stackable", StackableType: "[waste]", StackLimit: 1}}},
 		BagRules: inventory.BagRules{Source: version, Slots: map[string][2]uint16{"[waste]": {65, 65}}, MissingStackLimit: 1}}
 	lsvc := &workflow.LootService{Store: store, Loot: ls}
-	gift := boostup.Gift{ID: 117, Event: 10017, Direct: true, Trigger: "click button", Items: []uint32{1}}
+	gift := boostup.Gift{ID: 117, Event: 10017, Direct: true, Trigger: "click button", Items: []uint32{testItem}}
 	create := func(name string, raw json.RawMessage) database.Character {
 		r, err := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: name, Profession: 0, Request: []byte{0}, ConfigVersion: version, State: raw}, 100)
 		must115(t, err)
@@ -181,9 +218,9 @@ func TestBoostGiftSQLRealEntryReplayIsolationAndRollback(t *testing.T) {
 	bag, e := inventory.ReadBag(w.role.State)
 	must115(t, e)
 	if len(bag.Items) != 1 || bag.Items[0].Amount != 1 {
-		t.Fatal("duplicate grant")
+		t.Fatalf("duplicate or missing grant: bag=%+v", bag)
 	}
-	capsuleCatalog := &boostup.Catalog{GoalLevel: 115, UsableLevel: 115, Capsules: map[uint32]boostup.Capsule{1: {Item: 1, Variant: 0}}, Steps: []boostup.Step{{Number: 1, Guide: "none", Mission: "equip item"}}}
+	capsuleCatalog := &boostup.Catalog{GoalLevel: 115, UsableLevel: 115, Capsules: map[uint32]boostup.Capsule{testItem: {Item: testItem, Variant: 0}}, Steps: []boostup.Step{{Number: 1, Guide: "none", Mission: "equip item"}}}
 	growCalls := 0
 	grow := func(r database.Character, target byte) (database.Character, error) {
 		growCalls++
@@ -222,7 +259,7 @@ func TestBoostGiftSQLRealEntryReplayIsolationAndRollback(t *testing.T) {
 		t.Fatal("capsule state/item not atomic")
 	}
 	capsuleCatalog.Town = 222
-	capsuleCatalog.Steps[0].Rewards = []boostup.Reward{{Item: 1, Count: 1}}
+	capsuleCatalog.Steps[0].Rewards = []boostup.Reward{{Item: testItem, Count: 1}}
 	stepWorld := &worldSession{account: account, role: saved, loot: ls, store: store, boostup: capsuleCatalog, state: database.WorldState{Position: database.WorldPosition{Town: 222, Area: 0}}}
 	claimBody := []byte{0x96, 2, 0, 0, 1, 0, 0, 0}
 	stepPackets, e := stepWorld.boostStepRequest(ctx, claimBody, 680)
@@ -236,7 +273,12 @@ func TestBoostGiftSQLRealEntryReplayIsolationAndRollback(t *testing.T) {
 		t.Fatal("step retry replayed old slot")
 	}
 	assertBoostWorldSQL(t, ctx, store, stepWorld.role)
-	assertBoostGuideClearSQL(t, ctx, fixture, stepWorld.role)
+	// The legacy combat fixture has its own opt-in and unfinished settlement
+	// assumptions. Keep its status separate so it cannot skip the claim,
+	// rollback, concurrency and reopen assertions below.
+	t.Run("legacy_guide_clear", func(t *testing.T) {
+		assertBoostGuideClearSQL(t, ctx, fixture, stepWorld.role)
+	})
 	// [GAP] assertBoostMapPickupSQL（donor 地图箱子系统）见 boostup_dungeon.go。
 	_, _, used, e = lsvc.UseBoostCapsule(ctx, w.role, capsuleCatalog, 65, 0, grow, nil)
 	must115(t, e)
@@ -298,7 +340,7 @@ func TestBoostGiftSQLRealEntryReplayIsolationAndRollback(t *testing.T) {
 	queryState, e := boostup.WriteState(json.RawMessage(`{}`), boostup.State{Version: 1, Activated: true, Training: boostup.Training{Step: 1, Phase: 0}})
 	must115(t, e)
 	queryRole := create("boostquery", queryState)
-	queryCatalog := &boostup.Catalog{Town: 222, Steps: []boostup.Step{{Number: 1, Guide: "normal", Mission: "none", Rewards: []boostup.Reward{{Item: 1, Count: 1}}}}}
+	queryCatalog := &boostup.Catalog{Town: 222, Steps: []boostup.Step{{Number: 1, Guide: "normal", Mission: "none", Rewards: []boostup.Reward{{Item: testItem, Count: 1}}}}}
 	queryWorld := &worldSession{account: account, role: queryRole, loot: ls, store: store, boostup: queryCatalog, state: database.WorldState{Position: database.WorldPosition{Town: 222, Area: 0}}}
 	queryPackets, e := queryWorld.boostStepRequest(ctx, claimBody, 681)
 	must115(t, e)
@@ -310,7 +352,7 @@ func TestBoostGiftSQLRealEntryReplayIsolationAndRollback(t *testing.T) {
 	if len(queryPackets) != 4 || queryPackets[1].ID != 2639 || queryPackets[2].ID != 2638 || queryPackets[2].Payload[0] != 2 || queryPackets[3].ID != 680 {
 		t.Fatal("final claim did not close training/update roster")
 	}
-	full, e := inventory.SaveBag(json.RawMessage(`{}`), inventory.Bag{Version: "ordinary-bag-v1", Items: []inventory.BagItem{{Slot: 65, Template: 1, Amount: 1}}})
+	full, e := inventory.SaveBag(json.RawMessage(`{}`), inventory.Bag{Version: "ordinary-bag-v1", Items: []inventory.BagItem{{Slot: 65, Template: testItem, Amount: 1}}})
 	must115(t, e)
 	blocked := create("boostfull", full)
 	// 本树没有 inventory.ErrStackBagFull 哨兵：满包由 bag.go 的
@@ -338,5 +380,54 @@ func TestBoostGiftSQLRealEntryReplayIsolationAndRollback(t *testing.T) {
 		if st.Gifts[117] != (r.ID == role.ID || r.ID == other.ID || r.ID == racing.ID) {
 			t.Fatal("reopen entitlement mismatch")
 		}
+	}
+}
+
+func TestBoostGiftOfferSuppressedForOdysseyAndMaxLevel(t *testing.T) {
+	c := &boostup.Catalog{Gifts: []boostup.Gift{{ID: 117}, {ID: 118}}, GoalLevel: 115}
+	odysseyRequest := func() []byte {
+		p := append([]byte{0, 4, 0, 0, 0}, []byte("test")...)
+		p = append(p, 0, 0, 0, 0, 0, 0, 255, 0, 1, 0, 2, 0) // option[10]=2 ⇒ Arad Odyssey 用户
+		for len(p)%8 != 0 {
+			p = append(p, 0)
+		}
+		return p
+	}
+	for _, tc := range []struct {
+		name string
+		role database.Character
+		want []byte
+	}{
+		{"普通 1 级仍在报价内", database.Character{State: json.RawMessage(`{"level":1}`)}, []byte{2, 0, 117, 0, 0, 118, 0, 0}},
+		{"普通 114 级仍在报价内", database.Character{State: json.RawMessage(`{"level":114}`)}, []byte{2, 0, 117, 0, 0, 118, 0, 0}},
+		{"满级 115 不再报价", database.Character{State: json.RawMessage(`{"level":115}`)}, []byte{2, 0, 117, 0, 1, 118, 0, 1}},
+		{"奥德赛 1 级不再报价", database.Character{Request: odysseyRequest(), State: json.RawMessage(`{"level":1}`)}, []byte{2, 0, 117, 0, 1, 118, 0, 1}},
+	} {
+		gifts, e := boostGiftAvailability(c, tc.role)
+		must115(t, e)
+		if !bytes.Equal(gifts, tc.want) {
+			t.Errorf("%s: 2265 = %v, want %v", tc.name, gifts, tc.want)
+		}
+	}
+	// 报价只看角色自身的创建标记：DFO_ODYSSEY_MODE 的启动器覆盖既不能把普通角色
+	// 挤出报价，也不能把奥德赛角色放回报价（与进城准入用同一个 per-character 判据）。
+	t.Setenv("DFO_ODYSSEY_MODE", "1")
+	normal := database.Character{State: json.RawMessage(`{"level":1}`)}
+	gifts, e := boostGiftAvailability(c, normal)
+	if e != nil || !bytes.Equal(gifts, []byte{2, 0, 117, 0, 0, 118, 0, 0}) {
+		t.Errorf("launcher mode override moved a normal character out of the offer: %v (%v)", gifts, e)
+	}
+	t.Setenv("DFO_ODYSSEY_MODE", "0")
+	pilot := database.Character{Request: odysseyRequest(), State: json.RawMessage(`{"level":1}`)}
+	if gifts, e = boostGiftAvailability(c, pilot); e != nil || !bytes.Equal(gifts, []byte{2, 0, 117, 0, 1, 118, 0, 1}) {
+		t.Errorf("launcher mode off let an Odyssey character back into the offer: %v (%v)", gifts, e)
+	}
+	// 报价内的角色仍按自己的领取状态出行：领了 117 不该被满级/奥德赛口径连带改写。
+	claimed, e := boostup.WriteState(json.RawMessage(`{"level":1}`), boostup.State{Version: 1, Gifts: map[uint16]bool{117: true}})
+	must115(t, e)
+	gifts, e = boostGiftAvailability(c, database.Character{State: claimed})
+	must115(t, e)
+	if !bytes.Equal(gifts, []byte{2, 0, 117, 0, 1, 118, 0, 0}) {
+		t.Errorf("per-role claim lost: %v", gifts)
 	}
 }

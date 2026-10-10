@@ -17,6 +17,10 @@ type ChallengeDefinition struct {
 	UnlockRewards, ClearRewards []Reward
 	UnlockMail, ClearMail       bool
 	GuideDungeon                uint32
+	// GoTarget is the source `[go contents town area]` landing of this row's Go
+	// button (town, area, x, y); HasGoTarget is false when the row has none.
+	GoTarget    [4]uint32
+	HasGoTarget bool
 }
 type ChallengeProgress struct {
 	Unlocked      bool   `json:"unlocked"`
@@ -101,6 +105,17 @@ func ParseChallenges(cells []pvf.Token) ([]ChallengeDefinition, error) {
 		d.GuideDungeon, e = number(row, "[go contents dungeon index]", ^uint32(0))
 		if e != nil {
 			return nil, e
+		}
+		if v := values(row, "[go contents town area]"); len(v) == 4 {
+			for _, t := range v {
+				if t.Type != 0 || t.Value < 0 {
+					return nil, fmt.Errorf("invalid challenge go target")
+				}
+			}
+			if v[2].Value <= 65535 && v[3].Value <= 65535 {
+				d.GoTarget = [4]uint32{uint32(v[0].Value), uint32(v[1].Value), uint32(v[2].Value), uint32(v[3].Value)}
+				d.HasGoTarget = true
+			}
 		}
 		out = append(out, d)
 	}

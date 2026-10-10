@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"dfolan/internal/boostup"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/loot"
 	"dfolan/internal/workflow"
@@ -75,4 +76,29 @@ func (w *worldSession) boostChallengeRequest(ctx context.Context, p []byte, id u
 
 func isBoostChallengeRequest(p []byte) bool {
 	return len(p) >= 4 && binary.LittleEndian.Uint32(p) == boostup.ChallengeEventID
+}
+
+func (w *worldSession) boostChallengeGoTeleport(r protocol.AreaChangeRequest, specialWarp bool) (database.WorldPosition, bool, error) {
+	old := w.state.Position
+	if specialWarp || w.boostup == nil || len(w.boostup.Challenges) == 0 || !w.ownedTownTeleport(r) {
+		return old, false, nil
+	}
+	st, e := boostup.ReadState(w.role.State)
+	if e != nil {
+		// 读不出活动存档不等于拒绝：ownedTownTeleport 覆盖所有角色的 flag-5 移动，
+		// 这里报错会把 NPC 移动/章节回城一起拒掉。交给原有路径判定。
+		return old, false, nil
+	}
+	if st.Challenge == nil || !st.Challenge.Enrolled {
+		return old, false, nil
+	}
+	for _, d := range w.boostup.Challenges {
+		if !d.HasGoTarget || d.GoTarget[0] != r.Town || d.GoTarget[1] != r.Area || !st.Challenge.Rows[d.Index].Unlocked {
+			continue
+		}
+		r.X, r.Y = uint16(d.GoTarget[2]), uint16(d.GoTarget[3])
+		next, e := w.teleportTransition(old, r)
+		return next, true, e
+	}
+	return old, false, nil
 }

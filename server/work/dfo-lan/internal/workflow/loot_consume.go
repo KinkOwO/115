@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"dfolan/internal/adventure"
+	"dfolan/internal/cashshop"
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/loot"
@@ -22,6 +23,9 @@ func (s *LootService) Consume(ctx context.Context, role database.Character, r pr
 	var out loot.ConsumeReceipt
 	fail := func(e error) (database.Character, loot.ConsumeReceipt, bool, error) {
 		return role, out, false, e
+	}
+	if cashshop.IsRestrictedContract(r.Template) {
+		return fail(fmt.Errorf("契约包含尚未支持的源限制，物品已保留"))
 	}
 	key, e := s.Loot.ConsumeKey(LootRole(role), r)
 	if e != nil {

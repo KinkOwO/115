@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "edition",
+    "release_id",
+    "embedded_gm_sha256",
+    "files",
+    "gui_version"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "edition": {
+      "const": "local"
+    },
+    "release_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "embedded_gm_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "role",
+          "size",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "local_features": {
+      "type": "object",
+      "properties": {
+        "robots": {
+          "type": "object",
+          "required": [
+            "enabled",
+            "count",
+            "storage",
+            "template",
+            "template_sha256"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "storage": {
+              "type": "string"
+            },
+            "template": {
+              "type": "string"
+            },
+            "template_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    "gui_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+\\.\\d+$"
+    }
+  }
+}

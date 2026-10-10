@@ -41,6 +41,7 @@ type AdventureCharacter struct {
 
 type AdventureInfo struct {
 	Name                     string
+	SymbolID                 uint32
 	CreatedDate              uint32 // YYYYMMDD，0x143C7529B 按 10000/100 拆分。
 	Level                    uint32
 	Experience               uint64
@@ -62,7 +63,8 @@ const (
 )
 
 // 角色代表名由 0x143C6A900 的 MultiByteToWideChar(CP_ACP) 消费，
-// 团名由 0x146D78070 消费。均须限制编码后的字节数，不能截断汉字。
+// 团名由 0x146D78070 -> 149185A00 按 UTF-8 消费，单独使用
+// adventureNameText。GBK 校验用于逻辑名称容量，不作为团名线编码。
 func adventureText(s string, maxBytes int) ([]byte, error) {
 	if s == "" || !utf8.ValidString(s) || strings.ContainsRune(s, 0) {
 		return nil, fmt.Errorf("冒险团名称无效")
@@ -130,7 +132,7 @@ func AdventureResponse(req AdventureRequest, server byte, channel uint32, info A
 		p = add16(p, 0)
 		return add32(p, 0), nil
 	}
-	name, err := adventureText(info.Name, 16)
+	name, err := adventureNameText(info.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +191,7 @@ func AdventureResponse(req AdventureRequest, server byte, channel uint32, info A
 	p = append(add32(p, uint32(len(detail))), detail...)
 	p = append(add32(p, uint32(len(name))), name...)
 	p = add16(p, 0)
-	p = add32(p, 0)
+	p = add32(p, info.SymbolID) // 143C759BB: profile +0x154
 	p = add16(p, 0)
 	return append(p, 0), nil
 }

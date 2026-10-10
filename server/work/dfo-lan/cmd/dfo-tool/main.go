@@ -13,6 +13,7 @@ import (
 	"dfolan/internal/toolcmd/dbq"
 	"dfolan/internal/toolcmd/dungeonimport"
 	"dfolan/internal/toolcmd/dungeonscenesaudit"
+	"dfolan/internal/toolcmd/elvenmereseason"
 	"dfolan/internal/toolcmd/equipfields"
 	"dfolan/internal/toolcmd/equipmentfull"
 	"dfolan/internal/toolcmd/eventinfogate"
@@ -47,6 +48,7 @@ var commands = []command{
 	{"dbq", "maintenance", "[options]", true, 0, dbq.Run},
 	{"dungeonimport", "catalog", "[options]", true, 0, dungeonimport.Run},
 	{"dungeonscenesaudit", "audit", "[options]", true, 0, dungeonscenesaudit.Run},
+	{"elvenmereseason", "maintenance", "[options] (preview; explicit audited account season reset)", true, 0, elvenmereseason.Run},
 	{"equipfields", "catalog", "[options]", true, 0, equipfields.Run},
 	{"equipmentfull", "catalog", "[options]", true, 0, equipmentfull.Run},
 	{"eventinfogate", "audit", "[options]", true, 0, eventinfogate.Run},

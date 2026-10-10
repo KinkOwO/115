@@ -66,8 +66,8 @@ func TestBuildServerEnv(t *testing.T) {
 
 	t.Run("a native profile keeps them and wins over the base", func(t *testing.T) {
 		env := BuildServerEnv(base, map[string]string{
-			"DFO_PVF_CATALOGS": "world,quests",
-			"DFO_PVF_ARCHIVE":  "new.pvf",
+			"DFO_PVF_CATALOGS":  "world,quests",
+			"DFO_PVF_ARCHIVE":   "new.pvf",
 			"DFO_SKILL_RELEASE": "0",
 		}, false)
 		for _, key := range LegacyGameplaySwitches {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
 	"dfolan/internal/workflow"
 	"fmt"
 	"time"
@@ -104,10 +105,19 @@ func (w *worldSession) useEmblems(p []byte, event func(map[string]any)) ([]outbo
 	if event != nil {
 		event(map[string]any{"kind": "avatar_emblem_applied", "id": 201, "character_id": saved.ID, "avatar_slot": req.AvatarSlot, "template": req.Template, "inputs": req.Inputs, "sequence": receipt.Sequence, "applied": applied})
 	}
-	return []outboundPacket{
+	plan := []outboundPacket{
 		{"avatar_emblem_avatar_updated", 0, 14, receipt.Avatar},
 		{"avatar_emblem_ack", 1, 201, receipt.Ack},
 		// Restores absolute counts, including removal of exhausted stacks.
 		{"avatar_emblem_inventory_restored", 0, 13, receipt.Inventory},
-	}, nil
+	}
+	if req.Space == 3 {
+		// [FIX-20261007 穿戴镶嵌] 穿戴视图需要整体刷新（与增幅/强化穿戴装备同机制，
+		// 见 amplify_flow.go 的 WornSpaceUpdate）：只回单行 NOTI 14 时客户端不会更新
+		// 穿戴显示，徽章已写入存档但界面上不出现。
+		if wornBody, e := inventory.WornSpaceUpdate(saved.State); e == nil && len(wornBody) > 0 {
+			plan = append(plan, outboundPacket{"avatar_emblem_worn", 0, 14, wornBody})
+		}
+	}
+	return plan, nil
 }

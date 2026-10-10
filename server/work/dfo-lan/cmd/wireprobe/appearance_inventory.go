@@ -9,10 +9,16 @@ import (
 
 // A full mode0 actor rebuild resets the client's worn/avatar containers.
 // Restore authoritative instances after it, including options and sockets.
-func appearanceInventory(state json.RawMessage) ([]outboundPacket, error) {
+func appearanceInventory(state json.RawMessage, eq *inventory.EquipmentCatalog) ([]outboundPacket, error) {
 	bag, e := inventory.ReadBag(state)
 	if e != nil {
 		return nil, e
+	}
+	// 老存档时装空孔扩展：下发视图按 PVF 默认孔就地补上（不写回存档），
+	// 客户端背包/时装面板才能显示孔；镶嵌路径 UseEmblems 同样会补，两端一致。
+	var defaultSockets func(uint32) []byte
+	if eq != nil {
+		defaultSockets = eq.DefaultAvatarSockets
 	}
 	var plan []outboundPacket
 	for _, space := range []byte{1, 7, 3} {
@@ -22,7 +28,7 @@ func appearanceInventory(state json.RawMessage) ([]outboundPacket, error) {
 			// payload carries one row per slot.
 			rows = bag.WornBaseItems()
 		}
-		p, e := inventory.EquipmentPayload(space, rows, true)
+		p, e := inventory.EquipmentPayloadWithSockets(space, rows, true, defaultSockets)
 		if e != nil {
 			return nil, e
 		}
@@ -37,7 +43,7 @@ func appearanceInventory(state json.RawMessage) ([]outboundPacket, error) {
 }
 
 func appearanceRestore(service *character.Service, role database.Character) ([]outboundPacket, error) {
-	plan, e := appearanceInventory(role.State)
+	plan, e := appearanceInventory(role.State, service.Equipment)
 	if e != nil {
 		return nil, e
 	}

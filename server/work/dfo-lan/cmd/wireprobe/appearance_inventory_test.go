@@ -10,7 +10,7 @@ import (
 func TestAppearanceRestoresAvatarAndWornInstances(t *testing.T) {
 	raw := json.RawMessage(`{"inventory":{"version":"ordinary-bag-v1","worn":[{"slot":3,"template":40601,"durability":9}],"special_equipment":{"1":[]}}}`)
 	before := bytes.Clone(raw)
-	plan, e := appearanceInventory(raw)
+	plan, e := appearanceInventory(raw, nil)
 	if e != nil {
 		t.Fatal(e)
 	}

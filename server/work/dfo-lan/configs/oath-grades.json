@@ -1,10 +1,10 @@
 {
   "source": {
     "format": "dfo_20260901_inner",
-    "path": "D:/115us/server/work/client-build/Script.inner.pvf",
-    "size": 760530763,
-    "checksum": "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80",
-    "loaded_at": "2026-09-27T03:24:33.2943417Z",
+    "path": "../client-build/Script.inner.pvf",
+    "size": 760531281,
+    "checksum": "be95d64ee120248ae503194d2f61743ef74409a8ff999a4a986ca2e0bccf69b0",
+    "loaded_at": "2026-10-03T14:39:33.0000000Z",
     "file_count": 5650173,
     "group_count": 82571,
     "cached_chunks": 0,

@@ -3,6 +3,8 @@ package catalog
 import (
 	"dfolan/internal/catalog/pvf"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 // MaxLevelRewardPath names the source table that decides what a character
@@ -28,6 +30,38 @@ type MaxLevelReward struct {
 	Count      uint32       `json:"count"`
 	Title      string       `json:"title"`
 	Text       string       `json:"text"`
+}
+
+// TextForLevelCap updates the legacy localization's numeric level token for
+// presentation only. The legacy number comes from its existing text-tag name;
+// the actual level cap is supplied by the same growth rules used for rewards.
+func (r *MaxLevelReward) TextForLevelCap(levelCap byte) string {
+	if r == nil {
+		return ""
+	}
+	legacy, _, _ := strings.Cut(maxLevelRewardTextTag, "_")
+	if _, err := strconv.ParseUint(legacy, 10, 8); err != nil || levelCap < 2 {
+		return r.Text
+	}
+	var out strings.Builder
+	for i := 0; i < len(r.Text); {
+		j := i
+		if r.Text[i] >= '0' && r.Text[i] <= '9' {
+			for j < len(r.Text) && r.Text[j] >= '0' && r.Text[j] <= '9' {
+				j++
+			}
+			if r.Text[i:j] == legacy {
+				out.WriteString(strconv.Itoa(int(levelCap)))
+			} else {
+				out.WriteString(r.Text[i:j])
+			}
+		} else {
+			j++
+			out.WriteByte(r.Text[i])
+		}
+		i = j
+	}
+	return out.String()
 }
 
 // ImportMaxLevelReward reads the reward pair and its mail wording from the

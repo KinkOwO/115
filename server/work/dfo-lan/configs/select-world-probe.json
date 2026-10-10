@@ -1,0 +1,25 @@
+{
+  "unknown_prefix": 0,
+  "fatigue_fields": [
+    0,
+    156,
+    0
+  ],
+  "cash": 0,
+  "quest_fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "world_kind": 0,
+  "tutorial_flag": 0,
+  "tutorial_completed": [],
+  "tail_u16": [
+    0,
+    0
+  ],
+  "arena_broadcast": 0,
+  "fatigue_tail": 0,
+  "policy": "Local development fatigue limit 156, separate from the PVF. First field is used fatigue, second is the limit; not an official-server value recovered from this archive."
+}

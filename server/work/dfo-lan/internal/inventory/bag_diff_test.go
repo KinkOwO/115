@@ -8,19 +8,19 @@ import (
 
 func TestChangedItemRowsOnlyChangedSlots(t *testing.T) {
 	before := Bag{Version: "ordinary-bag-v1", Gold: 100, Coin: 5, Items: []BagItem{
-		{Slot: 2, Template: 6001, Amount: 5},   // untouched
-		{Slot: 3, Template: 6003, Amount: 5},   // amount changes
-		{Slot: 65, Template: 9001, Amount: 1},  // removed
+		{Slot: 2, Template: 6001, Amount: 5},  // untouched
+		{Slot: 3, Template: 6003, Amount: 5},  // amount changes
+		{Slot: 65, Template: 9001, Amount: 1}, // removed
 	}, Equipment: []BagEquipment{
-		{Slot: 9, Template: 101, Durability: 10, Record: []byte{9}},        // untouched
-		{Slot: 11, Template: 102, Durability: 20, Record: []byte{11}},      // durability changes
-		{Slot: 13, Template: 103, Durability: 30, Record: []byte{13}},      // removed
+		{Slot: 9, Template: 101, Durability: 10, Record: []byte{9}},   // untouched
+		{Slot: 11, Template: 102, Durability: 20, Record: []byte{11}}, // durability changes
+		{Slot: 13, Template: 103, Durability: 30, Record: []byte{13}}, // removed
 	}}
 
 	after := Bag{Version: "ordinary-bag-v1", Gold: 250, Coin: 5, Items: []BagItem{
-		{Slot: 2, Template: 6001, Amount: 5},   // untouched -> omitted
-		{Slot: 3, Template: 6003, Amount: 8},   // amount changed
-		{Slot: 66, Template: 9002, Amount: 1},  // added
+		{Slot: 2, Template: 6001, Amount: 5},  // untouched -> omitted
+		{Slot: 3, Template: 6003, Amount: 8},  // amount changed
+		{Slot: 66, Template: 9002, Amount: 1}, // added
 	}, Equipment: []BagEquipment{
 		{Slot: 9, Template: 101, Durability: 10, Record: []byte{9}},   // untouched -> omitted
 		{Slot: 11, Template: 102, Durability: 25, Record: []byte{11}}, // changed
@@ -37,13 +37,13 @@ func TestChangedItemRowsOnlyChangedSlots(t *testing.T) {
 	}
 
 	want := map[uint16][2]uint32{
-		0:  {0, 250},    // gold changed
-		3:  {6003, 8},   // amount changed
-		11: {102, 0},    // equipment durability changed (template stays, no amount)
-		12: {104, 0},    // added equipment (no amount on equipment rows)
+		0:  {0, 250},             // gold changed
+		3:  {6003, 8},            // amount changed
+		11: {102, 0},             // equipment durability changed (template stays, no amount)
+		12: {104, 0},             // added equipment (no amount on equipment rows)
 		13: {DeletedTemplate, 0}, // removed equipment
 		65: {DeletedTemplate, 0}, // removed stackable
-		66: {9002, 1},   // added stackable
+		66: {9002, 1},            // added stackable
 	}
 
 	if len(rows) != len(want) {

@@ -65,7 +65,7 @@ func (s *VaultService) TransferStacks(role Role, v VaultState, r protocol.ItemMo
 	if (to == nil && r.DestinationItem != 0) || (to != nil && (r.DestinationItem != to.Template || to.Template != from.Template)) {
 		return fail("stale or incompatible vault target")
 	}
-	if to != nil && to.ExpireTime != from.ExpireTime {
+	if to != nil && (to.ExpireTime != from.ExpireTime || to.WeaponShape != from.WeaponShape) {
 		return fail("不同期限的金库物品不能合并")
 	}
 	// Live 130633/130704 uses count zero for a whole-stack warehouse merge.
@@ -112,7 +112,7 @@ func (s *VaultService) TransferStacks(role Role, v VaultState, r protocol.ItemMo
 			case "[material expert job]":
 				home = [2]uint16{233, 288}
 			case "[avatar emblem]", "[rune]":
-				home = [2]uint16{289, 344}
+				home = [2]uint16{289, 360}
 			default:
 				home = [2]uint16{65, 120}
 			}
@@ -132,6 +132,9 @@ func (s *VaultService) TransferStacks(role Role, v VaultState, r protocol.ItemMo
 			}
 		}
 		return true
+	}
+	if r.DestinationList == 0 && !b.OrdinarySlotUnlocked(r.DestinationSlot) {
+		return fail("destination outside ordinary inventory capacity")
 	}
 	if !legal(r.DestinationList, r.DestinationSlot) || !legal(r.SourceList, r.SourceSlot) {
 		return fail("vault or bag slot outside usable capacity")
@@ -156,7 +159,7 @@ func (s *VaultService) TransferStacks(role Role, v VaultState, r protocol.ItemMo
 			}
 		}
 		if amount > 0 {
-			kept = append(kept, BagItem{Slot: slot, Template: template, Amount: amount, ExpireTime: from.ExpireTime})
+			kept = append(kept, BagItem{Slot: slot, Template: template, Amount: amount, ExpireTime: from.ExpireTime, WeaponShape: from.WeaponShape})
 		}
 		*p = kept
 	}
@@ -167,7 +170,7 @@ func (s *VaultService) TransferStacks(role Role, v VaultState, r protocol.ItemMo
 		sort.Slice(vault, func(i, j int) bool { return vault[i].Slot < vault[j].Slot })
 		left := r.Count
 		for i := range vault {
-			if vault[i].Template != from.Template || vault[i].ExpireTime != from.ExpireTime || vault[i].Amount >= limit {
+			if vault[i].Template != from.Template || vault[i].ExpireTime != from.ExpireTime || vault[i].WeaponShape != from.WeaponShape || vault[i].Amount >= limit {
 				continue
 			}
 			n := limit - vault[i].Amount

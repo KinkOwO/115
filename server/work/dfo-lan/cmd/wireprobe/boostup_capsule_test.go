@@ -3,8 +3,8 @@ package main
 import (
 	"bytes"
 	"dfolan/internal/boostup"
-	"dfolan/internal/loot"
 	"dfolan/internal/database"
+	"dfolan/internal/loot"
 	"testing"
 )
 

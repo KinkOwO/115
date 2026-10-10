@@ -83,4 +83,3 @@ func TestBoostSpecialProfessionsSourceAwakening(t *testing.T) {
 		}
 	}
 }
-

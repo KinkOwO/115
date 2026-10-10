@@ -2109,6 +2109,30 @@
     {
       "server_shop_id": 906,
       "native_shop_id": 500000114
+    },
+    {
+      "server_shop_id": 100004101,
+      "native_shop_id": 100004101
+    },
+    {
+      "server_shop_id": 100004000,
+      "script_path": "itemshop/import110_past_server_union.shp"
+    },
+    {
+      "server_shop_id": 2,
+      "script_path": "itemshop/import110_seria_server_union.shp"
+    },
+    {
+      "server_shop_id": 15,
+      "script_path": "itemshop/import110_seria_server_union.shp"
+    },
+    {
+      "server_shop_id": 100004102,
+      "native_shop_id": 100004102
+    },
+    {
+      "server_shop_id": 100004103,
+      "native_shop_id": 100004103
     }
   ]
 }

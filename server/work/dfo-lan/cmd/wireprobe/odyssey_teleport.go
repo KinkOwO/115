@@ -15,6 +15,9 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (database.Wo
 	specialWarp := w.specialWarpPending
 	w.specialWarpPending = false
 	old := w.state.Position
+	if err := w.authorizeRaidArea(r); err != nil {
+		return old, err
+	}
 	// Starter Boost 662：活动城镇里的区域移动只认源里当前关的授权房
 	// （[check event condition]/[event id]/[condition]），不走普通门控。
 	if pos, handled, e := w.boostAreaTransition(r); handled {
@@ -63,6 +66,9 @@ func (w *worldSession) areaTransition(r protocol.AreaChangeRequest) (database.Wo
 			return old, err
 		}
 		return w.teleportTransition(old, r)
+	}
+	if pos, handled, e := w.boostChallengeGoTeleport(r, specialWarp); handled {
+		return pos, e
 	}
 	if !isSeriaReturn && (specialWarp || isMapTeleport || isSeriaRoomTeleport) {
 		return w.teleportTransition(old, r)

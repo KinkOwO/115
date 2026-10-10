@@ -31,6 +31,9 @@ func preparePVFBoostUp(c *Catalogs, s *Source, selected map[string]bool, inputs 
 	if err = content.BindCapsules(src); err != nil {
 		return fmt.Errorf("Starter Boost capsules: %w", err)
 	}
+	if err = content.BindTrainingAPCs(src); err != nil {
+		return fmt.Errorf("Starter Boost training companions: %w", err)
+	}
 	if c.FameRules == nil || len(c.FameRules.Groups) == 0 {
 		return fmt.Errorf("Starter Boost wear missions need the fame equipment grouping source")
 	}

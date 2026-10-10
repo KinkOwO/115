@@ -13,7 +13,6 @@ import (
 	"dfolan/internal/loot"
 	"dfolan/internal/workflow"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -42,6 +41,12 @@ func (w *worldSession) dungeonGate(p []byte) ([]outboundPacket, error) {
 	requested, e := protocol.DecodeDungeonGate(p)
 	if e != nil {
 		return nil, e
+	}
+	if w.channelType == 82 && w.raidWaiting {
+		if err := w.bakalOpening.AuthorizeDungeon(requested, time.Now()); err != nil {
+			return nil, err
+		}
+		return []outboundPacket{{"bakal_gate_ack", 1, 15, []byte{1}}, {"bakal_selection", 0, 27, protocol.EnterDungeonSelection()}}, nil
 	}
 	if w.channelType == 73 || requested == blackPurgatorySquadDungeon {
 		if err := w.validateBlackPurgatoryDungeon(requested); err != nil {
@@ -175,6 +180,15 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 	if e != nil {
 		return nil, nil, e
 	}
+	if w.channelType == 82 && w.raidWaiting {
+		if err := w.bakalOpening.AuthorizeDungeon(r.ID, time.Now()); err != nil {
+			return nil, nil, err
+		}
+		if !w.selectingDungeon || w.approvedDungeonGate != r.ID {
+			return nil, nil, fmt.Errorf("Bakal dungeon selection has no matching active gate")
+		}
+		return w.prepareDungeonEntry(r)
+	}
 	if w.channelType == 73 || r.ID == blackPurgatorySquadDungeon {
 		if !w.selectingDungeon || w.approvedDungeonGate != r.ID || r.Difficulty != 2 {
 			return nil, nil, fmt.Errorf("黑鸦小队缺少本次选图许可或源难度不匹配")
@@ -234,6 +248,17 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 
 // 普通选图与已完成准入校验的特殊副本共用场景准备，不重复触发城镇门校验。
 func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeon.Session, []outboundPacket, error) {
+	w.resetRobotEntryPreparation()
+	admitted := false
+	defer func() {
+		if !admitted {
+			w.resetRobotEntryPreparation()
+		}
+	}()
+	robotAuthority := w.localRobotMonsterAuthority()
+	if w.ownsTownRobotParty(r.Party) {
+		r.Party = 65535
+	}
 	if w.soloPartyReady && r.Party == 1 {
 		// This connection owns the single-member bootstrap party. The dungeon
 		// domain remains solo; never normalize arbitrary party IDs.
@@ -260,10 +285,22 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 			return nil, nil, fmt.Errorf("%s tower floor %d is locked", policy.Key, tower.Floor)
 		}
 	}
+	var elvenmereProgress dungeon.ElvenmereProgress
+	if r.ID == 100003126 && w.dungeons.Elvenmere != nil && len(w.dungeons.Elvenmere.Areas) > 0 {
+		var err error
+		r, elvenmereProgress, err = w.elvenmereSelection(ctx, r)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 	var s *dungeon.Session
 	var e error
 	if dungeon.IsTrainingRoom(*w.dungeons, r.ID) {
-		s, e = dungeon.SelectTrainingRoom(*w.dungeons, r, w.level)
+		s, e = dungeon.SelectTrainingRoom(*w.dungeons, r, w.level, robotAuthority)
+	} else if w.channelType == 82 && w.raidWaiting && w.bakalOpening != nil {
+		// Raid admission is owned by its source phase/roster, not an ordinary
+		// story-quest ledger. Final scripted movement uses the same boundary.
+		s, e = dungeon.Select(*w.dungeons, r, w.level, nil, robotAuthority)
 	} else {
 		var accepted map[uint16]bool
 		accepted, e = w.acceptedQuestIDs(ctx)
@@ -272,16 +309,39 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 			// 2026-10-04 14:43 第二关 CMD16 `100004558` 被 unsupported dungeon option
 			// 挡下）。判据与 authorizeBoostDungeon 同源，不是第二套规则。
 			if w.boostGuideSelection(r.ID) {
-				s, e = dungeon.SelectGuide(*w.dungeons, r, w.level, accepted)
+				s, e = dungeon.SelectGuide(*w.dungeons, r, w.level, accepted, robotAuthority)
 			} else {
-				s, e = dungeon.Select(*w.dungeons, r, w.level, accepted)
+				s, e = dungeon.Select(*w.dungeons, r, w.level, accepted, robotAuthority)
 			}
 		}
 	}
 	if e != nil {
 		return nil, nil, e
 	}
+	if s.Definition.ID == 100003126 && elvenmereProgress.Version == 2 {
+		s.ElvenmereWeekStart = elvenmereProgress.WeekStart
+		s.ElvenmereStartFloor = elvenmereProgress.StartFloor
+		if s.ElvenmereStartFloor == 0 {
+			s.ElvenmereStartFloor = byte(r.Extra)
+		}
+		s.WeeklyRewards, s.SeasonRewards = elvenmereProgress.RewardFlags()
+	}
 	noteMazeEntry(s)
+	if w.channelType == 82 && w.raidWaiting {
+		matched := s.Definition.ID == w.bakalOpening.FinalDungeon() && w.bakalOpening.FinalDungeon() != 0
+		for _, slot := range w.bakalRules.Slots {
+			if slot.Dungeon != s.Definition.ID {
+				continue
+			}
+			if _, err := w.bakalOpening.AuthorizeSlot(slot.ID, s.Definition.ID, s.Room.Map, time.Now()); err == nil {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return nil, nil, fmt.Errorf("Bakal entry map is outside active source battlefield slots")
+		}
+	}
 	if w.fatigue != nil && !s.Definition.NoFatigue && w.fatigue.EnterCostFor(s.Definition.ID) > 0 {
 		fp, err := w.fatigue.State(ctx, w.account, w.role.ID, time.Now())
 		if err != nil {
@@ -300,31 +360,14 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 			return nil, nil, e
 		}
 	}
+	admitted = true
 	return s, plan, nil
 }
 
-// dungeonEntryPlan is the frame sequence the client needs to load a dungeon it
-// has just asked for: the acknowledgement for that request, the actor display
-// state, the solo party bootstrap, NOTI 28 (dungeon info) and NOTI 29 (start
-// map). Both the town selection (CMD 16) and the post-clear "next story
-// dungeon" gate (CMD 2062) replay it unchanged - only the ack id differs,
-// because the client loads a whole new dungeon either way.
-func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string, ackID uint16, sel protocol.DungeonSelection, s *dungeon.Session, channelCtx *[2]byte) ([]outboundPacket, error) {
-	if s.HellParty != nil {
-		log.Printf("Hell Party selected: dungeon=%d map=%d mode=%s(%d) S4 compatibility rows=%+v actor groups=%+v", s.Definition.ID, s.HellParty.Map, s.HellParty.Key, s.HellParty.Mode, s.HellParty.Rows, s.HellParty.Actors)
-	}
-	var seed uint32
-	if e := binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
-		return nil, e
-	}
-	if s.Tournament != nil {
-		seed = s.Tournament.Seed
-	}
-	start, e := protocol.StartMap(protocol.StartMapState{Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters, HellPartyMode: s.HellPartyMode(), EncodeCreateTrigger: monsterCreateTriggerEnabled()})
-	if e != nil {
-		return nil, e
-	}
-	plan := []outboundPacket{{ackName, 1, ackID, []byte{1}}}
+// dungeonActorEntryPackets shares the established ordinary-dungeon
+// actor projection with the tutorial before the first map loads.
+func (w *worldSession) dungeonActorEntryPackets(channelCtx *[2]byte) []outboundPacket {
+	var plan []outboundPacket
 	if w.characters != nil {
 		channel := [2]byte{}
 		if channelCtx != nil {
@@ -355,9 +398,68 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 			}
 		}
 	}
+	return plan
+}
+
+// dungeonEntryPlan is the frame sequence the client needs to load a dungeon it
+// has just asked for: the acknowledgement for that request, the actor display
+// state, the solo party bootstrap, NOTI 28 (dungeon info) and NOTI 29 (start
+// map). Both the town selection (CMD 16) and the post-clear "next story
+// dungeon" gate (CMD 2062) replay it unchanged - only the ack id differs,
+// because the client loads a whole new dungeon either way.
+func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string, ackID uint16, sel protocol.DungeonSelection, s *dungeon.Session, channelCtx *[2]byte) ([]outboundPacket, error) {
+	w.resetRobotEntryPreparation()
+	if party := w.townRobotPartySnapshot(); party != nil && channelCtx == nil && w.townRobotDungeonChannelAllowed() {
+		plan, err := w.dungeonEntryPlanPreservingParty(ctx, ackName, ackID, sel, s, &party.identity, true)
+		if err != nil {
+			return nil, err
+		}
+		// Introduce the same native actor identities before the whole-room load.
+		var peers []outboundPacket
+		for _, bot := range party.bots {
+			peers = append(peers, outboundPacket{"robot_dungeon_appearance", 0, 2, append([]byte(nil), bot.peer.info...)})
+			if len(bot.peer.addition) > 0 {
+				peers = append(peers, outboundPacket{"robot_dungeon_addition", 0, 2, append([]byte(nil), bot.peer.addition...)})
+			}
+		}
+		for i, pkt := range plan {
+			if pkt.ID == 28 {
+				plan = append(plan[:i:i], append(peers, plan[i:]...)...)
+				break
+			}
+		}
+		f := w.hub.townRobots
+		f.mu.Lock()
+		if p := f.parties[w.peer]; p != nil && p.id == party.id {
+			p.entryPrepared = true
+		}
+		f.mu.Unlock()
+		return plan, nil
+	}
+	return w.dungeonEntryPlanPreservingParty(ctx, ackName, ackID, sel, s, channelCtx, false)
+}
+
+func (w *worldSession) dungeonEntryPlanPreservingParty(ctx context.Context, ackName string, ackID uint16, sel protocol.DungeonSelection, s *dungeon.Session, channelCtx *[2]byte, preserveParty bool) ([]outboundPacket, error) {
+	w.titleRestoreCharacter = 0 // discard readiness from the previous scene
+	if s.HellParty != nil {
+		log.Printf("Hell Party selected: dungeon=%d map=%d mode=%s(%d) S4 compatibility rows=%+v actor groups=%+v", s.Definition.ID, s.HellParty.Map, s.HellParty.Key, s.HellParty.Mode, s.HellParty.Rows, s.HellParty.Actors)
+	}
+	var seed uint32
+	if e := binary.Read(rand.Reader, binary.LittleEndian, &seed); e != nil {
+		return nil, e
+	}
+	if s.Tournament != nil {
+		seed = s.Tournament.Seed
+	}
+	start, e := protocol.StartMap(protocol.StartMapState{Position: s.Maze.Start, Seed: seed, Map: s.Room.Map, Monsters: s.Monsters, HellPartyMode: s.HellPartyMode(), EncodeCreateTrigger: monsterCreateTriggerEnabled()})
+	if e != nil {
+		return nil, e
+	}
+	plan := []outboundPacket{{ackName, 1, ackID, []byte{1}}}
+	plan = append(plan, w.dungeonActorEntryPackets(channelCtx)...)
 	// 黑鸦已在大厅建立原生小队，入图不能用普通队伍通知覆盖模式和开场状态。
-	if w.soloPartyBootstrap && !(w.channelType == 73 && w.blackPurgatory.created) {
-		party, e := protocol.SoloPartyInfo(w.role.WireID)
+	if !preserveParty && w.soloPartyBootstrap && !(w.channelType == 73 && w.blackPurgatory.created) && w.bakalOpening == nil {
+		party, e := w.soloPartyInfo(channelCtx)
 		if e != nil {
 			return nil, e
 		}
@@ -405,6 +507,17 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 		}
 		plan = append(plan, outboundPacket{"hell_party_apcs_preloaded", 0, 666, body})
 	}
+	// Publish native raid symbols before map actors run their first ACT.
+	symbols, symbolErr := w.bakalEnterSymbolPlan(s, false)
+	if symbolErr != nil {
+		return nil, symbolErr
+	}
+	plan = append(plan, symbols...)
+	location, locationErr := w.bakalRoomPartyPlan(s)
+	if locationErr != nil {
+		return nil, locationErr
+	}
+	plan = append(plan, location...)
 	// 苏醒之森用官服 48B N28 形状 + N1584 STACKABLE_DUNGEON_LIMIT（官方
 	// 21:42:18.601 实发、首字段 = 8 = 每关消耗品上限；伊斯 replay 同款——
 	// 伊斯副本能用药正是因为发了它。没有这一帧客户端把消耗品全部本地禁用，
@@ -416,14 +529,34 @@ func (w *worldSession) dungeonEntryPlanImpl(ctx context.Context, ackName string,
 	//（两个团本的会话均零 CMD44 实证；伊斯 replay 同款、副本内可用药）。
 	if w.forest != nil && legion.IsForestStageDungeonAny(sel.ID) {
 		dungeonInfo = protocol.ForestDungeonInfo(sel.ID, s.Maze.Index, s.Maze.Boss, seed)
-		stackableLimit = []outboundPacket{{"forest_stackable_dungeon_limit", 0, 1584, protocol.StackableDungeonLimit(8, seed)}}
+		limit, err := w.forestPotionLimit(sel.ID)
+		if err != nil {
+			return nil, err
+		}
+		stackableLimit = []outboundPacket{{"forest_stackable_dungeon_limit", 0, 1584, protocol.StackableDungeonLimit(limit, seed)}}
 	} else if w.venus != nil && legion.IsVenusStageDungeon(sel.ID) {
-		stackableLimit = []outboundPacket{{"venus_stackable_dungeon_limit", 0, 1584, protocol.StackableDungeonLimit(8, seed)}}
+		limit, err := w.dungeonPotionLimit(sel.ID)
+		if err != nil {
+			return nil, err
+		}
+		stackableLimit = []outboundPacket{{"venus_stackable_dungeon_limit", 0, 1584, protocol.StackableDungeonLimit(limit, seed)}}
 	}
-	plan = append(plan, []outboundPacket{
-		{"dungeon_info_sent", 0, 28, dungeonInfo},
-		{"dungeon_start_map_sent", 0, 29, start},
-	}...)
+	var companions []outboundPacket
+	if !preserveParty || os.Getenv("DFO_ELITE_COMPANION_PILOT") == "all" {
+		// Legion entries preserve their native party metadata, but still need
+		// fresh elite snapshots before each map. The all-dungeon adapter rejects
+		// town robot parties itself, so their native seats remain exclusive.
+		var companionErr error
+		companions, companionErr = w.attunementEliteEntryPackets(ctx, sel, s)
+		if companionErr != nil {
+			return nil, companionErr
+		}
+	}
+	// Pilot attempt 1/3: native N28 reads the source dungeon before selecting
+	// the type-2 snapshot container; N1879 clones AI before N29 starts the map.
+	plan = append(plan, outboundPacket{"dungeon_info_sent", 0, 28, dungeonInfo})
+	plan = append(plan, companions...)
+	plan = append(plan, outboundPacket{"dungeon_start_map_sent", 0, 29, start})
 	plan = append(plan, stackableLimit...)
 	if s.Tournament != nil {
 		info, err := protocol.TournamentInfo(s.Tournament.Opening)
@@ -474,8 +607,14 @@ func (w *worldSession) acceptedQuestIDs(ctx context.Context) (map[uint16]bool, e
 }
 
 func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outboundPacket, error) {
+	if w.ownsApocalypseDungeon() {
+		return nil, nil, fmt.Errorf("apocalypse route requires the owned stage scheduler")
+	}
 	if w == nil || w.dungeons == nil || w.role.ID == 0 {
 		return nil, nil, fmt.Errorf("dungeon catalog or character unavailable")
+	}
+	if w.channelType == 82 && w.raidWaiting {
+		return w.enterBakalPortal(p)
 	}
 	// 苏醒之森直进：音符记录类型 0x04 的关卡，客户端确认音符后不走 CMD2045
 	// 而发 CMD2062 直进下一关（官服 21:44:34.387、私服 21:06 会话实证）。
@@ -530,12 +669,12 @@ func (w *worldSession) directMoveDungeon(p []byte) (*dungeon.Session, []outbound
 	sel := protocol.DungeonSelection{ID: r.ID, Difficulty: r.Difficulty, Party: 65535}
 	var s *dungeon.Session
 	if dungeon.IsTrainingRoom(*w.dungeons, r.ID) {
-		s, e = dungeon.SelectTrainingRoom(*w.dungeons, sel, w.level)
+		s, e = dungeon.SelectTrainingRoom(*w.dungeons, sel, w.level, w.localRobotMonsterAuthority())
 	} else {
 		var accepted map[uint16]bool
 		accepted, e = w.acceptedQuestIDs(ctx)
 		if e == nil {
-			s, e = dungeon.Select(*w.dungeons, sel, w.level, accepted)
+			s, e = dungeon.Select(*w.dungeons, sel, w.level, accepted, w.localRobotMonsterAuthority())
 		}
 	}
 	if e != nil {
@@ -593,6 +732,12 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	if w == nil || w.activeDungeon == nil {
 		return nil, fmt.Errorf("loading without dungeon session")
 	}
+	if w.activeDungeon.Definition.ID == 100003126 && w.activeDungeon.ElvenmereWeekStart != 0 && w.activeDungeon.ElvenmereWeekStart != dungeon.ElvenmereWeekStart(time.Now()) {
+		return nil, fmt.Errorf("elvenmere week changed; leave and select again")
+	}
+	if w.activeDungeon.Definition.ID == 100003126 && w.activeDungeon.ElvenmereLastFloor >= 100 {
+		return nil, fmt.Errorf("elvenmere final floor already settled; leave the dungeon")
+	}
 	// Current solo loading request is a zeroed 16-byte record. Refuse other
 	// options until their native send fields are supported.
 	if len(p) != 16 {
@@ -625,13 +770,42 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	plan = append(plan, w.venusStageTimer(time.Now())...)
 	// 苏醒之森关卡倒计时：同款挂点（官服 21:42:19.431 N1474，60 分钟/关）。
 	plan = append(plan, w.forestStageTimer(time.Now())...)
+	// N24 is town arrival, not a generic loading completion. Sending it here
+	// returns the native client to town while the server remains in a dungeon.
 	plan = append(plan, outboundPacket{"dungeon_loading_complete", 0, 30, protocol.DungeonLoaded()})
+	follow, followErr := w.robotDungeonRoomPlan()
+	if followErr != nil {
+		return nil, followErr
+	}
+	plan = append(plan, follow...)
+	if w.bakalOpening != nil {
+		symbols, err := w.bakalEnterSymbolPlan(w.activeDungeon, true)
+		if err != nil {
+			return nil, err
+		}
+		spawn, err := w.bakalLoadedBoss(w.activeDungeon, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		// Regular room changes send CMD37, not the initial CMD2073.
+		// Register the source arena actor before the empty-room completion.
+		prefix := append(plan[:2:2], symbols...)
+		prefix = append(prefix, spawn...)
+		plan = append(prefix, plan[2:]...)
+	}
 	// 常驻状态：把两个档位在客户端读 getter 之前下发（见 oath_info.go）。
 	grades, e := w.oathInfoPackets()
 	if e != nil {
 		return nil, e
 	}
 	plan = append(plan, grades...)
+	border, e := w.borderRewardPackets()
+	if e != nil {
+		return nil, e
+	}
+	// Insert before loading_complete, retaining the other modes' packet order.
+	plan = insertBorderBeforeLoaded(plan, border)
+
 	// 征兆队伍状态（noti 2836）。客户端进 EOO 副本时自己已经把两个征兆窗开好，
 	// 这里只负责把每个座位的状态填进去。见 omen_info.go。
 	omen, e := w.omenInfoPackets()
@@ -747,16 +921,26 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 		}
 	}
 	if w.activeDungeon.Definition.ID == 100003126 {
-		// Elvenmere 初始化层数：根据进图选取的 Zone（Extra）设置当前层与最高已通关层。
+		// The selected zone is a starting floor, not a reward history.
 		floor := byte(w.activeDungeon.Extra)
 		if floor == 0 {
 			floor = 1
 		}
-		var maxCleared byte
-		if floor > 1 {
-			maxCleared = floor - 1
+		if w.loot != nil && w.store != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			saved, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).RestoreElvenmereProgress(ctx, w.role)
+			cancel()
+			if e != nil {
+				return nil, e
+			}
+			w.role = saved
 		}
-		plan = append(plan, outboundPacket{"elvenmere_info_sent", 0, 2193, protocol.ElvenmereInfo(floor, maxCleared, w.activeDungeon.WeeklyRewards, w.activeDungeon.SeasonRewards)})
+		progress, _, e := dungeon.ReadElvenmereProgress(w.role.State)
+		if e != nil {
+			return nil, e
+		}
+		w.activeDungeon.WeeklyRewards, w.activeDungeon.SeasonRewards = progress.RewardFlags()
+		plan = append(plan, outboundPacket{"elvenmere_info_sent", 0, 2193, protocol.ElvenmereInfo(floor, progress.MaxCleared, w.activeDungeon.WeeklyRewards, w.activeDungeon.SeasonRewards)})
 	}
 	// 房间重建会重置原生场景计时器，每次加载均同步同一个挑战期限。
 	plan = append(plan, w.bleedingMineTimer(time.Now())...)
@@ -774,7 +958,21 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 			return nil, e
 		}
 	}
-	return appendBuffEnhancementRestore(plan, w.characters, w.role, "dungeon_buff_enhancement_restored")
+	weaponSkin, err := dungeonWeaponSkinRestore(w)
+	if err != nil {
+		return nil, err
+	}
+	plan = append(plan, weaponSkin...)
+	plan, e = appendBuffEnhancementRestore(plan, w.characters, w.role, "dungeon_buff_enhancement_restored")
+	if e != nil {
+		return nil, e
+	}
+	// C37 means the map data is loaded. CMD560 also requires an active actor.
+	// C2423 is emitted only after the native local actor's combat values exist.
+	if err := w.armDungeonTitleRestore(); err != nil {
+		return nil, err
+	}
+	return plan, nil
 }
 
 func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
@@ -784,14 +982,37 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 	if w.activeDungeon.Definition.ID != 100003126 {
 		return nil, fmt.Errorf("elvenmere teleport in non-elvenmere dungeon")
 	}
+	if w.activeDungeon.ElvenmereWeekStart != 0 && w.activeDungeon.ElvenmereWeekStart != dungeon.ElvenmereWeekStart(time.Now()) {
+		return nil, fmt.Errorf("elvenmere week changed; leave and select again")
+	}
 	if len(p) < 25 {
 		return nil, fmt.Errorf("short elvenmere teleport payload")
 	}
+	// Retry after a successful advance has no new owned completion. Restore
+	// the previous acknowledgement without granting or advancing another floor.
+	if (w.loot != nil || w.progression != nil) && !w.activeDungeon.Completed() && w.activeDungeon.ElvenmereLastFloor != 0 {
+		progress, exists, err := dungeon.ReadElvenmereProgress(w.role.State)
+		if err != nil {
+			return nil, err
+		}
+		maxCleared := w.activeDungeon.ElvenmereLastFloor
+		if exists {
+			maxCleared = progress.MaxCleared
+		}
+		return []outboundPacket{{"elvenmere_teleport_ack", 1, 2015, []byte{1}}, {"elvenmere_info_sent", 0, 2193, protocol.ElvenmereInfo(byte(w.activeDungeon.Extra), maxCleared, w.activeDungeon.WeeklyRewards, w.activeDungeon.SeasonRewards)}}, nil
+	}
 
 	// 刚刚通关的层数
+	if w.activeDungeon.Extra > 100 {
+		return nil, fmt.Errorf("invalid elvenmere floor")
+	}
 	clearedFloor := byte(w.activeDungeon.Extra)
 	if clearedFloor == 0 {
 		clearedFloor = 1
+	}
+
+	if clearedFloor > 100 {
+		return nil, fmt.Errorf("invalid elvenmere floor")
 	}
 
 	// 传送至下一层
@@ -799,7 +1020,6 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 	if nextFloor > 100 {
 		nextFloor = 100
 	}
-	w.activeDungeon.Extra = uint16(nextFloor)
 	maxCleared := clearedFloor
 
 	plan := []outboundPacket{
@@ -809,90 +1029,20 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// 1. 发放通关道具奖励（Seed Coin / 叶之金币及赛季奖励）
-	// 周常奖励
-	if clearedFloor >= 1 && clearedFloor <= 100 && w.activeDungeon.WeeklyRewards[clearedFloor-1] == 0 {
-		w.activeDungeon.WeeklyRewards[clearedFloor-1] = 1
-		itemTemplate, itemCount := dungeon.ElvenmereFloorWeeklyReward(clearedFloor)
-		if itemTemplate != 0 && itemCount > 0 && w.loot != nil {
-			awarder := &inventory.Awarder{
-				Catalog:   w.loot.Catalog,
-				Rules:     w.loot.BagRules,
-				Equipment: w.loot.Equipment,
-			}
-			before, _ := inventory.ReadBag(w.role.State)
-			if updated, _, err := awarder.Grant(w.role.State, itemTemplate, itemCount); err == nil {
-				w.role.State = updated
-				if store := w.store; store != nil {
-					key := fmt.Sprintf("elvenmere-weekly:%s:%d", w.activeDungeon.RunID, clearedFloor)
-					_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-reward-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
-						proof, _ := json.Marshal(map[string]any{"template": itemTemplate, "amount": itemCount, "floor": clearedFloor})
-						return updated, proof, nil
-					})
-				}
-				if b, err := inventory.ReadBag(updated); err == nil {
-					if updatePayload, err := protocol.InventoryUpdate(inventory.ChangedItemRows(before, b)); err == nil {
-						plan = append(plan, outboundPacket{"elvenmere_inventory_updated", 0, 14, updatePayload})
-					}
-				}
-			}
-		}
+	rewards, err := w.commitElvenmereRewards(ctx, clearedFloor)
+	if err != nil {
+		return nil, err
 	}
-
-	// 逢5层检查发放赛季首通奖励
-	if clearedFloor%5 == 0 && clearedFloor >= 5 && clearedFloor <= 100 && w.activeDungeon.SeasonRewards[clearedFloor-1] == 0 {
-		w.activeDungeon.SeasonRewards[clearedFloor-1] = 1
-		sTemplate, sCount := dungeon.ElvenmereFloorSeasonReward(clearedFloor)
-		if sTemplate != 0 && sCount > 0 && w.loot != nil {
-			awarder := &inventory.Awarder{
-				Catalog:   w.loot.Catalog,
-				Rules:     w.loot.BagRules,
-				Equipment: w.loot.Equipment,
-			}
-			before, _ := inventory.ReadBag(w.role.State)
-			if updated, _, err := awarder.Grant(w.role.State, sTemplate, sCount); err == nil {
-				w.role.State = updated
-				if store := w.store; store != nil {
-					key := fmt.Sprintf("elvenmere-season:%s:%d", w.activeDungeon.RunID, clearedFloor)
-					_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-reward-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
-						proof, _ := json.Marshal(map[string]any{"template": sTemplate, "amount": sCount, "floor": clearedFloor})
-						return updated, proof, nil
-					})
-				}
-				if b, err := inventory.ReadBag(updated); err == nil {
-					if updatePayload, err := protocol.InventoryUpdate(inventory.ChangedItemRows(before, b)); err == nil {
-						plan = append(plan, outboundPacket{"elvenmere_inventory_updated", 0, 14, updatePayload})
-					}
-				}
-			}
-		}
+	plan = append(plan, rewards...)
+	progress, exists, err := dungeon.ReadElvenmereProgress(w.role.State)
+	if err != nil {
+		return nil, err
 	}
-
-	// 2. 发放通关经验奖励（Floor Clear EXP）
-	expGain := dungeon.ElvenmereFloorClearExp(clearedFloor)
-	if expGain > 0 && w.progression != nil {
-		previousLevel := w.level
-		if updatedRole, _, err := w.progression.ApplyGain(w.role, expGain); err == nil {
-			updatedRole.WireID = w.role.WireID
-			w.role = updatedRole
-			if store := w.store; store != nil {
-				key := fmt.Sprintf("elvenmere-exp:%s:%d", w.activeDungeon.RunID, clearedFloor)
-				_, _, _ = store.CommitCharacterEvent(ctx, w.role.AccountID, w.role.ID, w.role.ConfigVersion, key, "elvenmere-exp-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
-					proof, _ := json.Marshal(map[string]any{"exp": expGain, "floor": clearedFloor})
-					return updatedRole.State, proof, nil
-				})
-			}
-			if expPayload, err := character.ExperiencePayload(updatedRole); err == nil {
-				w.level = expPayload[0]
-				plan = append(plan, outboundPacket{"elvenmere_experience_updated", 0, 37, expPayload})
-				if w.level != previousLevel {
-					if skills, err := w.automaticSkillRefresh(); err == nil {
-						plan = append(plan, skills...)
-					}
-				}
-			}
-		}
+	if exists {
+		maxCleared = progress.MaxCleared
 	}
+	w.activeDungeon.AdvanceElvenmereFloor(clearedFloor, nextFloor)
+	w.completionSent = false
 
 	// 3. 下发 NOTI 2193 同步 Elvenmere 进度
 	plan = append(plan, outboundPacket{"elvenmere_info_sent", 0, 2193, protocol.ElvenmereInfo(nextFloor, maxCleared, w.activeDungeon.WeeklyRewards, w.activeDungeon.SeasonRewards)})
@@ -901,6 +1051,10 @@ func (w *worldSession) elvenmereTeleport(p []byte) ([]outboundPacket, error) {
 }
 
 func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
+	return w.leaveDungeonToTown(false)
+}
+
+func (w *worldSession) leaveDungeonToTown(keepRobotParty bool) ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 {
 		return nil, fmt.Errorf("leave dungeon without selected character")
 	}
@@ -913,6 +1067,14 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 		if e := w.settleTutorialReturn(); e != nil {
 			return nil, e
 		}
+	}
+	robotParty := w.townRobotPartySnapshot()
+	robotPartyKept := keepRobotParty && w.returnRobotDungeonParty()
+	robotPartyEnded := false
+	var soloPartyGone []byte
+	if !robotPartyKept {
+		robotPartyEnded = w.endRobotDungeonParty()
+		soloPartyGone = w.takeOrdinarySoloPartyGone()
 	}
 	// Returning to town republishes this actor to the shared scene before the area
 	// list is serialized, so the client learns who is standing there.
@@ -930,7 +1092,30 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
-	plan := []outboundPacket{{"dungeon_leave_ack", 1, 42, []byte{1}}, {"town_actor_state", 0, 3, state}, {"dungeon_return_area", 0, 23, ua}, {"dungeon_return_users", 0, 24, area}}
+	plan := []outboundPacket{{"dungeon_leave_ack", 1, 42, []byte{1}}}
+	if robotPartyEnded {
+		plan = append(plan, outboundPacket{"robot_dungeon_party_cleared", 0, 10, []byte{0, 0}})
+		gone, _ := protocol.OrdinaryPartyGone115(robotParty.id, robotParty.identity)
+		plan = append(plan, outboundPacket{"robot_dungeon_roster_removed", 0, 9, gone})
+	} else if soloPartyGone != nil {
+		// This is the solo loader's internal roster, not an invitation or a
+		// captain kick. N9 action3 already resets native connections and HUD;
+		// N10 would additionally schedule a leave/kick notice on town return.
+		// Personal boost guides also use this bootstrap when the fleet is on.
+		plan = append(plan, outboundPacket{"ordinary_dungeon_roster_removed", 0, 9, soloPartyGone})
+	}
+	plan = append(plan, outboundPacket{"town_actor_state", 0, 3, state}, outboundPacket{"dungeon_return_area", 0, 23, ua})
+	// Transient town actors may have been recreated while this player was in
+	// the dungeon. Introduce them before N24, using the existing entry ordering.
+	if w.hub != nil && w.hub.townRobots != nil {
+		for _, peer := range w.joinedPeers {
+			plan = append(plan, outboundPacket{"town_return_peer_info", 0, 2, w.hub.basicInfo(peer)})
+			if len(peer.addition) > 0 {
+				plan = append(plan, outboundPacket{"town_return_peer_addition", 0, 2, peer.addition})
+			}
+		}
+	}
+	plan = append(plan, outboundPacket{"dungeon_return_users", 0, 24, area})
 	if w.characters != nil {
 		channel := [2]byte{}
 		if w.channelType == 73 && w.blackPurgatory.created {
@@ -1023,6 +1208,16 @@ func (w *worldSession) leaveDungeon() ([]outboundPacket, error) {
 			plan = append(plan, outboundPacket{"odyssey_journal_updated_on_return", 0, 2856, journal})
 		} else {
 			log.Printf("Odyssey journal town-return payload failed: character=%d: %v", w.role.ID, e)
+		}
+	}
+	w.titleRestoreCharacter = 0
+	if w.characters != nil && len(w.role.State) != 0 {
+		bag, err := inventory.ReadBag(w.role.State)
+		if err != nil {
+			return nil, err
+		}
+		if bag.TitleSkin != 0 {
+			plan = append(plan, outboundPacket{"town_title_appearance_restored", 1, 560, protocol.TitleAppearanceSuccess(bag.TitleSkin)})
 		}
 	}
 	return appendBuffEnhancementRestore(plan, w.characters, w.role, "town_buff_enhancement_restored")
@@ -1126,9 +1321,13 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 	if e != nil {
 		return nil, e
 	}
-	confirmed, e := w.activeDungeon.ConfirmDeath(r.Entity, r.Killer, w.role.WireID)
+	killer := w.townRobotCombatKiller(r.Killer)
+	confirmed, e := w.activeDungeon.ConfirmDeath(r.Entity, killer, w.role.WireID)
 	if e != nil {
 		return nil, e
+	}
+	if confirmed && killer != r.Killer {
+		event(map[string]any{"kind": "town_robot_combat_death", "entity": r.Entity, "killer": r.Killer, "owner": killer, "map": w.activeDungeon.Room.Map})
 	}
 	// A monster the boss took with it is confirmed dead so the room can
 	// clear, but it was not killed by this character: it pays no drops and
@@ -1163,52 +1362,9 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 	var newDrops []protocol.SceneDrop
 	if !w.deathSent[uint16(r.Entity)] {
 		body := protocol.MonsterDeathConfirmed(uint16(r.Entity))
-		// 军团本（维纳斯/伊斯/苏醒之森）BOSS 击杀不掉落任何物品：官服口径只有翻牌
-		// 界面给奖励，地面金币/装备掉落是普通副本机制。在此入口整体排除，
-		// 避免 w.drops.Death 为军团 BOSS roll 出地面掉落。
+		// Legion rewards come from settlement, never ordinary ground loot.
 		if w.loot != nil && (!unowned || blackBoss) && w.venus == nil && w.ispins == nil && w.forest == nil {
-			if w.drops == nil || w.drops.Run != w.activeDungeon.RunID {
-				// Drops span every job's gear at every level by design; that
-				// breadth is a feature, not a bug, so the pool is not narrowed
-				// to what this character can wear.
-				dropCatalog := w.loot.Catalog
-				if len(w.loot.DropCatalog.Items) > 0 {
-					dropCatalog = w.loot.DropCatalog
-				}
-				w.drops = loot.NewSession(dropCatalog, w.loot.Tables, w.loot.Rules, w.loot.Equipment, w.activeDungeon.RunID, w.account, w.role.ID, w.role.WireID)
-				if w.activeDungeon.Definition.Odyssey {
-					w.drops.Currency = w.loot.Currency
-					w.drops.ChapterDrop = w.loot.ChapterDrop
-				}
-				w.drops.Attunement = w.loot.Attunement
-				w.drops.RewardBoxes = w.loot.RewardBoxes
-				w.drops.Omen = w.loot.Omen
-				// 天平档位：本场进本时由 oathInfoPackets 算好（见 oath_info.go 的
-				// oathTierRun）。它与征兆是两条平行线，各自发放互不抑制。
-				w.drops.OathTier = w.oathTierRun
-				if w.loot.Omen != nil && w.omenHeldReady {
-					// 本场开始时的持有数：-omen-state 时来自角色存档
-					// （loadOmenRunState），否则来自 -omen-hold 诊断。账本本身是内存的，
-					// 所以新的一场必须重新预载，否则会沿用上一场结算后的值。
-					w.loot.Omen.Set(w.role.ID, w.omenHeldRun)
-				} else if w.loot.Omen != nil && !w.omenHoldApplied && w.omenHold >= 0 {
-					// 诊断入口，每个会话只应用一次：放到指定阶段后就交回正常的
-					// 累积/结算路径，免得每进一次副本都被拽回同一格。
-					w.loot.Omen.Set(w.role.ID, uint32(w.omenHold))
-					w.omenHoldApplied = true
-				}
-				store := w.store
-				if store == nil && w.characters != nil {
-					store = w.store
-				}
-				if store != nil {
-					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-					if hasGrowth, _ := store.HasActivePremium(ctx, w.account, database.PremiumGrowth, time.Now()); hasGrowth {
-						w.drops.QuestDropBonusPercent = 20
-					}
-					cancel()
-				}
-			}
+			w.ensureDropSession()
 			w.drops.BlackPurgatory = w.loot.BlackPurgatory
 			w.drops.BlackPurgatoryPlan = w.cardPlan
 			rows, err := w.drops.Death(w.activeDungeon, uint16(r.Entity))
@@ -1391,6 +1547,13 @@ func (w *worldSession) bossCheck(p []byte) ([]outboundPacket, error) {
 }
 
 func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
+	if w.ownsApocalypseDungeon() {
+		// Apocalypse progression and rewards belong to its content owner.
+		return nil, nil
+	}
+	if w.bakalOpening != nil {
+		return w.bakalConfirmDefeats()
+	}
 	if w.moon.owner != nil {
 		return nil, nil
 	} // Moon final death owns its completion.
@@ -1509,19 +1672,11 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 			}
 		}
 	}
-	if w.quests != nil && w.dungeons != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		active, err := w.quests.MapClear(ctx, w.role, w.activeDungeon, w.dungeons.Source.SaveIdentity())
-		if err != nil {
-			return nil, err
-		}
-		triggers, err := protocol.QuestTriggers(active)
-		if err != nil {
-			return nil, err
-		}
-		plan = append(plan, outboundPacket{"map_clear_quest_triggers", 0, 291, triggers})
+	questPlan, err := w.mapClearQuestPlan()
+	if err != nil {
+		return nil, err
 	}
+	plan = append(plan, questPlan...)
 	if w.activeDungeon.CompletionNeedsBossCheck() {
 		body, err := protocol.BossCheckConfirmed(w.activeDungeon.CompletionTarget())
 		if err != nil {
@@ -1598,11 +1753,18 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 	}
 	var e error
 	var next *dungeon.Session
-	// [MERGE-20261005-LAYER-REVISIT-LAYER] 回头路走进「层序列已播完」的格子。
 	layerRevisit := false
-	if r.LayerChange {
-		// 客户端主动换图（CMD45 p10=1）→ MoveScene：序列未完则推进层图，
-		// 序列走完则前进到相邻格（出口方向判据见 dungeon.MoveScene）。
+	if w.bakalOpening != nil {
+		if e = w.bakalOpening.AuthorizeDungeon(w.activeDungeon.Definition.ID, time.Now()); e != nil {
+			return nil, nil, e
+		}
+	}
+	stage, stageWarp := w.bakalOpening.StageWarp(w.activeDungeon.Definition.ID, [2]byte{w.activeDungeon.Room.X, w.activeDungeon.Room.Y}, r.Position)
+	if stageWarp && !r.LayerChange && r.Dungeon == w.activeDungeon.Definition.ID {
+		next, e = w.activeDungeon.MoveRaidStage(*w.dungeons, stage)
+	} else if r.RaidReturn {
+		next, e = w.activeDungeon.MoveRaidReturn(*w.dungeons, r.Position)
+	} else if r.LayerChange {
 		next, e = w.activeDungeon.MoveScene(*w.dungeons, r)
 	} else if r.Record[0] == 1 {
 		next, e = w.activeDungeon.MoveScript(*w.dungeons, r)
@@ -1696,7 +1858,13 @@ func (w *worldSession) moveDungeonRoomDecoded(r protocol.DungeonRoomTransition) 
 	if e != nil {
 		return nil, nil, e
 	}
-	return next, []outboundPacket{{"dungeon_move_ack", 1, 45, []byte{1}}, {"dungeon_next_map_sent", 0, 29, body}}, nil
+	location, err := w.bakalRoomPartyPlan(next)
+	if err != nil {
+		return nil, nil, err
+	}
+	plan := []outboundPacket{{"dungeon_move_ack", 1, 45, []byte{1}}}
+	plan = append(plan, location...)
+	return next, append(plan, outboundPacket{"dungeon_next_map_sent", 0, 29, body}), nil
 }
 
 // oathDirectEntryActive 报告本连接当前是否命中「誓约进图直发」。

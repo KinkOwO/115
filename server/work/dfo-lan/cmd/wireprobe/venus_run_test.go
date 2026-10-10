@@ -1082,7 +1082,8 @@ func TestVenusStageProjectionOnLastDeath(t *testing.T) {
 // 序列终止（终局结算分支未实现）。合成目录驱动真实 Select。
 func TestVenusDirectMoveStageTransition(t *testing.T) {
 	c := &catalog.DungeonCatalog{
-		Source: pvf.ArchiveSnapshot{Checksum: strings.Repeat("a", 64)},
+		StackableLimits: &catalog.StackableDungeonLimits{Dungeons: map[uint32]uint32{legion.VenusStageDungeons[0]: 8, legion.VenusStageDungeons[1]: 8}},
+		Source:          pvf.ArchiveSnapshot{Checksum: strings.Repeat("a", 64)},
 		Dungeons: map[uint32]catalog.DungeonDefinition{
 			legion.VenusStageDungeons[0]: {ID: legion.VenusStageDungeons[0], MinimumLevel: 1,
 				Mazes: []catalog.DungeonMaze{{Index: 0, Quest: 0, Start: [2]byte{1, 0}, Boss: [2]byte{0, 0},
@@ -1123,7 +1124,7 @@ func TestVenusDirectMoveStageTransition(t *testing.T) {
 	if err != nil || pending != nil {
 		t.Fatalf("same-stage refusal: pending=%v err=%v", pending, err)
 	}
-	if len(plan) != 1 || plan[0].ID != 2062 || plan[0].Kind != 1 || !bytes.Equal(plan[0].Payload, protocol.Refusal(4)) {
+	if len(plan) != 1 || plan[0].ID != 2062 || plan[0].Kind != 1 || !bytes.Equal(plan[0].Payload, protocol.VenusDirectMoveAck()) {
 		t.Fatalf("same-stage refusal plan = %+v payload %x", plan, plan[0].Payload)
 	}
 	if w.venus.stage != 1 || w.activeDungeon.Definition.ID != legion.VenusStageDungeons[1] {

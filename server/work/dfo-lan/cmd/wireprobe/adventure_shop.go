@@ -72,8 +72,11 @@ func (w *worldSession) buyAdventureItem(ctx context.Context, p, raw []byte, pref
 			break
 		}
 	}
-	if product.Template == 0 || count > product.Limit {
+	if product.Template == 0 {
 		return nil, fmt.Errorf("冒险团商品或数量无效")
+	}
+	if count > product.Limit {
+		return nil, errAdventureLimit
 	}
 	definition := rules.Items[template]
 	// 仅补入此商品的当前源定义，不修改共享掉落目录或借用其它物品的栏位。
@@ -95,9 +98,9 @@ func (w *worldSession) buyAdventureItem(ctx context.Context, p, raw []byte, pref
 		if e != nil {
 			return nil, nil, e
 		}
-		// 复用邮件入包的严格期限及堆叠校验，所有数量全部入包后才扣点。
+		// 复用入包的堆叠/容量校验和统一发放期限哨兵，全部入包后才扣点。
 		for n := uint32(0); n < count; n++ {
-			bag, e = bag.AddMailItem(itemCatalog, w.loot.BagRules, nil, inventory.MailItem{Stack: &inventory.BagItem{Template: template, Amount: 1}})
+			bag, e = bag.AddMailItem(itemCatalog, w.loot.BagRules, nil, inventory.MailItem{Stack: &inventory.BagItem{Template: template, Amount: 1, ExpireTime: inventory.GrantExpireTime}})
 			if e != nil {
 				return nil, nil, e
 			}

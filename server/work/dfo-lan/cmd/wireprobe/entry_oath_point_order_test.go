@@ -11,8 +11,8 @@ import (
 // 用户看到的就是"数字没变"。见 docs/protocol/oath-set-points-20261004.md §7.1。
 func TestEntryPacketsPutPartSetPointsLast(t *testing.T) {
 	p := entryPayloads{
-		Skills:    []byte{1},
-		Basic:     []byte{2},
+		Skills: []byte{1},
+		Basic:  []byte{2},
 		OathPartSetPoints: []outboundPacket{
 			{"oath_part_set_point", 0, protocol.PartSetPointOpcode, protocol.PartSetPoint(7, 0, 710)},
 			{"oath_part_set_point", 0, protocol.PartSetPointOpcode, protocol.PartSetPoint(1, 0, 710)},

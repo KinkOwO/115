@@ -9,7 +9,7 @@ import (
 
 // NOTI2634「每角色一对 Set Point / Oath Point」的组装与推送。
 //
-// 取证与结论（详见 docs/protocol/oath-set-points-20261004.md §7）：
+// 取证与结论（详见 docs/protocol/upstream/oath-set-points-20261004.md §7）：
 //   - 客户端**不自己算总分**：它把服务端推来的这一对值原样写进角色实体
 //     （handler `sub_1452C9840` → `sub_145F06760(实体)` → `sub_147435FF0(实体+128, A, B)`
 //     → `实体+1872 = A`、`实体+1876 = B`），誓约页签显示的就是这两个数；
@@ -17,7 +17,7 @@ import (
 //     `0/750次` 与「已添加的 誓约积分: 0」。这就是"誓约没有积分"的直接根因；
 //   - **逐件**分数来自 PVF：`etc/115lvability2/oathpointinfo.cos`（誓约/晶体按**模板**索引，
 //     未调适也有基础分）与 `etc/115lvability/setpointinfo.cos`（按客户端物品类别号索引，
-//     该"模板 → 类别号"映射仍在取证 ⇒ 当前 SetPoint 记 0 并打日志，不冒充"角色积分为 0"）。
+//     模板 → 类别号复用 equipmentgrouping.etc 原生分组读入器）。
 //
 // oathPartSetPointKey 是 NOTI2634 载荷里的 u16 实体键，**已由实机定案**。
 //
@@ -71,8 +71,32 @@ func (w *worldSession) oathPointPackets() []outboundPacket {
 		return nil
 	}
 	oath, hits := w.items.Points.OathPoints(items)
-	setPoints, setHits := w.items.Points.SetPoints(items)
-	log.Printf("oath points: oath=%d (%d/%d worn oath items) set=%d (%d hits; set-point table key still unverified)",
+	bag, err := inventory.ReadBag(w.role.State)
+	if err != nil {
+		return nil
+	}
+	var setItems []catalog.PointItem
+	for _, row := range bag.Worn {
+		if !((row.Slot >= 12 && row.Slot <= 25) || (row.Slot >= 36 && row.Slot <= 47)) || row.Slot == 24 || w.items.Equipment == nil {
+			continue
+		}
+		definition, err := w.items.Equipment.Definition(row.Template)
+		if err != nil {
+			log.Printf("set points: template %d: %v", row.Template, err)
+			return nil
+		}
+		set := int32(-1)
+		if cells := definition.Fields["[part set index]"]; len(cells) == 1 && cells[0].Type == 0 {
+			set = cells[0].Value
+		}
+		rank := int32(0)
+		if len(row.Record) > 170 {
+			rank = int32(row.Record[170])
+		}
+		setItems = append(setItems, catalog.PointItem{Template: row.Template, Awakening: rank, PartSetIndex: set})
+	}
+	setPoints, setHits := w.items.Points.SetPoints(setItems)
+	log.Printf("oath points: oath=%d (%d/%d worn oath items) set=%d (%d hits)",
 		oath, hits, len(items), setPoints, setHits)
 	// 载荷顺序按**实机**定案（2026-10-04）：`u16 键 + u32 A + u32 B`，A 落 `实体+1872`
 	// （誓约页签读它）、B 落 `实体+1876`（"套装积分"读它）。实机把 A=0/B=670 发出去后，

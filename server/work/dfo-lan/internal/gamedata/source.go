@@ -290,6 +290,13 @@ func (s *Source) World(path string) (catalog.WorldCatalog, error) {
 	return w, err
 }
 
+func (s *Source) QuestSkipRules() (catalog.QuestSkip, error) {
+	if s.mode != PVF {
+		return catalog.QuestSkip{}, fmt.Errorf("quest skipping requires native PVF")
+	}
+	return catalog.ImportQuestSkip(s.archive)
+}
+
 func (s *Source) Quests(path string) (catalog.QuestCatalog, error) {
 	if s.mode != PVF {
 		return catalog.QuestCatalog{}, fmt.Errorf("quests require native PVF")
@@ -390,6 +397,29 @@ func (s *Source) Equipment(index catalog.ItemIndex) (*inventory.FullEquipmentCat
 		return nil, err
 	}
 	return inventory.RestorePVFEquipment(s.archive, p)
+}
+
+// FlipGearPool retains the existing operator level/rarity policy while deriving
+// eligible item identities and grantability from this verified native source.
+func (s *Source) FlipGearPool(index catalog.ItemIndex, level int32, rarities []int32) ([]uint32, error) {
+	if s.archive == nil {
+		return nil, fmt.Errorf("flip gear requires PVF")
+	}
+	return cachedProjection(s, "flip-gear", struct {
+		Index    string
+		Level    int32
+		Rarities []int32
+	}{itemIndexIdentity(index), level, rarities},
+		func() ([]uint32, error) { return inventory.ImportFlipGearPool(s.archive, index, level, rarities) },
+		func(ids []uint32) ([]uint32, error) {
+			for i, id := range ids {
+				row, ok := index.Items[id]
+				if !ok || row.Kind != "equipment" || (i > 0 && ids[i-1] >= id) {
+					return nil, fmt.Errorf("invalid native flip gear cache")
+				}
+			}
+			return ids, nil
+		})
 }
 
 func (s *Source) Learning(c catalog.Characters) (*character.LearningCatalog, error) {
@@ -630,14 +660,15 @@ func (s *Source) FullDungeons(world catalog.WorldCatalog, excluded []uint32) (ca
 	if s.archive == nil {
 		return catalog.DungeonCatalog{}, fmt.Errorf("dungeon import requires PVF")
 	}
-	return catalog.ImportFullDungeons(s.archive, world, excluded)
+	c, err := catalog.ImportFullDungeons(s.archive, world, excluded)
+	return s.attachElvenmere(c, err)
 }
 
 func (s *Source) RuntimeFullDungeons(world catalog.WorldCatalog, excluded []uint32) (catalog.DungeonCatalog, error) {
 	if s.archive == nil {
 		return catalog.DungeonCatalog{}, fmt.Errorf("dungeon import requires PVF")
 	}
-	return cachedProjection(s, "dungeons", struct {
+	c, err := cachedProjection(s, "dungeons", struct {
 		World    catalog.WorldCatalog
 		Excluded []uint32
 	}{stableWorldInput(world), excluded}, func() (catalog.DungeonCatalog, error) {
@@ -649,6 +680,7 @@ func (s *Source) RuntimeFullDungeons(world catalog.WorldCatalog, excluded []uint
 		r.Source = s.Snapshot()
 		return catalog.RestoreRuntimeDungeons(s.archive, r)
 	})
+	return s.attachElvenmere(c, err)
 }
 
 func (s *Source) Dungeons(ids []uint32) (catalog.DungeonCatalog, error) {
@@ -659,7 +691,8 @@ func (s *Source) Dungeons(ids []uint32) (catalog.DungeonCatalog, error) {
 	if err != nil {
 		return c, err
 	}
-	return catalog.ValidateDungeons(c)
+	c, err = catalog.ValidateDungeons(c)
+	return s.attachElvenmere(c, err)
 }
 
 func (s *Source) TowerGrief() (catalog.TowerGriefOverlay, error) {
@@ -810,4 +843,27 @@ func (s *Source) TownArea(townID, areaID uint32) (*catalog.TownArea, error) {
 		return nil, err
 	}
 	return &area, nil
+}
+
+// Runtime-only reward rules are always read from the active archive, including
+// on a projection-cache hit. No generated JSON is a reward authority.
+func (s *Source) attachElvenmere(c catalog.DungeonCatalog, err error) (catalog.DungeonCatalog, error) {
+	if err != nil {
+		return c, err
+	}
+	if _, ok := c.Dungeons[100003126]; !ok {
+		return c, nil
+	}
+	c.Elvenmere, err = catalog.ImportElvenmereRules(s.archive)
+	if err == nil {
+		err = catalog.AttachElvenmereMaps(&c, s.archive)
+	}
+	return c, err
+}
+
+func (s *Source) WeaponSkinRecipes() (map[uint32]catalog.WeaponSkinRecipe, error) {
+	if s == nil || s.archive == nil {
+		return nil, fmt.Errorf("weapon shape recipes require native PVF")
+	}
+	return catalog.ImportWeaponSkinRecipes(s.archive)
 }

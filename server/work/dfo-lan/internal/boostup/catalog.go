@@ -11,10 +11,13 @@ const ScriptPath = "live/event/kor/2026/0326_boostup/boostup.evt"
 const GiftPath = "event/eventgift.evt"
 const EventID uint32 = 662
 
-// EventEnd 是 NOTI108 活动清单里 662/10017/10018 的窗口终点（起点 0 = 无限制）。
-// 源脚本不含活动上下线日期，这个值是 2026-10-03 实机确认过的日历终点，属服期
-// 运维参数而非玩法源；换期只改这一处，不在协议层另铺一张表。
-const EventEnd uint32 = 2019686397
+// EventEnd is the local operator's permanent availability policy for
+// 662/10017/10018 (start=0). It is not a PVF gameplay/reward definition.
+// Keep the existing timestamp contract and use its safe signed-32-bit horizon
+// (2038-01-19 UTC), rather than inventing an unverified zero/-1 sentinel.
+// The server has no seasonal shutdown or claim reset; extending transport
+// beyond this horizon requires separate native timestamp evidence.
+const EventEnd uint32 = 1<<31 - 1
 
 type Reward struct{ Item, Count uint32 }
 type Step struct {
@@ -40,6 +43,7 @@ type PresetCode struct {
 	Code      string
 }
 type Catalog struct {
+	TrainingAPCs           []TrainingAPC
 	ChallengeBuffs         []ChallengeBuff
 	Challenges             []ChallengeDefinition
 	ChallengeLevelRewards  map[byte]Reward

@@ -628,3 +628,11 @@ CREATE INDEX IF NOT EXISTS gm_mail_to_account_idx ON gm_mail(to_account_id, stat
 CREATE INDEX IF NOT EXISTS gm_mail_to_char_idx ON gm_mail(to_character_id, status);
 
 -- end migration
+
+-- migration: 0038_character_capacity.sql
+-- Additive: absent rows preserve the configured base; existing saves stay intact.
+CREATE TABLE IF NOT EXISTS account_character_slots (
+ account_id BIGINT PRIMARY KEY REFERENCES accounts(id),
+ capacity INTEGER NOT NULL CHECK(capacity BETWEEN 1 AND 255)
+);
+-- end migration

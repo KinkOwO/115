@@ -27,7 +27,15 @@ func (p BoosterRewardPool) Pick(r *rand.Rand) []BoosterRewardCandidate {
 	}
 	// If only 1 candidate, or all weights 0 / 1000
 	if len(p.Candidates) == 1 {
-		return []BoosterRewardCandidate{p.Candidates[0]}
+		draws := p.DrawCount
+		if draws == 0 {
+			draws = 1
+		}
+		results := make([]BoosterRewardCandidate, draws)
+		for i := range results {
+			results[i] = p.Candidates[0]
+		}
+		return results
 	}
 	var totalWeight uint32
 	for _, c := range p.Candidates {
@@ -68,6 +76,37 @@ type BoosterDefinition struct {
 	Template uint32              `json:"template"`
 	Type     string              `json:"type"` // "[booster]" or "[booster selection]" or package type
 	Pools    []BoosterRewardPool `json:"pools,omitempty"`
+	// Source-declared client opening path; not a template-specific table.
+	ClientOpenPath bool `json:"client_open_path,omitempty"`
+}
+
+func parseFixedAvatarPool(cells []pvf.Token) (BoosterRewardPool, bool) {
+	var empty BoosterRewardPool
+	if len(cells) < 6 || (len(cells)-1)%5 != 0 || cells[0].Type != 0 || cells[0].Value != 1 {
+		return empty, false
+	}
+	// Length alone overlaps ordinary triples. Identify the confirmed record
+	// by its first 1/0 suffix; unknown variants keep their existing behavior,
+	// including any other rewards in a mixed package.
+	if cells[4].Type != 0 || cells[4].Value != 1 || cells[5].Type != 0 || cells[5].Value != 0 {
+		return empty, false
+	}
+	pool := BoosterRewardPool{DrawCount: 1}
+	for i := 1; i < len(cells); i += 5 {
+		for _, c := range cells[i : i+5] {
+			if c.Type != 0 {
+				return empty, true
+			}
+		}
+		if cells[i].Value <= 0 || cells[i+1].Value <= 0 || cells[i+2].Value <= 0 ||
+			cells[i+3].Value != 1 || cells[i+4].Value != 0 {
+			return empty, true
+		}
+		pool.Candidates = append(pool.Candidates, BoosterRewardCandidate{
+			Template: uint32(cells[i].Value), Weight: uint32(cells[i+1].Value), Count: uint32(cells[i+2].Value),
+		})
+	}
+	return pool, true
 }
 
 func parseBoosterInfo(cells []pvf.Token) []BoosterRewardPool {
@@ -87,10 +126,30 @@ func parseBoosterInfo(cells []pvf.Token) []BoosterRewardPool {
 					k := j + 1
 					var nums []uint32
 					for k < len(cells) && !(cells[k].Type == 3 && cells[k].Text == endTag) {
-						if cells[k].Type == 0 && cells[k].Value > 0 {
+						// Keep the native -1 empty face and zero cells in their
+						// positions. Dropping them shifts every following tuple.
+						if cells[k].Type == 0 {
 							nums = append(nums, uint32(cells[k].Value))
 						}
 						k++
+					}
+					if tag.Text == "[avatar]" {
+						body := cells[j+1 : k]
+						if pool, handled := parseFixedAvatarPool(body); handled {
+							if k == len(cells) || len(pool.Candidates) == 0 {
+								return nil
+							}
+							pools = append(pools, pool)
+							j = k
+							continue
+						}
+						// Unsupported extended suffix (e.g. native 30/0) is
+						// not a pair of ordinary reward triples. Preserve other
+						// blocks in the mixed package; do not invent an outfit.
+						if len(body) >= 6 && (len(body)-1)%5 == 0 && body[0].Type == 0 && body[0].Value == 1 && body[4].Type == 0 && body[5].Type == 0 && body[5].Value == 0 && body[4].Value != 1 {
+							j = k
+							continue
+						}
 					}
 					if len(nums) > 0 {
 						drawCount := uint32(1)
@@ -308,7 +367,7 @@ func ImportBoosters(a *pvf.Archive, index ItemIndex) (map[uint32]BoosterDefiniti
 			}
 			if len(pools) > 0 {
 				pools = resolveSmartDrop(pools, sectionNumber(cells, "[smart drop group id]"), groups, &substituted)
-				result[id] = BoosterDefinition{Template: id, Type: item.StackableType, Pools: pools}
+				result[id] = BoosterDefinition{Template: id, Type: item.StackableType, Pools: pools, ClientOpenPath: declaresSection(cells, "[oath item booster]") || declaresSection(cells, "[lottery ani info]")}
 			} else if hasInfo && !isBooster {
 				result[id] = BoosterDefinition{Template: id, Type: item.StackableType}
 				sealed++

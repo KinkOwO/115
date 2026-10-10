@@ -1,4 +1,4 @@
-# Local native-PVF test runner.
+﻿# Local native-PVF test runner.
 #
 # One command for every case — no environment variables to remember. It points
 # DFO_PVF_CORE_TEST_ARCHIVE at the current inner PVF, enables the disposable

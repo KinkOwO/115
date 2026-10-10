@@ -75,8 +75,11 @@ type Service struct {
 	// Equipment 与 WearRules 是创建期的可选依赖：两者都带上、且与 Catalog 同一份
 	// 源快照时，Create 会按源 [create equipment list] 给新角色穿上其转职槽的初始
 	// 装备。缺任一项或不匹配都只是不投影，不构成拒绝创建的理由。
-	Equipment *inventory.EquipmentCatalog
-	WearRules inventory.WearRules
+	WeaponSkinRecipes  map[uint32]catalog.WeaponSkinRecipe
+	WeaponSkinBagRules inventory.BagRules
+	Equipment          *inventory.EquipmentCatalog
+	SymbolSockets      *inventory.SymbolSocketLayout
+	WearRules          inventory.WearRules
 	// Boost 是活动 662「成长胶囊教学」的源目录，由装配层在 PVF 直读成功后注入。
 	// 为 nil 时活动钩子（第三关技能进化点）整条不生效，不影响技能保存本身。
 	Boost *boostup.Catalog
@@ -84,6 +87,11 @@ type Service struct {
 	// it once after a fresh character is committed; nil disables the feature.
 	// It mirrors ProgressionService.Rewards and is never read as rule data.
 	Rewards reward.Notifier
+	// ProfileFrames reads the existing persisted skin selections. Every actor
+	// projection must use it, including entry, party creation and equipment
+	// refresh; keeping this outside State avoids a second saved selection.
+	ProfileFrames func(context.Context, Character) ([2]uint32, error)
+	entrySnapshot *entryProjectionSnapshot
 }
 
 func New(s Store, c catalog.Characters, r Rules) (*Service, error) {
@@ -191,7 +199,7 @@ func (s *Service) List(ctx context.Context, account int64) ([]byte, error) {
 	return s.ListWithFatigue(ctx, account, nil, time.Time{})
 }
 
-var specialChannelPrerequisites = []uint16{12167, 12312, 12392, 12422, 13763}
+var specialChannelPrerequisites = []uint16{12167, 12312, 12392, 12422, 13763, 21019}
 
 // 列表、进城及外观刷新使用同一份任务到频道资格映射。
 func contentClearFlagsForQuests(ids []uint16) (flags [28]byte) {
@@ -208,12 +216,18 @@ func contentClearFlagsForQuests(ids []uint16) (flags [28]byte) {
 		case 13763:
 			// Local Ispins gate1424e673a reads row+643 = block638 byte11.
 			flags[11] = 1
+		case 21019:
+			// Native Bakal entry consumes the completed Small Cogwheel quest at byte12.
+			flags[12] = 1
 		}
 	}
 	return flags
 }
 
 func (s *Service) roleContentClearFlags(role Character) ([28]byte, error) {
+	if s.entrySnapshot != nil {
+		return s.entrySnapshot.content, s.entrySnapshot.check(role)
+	}
 	// 无存储的离线投影不推断任务完成状态。
 	if s.Store == nil {
 		return [28]byte{}, nil
@@ -232,7 +246,11 @@ func (s *Service) ListWithFatigue(ctx context.Context, account int64, fatigue *F
 	if err != nil {
 		return nil, err
 	}
-	return protocol.CharacterList(uint16(s.Rules.MaxCharacters), rows)
+	capacity, err := s.Capacity(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	return protocol.CharacterList(uint16(capacity), rows)
 }
 
 // 复用相同角色顺序及真实属性，数量与详情来自同一次账号角色查询。
@@ -249,7 +267,11 @@ func (s *Service) AllServerRoster(ctx context.Context, account int64, fatigue *F
 	for i, c := range chars {
 		ids[i] = c.ID
 	}
-	p, err := protocol.AllServerCharacterList(s.ChannelContext[0], uint16(s.Rules.MaxCharacters), rows)
+	capacity, err := s.Capacity(ctx, account)
+	if err != nil {
+		return nil, nil, err
+	}
+	p, err := protocol.AllServerCharacterList(s.ChannelContext[0], uint16(capacity), rows)
 	return p, ids, err
 }
 
@@ -296,6 +318,7 @@ func (s *Service) rosterRowsWithFatigue(ctx context.Context, account int64, char
 		if e != nil {
 			return nil, e
 		}
+		row.WeaponSkinID = weaponSkinForAppearance(c.State)
 		row.Odyssey, e = s.IsOdyssey(c)
 		if e != nil {
 			return nil, e
@@ -405,7 +428,13 @@ func (s *Service) EntryBasicProbe(role Character, channelContext [2]byte) ([]byt
 	if err != nil {
 		return nil, err
 	}
+	frames, err := s.profileFrames(role)
+	if err != nil {
+		return nil, err
+	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
+		PartyFrameID: frames[0], RequestFrameID: frames[1],
+		WeaponSkinID:  weaponSkinForAppearance(role.State),
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		BasePercent:   entryBasePercent,
@@ -483,7 +512,13 @@ func (s *Service) AppearanceProbe(role Character, channelContext [2]byte) ([]byt
 	if err != nil {
 		return nil, err
 	}
+	frames, err := s.profileFrames(role)
+	if err != nil {
+		return nil, err
+	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
+		PartyFrameID: frames[0], RequestFrameID: frames[1],
+		WeaponSkinID:  weaponSkinForAppearance(role.State),
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		BasePercent:   entryBasePercent,
@@ -491,6 +526,18 @@ func (s *Service) AppearanceProbe(role Character, channelContext [2]byte) ([]byt
 		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags, GrowthEffectFlags: effectFlags},
 		Appearance: rows,
 	})
+}
+
+func (s *Service) profileFrames(role Character) ([2]uint32, error) {
+	if s.entrySnapshot != nil {
+		return s.entrySnapshot.frames, s.entrySnapshot.check(role)
+	}
+	if s.ProfileFrames == nil {
+		return [2]uint32{}, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return s.ProfileFrames(ctx, role)
 }
 
 // wornAppearance projects the character's worn equipment onto the native
@@ -550,9 +597,29 @@ func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppe
 			bySlot[inventory.WeaponSlot] = bag.WeaponSkin
 		}
 	}
+	if bag.TitleSkin != 0 && bySlot[13] != 0 {
+		bySlot[13] = bag.TitleSkin
+	}
+	// 强化/增幅等级投影（强化特效逻辑说明.md §4）：从穿戴装备实例的 record[10]
+	// 低 5 位读取等级，写进每个外观行的 Flags。客户端 reader 145639840 把该字节
+	// 拆成 [actor+slot*8+0x34]=v>>1（效果等级）与 [actor+slot*4+0x334]=v&1，
+	// 据此重建武器/增幅光效。等级 0..31 打包为 level<<1（最大 62），只使用高 7 位，
+	// 超过 127 拒绝避免回绕。换装/强化刷新走这条路径，不补会让光效在刷新后丢失。
+	levelBySlot := map[uint16]byte{}
+	for _, w := range bag.Worn {
+		if len(w.Record) > 10 {
+			levelBySlot[w.Slot] = w.Record[10] & 0x1f
+		}
+	}
 	rows := make([]protocol.EquippedAppearance, 0, len(bySlot))
 	for slot, model := range bySlot {
 		row := protocol.EquippedAppearance{Slot: byte(slot), Model: model}
+		if lv := levelBySlot[uint16(slot)]; lv > 0 {
+			if int(lv)<<1 > 127 {
+				return nil, fmt.Errorf("强化等级 %d 超出外观行打包字段（>127）", lv)
+			}
+			row.Flags = lv << 1
+		}
 		// 原生 145639840 将首个 u32 保存到 slot*8+48；145BEFD60 经
 		// 145BD63D0、145BEE6C0 用它查找城镇模型的装备模板，不能填 0。
 		// 2026-09-25 的武器互换修复只填了主副手槽（12/24），其余槽位

@@ -287,6 +287,10 @@ func preparePVFEquipmentSelection(c *Catalogs, s *Source, inputs CatalogInputs) 
 	if err != nil {
 		return err
 	}
+	c.FlipGearPool, err = s.FlipGearPool(*c.Items, 115, []int32{2, 3})
+	if err != nil {
+		return err
+	}
 	c.Selection = direct
 	log.Printf("PVF equipment selection prepared: basic whitelist=%d source quest additions=%d total=%d legacy drop pool=%d ordinary source pool=%d Hell source pool=%d", len(policy.BasicEquipmentIDs), len(direct.Rows)-len(policy.BasicEquipmentIDs), len(direct.Rows), len(direct.DropPool()), len(direct.OrdinaryPool), len(direct.HellPartyPool))
 	s.ReleaseReadCaches()

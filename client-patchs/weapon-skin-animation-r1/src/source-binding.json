@@ -1,0 +1,65 @@
+{
+  "client_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+  "functions": {
+    "Cycle": {
+      "rva": "0x5d1f3b0",
+      "bytes": "405557415541564157",
+      "instructions": [
+        "push rbp",
+        "push rdi",
+        "push r13",
+        "push r14",
+        "push r15"
+      ]
+    },
+    "Expansion": {
+      "rva": "0x5d1a250",
+      "bytes": "40535556574156",
+      "instructions": [
+        "push rbx",
+        "push rbp",
+        "push rsi",
+        "push rdi",
+        "push r14"
+      ]
+    },
+    "Resolve": {
+      "rva": "0x5cdc8e0",
+      "bytes": "48895c2408",
+      "instructions": [
+        "mov qword ptr [rsp + 8], rbx"
+      ]
+    },
+    "Lookup": {
+      "rva": "0x5c48fe0",
+      "bytes": "48895c2408",
+      "instructions": [
+        "mov qword ptr [rsp + 8], rbx"
+      ]
+    },
+    "Skin": {
+      "rva": "0x5d71ad0",
+      "bytes": "40534883ec30",
+      "instructions": [
+        "push rbx",
+        "sub rsp, 0x30"
+      ]
+    },
+    "Shape": {
+      "rva": "0x5c20190",
+      "bytes": "488b8148600000c3",
+      "instructions": [
+        "mov rax, qword ptr [rcx + 0x6048]",
+        "ret "
+      ]
+    }
+  },
+  "mechanics": [
+    "synthetic weapon actor+6048",
+    "eligible skin native getter145d71ad0",
+    "slot10 retained by native145d1f500 iteration",
+    "visual scopes only; no per-template content rules"
+  ],
+  "attempt": "animation adapter 1/3, owner-authorized after live failure; prior visual attempts retained",
+  "native_loop_sha256": "60cb8a37ef827a36af67ce49615f5a4f3101a5996ed69060bad5f49ac2dccbb5"
+}

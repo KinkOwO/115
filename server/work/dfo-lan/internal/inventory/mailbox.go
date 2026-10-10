@@ -41,7 +41,7 @@ func (m MailItem) Row() ([protocol.CurrentItemRecordSize]byte, error) {
 	if m.Stack.Template < 2 || m.Stack.Amount == 0 {
 		return [protocol.CurrentItemRecordSize]byte{}, fmt.Errorf("邮件堆叠物品无效")
 	}
-	return protocol.OrdinaryItem(m.Stack.Slot, m.Stack.Template, m.Stack.Amount, m.Stack.ExpireTime), nil
+	return m.Stack.Row(), nil
 }
 
 // TakeMailItem 只接受背包中的真实实例；不会读取客户端提供的装备属性。
@@ -125,6 +125,23 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 	}
 	if m.Equipment != nil {
 		item := *m.Equipment
+		// [FIX-20261007 时装孔] 邮件时装附件孔为空时按 PVF 默认孔补孔，
+		// 覆盖系统/GM/玩家邮件（附件生成侧未必写 avatar_options，领取入包即带孔）。
+		//
+		// ⚠ **只对时装物品补**（`[equipment type]` 以 " avatar]" 结尾，容器 space 1）。
+		// DefaultAvatarSockets 对任何模板都会返回 30 字节块（定义里没有
+		// `[avatar type select]` / `[emblem socket default]` 时是全零），无条件补孔
+		// 就会把这 30 字节塞进宠物装备（`[artifact *]`）、宠物本体（`[creature]`）
+		// 和普通装备的实例。而这些物品在原生 reader sub_1452C1540 里**没有头像格**：
+		// 槽 26~29 / 32 的头像块会让登录追加包（protocol.DetailedEquipment）与队友包
+		// （protocol.TagEquipment）以 "avatar blob on non-avatar detailed row" 拒绝整包。
+		//
+		// 实机 2026-10-07：GM 按 mods/newchar_kit.lua 发「宠物装备」10 件（走 send_mail）
+		// → 领邮件（本条无条件补孔）→ 穿上槽 27/28/29 → 该角色此后登不进选人界面
+		// （存档里那三行 30 字节全零的 avatar_options）。
+		if len(item.AvatarOptions) == 0 && equipment.IsAvatarBagItem(item.Template) {
+			item.AvatarOptions = equipment.DefaultAvatarSockets(item.Template)
+		}
 		if m.Space == 1 {
 			if equipment == nil || equipment.Source.Checksum != r.Source {
 				return b, fmt.Errorf("时装邮件目录版本无效")
@@ -202,7 +219,7 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 	for i, row := range b.Items {
 		occupied[row.Slot] = true
 		// 不同期限的堆叠必须分开，永久物品不能继承另一堆的到期时间。
-		if row.Template == item.Template && row.ExpireTime == item.ExpireTime && (r.Quick(row.Slot) || row.Slot >= slots[0] && row.Slot <= slots[1]) && row.Amount < limit {
+		if b.OrdinarySlotUnlocked(row.Slot) && row.Template == item.Template && row.WeaponShape == item.WeaponShape && row.ExpireTime == item.ExpireTime && (r.Quick(row.Slot) || row.Slot >= slots[0] && row.Slot <= slots[1]) && row.Amount < limit {
 			added := min(limit-row.Amount, item.Amount)
 			b.Items[i].Amount += added
 			item.Amount -= added
@@ -212,7 +229,7 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 		}
 	}
 	for n := uint32(slots[0]); n <= uint32(slots[1]); n++ {
-		if !occupied[uint16(n)] {
+		if b.OrdinarySlotUnlocked(uint16(n)) && !occupied[uint16(n)] {
 			item.Slot = uint16(n)
 			b.Items = append(b.Items, item)
 			return b, nil

@@ -7,10 +7,8 @@ import (
 
 // 活动 662 的 NOTI108 活动清单（`ENUM_NOTIPACKET_EVENT_INFO`）。
 //
-// 只含本活动自己的行，不携带频道开放门（channel open events）：进城时的 108
-// 由本树的固定 EVENT_INFO 表独占（cmd/wireprobe/event_info_generated.go +
-// entry_flow.go），这份快照只在选角名单（CMD8）与回选角（CMD7）下发，
-// 两者不重叠，也就不存在"第二条 108 抹掉已有门参数"的问题。
+// 此编码器只产生活动行；发送前由网关并入既有频道门表。
+// 选角、回选角与进城使用同一份完整快照，避免丢失其它开放行。
 //
 // 这些日期是**本地运营可用性**（用户口径），不是从 PVF 玩法条件里抄出来的日历。
 func BoostOpeningEvents115(start, end uint32, challenge ...bool) ([]byte, error) {
@@ -30,7 +28,7 @@ func BoostOpeningEvents115(start, end uint32, challenge ...bool) ([]byte, error)
 	for _, id := range ids {
 		body = add16(body, id)
 		body = append(body, 1, 2, 4)
-		text("Sky of a Thousand Seas Boost Up")
+		text("千海天冒险·奇迹加速")
 		text("")
 		text("")
 		body = add32(body, start)

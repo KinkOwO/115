@@ -36,9 +36,18 @@ func itemPremiumActivations(values []inventory.PremiumActivation) []database.Cas
 // The recovery effect is the client's own: the native success acknowledgement
 // carries no restored amount, so nothing is invented here.
 func (s *ItemService) Consume(ctx context.Context, role database.Character, r protocol.UseStackableRequest) (database.Character, inventory.ConsumeReceipt, bool, error) {
+	return s.ConsumeWithCheck(ctx, role, r, nil)
+}
+
+// Check runs inside the original atomic use transaction. A duplicate event
+// returns its receipt without rechecking a cap reached by that original use.
+func (s *ItemService) ConsumeWithCheck(ctx context.Context, role database.Character, r protocol.UseStackableRequest, check func(database.Character, protocol.UseStackableRequest) error) (database.Character, inventory.ConsumeReceipt, bool, error) {
 	var out inventory.ConsumeReceipt
 	fail := func(e error) (database.Character, inventory.ConsumeReceipt, bool, error) {
 		return role, out, false, e
+	}
+	if cashshop.IsRestrictedContract(r.Template) {
+		return fail(fmt.Errorf("契约包含尚未支持的源限制，物品已保留"))
 	}
 	key, e := s.Items.ConsumeKey(InventoryRole(role), r)
 	if e != nil {
@@ -52,6 +61,11 @@ func (s *ItemService) Consume(ctx context.Context, role database.Character, r pr
 	saved, applied, e := s.Store.CommitCharacterPremiumEvent(ctx, role.AccountID, role.ID,
 		s.Items.Catalog.Source.SaveIdentity(), key, s.Items.Model,
 		func(current database.Character) (json.RawMessage, json.RawMessage, []database.CashPremiumActivation, error) {
+			if check != nil {
+				if err := check(current, r); err != nil {
+					return nil, nil, nil, err
+				}
+			}
 			state, receipt, premiums, err := s.Items.PrepareConsume(InventoryRole(current), r, seasonCapsule, adventure.ApplySeasonCapsule, resolveItemContract)
 			return state, receipt, itemPremiumActivations(premiums), err
 		})

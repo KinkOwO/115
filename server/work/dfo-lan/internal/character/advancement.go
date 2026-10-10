@@ -28,7 +28,10 @@ func (s *Service) ApplyAdvancement(role Character, advancement byte) (json.RawMe
 		return role.State, nil
 	}
 	prof, ok := s.Catalog.Professions[role.Profession]
-	if !ok || prof.RawSHA256 != state.SourceSHA256 || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
+	// 源身份按 SourcePath（引用身份）判断，不用 .chr 原始哈希：脚本字节里嵌的是字符串
+	// 池偏移，重建字符串池（客户端版本升级）会让哈希整体漂移而引用不变。按存档契约原则，
+	// 客户端资源哈希不得作为拒档理由（依据与取证见 automatic_skills.go 注释）。
+	if !ok || prof.Path != state.SourcePath || role.ConfigVersion != s.Catalog.Source.SaveIdentity() {
 		return nil, fmt.Errorf("advancement source mismatch")
 	}
 	if len(prof.AdvancementGrowth[advancement]) == 0 {

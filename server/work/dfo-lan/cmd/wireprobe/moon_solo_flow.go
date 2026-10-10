@@ -30,14 +30,17 @@ type moonSoloConfig struct {
 	RewardPool string `json:"reward_pool,omitempty"`
 }
 type moonSoloState struct {
-	created   bool
-	prepared  time.Time
-	owner     *dungeon.MoonSoloOwner
-	resultAt  time.Time
-	plan      *loot.MoonRewardPlan
-	claimed   bool
-	readySent bool
-	recovered bool
+	created           bool
+	prepared          time.Time
+	owner             *dungeon.MoonSoloOwner
+	resultAt          time.Time
+	plan              *loot.MoonRewardPlan
+	claimed           bool
+	readySent         bool
+	recovered         bool
+	autoPickAt        time.Time
+	autoPickRun       string
+	autoPickCharacter int64
 }
 
 // defaultMoonSoloConfig 从**直读**推导沉月湖单人配置，取代原先"必须手工提供 JSON 配置档"
@@ -301,7 +304,7 @@ func (w *worldSession) moonEnterPackets(floor bool) ([]outboundPacket, error) {
 			return nil, err
 		}
 	}
-	return moonEntryPlan(floor, moonEntryParts{
+	plan := moonEntryPlan(floor, moonEntryParts{
 		Handoff:  handoff,
 		Basic:    basic,
 		Addition: more,
@@ -311,7 +314,8 @@ func (w *worldSession) moonEnterPackets(floor bool) ([]outboundPacket, error) {
 		Dungeon:  protocol.DungeonInfo(protocol.DungeonInfoState{ID: s.Definition.ID, Maze: s.Maze.Index, Boss: s.Maze.Boss}),
 		Map:      mapBody,
 		MoonInfo: w.moonInfo(2, false),
-	}), nil
+	})
+	return w.allDungeonEliteEntryPlan(context.Background(), s, plan)
 }
 
 // moonEntryParts 是进场序列里已经构造好的各段包体。把「顺序」与「怎么造包」
@@ -757,6 +761,11 @@ func (w *worldSession) moonHandle(id uint16, p []byte, now time.Time, event func
 		if !w.cardScrolled {
 			return fail(fmt.Errorf("Moon card layout before scroll"))
 		}
+		if !w.cardLayoutSent && !w.moon.claimed {
+			w.moon.autoPickAt = now.Add(3 * time.Second)
+			w.moon.autoPickRun = s.RunID
+			w.moon.autoPickCharacter = w.role.ID
+		}
 		w.cardLayoutSent = true
 		return true, []outboundPacket{{"card_layout_ack", 1, 70, protocol.CardLayout()}}, nil
 	case 71, 1426:
@@ -940,6 +949,34 @@ func (w *worldSession) moonRechallenge(now time.Time) ([]outboundPacket, error) 
 	return append([]outboundPacket{{"moon_rechallenge_gate", 1, 15, []byte{1}}}, enter...), nil
 }
 
+// autoPickMoonCard uses the Moon frozen ledger, never the generic card plan.
+// Bind the deadline to the run and owning character; stale ticks cannot claim
+// a subsequent run, even when its card layout is already visible.
+func (w *worldSession) autoPickMoonCard(now time.Time) ([]outboundPacket, error) {
+	if w == nil || w.moon.autoPickAt.IsZero() || now.Before(w.moon.autoPickAt) {
+		return nil, nil
+	}
+	clear := func() { w.moon.autoPickAt = time.Time{}; w.moon.autoPickRun = ""; w.moon.autoPickCharacter = 0 }
+	if w.moon.owner == nil || w.activeDungeon == nil || w.moon.owner.Session() != w.activeDungeon ||
+		w.moon.autoPickRun != w.activeDungeon.RunID || w.moon.autoPickCharacter != w.role.ID ||
+		!w.resultSent || w.moon.plan == nil || w.moon.plan.Run != w.moon.autoPickRun ||
+		w.moon.plan.Character != w.role.ID || w.moon.plan.Account != w.role.AccountID || w.moon.plan.Source != w.role.ConfigVersion ||
+		w.moon.claimed {
+		clear()
+		return nil, nil
+	}
+	if !w.cardLayoutSent {
+		return nil, nil
+	}
+	packets, err := w.moonClaim(0)
+	if err != nil {
+		w.moon.autoPickAt = now.Add(5 * time.Second)
+		return nil, err
+	}
+	clear()
+	return packets, nil
+}
+
 func (w *worldSession) moonClaim(index byte) ([]outboundPacket, error) {
 	if w.moon.plan == nil {
 		return nil, fmt.Errorf("Moon frozen reward missing")
@@ -950,16 +987,26 @@ func (w *worldSession) moonClaim(index byte) ([]outboundPacket, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).ClaimMoonReward(ctx, w.role, w.moon.plan.Run)
+	var body []byte
+	saved, fresh, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).ClaimMoonRewardPrepared(ctx, w.role, w.moon.plan.Run, func(next database.Character) error {
+		var err error
+		body, err = w.loot.Bootstrap(workflow.LootRole(next))
+		return err
+	})
 	if e != nil {
 		return nil, e
+	}
+	if !fresh {
+		body, e = w.loot.Bootstrap(workflow.LootRole(saved))
+		if e != nil {
+			return nil, e
+		}
 	}
 	w.role = saved
 	w.moon.claimed = true
-	body, e := w.loot.Bootstrap(workflow.LootRole(saved))
-	if e != nil {
-		return nil, e
-	}
+	w.moon.autoPickAt = time.Time{}
+	w.moon.autoPickRun = ""
+	w.moon.autoPickCharacter = 0
 	return []outboundPacket{{"moon_reward_inventory", 0, 13, body}, {"card_selection_ack", 1, 71, card}, w.moonInfo(5, true)}, nil
 }
 func (w *worldSession) moonReturn(success bool) ([]outboundPacket, error) {

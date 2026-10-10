@@ -372,13 +372,21 @@ func LaunchClient(ctx context.Context, root string, opts LaunchOptions, console 
 		writeHelperLine(console, helperOut, line)
 	}
 
+	// Check before cleanup: a clean client exit does not imply a healthy gateway.
+	// Do not classify the launcher's own normal gateway cleanup as a failure.
+	var gatewayFailure error
+	if run.Child.exited() {
+		gatewayFailure = fmt.Errorf("%s", gatewayExitSummary(filepath.Join(out, "gateway.err"), run.Child.exitCode()))
+		writeHelperLine(console, helperOut, gatewayFailure.Error())
+	}
+
 	// 7. Python 的 finally：网关还活着就 terminate 并等最多 5 秒。trace 在它之后。
 	stopGateway()
 
 	// 8. 客户端 trace 与最后一行 out 绝对路径（L701-L721）。
 	printClientTrace(helperOut, out)
 	writeHelperLine(console, helperOut, out)
-	return nil
+	return gatewayFailure
 }
 
 // wfpProbeIsolationReason 报告"为什么回退到 probe.exe"，写进日志用。
@@ -413,7 +421,7 @@ func runProbeHost(
 	cmd.Stdout = probeOut
 	cmd.Stderr = probeErr
 	hideConsoleWindow(cmd)
-	probe, err := startChild(cmd)
+	probe, err := startMemoryBoundedChild(cmd, clientMemoryBudget, "probe-client")
 	if err != nil {
 		// Python 在 except 里 raise RuntimeError(command)，command 是**网关**命令行
 		// （启动器那侧真正要看的参数），这里沿用同一口径。

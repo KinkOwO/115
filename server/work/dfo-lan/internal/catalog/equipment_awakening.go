@@ -82,13 +82,13 @@ func (i EquipmentAwakeningItem) Gold() bool { return i.Template == EquipmentAwak
 
 // EquipmentAwakeningRow 是某一阶段的一行成本/返还。
 type EquipmentAwakeningRow struct {
-	Stage int                   `json:"stage"`
+	Stage int                      `json:"stage"`
 	Items []EquipmentAwakeningItem `json:"items"`
 }
 
 // EquipmentAwakeningCostGroup 是一个材料组（源里 `[group] N`）。
 type EquipmentAwakeningCostGroup struct {
-	Index int                   `json:"index"`
+	Index int                     `json:"index"`
 	Rows  []EquipmentAwakeningRow `json:"rows"`
 }
 
@@ -124,9 +124,9 @@ type EquipmentAwakeningInfo struct {
 	Rarity string `json:"rarity"`
 	Stage  int    `json:"stage"`
 
-	Groups   []EquipmentAwakeningCostGroup  `json:"groups"`
-	Refunds  []EquipmentAwakeningRow        `json:"refunds"`
-	Rates    map[int]int                    `json:"rates"`
+	Groups   []EquipmentAwakeningCostGroup        `json:"groups"`
+	Refunds  []EquipmentAwakeningRow              `json:"refunds"`
+	Rates    map[int]int                          `json:"rates"`
 	Upgrades map[uint32]EquipmentAwakeningUpgrade `json:"upgrades"`
 }
 

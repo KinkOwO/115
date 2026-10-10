@@ -35,6 +35,7 @@ func QuestFinishedNoItems(qid uint16, gain uint32) ([]byte, error) {
 //     client's completed set: with it, the client still requests accepting
 //     already-completed quest 3145 (quest_rejected in session logs) and the
 //     Ispins channel gate keeps demanding its chain quests.
+//
 // The reader sites the unicorn oracle captured (0x1452c9bd3 count,
 // 0x1452c9bea ids) sit ~0x83 bytes into handler 0x1452c9b50; the missing
 // transform between body start and those reads is the open question.

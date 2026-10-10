@@ -37,6 +37,7 @@ type PilotConfig struct {
 	immediateTemplates map[int32]bool
 }
 type OrdinaryProduct struct {
+	Contracts   *ContractRules       `json:"-"`
 	Section     string               `json:"section"`
 	Row         []pvf.Token          `json:"row"`
 	Item        catalog.ScriptRecord `json:"item"`
@@ -277,6 +278,10 @@ type Pilot struct {
 	// 任务/掉落发放同一 [durability] 规则）；未注入时装备耐久按 0 发放。
 	equipmentDurability func(uint32) (uint16, error)
 
+	// avatarSockets 由宿主进程注入（EquipmentCatalog.DefaultAvatarSockets），
+	// 商城散件时装入包时按 PVF 默认孔补孔；未注入时保持原行为（不带孔）。
+	avatarSockets func(uint32) []byte
+
 	cacheMu       sync.Mutex
 	cacheOpenAll  string
 	cacheProducts map[uint32]Product
@@ -378,6 +383,23 @@ func (p *Pilot) SetEquipmentDurability(fn func(uint32) (uint16, error)) {
 	p.equipmentDurability = fn
 }
 
+// SetAvatarSockets 注入时装默认孔生成函数（nil 安全）。
+func (p *Pilot) SetAvatarSockets(fn func(uint32) []byte) {
+	if p == nil {
+		return
+	}
+	p.avatarSockets = fn
+}
+
+// avatarSocketOptions nil 安全地返回一件时装的默认孔扩展；未注入或模板无
+// 默认孔时返回 nil（保持原行为，客户端按存档空扩展显示 0 孔）。
+func (p *Pilot) avatarSocketOptions(template uint32) []byte {
+	if p == nil || p.avatarSockets == nil {
+		return nil
+	}
+	return p.avatarSockets(template)
+}
+
 func (p *Pilot) findEntry(product, template uint32) (OrdinaryProduct, bool) {
 	if p == nil {
 		return OrdinaryProduct{}, false
@@ -469,6 +491,29 @@ func NewPilot(c PilotConfig, source string, release ...bool) (*Pilot, error) {
 		return nil, fmt.Errorf("商城发布模式参数重复")
 	}
 	c.Entries = append([]OrdinaryProduct(nil), c.Entries...)
+	ownedRules := map[*ContractRules]*ContractRules{}
+	for n := range c.Entries {
+		old := c.Entries[n].Contracts
+		if old == nil {
+			continue
+		}
+		if old.Source != source || !digestValid(old.SHA256) {
+			return nil, fmt.Errorf("contract product source mismatch")
+		}
+		owned := ownedRules[old]
+		if owned == nil {
+			owned = &ContractRules{Source: old.Source, SHA256: old.SHA256, Items: map[uint32]Contract{}, Restricted: map[uint32]bool{}}
+			for id, value := range old.Items {
+				owned.Items[id] = value
+			}
+			for id, value := range old.Restricted {
+				owned.Restricted[id] = value
+			}
+			ownedRules[old] = owned
+		}
+		c.Entries[n].Contracts = owned
+	}
+
 	for n := range c.Entries {
 		c.Entries[n].Row = append([]pvf.Token(nil), c.Entries[n].Row...)
 		c.Entries[n].Item.Cells = append([]pvf.Token(nil), c.Entries[n].Item.Cells...)
@@ -740,9 +785,10 @@ func (p *Pilot) deliverAmount(raw json.RawMessage, template, amount uint32, expi
 						b.Special = map[byte][]inventory.BagEquipment{}
 					}
 					b.Special[1] = append(b.Special[1], inventory.BagEquipment{
-						Slot:     s,
-						Template: template,
-						Period:   exp,
+						Slot:          s,
+						Template:      template,
+						Period:        exp,
+						AvatarOptions: p.avatarSocketOptions(template),
 					})
 					found = true
 					break

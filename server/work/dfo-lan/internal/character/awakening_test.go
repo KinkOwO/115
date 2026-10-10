@@ -63,7 +63,7 @@ func TestSourceAwakeningGrants(t *testing.T) {
 				continue
 			}
 			t.Run(fmt.Sprintf("job%d_adv%d", job, adv), func(t *testing.T) {
-				state := State{Level: 115, Advancement: adv, AllJobsPilot: true, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SourceSHA256: prof.RawSHA256}
+				state := State{Level: 115, Advancement: adv, AllJobsPilot: true, Attributes: prof.InitialAttributes, InitialSkills: prof.InitialSkills, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256}
 				raw, _ := json.Marshal(state)
 				role := Character{Name: "AwakeTest", WireID: 503, Profession: job, ConfigVersion: c.Source.SaveIdentity(), State: raw}
 				for stage := byte(1); stage <= 3; stage++ {

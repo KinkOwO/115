@@ -165,11 +165,11 @@ func TestCompleteEntryPreflight(t *testing.T) {
 	for _, bad := range []outboundPacket{{"invalid", 2, 4, []byte{1}}} {
 		plan := append(p.packets(), bad)
 		out, err := preparePackets(keys, plan)
-			if err == nil || out != nil || !strings.Contains(err.Error(), bad.Name) {
-				t.Fatalf("partial entry escaped preflight: %v", err)
-			}
+		if err == nil || out != nil || !strings.Contains(err.Error(), bad.Name) {
+			t.Fatalf("partial entry escaped preflight: %v", err)
 		}
 	}
+}
 
 func TestEntryGamepadOptionsFollowsAccountOptions(t *testing.T) {
 	dummyPayload := make([]byte, 1411)
@@ -194,4 +194,3 @@ func TestEntryGamepadOptionsFollowsAccountOptions(t *testing.T) {
 		t.Fatalf("gamepad payload was not preserved")
 	}
 }
-

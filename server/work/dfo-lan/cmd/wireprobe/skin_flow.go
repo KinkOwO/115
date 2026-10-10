@@ -13,133 +13,35 @@ import (
 	"time"
 )
 
-// makeSkin answers CMD1592 (ENUM_CMDPACKET_MAKE_SKIN), the blacksmith window's
-// replication confirmation.
-//
-// Replicating consumes the weapon and one Linus mold - the client's own
-// confirmation text says exactly that ("Replicating consumes the selected weapon
-// and materials.", "Not enough Linus' Steel Molds or Molds.") - so the whole
-// settlement happens in one transaction before any packet goes out. A refusal
-// (no weapon in that slot, a weapon this class cannot use, no mold) answers with
-// nothing at all, which is what the player sees as the confirmation not going
-// through; buying a mold and confirming again then works, because a refused
-// attempt is not recorded.
-//
-// The request names no item, so the target is whatever sits in the reported
-// index. The index is a list-0 slot: the window field it comes from is the same
-// one the sender uses to look the entry up, and the captured value 9 is exactly
-// this build's first bag equipment slot (equipment_slots [9,64]).
-//
-// The skin goes into the weapon-shape container only. The first build filled all
-// ten subtypes because the tab-to-subtype mapping was unknown; the live capture
-// then pinned it - the page showing the replicated katana is the one whose
-// CMD1565 reports subtype 4 - so the same entry no longer pollutes the other
-// tabs.
+// makeSkin creates the source recipe's consumable first. Registration is a
+// separate CMD507 action169 transaction, using the native instance weapon id.
 func (w *worldSession) makeSkin(plaintext []byte, event func(map[string]any)) ([]outboundPacket, error) {
 	if w == nil || w.characters == nil {
-		return nil, fmt.Errorf("make skin before a character is loaded")
+		return nil, fmt.Errorf("make skin before character selection")
 	}
 	req, e := protocol.DecodeMakeSkin(plaintext)
 	if e != nil {
 		return nil, e
 	}
-	bag, e := inventory.ReadBag(w.role.State)
-	if e != nil {
-		return nil, e
-	}
-	template, container, ok := skinSlotItem(bag, req.Index)
-	event(map[string]any{
-		"kind": "make_skin_request", "character_id": w.role.ID,
-		"op": req.Op, "mode": req.Mode, "flag": req.Flag, "index": req.Index,
-		"container": container, "template": template, "resolved": ok,
-	})
-	if !ok {
-		return nil, fmt.Errorf("make skin index %d holds no item", req.Index)
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	// Keyed by the bag slot the window reported: replicating a different weapon
-	// is a different event, while a repeated identical confirmation replays its
-	// receipt instead of eating a second weapon.
-	//
-	// The -v2 suffix is a version bump, not a semantic change: CommitCharacterEvent
-	// is idempotent by event_key alone and refuses to run the closure when the key
-	// exists under a different model ("character event model mismatch"), so the rows
-	// the pre-fix binary wrote under weapon-skin-make:<char>:<slot>:<template> made
-	// every retry of those exact weapons fail forever (live 2026-09-27: char 2 slot
-	// 19 and char 3 slot 15, both beamswords). A new key starts a clean series.
-	key := fmt.Sprintf("weapon-skin-make-v2:%d:%d:%d", w.role.ID, req.Index, template)
-	saved, spent, consumed, e := w.characters.ReplicateWeaponSkin(ctx, w.role, key, req.Index, req.Mode)
+	saved, cost, applied, e := w.characters.GenerateWeaponShape(ctx, w.role, req.Index, req.Mode)
 	if e != nil {
-		// 拒绝（槽位不是武器 / 本职业用不了 / 没有模具）走这里：一个字节都不发。
-		// 主循环把它记成 make_skin_refused，玩家换一件再来时事件不存在，可以重来。
 		return nil, e
 	}
 	w.role = saved
-	stored, se := inventory.ReadBag(saved.State)
-	if se != nil {
-		return nil, se
-	}
-	ids := stored.WeaponSkinStorage()
-	event(map[string]any{
-		"kind": "weapon_skin_stored", "character_id": w.role.ID, "skin": template,
-		"stored": ids, "consumed": consumed, "duplicate": spent.Duplicate,
-		"weapon_slot": spent.Slot, "mold": spent.Mold,
-		"mold_slot": spent.MoldSlot, "mold_left": spent.MoldAmount,
-	})
-	plan := []outboundPacket{}
-	if consumed {
-		// 吃掉了一件装备和一枚模具：必须发权威全量快照（NOTI13）。客户端会先在原格
-		// 乐观地画一下，增量 NOTI14 表达不了「那两格现在是空的」，只会留下幽灵叠。
-		restore, re := protocol.InventoryRestore(stored.Rows(), stored.Expansion)
-		if re != nil {
-			return nil, re
-		}
-		plan = append(plan, outboundPacket{"skin_replicate_consumed", 0, 13, restore})
-	}
-	// Rebuild the whole tab rather than appending one row: NOTI1545 is
-	// count-delimited, so this body is the container's full content. It is also
-	// the same body entry re-pushes, which keeps the two paths identical. The two
-	// frames list the page this character can actually wear, while the event keeps
-	// the raw saved list so the log still shows what the save holds.
-	page := weaponSkinPageIDs(stored, w.characters.WeaponSkinUsableFor(saved))
-	entries := make([]protocol.SkinCargoEntry, 0, len(page))
-	for _, id := range page {
-		entries = append(entries, protocol.SkinCargoEntry{SkinID: id, Extra: 1})
-	}
-	cargo, e := protocol.SkinCargoInfo(byte(protocol.SkinCargoWeaponShape), entries, nil)
+	bag, e := inventory.ReadBag(saved.State)
 	if e != nil {
 		return nil, e
 	}
-	// The 最近获得 strip is absolute state too (sub_1444ED400 clears the vector before
-	// its loop), so the frame carries every skin this account and character has, with
-	// the weapon just replicated at the tail — the cell the player expects to light up.
-	// Its kind byte is the family class the row cell compares against its own skin
-	// registry, and for the weapon-shape family that is 4 with a weapon template as id.
-	recentIDs := make([]uint32, 0, len(page)+1)
-	for _, id := range page {
-		if id != template {
-			recentIDs = append(recentIDs, id)
-		}
-	}
-	recentIDs = append(recentIDs, template)
-	plan = append(plan, outboundPacket{"skin_cargo_info", 0, 1545, cargo})
-	skins, le := w.store.ListSkins(ctx, saved.AccountID)
-	if le != nil {
-		event(map[string]any{"kind": "skin_recent_list_error",
-			"character_id": saved.ID, "reason": le.Error()})
-		return plan, nil
-	}
-	recent, e := skinRecentList(skins, w.skinCatalog, recentIDs)
+	restore, e := protocol.InventoryRestore(bag.Rows(), bag.Expansion)
 	if e != nil {
-		event(map[string]any{"kind": "skin_recent_list_error",
-			"character_id": saved.ID, "reason": e.Error()})
-		return plan, nil
+		return nil, e
 	}
-	if recent != nil {
-		plan = append(plan, outboundPacket{"skin_recent_add", 0, 1547, recent})
-	}
-	return plan, nil
+	event(map[string]any{"kind": "weapon_shape_product_created", "character_id": saved.ID, "weapon": cost.Skin, "weapon_slot": cost.Slot, "mold": cost.Mold, "mold_slot": cost.MoldSlot, "mold_left": cost.MoldAmount, "product": cost.Product, "product_slot": cost.ProductSlot, "applied": applied, "mode": req.Mode})
+	// Authoritative inventory precedes the existing native success ack, clearing
+	// the forge's reserved icon. No owned-page push occurs before item use.
+	return []outboundPacket{{"skin_replicate_bag_resynced", 0, 13, restore}, {"skin_replicate_completed", 1, 1592, protocol.MakeSkinSuccess()}}, nil
 }
 
 // skinCargoRestore rebuilds the NOTI1545 the skin storage window needs at entry.
@@ -273,8 +175,8 @@ func (w *worldSession) syncSkin(plaintext []byte, event func(map[string]any)) ([
 	key := fmt.Sprintf("weapon-skin-v2:%d:%d:%d", w.role.ID, bag.WeaponSkinSeq, skin)
 	saved, changed, e := w.characters.ApplyWeaponSkin(ctx, w.role, key, skin)
 	if e != nil {
-		if errors.Is(e, inventory.ErrWeaponSkinNotUsable) {
-			// 本职业戴不上这件外观（仓库里修好复制校验之前留下的条目）：不写档、不换
+		if errors.Is(e, inventory.ErrWeaponSkinNotUsable) || errors.Is(e, inventory.ErrWeaponSkinNotOwned) {
+			// 尚未拥有或本职业戴不上这件外观：不写档、不换
 			// 外观、也不报错回滚整个入场。但要把客户端刚点出来的本地选中拨回存档里的
 			// 真实值——客户端是乐观绘制的，只丢一个错误会让那一行一直停在「解除」，
 			// 玩家再点也只是重复发同一个空帧（实机 2026-09-27 的同类现象）。
@@ -300,8 +202,13 @@ func (w *worldSession) syncSkin(plaintext []byte, event func(map[string]any)) ([
 		"kind": kind, "character_id": w.role.ID,
 		"skin": skin, "previous": bag.WeaponSkin,
 	})
-	// The equipped-appearance block is the only channel that drives the world
-	// model: slot 12 carries the skin template as both placeholder (the town
+	if w.activeDungeon != nil {
+		// Native CMD1565 case 4 changes the weapon without rebuilding the
+		// actor, whose mode-0 reconstruction can break dungeon door state.
+		return weaponSkinNativeRefresh(skin, "weapon_skin_dungeon_refreshed"), nil
+	}
+	// Keep the established town appearance projection: slot 12 carries
+	// the skin template as both placeholder (the town
 	// model lookup) and model, and falls back to the worn weapon's own template
 	// when the stored skin is zero - which is what unapply needs.
 	probe, e := w.characters.AppearanceProbe(saved, [2]byte{})
@@ -325,7 +232,63 @@ func (w *worldSession) syncSkin(plaintext []byte, event func(map[string]any)) ([
 	return []outboundPacket{
 		{"skin_cargo_selected", 0, 1546, protocol.SkinCargoSelectionInfo(skin)},
 		{"weapon_skin_applied_refreshed", 0, 2, probe},
+		// Set the native override after the town weapon-avatar rebuild.
+		{"weapon_skin_town_refreshed", 1, 1565, protocol.WeaponSkinSelectionEcho(skin)},
 	}, nil
+}
+
+func weaponSkinNativeRefresh(skin uint32, name string) []outboundPacket {
+	return []outboundPacket{
+		{"skin_cargo_selected", 0, 1546, protocol.SkinCargoSelectionInfo(skin)},
+		{name, 1, 1565, protocol.WeaponSkinSelectionEcho(skin)},
+	}
+}
+
+// Restore after the complete worn/Clone reconstruction, which can replace slot
+// 12 with the real weapon. This changes the live view, never the item instance.
+func dungeonWeaponSkinRestore(w *worldSession) ([]outboundPacket, error) {
+	if w == nil || w.characters == nil || w.activeDungeon == nil {
+		return nil, nil
+	}
+	bag, err := inventory.ReadBag(w.role.State)
+	if err != nil {
+		return nil, err
+	}
+	if bag.WeaponSkin == 0 {
+		return nil, nil
+	}
+	return weaponSkinNativeRefresh(bag.WeaponSkin, "dungeon_weapon_skin_restored"), nil
+}
+
+func appendDungeonWeaponSkinAfterMove(plan []outboundPacket, w *worldSession, move protocol.ItemMoveRequest) ([]outboundPacket, error) {
+	if len(plan) == 0 || !moveTouchesWorn(move) || w == nil || w.characters == nil {
+		return plan, nil
+	}
+	// Town equipment/clone rebuilds need the same final native override as a
+	// dungeon rebuild. In particular wearing slot 10 must not cover the skin.
+	echo, err := weaponSkinActorRestore(w.role.State)
+	if err != nil {
+		return nil, err
+	}
+	if len(echo) == 0 {
+		return plan, nil
+	}
+	bag, err := inventory.ReadBag(w.role.State)
+	if err != nil {
+		return nil, err
+	}
+	return append(plan, weaponSkinNativeRefresh(bag.WeaponSkin, "weapon_skin_equipment_restored")...), nil
+}
+
+func weaponSkinActorRestore(state json.RawMessage) ([]byte, error) {
+	bag, err := inventory.ReadBag(state)
+	if err != nil {
+		return nil, err
+	}
+	if bag.WeaponSkin == 0 {
+		return nil, nil
+	}
+	return protocol.WeaponSkinSelectionEcho(bag.WeaponSkin), nil
 }
 
 // skinSlotItem resolves the list-0 slot the replication window reported. Bag
