@@ -208,6 +208,12 @@ func (client *gameConnection) ispinsPostSelection(roleID int64) {
 	// （next79 §20，052757 会话 21:31:05-21:45:31 实证）。发送
 	// 失败（连接已断）即退出 goroutine。
 	go func(characterID int64) {
+		// 测试构造的 gameConnection 可以没有 output（如
+		// TestDimCloisterLoginFallsThroughForIspinsChannel）；没有输出通道时
+		// 保活 goroutine 没有意义，直接退出，避免 30s 后解引用 nil 崩溃。
+		if client.output == nil {
+			return
+		}
 		body := []byte{0, 0, 0, 0, 0xe1, 0x6b, 0xa3, 0x76, 0x3f, 0, 0, 0, 0, 0, 0, 0}
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()

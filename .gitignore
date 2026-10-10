@@ -183,3 +183,16 @@ server/work/client-build/Script.inner.manifest.json
 !/server/work/dfo-lan/mods/README.md
 !/server/work/dfo-lan/mods/zz_mods_gen.go
 !/server/work/dfo-lan/mods/zz_mods_test.go
+
+# 服务端 mod 的**运行时调参文件**：mod 首次带它启动自动生成，之后归玩家手改
+# （这类文件不要入库 —— 它记的是本机当前值，不是要给别人的配置）。
+# mod 自带的初始模板在 mod 包自己的 server/default-tuning.json 里，不在这个目录。
+/server/work/dfo-lan/configs/tuning.d/
+
+# AI 会话/代理本地状态目录（业主裁决 2026-10-11：不入库）
+/.dsh-memery/
+/.workbuddy/
+
+# .NET 构建产物（nuannuan.shop idxtool，生成物不入库 §0.4.1）
+/client-patchs/nuannuan.shop/idxtool/bin/
+/client-patchs/nuannuan.shop/idxtool/obj/
