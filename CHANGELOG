@@ -13,6 +13,19 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-10 装扮预设（Avatar Preset）扩展券解锁页签
+
+**已修复 / 已完成**：业主实机确认「买券 → 右键使用 → 页签 +1」跑通（连续 18 张券 `applied=true`，`pages` 1→19 严格递增，无一次被幂等键误吞）。
+- ① 券链路：`etc/(r)cerashop.etc` product `3003017` → template `590723098` → `stackable/cash/590723098.stk`，150 Cera。脚本是**右键使用**类（`[action type] [add avatar preset]`），与衣柜券（无 action type、购买即生效）**不同路**。
+- ② **CMD507 动作号 = 184 (0xB8)**（实机日志 `avatar_preset_ticket_use_seen`）。PVF 的 `[use action packet]` 恒为 0，读不出动作号；识别因此按**槽位内容**（`inventory.AvatarPresetTicketTemplate`），不依赖动作号。
+- ③ **`protocol.AvatarPresetList(pages)`**：布局由反汇编客户端 handler `0x14335A230` 定案 = `u8 当前页索引(1起) | u8 页数 | 每页{u8 状态, 长度前缀页名, u8 条目数, 条目×50B} | u8 弹窗标志 + 4B`。**"栏位"= 页签（页数）**，不是每页条目数 —— 编辑窗 `main.xui` 只有 10 个 `presetBtn_0..9`，官方那 12 是每页条目数。单测锁定 `pages=1` 与官方 624B 帧**逐字节相同**。
+- ④ 存档 `Bag.AvatarPresetPages`（json `avatar_preset_pages`，已解锁页数，默认 1 页）；登录在 noti1077 之后下发 noti1585；用券在 `CommitCharacterEvent` 事务内 +1 页并消耗券。
+- 依据：官方两处抓包 noti1585（624B，10 帧 + live 3 会话，内容完全一致）+ 反汇编 `analysis/dumps/skin-noti/df7-registrar-table.json` + 实机会话 `roles_persist_*_20261010_212622_683396_next37`。完整取证见 `analysis/tasks/avatar-preset-expansion-20261010.md`。
+
+**未修复 / 未闭环**：预设的**保存/应用/改名/换位**未实现（cmd 2064/1588/1585/1586/1587 的 C→S）—— 官方抓包这五项 C→S 侧 0 帧，纯静态逆不出载荷，待实机抓 `ui/inventory/avatarpresetwindow.xui` 的 `addPresetBtn`/`applyBtn`/`saveBtn`。页数上限暂定 20（`MaxAvatarPresetPages`，客户端真实上限未逆清）。
+
+**bug 测试取证**：`go build ./cmd/... ./internal/...` + `go vet` 通过；`internal/game/protocol`、`internal/inventory`、`cmd/wireprobe` 测试通过（新增 3 例，含"与官方帧逐字节相同"金标准）；提交前门禁 `scripts/check-commit-hygiene.ps1 -All` 0 命中；`bin/wireprobe-pvf.exe` 重编并按字节核对含新逻辑。运行期文件（`runtime/storage/*.sqlite3*` 等）不入库。
+
 ## 2026-10-10 时装栏扩展券提示乱码修复 + 寄存衣柜（Avatar Closet）购买与槽位解锁
 
 **已修复 / 已完成**：业主实机确认衣柜「购买即生效 → 槽位解锁」跑通（Tier1→2槽 / Tier2→3槽 / Tier3→4槽，商店逐级解锁）。
@@ -20,9 +33,19 @@
 - ② **寄存衣柜**：新增 `cashshop.TryPurchaseAvatarClosetExpansion`（按源索引路径 `…/avatar_closet/closet_expand_N.stk` 识别档位 N；**购买即生效、不进背包**）；`Bag.ClosetExpansion`；`protocol.AvatarClosetInfo(slots)`（**noti1076 首字节 = 衣柜槽数**，1..4）；空 `noti1077`（`protocol.AvatarClosetSet()` = u32 条目数 0）；`cmd1102/1103` 回 `[0x01]+字段`（`cmd1103 select` = 切换衣橱）。
 - 依据：官方 live 抓包（noti1076 每会话一帧 16B）+ 反汇编 `client/DFO.exe`：noti1076 reader `0x1449e8060`（只读 2×u32，首个=槽数）、opcode→handler 注册表 `0x14003c650`；客户端 C→S 样本 `runtime/roles_persist_*_191033_*/events.jsonl`（`cmd1102=00000000` / `cmd1103=0100000000000000`）。
 
-**未修复 / 未闭环**：**衣柜"摆放"（把时装拖进衣柜格子）未实现**。客户端拖动 = 通用 `cmd19 MOVE_ITEMSPACE`（源 `List=1` 装扮栏、目标 `List=0x21=33`）。曾试「空间 33 = 衣柜」并落存档 ⇒ **客户端整角色读档失效**（存档中未知容器键 `special_equipment["33"]`），已回退；空间 33 的语义与正确存法待证（勿再以新容器键落存档，见 `AGENTS.md` 铁律）。
+**未修复 / 未闭环**：衣柜"摆放"已实现为 **`cmd19 MOVE_ITEMSPACE` ACK-only**（业主实机确认「能摆」）：源 `List=1` 装扮栏 → 目标 `List=0x21=33`，命中只回成功 ACK。⛔ **绝不可为它发 `NOTI13(space 33)` 容器帧** —— 客户端遇到不认识的容器空间号会整角色读档失效（曾落存档 `special_equipment["33"]` ⇒ 炸存档，已定点修复、进度未丢）。仍**未闭环**：衣柜内容**重启后丢失**，需服务端存储 + `noti1077` 真实条目样本（官方抓包该字段全 0，纯静态逆不出）。
 
 **bug 测试取证**：`go build ./...` / `go vet ./...` 通过；`cmd/wireprobe`、`internal/cashshop`、`internal/game/protocol`、`internal/inventory` 测试通过；提交前门禁 `scripts/check-commit-hygiene.ps1 -All` 0 命中。运行期文件（`runtime/storage/*.sqlite3*` 等）不入库。
+
+## 2026-10-10 商城皮肤与散件装扮选属性购买修复确认
+
+**已修复 / 已完成**：补齐原生与 MOD 散件装扮的 PVF 属性校验及购买保存，解决非默认选项返回 `unsupported product option`。复用既有属性行解析器，读取 `[avatar select ability]` 或 `skill/abilitydatas.dat` 的 case 引用；按显式编号校验并写入既有装扮字段，保留原价格、期限、镶嵌孔、普通商品校验和礼包发奖路径。无客户端、PVF、schema 修改。用户测试后授权提交合并，并要求回滚本地临时服务端，待主线合并后更新验证。
+
+**未修复 / 未闭环**：实机确认六次购买与属性下发，不扩大为全部装扮、重新登录和技能属性实效验收。实际源商城专项的宠物定义、固定商品数量断言及 charactercheck 的任务经验断言均在未修改主线中复现，不记为通过，不夹带修复。
+
+**bug 测试取证**：会话 `201020_727054_next37`，候选 `7fa15a96`；六次均 applied=true，含原生皮肤/服饰与 MOD 散件，属性 0/2/4 与 NOTI14 一致，默认孔保留。最新主线 `d80919db` 上 build/vet/全量测试通过；九个既有失败商品的真实 PVF 属性购买回归通过。详见 `server/work/dfo-lan/docs/protocol/shop-avatar-selected-options-confirmed-20261010.md`。
+
+
 
 ## 2026-10-10 已支持特殊频道精锐准入多频道确认
 

@@ -20,6 +20,7 @@ type CashOrder struct {
 	VaultSpace byte `json:"vault_space,omitempty"`
 }
 type CashOrderLine struct {
+	AvatarOption  byte   `json:"avatar_option,omitempty"`
 	Product       uint32 `json:"product"`
 	Template      uint32 `json:"template"`
 	Quantity      uint32 `json:"quantity"`
