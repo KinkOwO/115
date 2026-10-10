@@ -144,6 +144,13 @@ type entryPayloads struct {
 	// starts with a u32 entry count and returns early on 0, so the empty body
 	// {0,0,0,0} is a valid "closet holds nothing" state. A nil payload is skipped.
 	AvatarClosetSet []byte
+	// AvatarPresetList is the NOTI1585 ENUM_NOTIPACKET_AVATAR_PRESET_LIST body
+	// (the Avatar Preset page + its preset slots). The layout comes from
+	// disassembling the client reader (DFO.exe 0x14335A230) and the encoder is
+	// pinned byte-for-byte to the official capture - see
+	// protocol.AvatarPresetList and protocol/avatar_preset_test.go. A nil
+	// payload is skipped by preparePackets.
+	AvatarPresetList []byte
 	// SkillLocks is the NOTI2827 character option block that restores the
 	// player's locked skills. It is sent last: the forwarded evidence for this
 	// client reports a crash on town entry when 2827 arrives early in the frame
@@ -389,6 +396,9 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"avatar_inventory_restored", 0, 13, p.AvatarReady},
 		outboundPacket{"avatar_closet_info", 0, 1076, p.AvatarClosetInfo},
 		outboundPacket{"avatar_closet_set", 0, 1077, p.AvatarClosetSet},
+		// NOTI1585 装扮预设列表：官方每次登录都下发一帧（624B，默认 12 个预设）。
+		// 帧形状与官方逐字节一致（见 protocol/avatar_preset_test.go 的金标准）。
+		outboundPacket{"avatar_preset_list", 0, 1585, p.AvatarPresetList},
 	)
 	// The list1 objects must exist before Clone's source lookup is restored,
 	// and subsequent worn reconstruction must consume this character's table.
