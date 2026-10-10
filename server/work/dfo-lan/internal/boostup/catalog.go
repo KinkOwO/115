@@ -56,6 +56,7 @@ type PresetCode struct {
 	Code      string
 }
 type Catalog struct {
+	TeachingAPCs           []TeachingAPC // same-source special APC references, not account characters
 	ChallengeBuffs         []ChallengeBuff
 	Challenges             []ChallengeDefinition
 	ChallengeLevelRewards  map[byte]Reward
@@ -66,13 +67,13 @@ type Catalog struct {
 	GoalLevel, UsableLevel byte
 	// QuestClearItems 来自 [capsule info] 里的 [quest clear item]：源为直升角色
 	// 准备的清主线墙用券（当前 115 版是三张，各清一条 [grade] [side] 墙任务）。
-	QuestClearItems []uint32
-	FameLimit              uint32
-	Town, Area             uint32
-	Steps                  []Step
-	Gifts                  []Gift
-	BufferJobs, DualJobs   [][2]byte
-	Presets                []PresetCode // duplicate job/grow alternatives remain distinct
+	QuestClearItems      []uint32
+	FameLimit            uint32
+	Town, Area           uint32
+	Steps                []Step
+	Gifts                []Gift
+	BufferJobs, DualJobs [][2]byte
+	Presets              []PresetCode // duplicate job/grow alternatives remain distinct
 }
 type TokenSource interface {
 	Tokens(string) ([]pvf.Token, error)
@@ -97,6 +98,14 @@ func Load(src TokenSource) (*Catalog, error) {
 		return nil, err
 	}
 	c.ChallengeLevelRewards, err = ParseChallengeLevelRewards(challenge)
+	if err != nil {
+		return nil, err
+	}
+	apcs, err := src.Tokens(SpecialAPCPath)
+	if err != nil {
+		return nil, err
+	}
+	c.TeachingAPCs, err = ParseTeachingAPCs(apcs)
 	return c, err
 }
 

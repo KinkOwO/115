@@ -103,7 +103,7 @@ func TestEliteSelfProjectionRetainsScopeModesSlotsAndEmptyList(t *testing.T) {
 	require.Equal(t, p.Data.EliteSelections, w.eliteProfileView(p).Data.EliteSelections)
 	t.Setenv(adventureelite.EnvKey, "1")
 	w.channelWorldIsolated = true
-	require.NotContains(t, w.eliteProfileView(p).Data.EliteSelections, uint16(2))
+	require.Contains(t, w.eliteProfileView(p).Data.EliteSelections, uint16(2), "isolated source channel must retain the saved roster projection")
 	require.Equal(t, p.Data.EliteSelections[3], w.eliteProfileView(p).Data.EliteSelections[3])
 	w.channelWorldIsolated = false
 	p.Data.EliteSelections[2] = [3]int64{w.role.ID}

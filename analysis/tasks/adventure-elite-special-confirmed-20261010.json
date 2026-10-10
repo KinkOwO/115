@@ -1,0 +1,707 @@
+{
+  "status": "user-confirmed-multiple-channel-APC-admission",
+  "userConfirmation": "确认多个频道均有效，可以提交了",
+  "scope": "User confirms APC availability on multiple channels after the policy extension. Exact tested channel list was not supplied; this does not certify every individual dungeon, all stage/reward mechanics, true multiplayer or complete combat/death tracing.",
+  "candidateVersion": "0.3.19",
+  "candidateEvidence": "analysis/tasks/adventure-elite-special-candidate-20261010.json",
+  "delivery": {
+    "before": {
+      "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+      "sha256": "3d10ef014b746ca1663a6221e1e09d0c01941f87a0c5318e9b530ccd1b99635a",
+      "bytes": 31135232
+    },
+    "candidate": {
+      "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+      "sha256": "7b14d95ed3ec26f6b8cb8cfc4ad95a667836e9999f9d0a0ebfd8abea4d19a91c",
+      "bytes": 31142400
+    },
+    "dll": {
+      "path": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+      "sha256": "a46493c61f54fef1ec52852cd8e02383722a10d53587db343a96fc09b6f89099",
+      "bytes": 225792
+    },
+    "backup": ".tmp/adventure-elite/special-delivery-backup",
+    "manifest": "client-patchs/adventure-elite/dist/adventure-elite-build.json"
+  },
+  "source": {
+    "archiveSHA256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+    "scripts": [
+      "etc/channel_info.etc",
+      "etc/clientchannelinfo.etc",
+      "etc/channelslotinfo.etc"
+    ],
+    "readers": [
+      "catalog.ImportChannelInfo",
+      "catalog.ImportChannelDirectory"
+    ],
+    "policy": "User-authorized companion admission across existing server-supported special executors; IsRaid/IsLegion/IsPreRaid/IsSemiRaid/guide/panel/isolated-town categories no longer remove mode2. Unknown unpublished routes and mismatched source Type remain refused. No new content/channel list or packet grammar."
+  },
+  "live": {
+    "session": "server/work/dfo-lan/runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261010_052039_400634_next37",
+    "capture": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261010_052039_400634_next37",
+    "clientProcessId": 8980,
+    "runTick": 18168984,
+    "serverPid": 18828,
+    "candidateValid": true,
+    "pidMatch": true,
+    "normalExitObserved": true,
+    "requests1811": 3,
+    "observedChannelTypes": [
+      22,
+      99,
+      106
+    ],
+    "specialPacketObservations": [
+      {
+        "eventsLine": 2231,
+        "candidate_version": "0.3.19",
+        "channel_type": 99,
+        "character_id": 3,
+        "client_acceptance": "pending",
+        "frozen_preparation": {
+          "Channel": 99,
+          "Owner": 3,
+          "Selected": [
+            2,
+            1,
+            4
+          ],
+          "Settings": [
+            104,
+            45,
+            6,
+            128,
+            154,
+            9,
+            77,
+            38,
+            206,
+            11,
+            14,
+            192,
+            125,
+            179,
+            82,
+            73,
+            7,
+            239,
+            51,
+            35,
+            47,
+            100,
+            16,
+            111,
+            118,
+            7,
+            193,
+            206,
+            49,
+            119,
+            117,
+            59
+          ]
+        },
+        "id": 28,
+        "kind": "adventure_elite_special_packet_sent",
+        "owner_wire_id": 3,
+        "packet_name": "dungeon_info_sent",
+        "source_channel_attributes": {
+          "type": 99,
+          "is_legion": true,
+          "is_semi_raid": true,
+          "town": 204,
+          "guide_dungeon": 100004520,
+          "icon_index": 6
+        },
+        "special_channel_attempt": "1/3",
+        "state_at_send": {
+          "active": true,
+          "cards_active": false,
+          "combat_alive": 3,
+          "completed": false,
+          "completion_sent": false,
+          "death_sent_count": 0,
+          "drops_active": false,
+          "dungeon": 100003921,
+          "entry_serial": 0,
+          "level": 115,
+          "loaded": false,
+          "map": 100011986,
+          "odyssey": false,
+          "pending_town_arrival": false,
+          "quest": 0,
+          "result_sent": false,
+          "room_cleared": false,
+          "run_id": "04d6715bf499f18d5ac7aaebcf43dee0",
+          "selecting_dungeon": false,
+          "source_designated_difficulty": 0,
+          "source_hunt_boss": 0,
+          "source_odyssey": false,
+          "source_script": "contents/2025/venus/dungeon/venus_1phase.dgn",
+          "source_sha256": "296cd60adaa470264f6b62a624afb13f8a216da086bd7bf3f9756961bb0a11c8",
+          "source_story_layers": 0
+        },
+        "time": "2026-10-09T21:27:23.2125638Z"
+      },
+      {
+        "eventsLine": 2233,
+        "candidate_version": "0.3.19",
+        "channel_type": 99,
+        "character_id": 3,
+        "client_acceptance": "pending",
+        "frozen_preparation": {
+          "Channel": 99,
+          "Owner": 3,
+          "Selected": [
+            2,
+            1,
+            4
+          ],
+          "Settings": [
+            104,
+            45,
+            6,
+            128,
+            154,
+            9,
+            77,
+            38,
+            206,
+            11,
+            14,
+            192,
+            125,
+            179,
+            82,
+            73,
+            7,
+            239,
+            51,
+            35,
+            47,
+            100,
+            16,
+            111,
+            118,
+            7,
+            193,
+            206,
+            49,
+            119,
+            117,
+            59
+          ]
+        },
+        "id": 29,
+        "kind": "adventure_elite_special_packet_sent",
+        "owner_wire_id": 3,
+        "packet_name": "dungeon_start_map_sent",
+        "source_channel_attributes": {
+          "type": 99,
+          "is_legion": true,
+          "is_semi_raid": true,
+          "town": 204,
+          "guide_dungeon": 100004520,
+          "icon_index": 6
+        },
+        "special_channel_attempt": "1/3",
+        "state_at_send": {
+          "active": true,
+          "cards_active": false,
+          "combat_alive": 3,
+          "completed": false,
+          "completion_sent": false,
+          "death_sent_count": 0,
+          "drops_active": false,
+          "dungeon": 100003921,
+          "entry_serial": 0,
+          "level": 115,
+          "loaded": false,
+          "map": 100011986,
+          "odyssey": false,
+          "pending_town_arrival": false,
+          "quest": 0,
+          "result_sent": false,
+          "room_cleared": false,
+          "run_id": "04d6715bf499f18d5ac7aaebcf43dee0",
+          "selecting_dungeon": false,
+          "source_designated_difficulty": 0,
+          "source_hunt_boss": 0,
+          "source_odyssey": false,
+          "source_script": "contents/2025/venus/dungeon/venus_1phase.dgn",
+          "source_sha256": "296cd60adaa470264f6b62a624afb13f8a216da086bd7bf3f9756961bb0a11c8",
+          "source_story_layers": 0
+        },
+        "time": "2026-10-09T21:27:23.2125638Z"
+      }
+    ],
+    "preparedPackets": [
+      {
+        "eventsLine": 224,
+        "id": 1754,
+        "channelType": 22,
+        "characterId": 3
+      },
+      {
+        "eventsLine": 228,
+        "id": 1382,
+        "channelType": 22,
+        "characterId": 3
+      },
+      {
+        "eventsLine": 230,
+        "id": 1879,
+        "channelType": 22,
+        "characterId": 3
+      },
+      {
+        "eventsLine": 2050,
+        "id": 1754,
+        "channelType": 99,
+        "characterId": 3
+      },
+      {
+        "eventsLine": 2054,
+        "id": 1382,
+        "channelType": 99,
+        "characterId": 3
+      },
+      {
+        "eventsLine": 2056,
+        "id": 1879,
+        "channelType": 99,
+        "characterId": 3
+      },
+      {
+        "eventsLine": 2476,
+        "id": 1754,
+        "channelType": 22,
+        "characterId": 3
+      },
+      {
+        "eventsLine": 2480,
+        "id": 1382,
+        "channelType": 22,
+        "characterId": 3
+      },
+      {
+        "eventsLine": 2482,
+        "id": 1879,
+        "channelType": 22,
+        "characterId": 3
+      }
+    ],
+    "nativeRegistrationTrace": "adventure-elite-entry-8980-18168984.jsonl",
+    "nativeRegistrationResults": [
+      {
+        "ordinal": 5,
+        "tick": 18218796,
+        "nativeResult": 1,
+        "sceneVectorMatches": [
+          1,
+          0,
+          0
+        ],
+        "objectId": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "ordinal": 6,
+        "tick": 18218796,
+        "nativeResult": 1,
+        "sceneVectorMatches": [
+          1,
+          1,
+          0
+        ],
+        "objectId": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "ordinal": 7,
+        "tick": 18218812,
+        "nativeResult": 1,
+        "sceneVectorMatches": [
+          1,
+          1,
+          1
+        ],
+        "objectId": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "ordinal": 30,
+        "tick": 18387593,
+        "nativeResult": 1,
+        "sceneVectorMatches": [
+          1,
+          0,
+          0
+        ],
+        "objectId": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "ordinal": 31,
+        "tick": 18387609,
+        "nativeResult": 1,
+        "sceneVectorMatches": [
+          1,
+          1,
+          0
+        ],
+        "objectId": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "ordinal": 32,
+        "tick": 18387609,
+        "nativeResult": 1,
+        "sceneVectorMatches": [
+          1,
+          1,
+          1
+        ],
+        "objectId": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "ordinal": 39,
+        "tick": 18460953,
+        "nativeResult": 1,
+        "sceneVectorMatches": [
+          1,
+          0,
+          0
+        ],
+        "objectId": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "ordinal": 40,
+        "tick": 18460953,
+        "nativeResult": 1,
+        "sceneVectorMatches": [
+          1,
+          1,
+          0
+        ],
+        "objectId": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "ordinal": 41,
+        "tick": 18460953,
+        "nativeResult": 1,
+        "sceneVectorMatches": [
+          1,
+          1,
+          1
+        ],
+        "objectId": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "ordinal": 48,
+        "tick": 18523000,
+        "nativeResult": 1,
+        "sceneVectorMatches": [
+          1,
+          0,
+          0
+        ],
+        "objectId": [
+          132,
+          133,
+          134
+        ]
+      },
+      {
+        "ordinal": 49,
+        "tick": 18523000,
+        "nativeResult": 1,
+        "sceneVectorMatches": [
+          1,
+          1,
+          0
+        ],
+        "objectId": [
+          132,
+          133,
+          134
+        ]
+      },
+      {
+        "ordinal": 50,
+        "tick": 18523000,
+        "nativeResult": 1,
+        "sceneVectorMatches": [
+          1,
+          1,
+          1
+        ],
+        "objectId": [
+          132,
+          133,
+          134
+        ]
+      },
+      {
+        "ordinal": 57,
+        "tick": 18615968,
+        "nativeResult": 1,
+        "sceneVectorMatches": [
+          1,
+          0,
+          0
+        ],
+        "objectId": [
+          139,
+          140,
+          141
+        ]
+      },
+      {
+        "ordinal": 58,
+        "tick": 18615968,
+        "nativeResult": 1,
+        "sceneVectorMatches": [
+          1,
+          1,
+          0
+        ],
+        "objectId": [
+          139,
+          140,
+          141
+        ]
+      },
+      {
+        "ordinal": 59,
+        "tick": 18615968,
+        "nativeResult": 1,
+        "sceneVectorMatches": [
+          1,
+          1,
+          1
+        ],
+        "objectId": [
+          139,
+          140,
+          141
+        ]
+      }
+    ],
+    "freshRegistrationCycles": [
+      {
+        "loaderOrdinal": 1,
+        "endOrdinal": 8,
+        "thread": 23496,
+        "managerActive": 0,
+        "companions": 3,
+        "nativeResults": 3,
+        "activeAdaptations": 0,
+        "allRegistered": true,
+        "adapterValid": true
+      },
+      {
+        "loaderOrdinal": 25,
+        "endOrdinal": 33,
+        "thread": 23496,
+        "managerActive": 1,
+        "companions": 3,
+        "nativeResults": 3,
+        "activeAdaptations": 1,
+        "allRegistered": true,
+        "adapterValid": true
+      },
+      {
+        "loaderOrdinal": 34,
+        "endOrdinal": 42,
+        "thread": 23496,
+        "managerActive": 1,
+        "companions": 3,
+        "nativeResults": 3,
+        "activeAdaptations": 1,
+        "allRegistered": true,
+        "adapterValid": true
+      },
+      {
+        "loaderOrdinal": 43,
+        "endOrdinal": 51,
+        "thread": 23496,
+        "managerActive": 1,
+        "companions": 3,
+        "nativeResults": 3,
+        "activeAdaptations": 1,
+        "allRegistered": true,
+        "adapterValid": true
+      },
+      {
+        "loaderOrdinal": 52,
+        "endOrdinal": 60,
+        "thread": 23496,
+        "managerActive": 1,
+        "companions": 3,
+        "nativeResults": 3,
+        "activeAdaptations": 1,
+        "allRegistered": true,
+        "adapterValid": true
+      }
+    ],
+    "nativeCycleCorrelationLimit": "Five native registration cycles are visible; four generic entry probes plus special N28/N29 observations use different executor contracts. Do not map cycles by counts alone or convert the generic collector overall result into pass.",
+    "collectorGlobalResults": {
+      "coverageComplete": false,
+      "allFreshEntriesRegistered": false,
+      "combatCoverageComplete": false,
+      "ownedCombatProcessedObserved": false,
+      "battleVerified": false
+    },
+    "collectorIssuesUnchanged": [
+      "再次挑战缺原请求/入场计划/成功提交后的干净新RunID。",
+      "再次挑战缺原请求/入场计划/成功提交后的干净新RunID。",
+      "再次挑战缺原请求/入场计划/成功提交后的干净新RunID。",
+      "再次挑战缺原请求/入场计划/成功提交后的干净新RunID。",
+      "再次挑战缺原请求/入场计划/成功提交后的干净新RunID。",
+      "服务端入场与客户端新副本加载次数不匹配。",
+      "战斗日志进程/代次/版本不符、丢弃/上限或出现运行改写标记。",
+      "原生死亡发送与服务端 CMD39 数量不一致，不能声称覆盖完整。",
+      "缺服务端归属候选处理或归属新死亡记录。",
+      "重复入场的RunID/递增序号不符。"
+    ],
+    "anchors": {
+      "summarySHA256": "a58f4a64a6792f8dd7602092646e13ad7482309db6fe768e66f03826b69c6485",
+      "eventsSHA256": "d4f649ab1dc8a619e57ab6f03d10baeb6a4b58f2188119e67324d9afd23533c8"
+    }
+  },
+  "gates": {
+    "build": {
+      "command": "go build ./...",
+      "exitCode": 0,
+      "seconds": 4.59,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-build.log",
+      "failures": []
+    },
+    "vet": {
+      "command": "go vet ./...",
+      "exitCode": 0,
+      "seconds": 2.39,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-vet.log",
+      "failures": []
+    },
+    "test": {
+      "command": "go test ./... -count=1 -json",
+      "exitCode": 0,
+      "seconds": 79.85,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-test.log",
+      "failures": [],
+      "passed": 4116,
+      "skipped": 273,
+      "baselineFailures": [],
+      "newFailures": [],
+      "baseline": "analysis/tasks/adventure-elite-moon-candidate-20261010.json"
+    },
+    "source": {
+      "command": "go test ./cmd/wireprobe -run ^TestAdventureElitePreparationNativeChannelSources$ -count=1 -v",
+      "exitCode": 0,
+      "seconds": 9.65,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-source.log",
+      "failures": []
+    },
+    "binary": {
+      "command": "go build -o F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-candidate.exe ./cmd/wireprobe",
+      "exitCode": 0,
+      "seconds": 1.89,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-binary.log",
+      "failures": []
+    },
+    "targeted": {
+      "command": "go test ./cmd/wireprobe -run ^TestAdventureElite -count=1",
+      "exitCode": 0,
+      "seconds": 8.45,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-targeted.log",
+      "failures": []
+    }
+  },
+  "captureFixtures": {
+    "command": "pwsh -NoProfile -File scripts/test-adventure-elite-capture.ps1",
+    "exitCode": 0,
+    "log": ".tmp/adventure-elite/special-capture-fixture.log",
+    "scope": "Complete prior fixture suite plus0319 compatibility/packet-observation case; offline fixtures do not certify special live APC success"
+  },
+  "saveCompatibility": "No schema/migration/database/save modifications; no stored account roster rewrite.",
+  "unchanged": [
+    "PVF resources",
+    "SQLite/schema/player saves",
+    "DLL0.3.10",
+    "original real-party membership and native single-real-member gate",
+    "default and archived server executables"
+  ],
+  "remaining": [
+    "Every individual special executor native APC spawn/combat",
+    "Real multiplayer parties",
+    "Native tag-party interactions in mine and all phase transitions/rewards",
+    "Original Moon/mine source association duplication remains on the migration ledger. Collector generic entry/run correlation and complete native death coverage retain their gaps."
+  ],
+  "remoteSync": "Fetched actual sole remote gud; HEAD da141465 and gud/main 0/0 before closure. User explicitly authorized pushing to gud/main.",
+  "commitContents": "Only task server source/tests, collector scripts and documentation/evidence; no executables, DLL binaries, raw runtime logs, databases or unrelated untracked files.",
+  "independentCommitSource": {
+    "snapshot": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-commit-source-e0174384",
+    "gates": {
+      "build": {
+        "command": "go build ./...",
+        "exitCode": 0,
+        "seconds": 22.6,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-independent-build.log",
+        "failures": []
+      },
+      "vet": {
+        "command": "go vet ./...",
+        "exitCode": 0,
+        "seconds": 6.59,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-independent-vet.log",
+        "failures": []
+      },
+      "test": {
+        "command": "go test ./... -count=1 -json",
+        "exitCode": 0,
+        "seconds": 47.49,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\special-independent-test.log",
+        "failures": [],
+        "passed": 4008,
+        "skipped": 289,
+        "baselineFailures": [],
+        "newFailures": [],
+        "baseline": "analysis/tasks/adventure-elite-moon-candidate-20261010.json"
+      }
+    },
+    "context": "git archive HEAD server/work/dfo-lan mods plus only current task Go changes; retained existing local runtime/login_ok.bin test fixture without committing it. Unrelated untracked Go files excluded. Full build/vet/test passed without missing source dependency."
+  }
+}

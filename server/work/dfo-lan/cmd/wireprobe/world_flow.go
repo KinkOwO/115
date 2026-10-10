@@ -102,7 +102,8 @@ type worldSession struct {
 	bakalQuotaRole int64
 	bakalQuotaBody []byte
 	// boostup 是一次新手成长胶囊教学（活动 662）的会话状态。
-	boostup *boostup.Catalog
+	boostup               *boostup.Catalog
+	boostAPCSelectionSent bool // native mode3 selection sent on this actor connection
 	// attendance 是每日签到（活动 331）的原生目录；nil = 源读取失败，签到推送与领取都按「活动未开启」处理。
 	attendance *attendance.Catalog
 	// boostWorldBase / boostOperations / notifyBoostMail 是 Starter Boost 活动

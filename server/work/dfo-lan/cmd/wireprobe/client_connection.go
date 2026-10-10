@@ -422,7 +422,20 @@ func (client *gameConnection) serve() {
 }
 
 func (client *gameConnection) sendPlan(plan []outboundPacket, sent func(outboundPacket)) error {
+	var moonEntry map[string]any
+	for _, p := range plan {
+		if p.Name == "moon_dungeon" && client.worldState != nil {
+			moonEntry = client.worldState.eliteMoonEntryObservation()
+			break
+		}
+	}
 	return sendPacketPlan(plan, client.output.send, func(p outboundPacket) {
+		if note := client.worldState.eliteSpecialPacketObservation(p.Name, p.Kind, p.ID); note != nil {
+			client.event(note)
+		}
+		if p.Name == "moon_dungeon" && moonEntry != nil {
+			client.event(moonEntry)
+		}
 		if p.ID == 1754 || p.ID == 1382 || p.ID == 1879 {
 			event := adventureEliteDiagnostic(client.worldState, p.ID, []outboundPacket{p}, nil)
 			event["kind"] = "adventure_elite_packet_sent"

@@ -18,9 +18,17 @@ func (w *worldSession) validateEliteEntryProbe(r protocol.DungeonSelection) erro
 	fail := func(reason string) error {
 		return fmt.Errorf("精锐助战尚未完成战斗接入；首房取证拒绝：%s", reason)
 	}
+	if w.eliteMoonChannel() {
+		return fail("沉月湖须使用原有的单人征讨入口")
+	}
 	p := w.adventureElitePrepared
 	if !w.ordinaryEliteSelectionVisible() || p.Owner != w.role.ID || p.Channel != w.channelType || p.Settings != w.adventureEliteSnapshot || p.Selected == ([3]int64{}) {
 		return fail("准备身份或源频道不一致")
+	}
+	if w.eliteSourceSpecialChannel() {
+		// Existing special entry authorization, team grammar and Select rules
+		// must remain in charge; the ordinary candidate cannot replace them.
+		return nil
 	}
 	if w.activeDungeon != nil || !w.selectingDungeon || w.pendingTownArrival != nil {
 		return fail("尚未完成回城或没有普通选图许可")
@@ -40,6 +48,12 @@ func (w *worldSession) eliteProbeDefinition(d catalog.DungeonDefinition) bool {
 }
 
 func (w *worldSession) eliteCandidateStage() string {
+	if w.eliteMoonChannel() {
+		return "moon-solo"
+	}
+	if w.eliteSourceSpecialChannel() {
+		return "source-special"
+	}
 	if w != nil && w.odyssey {
 		return "ordinary-odyssey"
 	}
@@ -48,6 +62,14 @@ func (w *worldSession) eliteCandidateStage() string {
 func (w *worldSession) eliteEntryProbeRequest(opcode uint16) error {
 	if w == nil || !w.adventureEliteEntryProbeUsed || w.activeDungeon == nil {
 		return nil
+	}
+	if w.eliteSourceSpecialChannel() {
+		p := w.adventureElitePrepared
+		if p == nil || !w.ordinaryEliteSelectionVisible() || p.Owner != w.role.ID || p.Channel != w.channelType ||
+			p.Settings != w.adventureEliteSnapshot || p.Selected == ([3]int64{}) || w.role.WireID == 0 || w.role.WireID == 65535 {
+			return fmt.Errorf("精锐特殊频道准备身份不符")
+		}
+		return nil // original special handlers validate load, stage and transition
 	}
 	switch opcode {
 	case 2015:

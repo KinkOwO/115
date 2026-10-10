@@ -25,14 +25,16 @@ func (client *gameConnection) dispatchBoostEvent(requestData *clientRequest) dis
 	if requestData.frame.Type != 1 || !requestData.verified || !client.bootstrapped || w == nil || w.boostup == nil {
 		return dispatchNext
 	}
-	if requestData.frame.ID != 643 && requestData.frame.ID != 680 && requestData.frame.ID != 681 {
+	if requestData.frame.ID != 643 && requestData.frame.ID != 680 && requestData.frame.ID != 681 && requestData.frame.ID != 2333 {
 		return dispatchNext
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var plan []outboundPacket
 	var e error
-	if requestData.frame.ID == 643 {
+	if requestData.frame.ID == 2333 {
+		plan, e = w.requestBoostAPC(ctx, requestData.plaintext)
+	} else if requestData.frame.ID == 643 {
 		plan, e = w.claimBoostGift(ctx, requestData.plaintext)
 	} else {
 		plan, e = w.boostStepRequest(ctx, requestData.plaintext, requestData.frame.ID, requestData.frame.Raw)
