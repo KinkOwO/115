@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// TestConstructedActivityRowShapes 钉住**构造行**（战令 516/10005）的形状。
+// TestConstructedActivityRowShapes 钉住**构造行**（313 与战令 516/10005）的形状。
 //
 // 构造行没有官服字节可对照（抓包里没有这几个 id），所以只能守两件事：
 //  ① 行长/字段顺序与官方行**完全一致**（用同一个解析器走一遍，且每条都必须恰好吃掉整行）；
@@ -20,6 +20,7 @@ func TestConstructedActivityRowShapes(t *testing.T) {
 		name       string
 		start, end uint32
 	}{
+		honeyTimeEventID:    {"Honey Time", honeyTimeEventStart, honeyTimeEventEnd},
 		aradPassEventID:     {"Arad Pass", aradPassEventStart, aradPassEventEnd},
 		aradPassAltEventID:  {"Arad Pass", aradPassEventStart, aradPassEventEnd},
 	}

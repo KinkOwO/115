@@ -70,6 +70,9 @@ var commandDispatch = [...]clientDispatchStage{
 	// dispatchAttendanceClaim 排在 dispatchBoostEvent 之前：两者都处理 CMD680，
 	// 签到那一站只在载荷里的活动号 == 331 时接管，其余原样放行（见 attendance_claim.go）。
 	(*gameConnection).dispatchAttendanceClaim,
+	// dispatchHoneyTimeClaim 紧挨着签到那一站：同样是 CMD680 的分流，
+	// 只在活动号 == 313 时接管（见 honey_time_claim.go）。
+	(*gameConnection).dispatchHoneyTimeClaim,
 	// dispatchAradPass 再挨一站：CMD680/681 上活动号 == 516/10005 的是战令
 	// （阿拉德通行证）的领奖/查询（见 aradpass_flow.go）。
 	(*gameConnection).dispatchAradPass,

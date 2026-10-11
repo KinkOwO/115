@@ -484,6 +484,19 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.logAttendanceDailyState(role.ID, daily)
 			}
 		}
+		// 活动 313 HoneyTime 的状态帧（NOTI1294）：与 331 同一个门禁（108 表里有 313 才推）。
+		// 进度**按角色持久化**：这里读回今天已累计的秒数并续上；跨天/换期会先归零再落库。
+		if activityEventInfoRows() != nil && client.worldState != nil {
+			honeyCtx, honeyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			honeyState, honey, honeyErr := client.worldState.honeyTimeRestore(honeyCtx, time.Now())
+			honeyCancel()
+			if honeyErr != nil {
+				client.event(map[string]any{"kind": "honey_time_restore_error", "character_id": role.ID, "error": honeyErr.Error()})
+			} else {
+				plan.HoneyTimeState = honey
+				client.logHoneyTimeState(role.ID, honeyState, honey)
+			}
+		}
 		// 战令（阿拉德通行证）：0x08A1 / 0x08A2 都是纯 S2C 状态，登录必须下发，
 		// 否则客户端的通行证面板是空白（抓包：登录期各下发 18 / 21 次）。
 		// 与 331/313 不同，**不额外按 108 表门禁**：抓包里这两帧与活动表无关，

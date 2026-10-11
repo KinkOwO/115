@@ -10,6 +10,7 @@ import (
 	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/honeytime"
 	"dfolan/internal/inventory"
 	"dfolan/internal/legion"
 	"dfolan/internal/loot"
@@ -107,6 +108,11 @@ type worldSession struct {
 	boostAPCSelectionSent bool // native mode3 selection sent on this actor connection
 	// attendance 是每日签到（活动 331）的原生目录；nil = 源读取失败，签到推送与领取都按「活动未开启」处理。
 	attendance *attendance.Catalog
+	// honeyTime 是 HoneyTime（活动 313）的原生目录；nil = 源读取失败，1294 推送与 680 领奖都按「活动未开启」处理。
+	honeyTime *honeytime.Catalog
+	// honeyTimeAnchor 是上次结算在线时长的时刻（登录时设、每次 tick 推进）。
+	// 活动 313 的在线秒数按 now-anchor 累计，见 honey_time_flow.go。
+	honeyTimeAnchor time.Time
 	// aradPass 是战令（阿拉德通行证，活动 516/10005）的原生目录；nil = 源读取失败，
 	// 2209/2210 推送与 680 领奖都按「活动未开启」处理。见 aradpass_flow.go。
 	aradPass *aradpass.Catalog
