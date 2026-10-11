@@ -7,6 +7,7 @@
 #include "entry-trace.h"
 #include "registration-adapter.h"
 #include "combat-trace.h"
+#include "catchup-adapter.h"
 
 static HMODULE g_self;
 static volatile LONG g_started;
@@ -30,7 +31,7 @@ extern "C" __declspec(dllexport) const char* WINAPI ModName() { return "Adventur
 
 extern "C" __declspec(dllexport) DWORD WINAPI ModStart() {
     if (InterlockedCompareExchange(&g_started, 1, 0) != 0) return static_cast<DWORD>(InterlockedCompareExchange(&g_exit, 0, 0));
-    wchar_t dir[32768], logPath[32768], status[32768], trace[32768], lifecycle[32768], entry[32768], combat[32768];
+    wchar_t dir[32768], logPath[32768], status[32768], trace[32768], lifecycle[32768], entry[32768], combat[32768], catchup[32768];
     DWORD length = GetModuleFileNameW(g_self, dir, ARRAYSIZE(dir));
     if (!length || length >= ARRAYSIZE(dir)) return Finish(ERROR_BAD_PATHNAME);
     wchar_t* slash = wcsrchr(dir, L'\\');
@@ -58,6 +59,10 @@ extern "C" __declspec(dllexport) DWORD WINAPI ModStart() {
     sprintf_s(combatName,"adventure-elite-combat-%lu-%llu.jsonl",GetCurrentProcessId(),g_eliteTraceRunTick);
     swprintf_s(wideCombatName,L"adventure-elite-combat-%lu-%llu.jsonl",GetCurrentProcessId(),g_eliteTraceRunTick);
     if(!LocalPath(dir,wideCombatName,combat,ARRAYSIZE(combat)))return Finish(ERROR_BAD_PATHNAME);
+    char catchupName[96]={};wchar_t wideCatchupName[96]={};
+    sprintf_s(catchupName,"adventure-elite-catchup-%lu-%llu.jsonl",GetCurrentProcessId(),g_eliteTraceRunTick);
+    swprintf_s(wideCatchupName,L"adventure-elite-catchup-%lu-%llu.jsonl",GetCurrentProcessId(),g_eliteTraceRunTick);
+    if(!LocalPath(dir,wideCatchupName,catchup,ARRAYSIZE(catchup)))return Finish(ERROR_BAD_PATHNAME);
     // One process-start switch shared with the server. Old INI files are ignored.
     const bool enabled = EnvironmentEnabled();
     unsigned char* base = (unsigned char*)GetModuleHandleW(nullptr);
@@ -71,20 +76,22 @@ extern "C" __declspec(dllexport) DWORD WINAPI ModStart() {
     const bool entryReady = lifecycleReady && EliteStartEntryTrace(base,entry);
     const bool registrationReady = entryReady && EliteStartRegistration(base);
     const bool combatReady = registrationReady && EliteStartCombatTrace(base,combat);
+    const bool catchupReady = combatReady && EliteStartCatchup(base,catchup);
     FILE* f = nullptr;
     if (_wfopen_s(&f, logPath, L"a") == 0) {
         fprintf(f, "DFO_ADVENTURE_ELITE=%d eligibility ready=%d enabled=%d changed=%u reason=%s ordinaryReady=0 nativeTraceReady=%d ordinaryPrepareReady=%d pid=%lu runTick=%llu prepareFailure=%s hookStatus=%d traceFile=%s entryReady=%d registrationReady=%d registrationFailure=%s\n", enabled,
                 result.ready, result.enabled, result.changed, result.reason, nativeTrace, preparation, GetCurrentProcessId(), g_eliteTraceRunTick, g_prepareFailure, g_prepareHookStatus, traceName,entryReady,registrationReady,g_registrationFailure);
         fclose(f);
     }
+    if(_wfopen_s(&f,logPath,L"a")==0) {fprintf(f,"APC catchup ready=%d reason=%s criterion=native-astar-or-registration-loss delayMs=3000 file=%s\n",catchupReady,g_catchupFailure,catchupName);fclose(f);}
     if (_wfopen_s(&f, status, L"w") != 0) return Finish(ERROR_WRITE_FAULT);
-    fprintf(f, "{\"version\":\"0.3.10\",\"stage\":\"ordinary-owned-combat-candidate\",\"ready\":%s,\"enabled\":%s,"
-               "\"ordinaryReady\":false,\"ordinaryPrepareReady\":%s,\"nativeTraceReady\":%s,\"traceVersion\":2,\"traceLimitSelection\":128,\"traceLimitInfoDone\":64,\"processId\":%lu,\"runTick\":%llu,\"nativeTraceFile\":\"%s\",\"nativeTraceFailureSite\":\"%s\",\"preparationFailureSite\":\"%s\",\"hookStatus\":%d,\"changedBytes\":%u,\"rejectReason\":\"%s\",\"ordinaryLifecycleReady\":%s,\"lifecycleTraceVersion\":2,\"lifecycleTraceLimit\":1024,\"lifecycleTraceFile\":\"%s\",\"ordinaryEntryTraceReady\":%s,\"entryTraceFile\":\"%s\",\"entryFailureSite\":\"%s\",\"ordinaryRegistrationReady\":%s,\"registrationFailureSite\":\"%s\",\"ordinaryCombatTraceReady\":%s,\"combatTraceVersion\":2,\"combatTraceLimit\":4096,\"combatTraceFile\":\"%s\",\"combatFailureSite\":\"%s\"}\n",
-               result.ready && (!enabled || combatReady) ? "true" : "false", result.enabled ? "true" : "false",
+    fprintf(f, "{\"version\":\"0.3.15\",\"stage\":\"native-path-and-scene-apc-catchup-candidate\",\"ready\":%s,\"enabled\":%s,"
+               "\"ordinaryReady\":false,\"ordinaryPrepareReady\":%s,\"nativeTraceReady\":%s,\"traceVersion\":2,\"traceLimitSelection\":128,\"traceLimitInfoDone\":64,\"processId\":%lu,\"runTick\":%llu,\"nativeTraceFile\":\"%s\",\"nativeTraceFailureSite\":\"%s\",\"preparationFailureSite\":\"%s\",\"hookStatus\":%d,\"changedBytes\":%u,\"rejectReason\":\"%s\",\"ordinaryLifecycleReady\":%s,\"lifecycleTraceVersion\":2,\"lifecycleTraceLimit\":1024,\"lifecycleTraceFile\":\"%s\",\"ordinaryEntryTraceReady\":%s,\"entryTraceFile\":\"%s\",\"entryFailureSite\":\"%s\",\"ordinaryRegistrationReady\":%s,\"registrationFailureSite\":\"%s\",\"ordinaryCombatTraceReady\":%s,\"combatTraceVersion\":2,\"combatTraceLimit\":4096,\"combatTraceFile\":\"%s\",\"combatFailureSite\":\"%s\",\"apcCatchupReady\":%s,\"apcCatchupFailureSite\":\"%s\",\"apcCatchupTraceFile\":\"%s\",\"apcCatchupCriterion\":\"native-astar-or-registration-loss\",\"apcCatchupTraceVersion\":2,\"apcCatchupDelayMs\":3000}\n",
+               result.ready && (!enabled || catchupReady) ? "true" : "false", result.enabled ? "true" : "false",
                preparation ? "true" : "false", nativeTrace ? "true" : "false", GetCurrentProcessId(), g_eliteTraceRunTick, traceName, g_eliteTraceFailure, g_prepareFailure, g_prepareHookStatus, result.changed,
-               enabled && result.ready && !combatReady ? "combat-observer-unavailable" : result.reason,lifecycleReady ? "true" : "false",lifecycleName,entryReady ? "true" : "false",entryName,g_entryFailure,registrationReady ? "true" : "false",g_registrationFailure,combatReady ? "true" : "false",combatName,g_combatFailure);
+               enabled && result.ready && !catchupReady ? "catchup-unavailable" : result.reason,lifecycleReady ? "true" : "false",lifecycleName,entryReady ? "true" : "false",entryName,g_entryFailure,registrationReady ? "true" : "false",g_registrationFailure,combatReady ? "true" : "false",combatName,g_combatFailure,catchupReady ? "true" : "false",g_catchupFailure,catchupName);
     bool saved = fclose(f) == 0;
-    return Finish(!saved ? ERROR_WRITE_FAULT : (result.ready && (!enabled || combatReady) ? ERROR_SUCCESS : ERROR_INVALID_DATA));
+    return Finish(!saved ? ERROR_WRITE_FAULT : (result.ready && (!enabled || catchupReady) ? ERROR_SUCCESS : ERROR_INVALID_DATA));
 }
 
 // Startup injection additionally proves that the new client inherited the switch.

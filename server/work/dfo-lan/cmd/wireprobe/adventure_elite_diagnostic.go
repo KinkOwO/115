@@ -11,6 +11,12 @@ import (
 func adventureEliteDiagnostic(w *worldSession, opcode uint16, packets []outboundPacket, err error) map[string]any {
 	event := map[string]any{"kind": "adventure_elite_transaction_decision", "id": opcode,
 		"enabled": adventureelite.Enabled(), "accepted": err == nil}
+	if opcode == 1811 {
+		event["equipment_projection_version"] = "0.3.20"
+		event["random_option_projection_attempt"] = "1/3"
+		event["upstream_recovery_version"] = "0.3.21"
+		event["upstream_recovery_baseline"] = "db707d59"
+	}
 	if err != nil {
 		event["reason"] = err.Error()
 	}
