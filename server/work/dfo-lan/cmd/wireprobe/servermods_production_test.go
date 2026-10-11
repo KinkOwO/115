@@ -47,7 +47,8 @@ func TestTownActivityChallengeSnapshotUsesActualRecordCount(t *testing.T) {
 		t.Fatal("challenge snapshot unavailable")
 	}
 	keys := decodeOpenEventKeys(t, body)
-	if len(keys) != 24 || keys[23] != 665 {
+	// 官方 24 行 + 构造的 516/10005 两行 ⇒ 665（challenge）落在末位 25。
+	if len(keys) != 26 || keys[25] != 665 {
 		t.Fatalf("challenge record count or identity lost: %v", keys)
 	}
 }

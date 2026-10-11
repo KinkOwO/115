@@ -165,7 +165,7 @@ func TestTownEventInfoTableCarriesActivityRows(t *testing.T) {
 	if !bytes.Contains(with, attendance) {
 		t.Fatal("进城表里没有 331 的原始记录")
 	}
-	if got, want := binary.LittleEndian.Uint16(with[:2]), base+uint16(len(eventInfoActivityIDs))+4; got != want {
+	if got, want := binary.LittleEndian.Uint16(with[:2]), base+activityEventInfoCount()+4; got != want {
 		t.Fatalf("count=%d, want %d", got, want)
 	}
 

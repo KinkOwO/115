@@ -170,6 +170,37 @@ DB fixture 缺失 + `ispins_wiring.go` 已知 panic），本次未引入新失�
 **bug 测试取证**：会话 `201020_727054_next37`，候选 `7fa15a96`；六次均 applied=true，含原生皮肤/服饰与 MOD 散件，属性 0/2/4 与 NOTI14 一致，默认孔保留。最新主线 `d80919db` 上 build/vet/全量测试通过；九个既有失败商品的真实 PVF 属性购买回归通过。详见 `server/work/dfo-lan/docs/protocol/shop-avatar-selected-options-confirmed-20261010.md`。
 
 
+## 2026-10-11 选择箱 `[stackable]` 内容段建模（每日礼包选 x45 只到 1 个）
+
+**已修复 / 已完成**：`[booster select category]` 的内容段此前只建模 `[equipment]`，把 `[stackable]` 与 `[avatar]/[etc]/[cera]` 一起当「未建模段」跳过 ⇒ `Resolve` 的件数表为空 ⇒ `openBoosterItem` 发放回落到**礼盒自身数量**。实机表现：Royal Pass 每日礼包 `590722589` 选 `Radiant Harmonious Crystal (x45)`，进背包只有 **1** 个（`gateway.err`：`selection box 590722589: category [0 0] has no exported item set … the pick goes down the generic path`）。现按与 `[equipment]` 同口径建模 `(模板, 数量)` 成对形态；`hasUnmodelledSection` 放行 `[stackable]`。
+
+**未修复 / 未闭环**：源里另有 33 个 `[stackable]` 块是 **5 个数字一条**的记录（`模板 数量 ? ? ?`，如 10404663 的 `10404771 1 2 115 108 …`），形状未定 ⇒ 整块不建模并在 `Sections` 记 `selectionSectionStackableUnparsed`，语义与改动前完全一致。
+
+**bug 测试取证**：全量审计 16757 个 `[booster selection]` 候选 —— 带 `[stackable]` 的盒子 3178 个、块成对 17660 / 奇数 33；分类计数改前改后均为 `boxes=16749 fixed=2 unparsed=3 rejected=3`；目标箱分类 `[0 0]` 的 items 由 0 变 3（`10327284×90`、`10327285×45`、`10362432×50`）。用例 `TestParseSelectionStackablePairs`、`TestParseSelectionStackableRecordShapeStaysUnmodelled`、`TestSelectionBoxGrantsTheSourceStackableCount`（钉在下发帧 `booster_open_ack` 的 count=45）。记录 `analysis/tasks/next58-selection-box-import.md §3.7`。
+
+## 2026-10-11 战令（阿拉德通行证，活动 516 / 10005）完整移植
+
+**已修复 / 已完成**：面板 / 领取 / ROYAL 轨 / 每日登录礼包 / 任务记账全链路打通，源驱动直读 `newaradpassevent.evt`。
+
+- 两帧：`0x08A1`（账号级 760B）与 `0x08A2`（每角色 1104B）。**ROYAL 轨解锁 = 0x08A1 正文 u32 头 == 2**（判定函数 `sub_14229FF90` 反证），`0x08A2` 正文头同样必须是 2。
+- `CMD680` 第 3 个 u32 = **奖励等级**（皇家偶数级 / 普通奇数级）；`0` = Receive All；`3` = 每日登录礼包（8 字节帧）。
+- 已领标记是**每档 1 字节**（非位图）：普通轨 `0x1C2`、皇家轨 `0x28A`（各 25 字节，实机两轮对照定案，两条轨基址不相邻）。
+- 每日礼包「已领」= 正文 **`0x1C0`** 的 u16（实机 + IDA 双证，饱和值 `0xFFFF` 表达已领，09:00 UTC 换日）。
+- 任务进度按角色落库，每日 06:00 UTC 归零并设每日经验上限；沉月湖 / 蔚蓝号通关记账分别挂到各自**结算点**。
+- `NOTI108` 追加构造活动行（516 / 10005），`activityEventInfoCount` 与正文实际行数同口径。
+
+**未修复 / 未闭环**：`NOTI2318 NEW_ARAD_PASS_CHARAC_DETAIL_INFO` 从未实现（不在三个注册助手的覆盖内，需另开一轮定位 handler）；`NOTI2855` 仍从不发送。
+
+**bug 测试取证**：`go test ./internal/aradpass/ ./cmd/wireprobe/ -run AradPass`；实机会话 `runtime/roles_persist_*172342*`（`arad pass royal daily role=2 day=2026-10-11 applied=true items=1 slots=1`）。记录 `analysis/tasks/next195-战令移植-20261010.md`（§20 结案、§21 任务字段、§23 沉月湖、§25 每日礼包、§27 已领位）。
+
+## 2026-10-11 活动帧通用读法抽出（331 / 662 / 战令共用）
+
+**已修复 / 已完成**：`CMD680`（领奖）与 `CMD681`（查询）是**多个活动共用**的帧 —— 331 签到、313 HoneyTime、662/665、战令 516/10005 的载荷都是「u32 活动号 + …」，判据只有首 u32。**已修复**「662 的 `dispatchBoostEvent` 拿自己的校验去拒别人的请求」这一类误判（2026-10-10 实测：点 HoneyTime 的 Get 发来 `680`（313,0），我们回了 662 的 `event reward request carries no parameter`）。做法：新增 `protocol.EventRequestEventID115`（`internal/game/protocol/attendance_claim115.go`），662 与战令的 `680/681` 分流都先读它、非本活动的帧原样放行。
+
+**未修复 / 未闭环**：无。
+
+**bug 测试取证**：`cmd/wireprobe` 中 662 与战令的分流用例各自覆盖「非本活动帧原样放行」。里程碑 `analysis/tasks/next193-签到活动打通-计划与里程碑-20261010.md`。
+
 ## 2026-10-10 已支持特殊频道精锐准入多频道确认
 
 **已修复 / 已完成**：业主确认“确认多个频道均有效，可以提交了”。服务端0.3.19/7b14d95e，按当前PVF发布频道与属性复用原准备链，取消精锐名单接入层的军团/攻坚/征讨/guide/隔离城镇类别过滤；未知未发布及来源身份不匹配仍拒绝。特殊副本继续走原组队、入场、阶段、难度和结算执行器，DLL仍0.3.10/a46493c6。证据 analysis/tasks/adventure-elite-special-confirmed-20261010.json。

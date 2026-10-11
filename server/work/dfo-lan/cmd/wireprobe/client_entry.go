@@ -544,6 +544,59 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.logAttendanceDailyState(role.ID, daily)
 			}
 		}
+		// 战令（阿拉德通行证）：0x08A1 / 0x08A2 都是纯 S2C 状态，登录必须下发，
+		// 否则客户端的通行证面板是空白（抓包：登录期各下发 18 / 21 次）。
+		// 与 331/313 不同，**不额外按 108 表门禁**：抓包里这两帧与活动表无关，
+		// 而且 `aradPass` 为 nil（源读失败）时整块本来就不执行。
+		if client.worldState != nil && client.worldState.aradPass != nil {
+			// ⓪ **换日收口**：任务进度与经验池是**每天**归零的（业主口径，06:00 UTC）。
+			// 放在最前面：后面的激活/状态帧都基于换日后的状态构造。
+			rollCtx, rollCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			rolled, rollErr := client.worldState.ensureAradPassDailyRoll(rollCtx)
+			rollCancel()
+			if rollErr != nil {
+				client.event(map[string]any{"kind": "arad_pass_daily_roll_error", "character_id": role.ID, "error": rollErr.Error()})
+			} else if rolled {
+				client.event(map[string]any{"kind": "arad_pass_daily_rolled", "character_id": role.ID})
+			}
+			// ① 账号级一次性发放通行证物品（业主口径：战令按账号，给第一个登录的角色发）。
+			// 幂等键带模板号 + 账号 ⇒ 同账号重复登录、换角色登录都不会重复发。
+			// 发放成功后，"拥有即激活"那条链会在下面同一次进城流程里置 Royal + 发首发奖励。
+			grantCtx, grantCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			granted, grantErr := client.worldState.ensureAradPassPassItem(grantCtx)
+			grantCancel()
+			if grantErr != nil {
+				client.event(map[string]any{"kind": "arad_pass_pass_item_error", "character_id": role.ID, "error": grantErr.Error()})
+			} else if granted {
+				client.event(map[string]any{"kind": "arad_pass_pass_item_granted", "character_id": role.ID})
+			}
+			// ① "拥有通行证物品即激活"：先把状态收口（置 Royal / 加购票经验 / 发源里的首发奖励），
+			// 再构造状态帧 —— 激活写进角色状态后，本函数稍后的入场库存快照也会带上首发奖励。
+			actCtx, actCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			_, actErr := client.worldState.ensureAradPassActivation(actCtx)
+			actCancel()
+			if actErr != nil {
+				client.event(map[string]any{"kind": "arad_pass_activation_error", "character_id": role.ID, "error": actErr.Error()})
+			}
+			// 激活会改角色状态：状态帧必须用**会话里那份最新角色**，否则皇家轨仍显示上锁。
+			if client.worldState.role.ID != 0 {
+				role = client.worldState.role
+			}
+			if passEvent, passCharac, passErr := aradPassPayloads(client.worldState.aradPass, role); passErr != nil {
+				client.event(map[string]any{"kind": "arad_pass_state_restore_error", "character_id": role.ID, "error": passErr.Error()})
+			} else {
+				plan.AradPassEvent, plan.AradPassCharac = passEvent, passCharac
+				// ★ 把两帧的**真实字节**记下来（前 24 字节即可看出 4B 头、槽位字段）：
+				// 2026-10-11 那次"锁没开"排查里最费时间的就是"日志里看不到发出去的字节"。
+				client.event(map[string]any{
+					"kind": "arad_pass_state_bytes", "character_id": role.ID,
+					"event_head_hex":   hex.EncodeToString(passEvent[:24]),
+					"charac_head_hex":  hex.EncodeToString(passCharac[:24]),
+					"charac_bytes":     len(passCharac),
+					"event_bytes":      len(passEvent),
+				})
+			}
+		}
 		if client.characters != nil {
 			oathCtx, oathCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			selection, oathErr := client.gameStore.EquippedOathSelection(oathCtx, client.developmentAccount, role.ID)

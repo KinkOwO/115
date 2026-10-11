@@ -69,7 +69,7 @@ const eventInfoActivityHex = "" +
 // eventInfoActivityTable 解码上表（只解一次）。
 var eventInfoActivityTable = mustHexDecode(eventInfoActivityHex)
 
-// activityEventInfoRows 返回本次要追加的活动行；开关关闭时返回 nil。
+// activityEventInfoRows 返回本次要追加的活动行（官方切片 + 构造行）；开关关闭时返回 nil。
 //
 // **在调用时读环境变量**（不是 init 期读一次）：这样测试可以用 t.Setenv 两个方向都覆盖，
 // 也让 profile 改值后重启即可生效。
@@ -78,5 +78,14 @@ func activityEventInfoRows() []byte {
 	case "off", "0", "false":
 		return nil
 	}
-	return eventInfoActivityTable
+	out := make([]byte, 0, len(eventInfoActivityTable)+64)
+	out = append(out, eventInfoActivityTable...)
+	out = append(out, constructedActivityEventRows()...)
+	return out
+}
+
+// activityEventInfoCount 是上面那些行的**条数**（表头 count 用）。
+// 必须与实际写进正文的行数一致：客户端按 count 读取，少数一行就丢最后一行。
+func activityEventInfoCount() uint16 {
+	return uint16(len(eventInfoActivityIDs) + len(constructedActivityEventIDs))
 }

@@ -164,9 +164,16 @@ func sameSelectionCategory(a, b SelectionCategory) bool {
 
 // hasUnmodelledSection reports a category carrying a content block whose items
 // this parser does not read; two such blocks cannot be compared by value.
+//
+// `[stackable]` 自 2026-10-11 起按 (模板, 数量) 建模（见 ParseSelectionCells），
+// 所以它和 `[equipment]` 一样是可比较的；形状未定的那一批会被写成
+// `selectionSectionStackableUnparsed`，仍然落在这个判定里。
 func hasUnmodelledSection(cat SelectionCategory) bool {
 	for _, s := range cat.Sections {
-		if s != "[equipment]" {
+		switch s {
+		case "[equipment]", "[stackable]":
+			// 已建模、条目形状确定 ⇒ 可逐项比较。
+		default:
 			return true
 		}
 	}

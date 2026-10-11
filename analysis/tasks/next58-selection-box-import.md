@@ -109,6 +109,93 @@
    下一步应查 `protocol.DecodeBoosterUseRequest` 的试探式解析（该解码器有多种试探格式 + fallback）。
 3. 回归：奥德赛武器盒（10417789）走的仍是既有 `selectOdysseyWeapon` 链路，装扮/宠物自选盒走既有目的地分发。
 
+### 3.7 `[stackable]` 内容段建模 —— 每日礼包「选 x45 只到 1 个」（2026-10-11）
+
+**现象（业主实机）**：领到「Royal Pass 每日登录礼包」`590722589`，开箱选
+`Radiant Harmonious Crystal (x45)`，进背包只有 **1** 个。
+
+**根因**（`gateway.err` 原文）：
+
+```
+selection box 590722589: category [0 0] has no exported item set
+  (unmodelled content block or unknown category); the pick goes down the generic path
+```
+
+真源 `stackable/cash/590722589.stk` 的分类块写的是 **`[stackable]`** 而不是 `[equipment]`：
+
+```
+[booster select category]
+0 0
+[stackable]
+10327284 90   10327285 45   10362432 50
+[/stackable]
+[/booster select category]
+```
+
+`ParseSelectionCells` 原本把 `[stackable]` 与 `[avatar]/[etc]/[cera]` 一起当「未建模段」跳过
+⇒ `Resolve` 的件数表为空（`checked=false`）⇒ `openBoosterItem` 里 `count := req.Amount`（=1），
+只有 `selectionCounts` 命中源件数才会走 `declared * req.Amount`
+⇒ 回落到**礼盒自身数量**（源 `[daily reward list]` 写的就是 `590722589 1`）。
+
+**全量形状实测**（一次性审计程序，16757 个 `[booster selection]` 候选）：
+
+| 项 | 数 |
+| --- | --- |
+| 带 `[stackable]` 的盒子 | 3178 |
+| `[stackable]` 块（成对 `模板 数量`） | **17660** |
+| `[stackable]` 块（**5 个数字一条**，形状未定） | 33（如 10404663 的 `10404771 1 2 115 108 …`） |
+
+**实现**（`internal/catalog/selection_cells.go` + `selection_boxes.go`）：
+
+* `[stackable]` 按与 `[equipment]` **同一口径**建模：读 `(模板, 数量)` 对。
+* **只建模成对形态**：数字个数为奇数 / 出现非正数 ⇒ 整块不建模，并在 `Sections` 里记
+  `selectionSectionStackableUnparsed`（= `"[stackable] (unparsed)"`）；
+  `hasUnmodelledSection` 照旧认它 ⇒ 那 33 个块**语义与改动前完全一致**（宁可少一次校验也不猜）。
+* `hasUnmodelledSection` 放行 `[stackable]`（它已是可逐项比较的段）。
+* `booster_flow.go` 的「命中源范围」日志补上解析结果，便于实机判读：
+  `… in category [0 0]: [{10327285 45}]`。
+
+**影响面核对**（同一审计程序，改前 → 改后）：
+
+| | 改前 | 改后 |
+| --- | --- | --- |
+| boxes / fixed / unparsed / rejected | 16749 / 2 / 3 / 3 | **16749 / 2 / 3 / 3**（分类计数一处未动） |
+| `590722589` 分类 `[0 0]` | sections=`[[stackable]]` **items=0** | **items=3**：`10327284×90`、`10327285×45`、`10362432×50` |
+
+`[equipment]` 分支**一行未改** ⇒ 既有 16749 个盒子的装备条目按构造不变。
+`odyssey_create_rewards.go:64` 依赖根包的 `Sections == ["[stackable]"]`：成对形态下仍是这个值
+（同文件 68 行本来就要求该块数字成对）⇒ 奥德赛创建包不受影响。
+
+**测试**：
+
+* `internal/catalog/selection_cells_test.go`
+  * `TestParseSelectionStackablePairs`：用**真实脚本 token** 断言类别 `[0 0]` +
+    三项 `90/45/50` + `Sections == ["[stackable]"]` + 判定为「已建模」。
+  * `TestParseSelectionStackableRecordShapeStaysUnmodelled`：5 数字一条的块必须**不建模**，
+    且仍算「未建模」。
+* `cmd/wireprobe/selection_box_test.go`
+  * `TestSelectionBoxGrantsTheSourceStackableCount`：端到端开箱，断言落在**下发帧**
+    `booster_open_ack`（条数 13..15、模板 15..19、数量 19..23）= **45**，再核存档次之
+    ——「存档对了但帧里还是 1」这一类只有看帧才拦得住。
+
+**自检（2026-10-11 17:5x）**：
+
+```
+gofmt（转 LF 副本校验 4 个文件）              → 空
+go build ./internal/... ./cmd/...            → 0
+go vet ./internal/catalog/ ./cmd/wireprobe/  → 0
+go test -count=1 ./internal/catalog/ ./cmd/wireprobe/ ./internal/gamedata/
+   → ok 118.3s / ok 177.6s / ok 8.9s
+二进制 0e868eaf…cf5d（31,437,824 B），bin/ 与根 runtime/dev-local/ sha 相同
+selectionPairs 2（新函数名进 DWARF）· readinessRadar 0（负对照）
+```
+
+**给业主的验收**：重启后开一个新礼包 → 选 `Radiant Harmonious Crystal` → 背包里应是 **45** 个。
+服务端日志会从
+`category [0 0] has no exported item set … generic path`
+变成
+`selection box 590722589: 1 pick(s) matched the exported source range in category [0 0]: [{10327285 45}]`。
+
 ## 4. 尚未落地（待用户安排）
 
 P3 子项 1（创建补给药水 10418028×30）、3（章节最终领主的章节盒，默认关闭）、4（七章奖励补发）、
