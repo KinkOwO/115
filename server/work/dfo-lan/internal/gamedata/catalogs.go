@@ -8,6 +8,7 @@ import (
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/honeytime"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
 	"encoding/hex"
@@ -66,31 +67,30 @@ type Catalogs struct {
 	Bakal                        *catalog.BakalRaidRules
 	BoostUp                      *boostup.Catalog
 	Attendance                   *attendance.Catalog
-	// AradPass 是战令（阿拉德通行证，活动 516/10005）的原生目录；nil = 源读取失败，
-	// 2209/2210 推送与 680 领奖都按「活动未开启」处理。上游 origin/main 新增。
-	AradPass       *aradpass.Catalog
-	RaidEntrances  map[uint32]catalog.RaidEntrance
-	MazeRates      *catalog.MazeChanceOverlay
-	HellMaps       *catalog.SourceMapOverlay
-	HellRules      *catalog.HellPartyRules
-	Grief          *catalog.TowerGriefOverlay
-	Dazzlement     *catalog.DazzlementOverlay
-	Quests         *catalog.QuestCatalog
-	Progression    *catalog.Progression
-	World          *catalog.WorldCatalog
-	Items          *catalog.ItemIndex
-	ItemBasics     *catalog.ItemBasics
-	Equipment      *inventory.FullEquipmentCatalog
-	AvatarDisjoint *inventory.AvatarDisjointRules
-	AvatarSockets  *inventory.AvatarSocketRules
-	EmblemInlay    *inventory.EmblemInlayRules
-	AvatarRecast   *inventory.AvatarRecastRules
-	EmblemCompound *inventory.EmblemCompoundRules
-	Periods        []uint32
-	Skins          map[uint32]catalog.SkinStorageEntry
-	Journal        *catalog.EquipmentJournalRules
-	CreateCost     *catalog.EquipmentCreateCost
-	Transform      *catalog.EquipmentTransformSystem
+	HoneyTime                    *honeytime.Catalog
+	AradPass                     *aradpass.Catalog
+	RaidEntrances                map[uint32]catalog.RaidEntrance
+	MazeRates                    *catalog.MazeChanceOverlay
+	HellMaps                     *catalog.SourceMapOverlay
+	HellRules                    *catalog.HellPartyRules
+	Grief                        *catalog.TowerGriefOverlay
+	Dazzlement                   *catalog.DazzlementOverlay
+	Quests                       *catalog.QuestCatalog
+	Progression                  *catalog.Progression
+	World                        *catalog.WorldCatalog
+	Items                        *catalog.ItemIndex
+	ItemBasics                   *catalog.ItemBasics
+	Equipment                    *inventory.FullEquipmentCatalog
+	AvatarDisjoint               *inventory.AvatarDisjointRules
+	AvatarSockets                *inventory.AvatarSocketRules
+	EmblemInlay                  *inventory.EmblemInlayRules
+	AvatarRecast                 *inventory.AvatarRecastRules
+	EmblemCompound               *inventory.EmblemCompoundRules
+	Periods                      []uint32
+	Skins                        map[uint32]catalog.SkinStorageEntry
+	Journal                      *catalog.EquipmentJournalRules
+	CreateCost                   *catalog.EquipmentCreateCost
+	Transform                    *catalog.EquipmentTransformSystem
 	// Points 是逐件「套装积分 / 誓约积分」表（setpointinfo.cos / oathpointinfo.cos），
 	// 与 transform 同域装载；服务端算角色总分、推 NOTI2634 时用。
 	Points                                       *catalog.PointRules
@@ -111,6 +111,10 @@ type Catalogs struct {
 	// BoostUp 是活动 662（新手成长胶囊）的原生目录；nil = 该直读域未选中。
 	// Attendance 是活动 331（每日签到）的原生目录；nil = 源读取失败（只降级，不熔断，
 	// 见 catalogs_attendance.go）。
+	// HoneyTime 是活动 313（HoneyTime 每日在线奖励）的原生目录；nil 的语义同 Attendance
+	// （见 catalogs_honeytime.go）。
+	// AradPass 是战令（活动 516，阿拉德通行证）的原生目录；nil 的语义同上
+	// （见 catalogs_aradpass.go —— 只有"当前赛季那一份脚本"会被装配）。
 }
 
 type CatalogInputs struct {
@@ -582,6 +586,8 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		return &result, err
 	}
 	preparePVFAttendance(&result, source)
+	preparePVFHoneyTime(&result, source)
+	preparePVFAradPass(&result, source)
 	if err := preparePVFBoostUp(&result, source, selected, inputs); err != nil {
 		return &result, err
 	}
