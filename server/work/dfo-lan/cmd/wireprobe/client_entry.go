@@ -530,6 +530,21 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			} else {
 				plan.BoostTraining = status
 			}
+			// 665「直升毕业后的挑战」：客户端全程不发 CMD681，面板**只由服务端推的
+			// NOTI2722 渲染** ⇒ 登记与推帧必须挂在进城路径本身，不能等副作用。
+			// 实机 2026-10-11 会话 ..._172251_037171：毕业角色（存档 enrolled=true、
+			// 2639 状态=2）进城全程零条 boost_challenge_* —— 这条调用点又丢了。
+			// 未毕业角色在 ReconcileBoostChallenge 里早退（零写入、body 为 nil），
+			// preparePackets 跳空帧 ⇒ 普通进城序列逐字节不变。
+			challengeCtx, challengeCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			challengeRole, challengeBody, challengeErr := client.boostChallengeEntrySync(challengeCtx, role)
+			challengeCancel()
+			if challengeErr != nil {
+				client.event(map[string]any{"kind": "boost_challenge_restore_error", "character_id": role.ID, "error": challengeErr.Error()})
+			} else {
+				role = challengeRole
+				plan.BoostChallenge = challengeBody
+			}
 		}
 		// 活动 331 每日签到的状态帧（NOTI1379）。**只在 108 表里真有 331 那一行时推**：
 		// 客户端是活动打开时才注册那个 handler（见 event_info_activity.go），
