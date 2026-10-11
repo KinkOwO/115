@@ -87,15 +87,13 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 			return ItemBasics{}, err
 		}
 		needRead := kind == "stackable" || options.Periods || options.Prices
-		readBatch := func(batch []IndexEntry) []itemScriptRead {
-			if !needRead {
-				return nil
-			}
-			return prefetchItemScripts(a, batch, kind)
+		var reads []itemScriptRead
+		if needRead {
+			reads = prefetchItemScripts(a, rows, kind)
 		}
-		err = visitItemScriptBatches(rows, readBatch, func(row IndexEntry, r itemScriptRead) error {
+		for i, row := range rows {
 			if _, dup := out.Index.Items[row.ID]; dup {
-				return fmt.Errorf("item ID %d occurs in both source lists", row.ID)
+				return ItemBasics{}, fmt.Errorf("item ID %d occurs in both source lists", row.ID)
 			}
 			p := row.Path
 			if !strings.HasPrefix(p, kind+"/") {
@@ -106,16 +104,17 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 				entry.Kind = "avatar"
 			}
 			if needRead {
+				r := reads[i]
 				if r.missingScript {
 					out.MissingScripts++
 					if len(out.MissingScriptSamples) < 8 {
 						out.MissingScriptSamples = append(out.MissingScriptSamples, r.err.Error())
 					}
 					out.Index.Items[row.ID] = entry
-					return nil
+					continue
 				}
 				if r.err != nil {
-					return r.err
+					return ItemBasics{}, r.err
 				}
 				cells, raw := r.cells, r.raw
 				out.ScriptsRead++
@@ -135,17 +134,17 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 					script := ItemScript{Item: entry, Cells: cells, Raw: raw, Exact: r.exact}
 					if skinImport != nil {
 						if err := skinImport.consume(script); err != nil {
-							return err
+							return ItemBasics{}, err
 						}
 					}
 					if boosterImport != nil {
 						if err := boosterImport.consume(script); err != nil {
-							return err
+							return ItemBasics{}, err
 						}
 					}
 					for _, consume := range options.Consumers {
 						if err := consume(script); err != nil {
-							return err
+							return ItemBasics{}, err
 						}
 					}
 				}
@@ -163,7 +162,7 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 					if r.exact {
 						costs, err := ItemMaterialCosts(cells)
 						if err != nil {
-							return fmt.Errorf("material script %d: %w", row.ID, err)
+							return ItemBasics{}, fmt.Errorf("material script %d: %w", row.ID, err)
 						}
 						if len(costs) > 0 {
 							materials.Items = append(materials.Items, ItemMaterialEntry{Template: row.ID, Path: p, Materials: costs})
@@ -172,10 +171,6 @@ func ImportItemBasics(a *pvf.Archive, options ItemBasicOptions) (ItemBasics, err
 				}
 			}
 			out.Index.Items[row.ID] = entry
-			return nil
-		})
-		if err != nil {
-			return ItemBasics{}, err
 		}
 	}
 	if err := out.Index.Validate(); err != nil {
@@ -217,37 +212,14 @@ type itemScriptRead struct {
 	err           error
 }
 
-// Keep raw scripts/tokens for only one batch, process it in native LIST order,
-// then release each row before reading the next batch. Parallel batches alone
-// are not a memory bound if their results accumulate across the entire LIST.
-const itemScriptBatchSize = 128
-
-func visitItemScriptBatches(rows []IndexEntry, readBatch func([]IndexEntry) []itemScriptRead, consume func(IndexEntry, itemScriptRead) error) error {
-	for start := 0; start < len(rows); start += itemScriptBatchSize {
-		batch := rows[start:min(start+itemScriptBatchSize, len(rows))]
-		reads := readBatch(batch)
-		for i, row := range batch {
-			var read itemScriptRead
-			if reads != nil {
-				read = reads[i]
-				reads[i] = itemScriptRead{}
-			}
-			if err := consume(row, read); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-// prefetchItemScripts reads and tokenizes only the current bounded batch.
+// prefetchItemScripts reads and tokenizes LIST rows in bounded parallel batches.
 // Results are stored per row so the caller can apply them in source order; the
 // archive read path (FindFile/ReadRaw/TokensFromRaw) is safe for concurrent use.
 // This is the bulk-import hot path, so the parallelism benefits both startup
 // preparation and tests.
 func prefetchItemScripts(a *pvf.Archive, rows []IndexEntry, kind string) []itemScriptRead {
 	out := make([]itemScriptRead, len(rows))
-	workers := min(runtime.GOMAXPROCS(0), 4, len(rows))
+	workers := runtime.GOMAXPROCS(0)
 	if workers < 1 {
 		workers = 1
 	}

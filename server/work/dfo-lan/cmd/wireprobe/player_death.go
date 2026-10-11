@@ -109,19 +109,7 @@ func (c *gameConnection) deathLeave(reason byte, sendFailClear bool) {
 	}
 	w := c.worldState
 	d := w.pilotDeath
-	if d == nil || !w.deathAttemptActive(d.Run, d.Sequence) {
-		return
-	}
-	if w.ownsApocalypseDungeon() {
-		result, err := c.legionState.prepareApocalypseDeathReturn(w, d.Run, d.Sequence)
-		if err != nil {
-			c.event(map[string]any{"kind": "apocalypse_death_return_refused", "reason": err.Error()})
-			return
-		}
-		if c.sendPlan(result.Packets, c.logCharacterResponseBody) != nil {
-			return
-		}
-		c.finishApocalypseDeathReturn(result)
+	if d == nil || !d.Dead || w.activeDungeon == nil {
 		return
 	}
 	// 维纳斯军团口径（2026-10-07 业主要求）：死亡被请离副本后，再次进入同关
@@ -223,12 +211,4 @@ func (w *worldSession) deathAfterSettlement() ([]outboundPacket, error) {
 		{"player_death_ack", 1, 40, []byte{1}},
 		{"player_death_state", 0, 32, body},
 	}, nil
-}
-
-// Timers are bound to one death report. An old timer must not terminate a
-// later death or a new dungeon after a revive, reconnect or room return.
-func (w *worldSession) deathAttemptActive(run string, sequence uint32) bool {
-	return w != nil && w.pilotDeath != nil && w.pilotDeath.Dead &&
-		w.activeDungeon != nil && w.pilotDeath.Run == run &&
-		w.pilotDeath.Sequence == sequence && w.activeDungeon.RunID == run
 }

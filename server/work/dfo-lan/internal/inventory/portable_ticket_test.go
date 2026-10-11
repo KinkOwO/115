@@ -128,13 +128,6 @@ func TestPortableRefineConsumesOneRefiner(t *testing.T) {
 // gearTmpl 注入装备目录；priorType 非 0 时给装备写上红字（增幅前置）。
 func portableGearFixture(t *testing.T, gearTmpl uint32, itemTmpl uint32, itemAmount uint32, ticketSlot uint16, priorType byte) (*WearService, Role) {
 	t.Helper()
-	previous := portableEnhancements
-	t.Cleanup(func() { portableEnhancements = previous })
-	action := "[portable upgrade]"
-	if priorType != 0 {
-		action = "[portable amplify]"
-	}
-	portableEnhancements = map[uint32]reinforcementTicket{itemTmpl: {Fields: map[string][]pvf.Token{"[action type]": {{Type: 6, Text: action}, {Type: 0, Value: 0}, {Type: 0, Value: 14}}}}}
 	c, e := catalog.LoadCharacters("../../configs/characters.next25.json")
 	if e != nil {
 		t.Fatal(e)
@@ -177,7 +170,7 @@ func TestPortableUpgradeReinforcesWithoutGold(t *testing.T) {
 	svc, role := portableGearFixture(t, gearTmpl, 590723097, 1, 106, 0)
 	req := protocol.ReinforcementRequest{
 		Mode: 0, EquipmentSpace: 0, EquipmentSlot: portableTestGearSlot, EquipmentTemplate: gearTmpl,
-		TicketSpace: 0, TicketSlot: 106, MaterialSlot: 0xffff, ProtectionSlot: 0xffff,
+		TicketSpace: 0, TicketSlot: 106, MaterialSlot: 0xffff,
 	}
 	next, _, out, err := svc.ApplyGoldReinforcement(role, json.RawMessage(`{}`), "portable-test", req)
 	if err != nil {
@@ -221,7 +214,7 @@ func TestPortableAmplifyUpgradesWithoutGold(t *testing.T) {
 	svc, role := portableGearFixture(t, gearTmpl, 590723096, 1, 105, 3) // 已有红字类型 3 = 力量
 	req := protocol.ReinforcementRequest{
 		Mode: 1, EquipmentSpace: 0, EquipmentSlot: portableTestGearSlot, EquipmentTemplate: gearTmpl,
-		TicketSpace: 0, TicketSlot: 105, MaterialSlot: 0xffff, ProtectionSlot: 0xffff,
+		TicketSpace: 0, TicketSlot: 105, MaterialSlot: 0xffff,
 	}
 	next, out, err := svc.ApplyAmplifyUpgrade(role, req)
 	if err != nil {

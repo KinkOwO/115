@@ -1,11 +1,5 @@
 # 配置与 PVF 内容归属
 
-## 2026-10-06：攻坚战固定验收配置
-
-`pvf-raid-repair.json` 是运维启动档，固定使用 `bin/wireprobe-raid-repair-20261006.exe` 与当前内层PVF校验值，继承本轮默认档的目录选择和服主政策。内容规则继续直接读取PVF，没有新增玩法表。入口为仓库 `scripts/start-raid-repair-20261006.cmd`；原默认配置保持现状。本档不再依赖 `.tmp` 中的程序或配置。
-
-交付及验收边界见[项目落地记录](../docs/protocol/raid-project-delivery-20261006.txt)，未完成机制见[缺口台账](../docs/todo/pvf/raid-unresolved-20261006.txt)。
-
 ## 玩法规则维护流程
 
 统一遵守根 [AGENTS.md §0.2](../../../../AGENTS.md#02-pvf-脚本驱动与单一规则流程强制2026-10-03-用户确认)。PVF 脚本定义的玩法条件与数值不再复制到 Go 或 policy JSON；本目录的历史导出、测试输入和策略文件按真实用途与来源追踪。源中已有同义字段的 policy 仍是待迁移重复规则，不能因文件名带 policy 就认定应永久人工维护。

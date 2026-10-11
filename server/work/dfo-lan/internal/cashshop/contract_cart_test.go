@@ -103,9 +103,6 @@ func contractCartCatalog(t *testing.T) PilotConfig {
 	if e != nil {
 		t.Fatal(e)
 	}
-	for n := range c.Entries {
-		c.Entries[n].Contracts = fixtureContractRules(t)
-	}
 	return c
 }
 

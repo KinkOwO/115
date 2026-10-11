@@ -311,12 +311,6 @@ func (s *Session) tryComplete() {
 			s.completed = true
 			return
 		}
-		// Source boss rooms with special passive objects can omit CMD117.
-		// Require a real fightable boss and confirmed deaths for every enemy.
-		if s.Loaded && s.atSourceBossMap() && s.hasFightableBoss() && s.roomEnemiesDead() && s.BossRoomSpecialPassive {
-			s.completed = true
-			return
-		}
 		return
 	}
 	if s.Definition.Odyssey || s.Definition.ID == 100003126 {

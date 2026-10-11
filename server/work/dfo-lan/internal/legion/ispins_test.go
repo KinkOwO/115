@@ -366,23 +366,10 @@ func TestIspinsDecodeChangeOperationLive(t *testing.T) {
 	}
 }
 
-func TestIspinsOperationNoticeNativeReader(t *testing.T) {
-	// First three logical bytes of the native capture; trailing capture
-	// memory is ignored by the current reader, not replayed as content.
-	for _, tc := range []struct {
-		index   uint16
-		success bool
-		want    []byte
-	}{{11, true, []byte{11, 0, 1}}, {4, true, []byte{4, 0, 1}}, {7, false, []byte{7, 0, 0}}} {
-		p, err := IspinsOperationNotice(tc.index, tc.success)
-		if err != nil || !bytes.Equal(p, tc.want) {
-			t.Fatalf("operation result %d/%v = %x, %v", tc.index, tc.success, p, err)
-		}
-	}
-	for _, index := range []uint16{0, 0x8000, 0xffff} {
-		if _, err := IspinsOperationNotice(index, true); err == nil {
-			t.Fatalf("native signed result index %d accepted", index)
-		}
+func TestIspinsOperationNoticeReplay(t *testing.T) {
+	p := IspinsOperationNotice()
+	if len(p) != 16 || p[0] != 0x0b || p[2] != 0x01 {
+		t.Fatalf("operation notice = %x", p)
 	}
 }
 

@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "lvyB5EUPfVI=",
+  "success": true,
+  "projectFilePath": "C:\\Game\\dof\\115us\\115\\client-patchs\\nuannuan.shop\\idxtool\\NpkIndexTool.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Ricar\\.nuget\\packages\\microsoft.net.illink.tasks\\10.0.12\\microsoft.net.illink.tasks.10.0.12.nupkg.sha512",
+    "C:\\Users\\Ricar\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\10.0.12\\microsoft.netcore.app.runtime.win-x64.10.0.12.nupkg.sha512",
+    "C:\\Users\\Ricar\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\10.0.12\\microsoft.windowsdesktop.app.runtime.win-x64.10.0.12.nupkg.sha512",
+    "C:\\Users\\Ricar\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\10.0.12\\microsoft.aspnetcore.app.runtime.win-x64.10.0.12.nupkg.sha512"
+  ],
+  "logs": []
+}

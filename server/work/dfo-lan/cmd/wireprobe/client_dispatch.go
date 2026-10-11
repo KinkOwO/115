@@ -52,11 +52,6 @@ var beforeClientTypeDispatch = [...]clientDispatchStage{
 }
 
 var commandDispatch = [...]clientDispatchStage{
-	(*gameConnection).dispatchTitleActorReady,
-	(*gameConnection).dispatchTownRobotContext,
-	(*gameConnection).dispatchTownRobotInspect,
-	(*gameConnection).dispatchTownRobotParty,
-	(*gameConnection).dispatchRaidEntrance,
 	(*gameConnection).dispatchAccountQueries,
 	(*gameConnection).dispatchUnifiedOptions,
 	(*gameConnection).dispatchSessionTransitions,
@@ -72,8 +67,6 @@ var commandDispatch = [...]clientDispatchStage{
 	(*gameConnection).dispatchWorldAndQuests,
 	(*gameConnection).dispatchCharacterEntry,
 	(*gameConnection).dispatchRoster,
-	(*gameConnection).dispatchAttendance,
-	(*gameConnection).dispatchWeekly,
 	// dispatchAttendanceClaim 排在 dispatchBoostEvent 之前：两者都处理 CMD680，
 	// 签到那一站只在载荷里的活动号 == 331 时接管，其余原样放行（见 attendance_claim.go）。
 	(*gameConnection).dispatchAttendanceClaim,
@@ -117,7 +110,6 @@ func (client *gameConnection) dispatch(requestData *clientRequest) dispatchActio
 			return result
 		}
 	}
-	client.logUnhandledRaidRequest(requestData)
 	return dispatchNext
 }
 
@@ -147,14 +139,6 @@ func (client *gameConnection) dispatchFixtureResponse(requestData *clientRequest
 				return dispatchClose
 			}
 		}
-		if requestData.frame.ID == 1 && client.socialProfiles {
-			var e error
-			response, e = socialLoginResponse(client.keys, response)
-			if e != nil {
-				client.event(map[string]any{"kind": "social_login_error", "error": e.Error()})
-				return dispatchClose
-			}
-		}
 		if err := client.output.writeRaw(response); err != nil {
 			client.event(map[string]any{"kind": "write_error", "error": err.Error()})
 			return dispatchClose
@@ -167,10 +151,6 @@ func (client *gameConnection) dispatchFixtureResponse(requestData *clientRequest
 			// 按 opcode 直接分发，无请求等待态依赖。必须在角色/UI包前
 			// 建立时钟，不能等冒险团日期判断已访问空指针后再补发。
 			if requestData.err = client.sendServerTime("登录初始化"); requestData.err != nil {
-				return dispatchClose
-			}
-			if requestData.err = client.sendRankingUserKey(); requestData.err != nil {
-				client.event(map[string]any{"kind": "ranking_identity_error", "error": requestData.err.Error()})
 				return dispatchClose
 			}
 			if client.channelNotice != nil {

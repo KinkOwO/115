@@ -41,3 +41,4 @@ func EquipmentBagSpace(kind string) byte {
 	}
 	return 0
 }
+

@@ -8,7 +8,7 @@ import (
 
 // 座位与房间状态常量（90US 同值）。
 const (
-	SeatCount       = 8
+	SeatCount  = 8
 	Waiting    byte = 1
 	Fighting   byte = 2
 	EmptySeat  byte = 255
@@ -31,12 +31,12 @@ type Identity struct {
 }
 
 type Seat struct {
-	Owner    Identity
-	State    byte
-	Ready    bool
-	Alive    bool
-	Loaded   bool
-	EndAck   bool
+	Owner   Identity
+	State   byte
+	Ready   bool
+	Alive   bool
+	Loaded  bool
+	EndAck  bool
 	TimedOut bool
 }
 

@@ -85,15 +85,11 @@ func (w *worldSession) selectTutorial(requested uint32) (*dungeon.Session, []out
 		return nil, nil, e
 	}
 	w.inTutorial = true
-	plan := []outboundPacket{{"tutorial_select_ack", 1, 16, []byte{1}}}
-	// Tutorial selection bypasses dungeonEntryPlan; install the same actor
-	// appearance before NOTI29 constructs the first-room player.
-	plan = append(plan, w.dungeonActorEntryPackets(nil)...)
-	plan = append(plan,
-		outboundPacket{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: requested, Maze: s.Maze.Index, Boss: s.Maze.Boss})},
-		outboundPacket{"dungeon_start_map_sent", 0, 29, start},
-	)
-	return s, plan, nil
+	return s, []outboundPacket{
+		{"tutorial_select_ack", 1, 16, []byte{1}},
+		{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: requested, Maze: s.Maze.Index, Boss: s.Maze.Boss})},
+		{"dungeon_start_map_sent", 0, 29, start},
+	}, nil
 }
 
 // settleTutorialReturn closes the starting route once, on whichever way out

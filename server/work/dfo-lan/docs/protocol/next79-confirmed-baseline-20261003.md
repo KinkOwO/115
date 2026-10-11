@@ -235,13 +235,3 @@ CHANGELOG及confirmed baseline按本次单次快速进入/APC出现收口；原0
 **bug 测试取证**：052039_400634_next37 / PID8980 / runTick18168984，冻结[2,1,4]；Type99的venus_1phase原N28/N29见events2231/2233，整场五个原生新加载周期均三名登记result1，已观察正常退出。完整go build ./...、go vet ./...、go test ./... -count=1通过（4116通过/273跳过，基线与新增失败为空），真实PVF全部发布行及采集夹具通过。已fetch实际远端gud/main，提交前0/0；候选二进制、运行日志和其他工作区改动不入库。
 
 独立拟提交源码另行完整build/vet/test退出0（4008通过/289跳过，失败及新增失败为空），只叠加本任务Go文件，保留原mods与本机login_ok.bin测试上下文；没有依赖或提交其他未跟踪源码。
-
-## 精锐已解封装备加载与剧情 APC 出现确认（服务端0.3.20）
-
-**已修复 / 已完成**：业主确认“确认APC出现，可以提交”。猛毒雷鸣废墟剧情入场原先缺APC，是CMD1811因bash穿戴100060157实例的随机属性块被拒绝。TagEquipment现在按1452C19F0→1451AA420原生reader编码非空属性列表，已保存的014a000010000017000002ff00000000投影为014a101702ff；沿用原解封与存档规则，不修改装备、技能、角色或名单。来源与逐字节reader证据见 analysis/tasks/adventure-elite-random-options-candidate-20261011.json，验收记录见 analysis/tasks/adventure-elite-random-options-confirmed-20261011.json。
-
-**bug 测试取证**：043715_391804_next37 / PID22488 / runTick15202078。events203冻结[4,1,5]并接受原CMD1811，204/206实际发送N1382/N1879；资料10476字节中偏移3620包含014a101702ff，原生N1382第7行after remaining=0/readerSuccess=1，N1879第11行after weakAlive=3/weakStrong=[1,1,1]。events240进入副本6/map76141，首房loader-after为sceneVectorMatches=[1,1,1]，原生各三名登记result1。当前工作树build/vet/全量测试退出0（4264通过/276跳过，失败及新增失败空），临时SQLite与真实PVF三名现存队友编码通过。候选95dc56bb，DLL0.3.15仍8180378b，启动器与默认程序保持原哈希。
-
-**未修复 / 未闭环**：只确认本次已解封装备导致的资料加载与APC出现，不扩大为属性伤害收益、完整死亡覆盖、全部剧情/特殊副本或真人多人机制。非FF特殊属性替换分支及其它未消费实例字段继续明确拒绝。采集run.json缺失、正常退出未观察、死亡数量不一致及allFreshEntriesRegistered=false原样保留，不将首房局部成功写成battleVerified。无PVF、SQLite/schema或玩家存档修改，二进制和日志不提交。
-
-独立拟提交源码另行build/vet/全量测试退出0（4155通过/293跳过，无失败及新增失败），仅叠加本任务五份Go文件，原mods与本机login_ok.bin仅保留为测试上下文。没有依赖其他未跟踪源码。提交前fetch实际远端gud/main无待合并更新；本机无origin/fork，门禁通过。

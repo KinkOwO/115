@@ -97,7 +97,7 @@ func biddingCount(rows []catalog.BakalBiddingHard, hard bool) (int, error) {
 	return 0, fmt.Errorf("source bidding difficulty missing")
 }
 
-func (s *NativeBakalRewardService) drawBiddingItems(hard bool) ([]catalog.NativeBakalRewardEntry, error) {
+func (s *BakalRewardService) drawBiddingItems(hard bool) ([]catalog.BakalRewardEntry, error) {
 	b := s.Rules.Bidding
 	count, e := biddingCount(b.Hards, hard)
 	if e != nil {
@@ -107,7 +107,7 @@ func (s *NativeBakalRewardService) drawBiddingItems(hard bool) ([]catalog.Native
 	if hard {
 		difficulty = 1
 	}
-	var pool []catalog.NativeBakalRewardEntry
+	var pool []catalog.BakalRewardEntry
 	var weights []catalog.BakalBiddingRate
 	for _, item := range b.Items {
 		if item.Difficulty == difficulty {
@@ -115,7 +115,7 @@ func (s *NativeBakalRewardService) drawBiddingItems(hard bool) ([]catalog.Native
 			pool = append(pool, item)
 		}
 	}
-	var items []catalog.NativeBakalRewardEntry
+	var items []catalog.BakalRewardEntry
 	for i := 0; i < count; i++ {
 		pick, e := drawBakalBidding(weights)
 		if e != nil {
@@ -146,14 +146,14 @@ func (s *NativeBakalRewardService) drawBiddingItems(hard bool) ([]catalog.Native
 		if row.Values != [5]int{} {
 			return nil, fmt.Errorf("unbound native weekly bidding item values")
 		}
-		items = append(items, catalog.NativeBakalRewardEntry{Category: "weekly_bidding", Template: row.Template, Weight: uint32(row.Weight), Amount: 1, Difficulty: difficulty})
+		items = append(items, catalog.BakalRewardEntry{Category: "weekly_bidding", Template: row.Template, Weight: uint32(row.Weight), Amount: 1, Difficulty: difficulty})
 	}
 	return items, nil
 }
 
 // FreezeBidding authenticates against the durable eligible clear receipt.
 // Draws and resolved products commit once; reconnect/retry never redraws.
-func (s *NativeBakalRewardService) FreezeBidding(ctx context.Context, role database.Character, run string, hard bool, now time.Time) (BakalBiddingPlan, database.Character, error) {
+func (s *BakalRewardService) FreezeBidding(ctx context.Context, role database.Character, run string, hard bool, now time.Time) (BakalBiddingPlan, database.Character, error) {
 	if s == nil || s.Store == nil || s.Rules == nil || s.Loot == nil || run == "" {
 		return BakalBiddingPlan{}, role, fmt.Errorf("bidding source missing")
 	}
@@ -161,7 +161,7 @@ func (s *NativeBakalRewardService) FreezeBidding(ctx context.Context, role datab
 	if e != nil {
 		return BakalBiddingPlan{}, role, e
 	}
-	var clear NativeBakalRewardPlan
+	var clear BakalRewardPlan
 	if e = json.Unmarshal(raw, &clear); e != nil {
 		return BakalBiddingPlan{}, role, e
 	}
@@ -202,7 +202,7 @@ func (s *NativeBakalRewardService) FreezeBidding(ctx context.Context, role datab
 // handler or a timer policy. The future verified controller selects the won
 // lot/price. Gold and the source reward commit together; sold lots cannot be
 // bought again, and event replay restores the original payout.
-func (s *NativeBakalRewardService) PurchaseBiddingLot(ctx context.Context, role database.Character, run string, lot int, price uint32, now time.Time) (database.Character, BakalBiddingLot, error) {
+func (s *BakalRewardService) PurchaseBiddingLot(ctx context.Context, role database.Character, run string, lot int, price uint32, now time.Time) (database.Character, BakalBiddingLot, error) {
 	if s == nil || s.Store == nil || s.Loot == nil || s.Rules == nil || run == "" || lot < 0 || price == 0 {
 		return role, BakalBiddingLot{}, fmt.Errorf("invalid bidding purchase")
 	}

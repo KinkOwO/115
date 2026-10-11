@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/sha256"
-	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
@@ -65,31 +64,11 @@ func mailboxFailure(id uint16, err error) []byte {
 	return protocol.Refusal(code)
 }
 
-// The current client's normal-mail view adds its retention window to the
-// wire timestamp. Derive the timestamp from the persisted deadline so existing
-// mail keeps exactly the same expiry without rewriting or redelivering it.
-func mailWireSentAt(m database.MailMessage) uint32 {
+func mailRemaining(m database.MailMessage, now time.Time) uint32 {
 	if m.Status == 3 {
 		return 0
 	}
-	sentAt := m.ExpiresAt.Add(-time.Duration(mail.RetentionDays) * 24 * time.Hour).Unix()
-	return uint32(max(0, min(sentAt, int64(math.MaxUint32))))
-}
-
-// Rewrite only the mail identified by the durable reward event, in a copy.
-// Player mail with similar wording must never be treated as a system reward.
-func maxLevelRewardMailDisplay(messages []database.MailMessage, mailID int64, reward *catalog.MaxLevelReward, levelCap byte) []database.MailMessage {
-	if mailID <= 0 || reward == nil || levelCap < 2 {
-		return messages
-	}
-	for i, m := range messages {
-		if m.ID == mailID && m.SenderID == 0 {
-			copy := append([]database.MailMessage(nil), messages...)
-			copy[i].Text = reward.TextForLevelCap(levelCap)
-			return copy
-		}
-	}
-	return messages
+	return uint32(max(0, min(int64(m.ExpiresAt.Sub(now)/time.Second), math.MaxUint32)))
 }
 
 // 正文编号同时作为附件组编号；金币先列出，原生组构造器由首行建立金币槽。
@@ -102,8 +81,8 @@ func mailboxSnapshot(messages []database.MailMessage) ([]outboundPacket, error) 
 		if m.Deleted || (m.Status != 3 && !m.ExpiresAt.After(now)) {
 			continue
 		}
-		sentAt := mailWireSentAt(m)
-		letter := protocol.MailTextView{ID: uint64(m.ID), Sender: m.SenderName, Text: m.Text, SentAt: sentAt, Status: m.Status}
+		remaining := mailRemaining(m, now)
+		letter := protocol.MailTextView{ID: uint64(m.ID), Sender: m.SenderName, Text: m.Text, Remaining: remaining, Status: m.Status}
 		if _, err := protocol.MailboxList(nil, []protocol.MailTextView{letter}, 1); err != nil {
 			log.Printf("mail %d skipped: %v", m.ID, err)
 			continue
@@ -120,7 +99,7 @@ func mailboxSnapshot(messages []database.MailMessage) ([]outboundPacket, error) 
 			if a.Claimed {
 				continue
 			}
-			v := protocol.MailAttachmentView{ID: uint64(a.ID), MessageID: uint64(m.ID), Sender: m.SenderName, Gold: a.Gold, SentAt: sentAt}
+			v := protocol.MailAttachmentView{ID: uint64(a.ID), MessageID: uint64(m.ID), Sender: m.SenderName, Gold: a.Gold, Remaining: remaining}
 			if len(a.Item) != 0 {
 				var item inventory.MailItem
 				if err := json.Unmarshal(a.Item, &item); err != nil {
@@ -241,18 +220,6 @@ func (w *worldSession) handleMailbox(ctx context.Context, selected int64, id uin
 		messages, err := store.Mailbox(ctx, w.account, selected)
 		if err != nil {
 			return nil, 0, err
-		}
-		if w.progression != nil && w.progression.MaxLevelReward != nil {
-			// Old letters retain their original content in storage. Resolve the
-			// system letter's identity from its receipt and update its display only.
-			if raw, receiptErr := store.CharacterEventReceipt(ctx, w.account, selected, database.MaxLevelRewardMailEvent); receiptErr == nil {
-				var receipt struct {
-					MailID int64 `json:"mail_id"`
-				}
-				if json.Unmarshal(raw, &receipt) == nil {
-					messages = maxLevelRewardMailDisplay(messages, receipt.MailID, w.progression.MaxLevelReward, w.progression.Rules.LevelCap)
-				}
-			}
 		}
 		packets, err := mailboxSnapshot(messages)
 		packets = append(packets, outboundPacket{"mailbox_open_ready", 1, 96, protocol.MailboxOpenReady(uint16(len(messages)))})

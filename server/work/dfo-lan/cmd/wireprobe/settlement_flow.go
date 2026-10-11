@@ -49,9 +49,6 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	if w != nil && w.activeDungeon != nil && w.isDimCloisterChannel() {
 		return nil, nil
 	}
-	if w.ownsApocalypseDungeon() {
-		return nil, fmt.Errorf("apocalypse run has no ordinary settlement")
-	}
 	// [ISPINS-ARENA-BOSS] 伊斯大陆会话的 CMD46 整包吞掉：官服 s4 实证
 	// （c2s 帧 338/393/442/489）每阶段 boss 死亡后客户端都会发 141B 的
 	// 通用结算请求，但官服对它没有任何专门应答（s2c 全流无 kind=1 id=46；
@@ -79,20 +76,7 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	if w == nil || w.progression == nil || w.activeDungeon == nil || !w.activeDungeon.Completed() || !w.completionSent {
 		return nil, fmt.Errorf("result before committed boss completion")
 	}
-	var r protocol.PlayResultRequest
-	var e error
-	if party := w.townRobotPartySnapshot(); party != nil && party.dungeon && w.townRobotDungeonChannelAllowed() {
-		// CMD46 reports every ordinary player entity, including local robots.
-		// Authorize the exact owned instance roster before any reward transaction;
-		// only this connection's real character receives experience/cards.
-		actors := []uint16{w.role.WireID}
-		for _, bot := range party.bots {
-			actors = append(actors, bot.peer.actorID)
-		}
-		r, e = protocol.DecodePartyPlayResult115(p, w.role.WireID, actors)
-	} else {
-		r, e = protocol.DecodePlayResult(p)
-	}
+	r, e := protocol.DecodePlayResult(p)
 	if e != nil {
 		return nil, e
 	}
@@ -278,12 +262,6 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 		if restore, e := w.characters.EntrySkills(role); e == nil {
 			plan = append(plan, outboundPacket{"skill_state_restored", 0, 19, restore})
 			plan, e = appendSkillPresetRestore(plan, w.characters, role, "skill_preset_restored_after_settlement")
-			if e != nil {
-				return nil, e
-			}
-			// NOTI19 rebuilds the skill view. Replay the saved dark-knight
-			// arrangement with the verified NOTI433 layout after its preset.
-			plan, e = appendComboSkillRestore(plan, w.characters, role)
 			if e != nil {
 				return nil, e
 			}

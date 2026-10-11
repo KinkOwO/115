@@ -66,17 +66,8 @@ func (w *worldSession) selectSkin(p []byte, event func(map[string]any)) ([]outbo
 		record["skin_keys"] = request.SkinIDs
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		frames, err := skinFamilySelectionFrame(ctx, w.store, w.role.ID, w.role.AccountID,
+		return skinFamilySelectionFrame(ctx, w.store, w.role.ID, w.role.AccountID,
 			w.skinCatalog, request, p, record, event)
-		if err != nil || request.Category != protocol.SkinCategoryPartyFrame {
-			return frames, err
-		}
-		refresh, err := w.profileFrameRefresh()
-		if err != nil {
-			event(map[string]any{"kind": "profile_frame_refresh_failed", "character_id": w.role.ID, "reason": err.Error()})
-			return frames, nil
-		}
-		return append(frames, refresh...), nil
 	}
 	// The 武器外观 tab belongs to the replication path, not to this one. Its 应用 is
 	// the same 88-byte frame under the weapon-shape category, and the client's own

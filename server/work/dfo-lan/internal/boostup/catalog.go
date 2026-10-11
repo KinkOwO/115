@@ -11,15 +11,25 @@ const ScriptPath = "live/event/kor/2026/0326_boostup/boostup.evt"
 const GiftPath = "event/eventgift.evt"
 const EventID uint32 = 662
 
-// EventEnd is the local operator's permanent availability policy for
-// 662/10017/10018 (start=0). It is not a PVF gameplay/reward definition.
-// Keep the existing timestamp contract and use its safe signed-32-bit horizon
-// (2038-01-19 UTC), rather than inventing an unverified zero/-1 sentinel.
-// The server has no seasonal shutdown or claim reset; extending transport
-// beyond this horizon requires separate native timestamp evidence.
+// EventStart/EventEnd 是 NOTI108 活动清单里 662/665/10017/10018 的窗口。
+//
+// 这两个数**逐字取自官服抓包**（`internal/legion/event_info_official.plain`，同一套
+// 115 客户端）里同 id 的那几条记录：662 @0x117c、665 @0x16ad、2595、10017、10018
+// 全部是 `start=1785801600 / end=179490599x`（10017/10018 的终点差几秒）。
+//
+// 订正（2026-10-06）：原来的注释写「源脚本不含活动上下线日期」，这是错的 ——
+// `boostup.evt` 与 `boostupspecupchallenge.evt` 都带
+// `[event period] 2026-08-04 09:00:00 / 2026-11-17 09:00:01`，也就是官服这几个
+// epoch 对应的那一段日历（起点按 KST 折算是精确相等的；终点官服自己就提前了几秒到
+// 几小时，没有可证的时间区规则）。所以这里不把日期搬进 PVF 直读：源里有定义但没有
+// 可信的「脚本字符串 → wire epoch」折算证据，硬编一套时区规则反而成了第二条真源
+// （§0.2 第 4 条：证据未闭环时不得用新常量补成规则）。上下线窗口按运维参数处理，
+// 但**取值必须与官服一致**：原先起点写 0（"无限制"）是本树与官服那几条记录之间
+// 剩下的唯一字段差异，2026-10-06「665 城里没有入口」的取证就是顺着这条差异查的。
+// 换期只改这两行，不在协议层另铺一张表。
 const (
-	EventStart uint32 = 0
-	EventEnd   uint32 = 1<<31 - 1
+	EventStart uint32 = 1785801600
+	EventEnd   uint32 = 1794905999
 )
 
 type Reward struct{ Item, Count uint32 }
@@ -47,7 +57,6 @@ type PresetCode struct {
 }
 type Catalog struct {
 	TeachingAPCs           []TeachingAPC // same-source special APC references, not account characters
-	TrainingAPCs           []TrainingAPC
 	ChallengeBuffs         []ChallengeBuff
 	Challenges             []ChallengeDefinition
 	ChallengeLevelRewards  map[byte]Reward

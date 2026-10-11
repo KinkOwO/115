@@ -117,7 +117,6 @@ func (s *equipmentSession) handle(service *workflow.WearService, w *worldSession
 			plan = append(plan, outboundPacket{"equipment_weapon_swap_appearance_refreshed", 0, 2, probe})
 		}
 		w.role = saved
-		plan = append(plan, w.oathPointPackets()...)
 		return plan, nil
 	}
 	b, e := inventory.ReadBag(saved.State)
@@ -227,9 +226,6 @@ func (s *equipmentSession) handle(service *workflow.WearService, w *worldSession
 		plan = append(plan, outboundPacket{"equipment_appearance_refreshed", 0, 2, probe})
 	}
 	w.role = saved
-	if r.SourceList == 3 || r.DestinationList == 3 {
-		plan = append(plan, w.oathPointPackets()...)
-	}
 	if (r.SourceList == 3 && r.SourceSlot == 26) || (r.DestinationList == 3 && r.DestinationSlot == 26) {
 		loyaltyCtx, loyaltyCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		loyaltyPackets, loyaltyErr := w.refreshCreatureLoyalty(loyaltyCtx, time.Now(), w.activeDungeon != nil)

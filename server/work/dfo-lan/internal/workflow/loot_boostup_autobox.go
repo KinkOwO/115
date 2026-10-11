@@ -3,8 +3,8 @@ package workflow
 import (
 	"context"
 	"dfolan/internal/boostup"
-	"dfolan/internal/database"
 	"dfolan/internal/loot"
+	"dfolan/internal/database"
 	"encoding/json"
 	"fmt"
 )

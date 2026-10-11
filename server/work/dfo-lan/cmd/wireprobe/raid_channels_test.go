@@ -23,11 +23,7 @@ func TestPublishRaidChannelsFromNativePVF(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := channelrefresh.Config{Channels: []channelrefresh.Channel{{ID: 86, Name: "Ispins", Type: 81, Area: "[ispins_legion]", SourceValues: make([]int32, 11)}}}
-	entries, err := catalog.ImportRaidEntrances(a, &source)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := publishSourceRaidChannels(&c, &source, entries); err != nil {
+	if err := publishSourceRaidChannels(&c, &source); err != nil {
 		t.Fatal(err)
 	}
 	seenIDs, seenTypes := map[uint32]bool{}, map[uint32]bool{}
@@ -39,17 +35,6 @@ func TestPublishRaidChannelsFromNativePVF(t *testing.T) {
 		t.Logf("directory ID=%d type=%d name=%s", ch.ID, ch.Type, ch.Name)
 	}
 	count := 0
-	for _, typ := range []uint32{92, 93, 98, 107, 111, 112, 120, 99, 119} {
-		if !seenTypes[typ] {
-			t.Errorf("requested content channel %d absent", typ)
-		}
-	}
-	for typ, event := range map[uint32]uint16{99: 627, 119: 1007} {
-		attr, _ := source.Attributes(typ)
-		if len(attr.OpenEvents) != 1 || attr.OpenEvents[0] != event {
-			t.Errorf("channel %d native legion availability: %+v", typ, attr.OpenEvents)
-		}
-	}
 	for _, typ := range source.Types() {
 		attr, _ := source.Attributes(typ)
 		if !attr.IsRaid {

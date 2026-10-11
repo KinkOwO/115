@@ -125,15 +125,15 @@ func conquestFlipPolicy(svc *loot.Service, family []catalog.DungeonDefinition, s
 		Source:            svc.Catalog.Source.SaveIdentity(),
 		SettlementDungeon: settlement.ID,
 		Block:             block,
-		Fixed:             loot.MoonSourceFixedChoices(fixedMembers, conquestObservedFixedCounts[settlement.ID]),
+		Fixed:         loot.MoonSourceFixedChoices(fixedMembers, conquestObservedFixedCounts[settlement.ID]),
 		// 品级→模板（优先走这条）；源模板建不出品级摊平时才退回 EquipmentPool 的 Roll 路径。
 		RarityPool:       rarityPool,
 		EquipmentPool:    equipPool,
 		OathPool:         oathPool,
 		SetEquipmentPool: setPool,
 		KeepAsIs:         keepAsIs,
-		Level:            byte(settlement.MinimumLevel),
-		Rank:             moonSoloEquipmentRank,
+		Level:         byte(settlement.MinimumLevel),
+		Rank:          moonSoloEquipmentRank,
 		// ⚠️ 2026-10-09 纠正：`ConquestClearReward115` 里的 `[8]` 是**座位数**（多人组队每人一组），
 		// 每个座位的产物是**变长列表**，真实上限是 `len(...) > 126` 才拒绝 —— 而每件产物在客户端
 		// 就是**独立一格**（业主 + 玩家实证）。所以这里不是 8 个格子，而是 126 件的帧上限。

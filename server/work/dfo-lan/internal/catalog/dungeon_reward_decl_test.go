@@ -75,10 +75,10 @@ func TestRewardDeclarationsReadBothBlocks(t *testing.T) {
 		t.Fatalf("基础产物条数 = %d，期望 5", len(first.Special))
 	}
 	want := []struct {
-		name   string
-		rate   uint32
-		list   uint32
-		group  uint32
+		name  string
+		rate  uint32
+		list  uint32
+		group uint32
 		custom bool
 	}{
 		{"SetEquipmentReward", 320, 10326880, 21279, false},
@@ -161,11 +161,11 @@ func TestRewardDeclarationsRejectShiftedShapes(t *testing.T) {
 
 func TestStringKey(t *testing.T) {
 	cases := map[string]string{
-		"<13::name_10326880>":                  "name_10326880",
+		"<13::name_10326880>":               "name_10326880",
 		"<2::MonsterCard_ExpectationReward_0>": "MonsterCard_ExpectationReward_0",
-		"plain":                                "",
-		"<no-separator>":                       "",
-		"":                                     "",
+		"plain":                             "",
+		"<no-separator>":                    "",
+		"":                                  "",
 	}
 	for in, want := range cases {
 		if got := stringKey(in); got != want {

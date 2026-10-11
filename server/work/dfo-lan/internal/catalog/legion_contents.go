@@ -33,24 +33,23 @@ type LegionContents struct {
 }
 
 type LegionContent struct {
-	NativeOperations *NativeLegionOperations `json:"native_operations,omitempty"`
-	Name             string                  `json:"name"`
-	LimitLevel       int64                   `json:"limit_level"`
-	LastPhase        int64                   `json:"last_phase"`
-	NeedFatigue      int64                   `json:"need_fatigue"`
-	Recruiting       LegionAreaPoint         `json:"recruiting_area"`
-	Waiting          LegionAreaPoint         `json:"waiting_area"`
-	MovieTime        int64                   `json:"movie_time"`
-	SelectLimit      int64                   `json:"operation_select_limit_seconds"`
-	QuestIndex       []int64                 `json:"quest_index"`
-	Dungeons         []LegionDungeon         `json:"dungeon_info_data"`
-	WeeklyEnter      int64                   `json:"weekly_enter_count"`
-	PhaseReward      int64                   `json:"phase_reward_count"`
-	EnterData        []LegionEnterRow        `json:"enter_data"`
-	InCountIndex     int64                   `json:"incount_dungeon_index"`
-	UIInts           map[string]int64        `json:"ui_int_list"`
-	Rewards          []LegionRewardRow       `json:"reward_data"`
-	TingRewards      []LegionRewardRow       `json:"ting_reward_data"`
+	Name         string            `json:"name"`
+	LimitLevel   int64             `json:"limit_level"`
+	LastPhase    int64             `json:"last_phase"`
+	NeedFatigue  int64             `json:"need_fatigue"`
+	Recruiting   LegionAreaPoint   `json:"recruiting_area"`
+	Waiting      LegionAreaPoint   `json:"waiting_area"`
+	MovieTime    int64             `json:"movie_time"`
+	SelectLimit  int64             `json:"operation_select_limit_seconds"`
+	QuestIndex   []int64           `json:"quest_index"`
+	Dungeons     []LegionDungeon   `json:"dungeon_info_data"`
+	WeeklyEnter  int64             `json:"weekly_enter_count"`
+	PhaseReward  int64             `json:"phase_reward_count"`
+	EnterData    []LegionEnterRow  `json:"enter_data"`
+	InCountIndex int64             `json:"incount_dungeon_index"`
+	UIInts       map[string]int64  `json:"ui_int_list"`
+	Rewards      []LegionRewardRow `json:"reward_data"`
+	TingRewards  []LegionRewardRow `json:"ting_reward_data"`
 
 	// Complete/Missing 报告"入口侧消费需要的字段"是否齐全。源里各内容块的字段并不一致，
 	// 所以目录忠实取值、由使用方按 Complete 把关，而不是在这里假装整张表都齐。
@@ -86,7 +85,6 @@ type LegionEnterRow struct {
 
 // LegionRewardRow 是 [reward data]/[ting reward data] 的一行：难度、档位、权重、物品、数量。
 type LegionRewardRow struct {
-	PartyType  string  `json:"party_type,omitempty"`
 	Difficulty string  `json:"difficulty"`
 	Kind       string  `json:"kind"`
 	Values     []int64 `json:"values"`
@@ -134,9 +132,6 @@ func ImportLegionContents(a *pvf.Archive) (LegionContents, error) {
 		return out, e
 	}
 	out.Contents, e = ParseLegionContents(text)
-	if e == nil {
-		e = importNativeLegionOperations(a, out.Contents)
-	}
 	return out, e
 }
 
@@ -425,31 +420,29 @@ func (b *legionBlock) enterRows() ([]LegionEnterRow, error) {
 }
 
 func (b *legionBlock) rewardRows(name string) ([]LegionRewardRow, error) {
+	c := b.child(name)
+	if c == nil {
+		return nil, nil
+	}
 	var out []LegionRewardRow
-	for _, c := range b.children {
-		if c.name != name {
+	for _, section := range c.children {
+		if section.name != "data" {
 			continue
 		}
-		party, _ := c.stringField("party type")
-		for _, section := range c.children {
-			if section.name != "data" {
-				continue
+		for _, line := range section.lines {
+			f := strings.Fields(line)
+			if len(f) < 2 {
+				return nil, fmt.Errorf("[%s] row %q", name, line)
 			}
-			for _, line := range section.lines {
-				f := strings.Fields(line)
-				if len(f) < 2 {
-					return nil, fmt.Errorf("[%s] row %q", name, line)
+			row := LegionRewardRow{Difficulty: strings.Trim(f[0], "`"), Kind: strings.Trim(f[1], "`")}
+			for _, s := range f[2:] {
+				n, e := strconv.ParseInt(s, 10, 64)
+				if e != nil {
+					return nil, fmt.Errorf("[%s] value %q", name, s)
 				}
-				row := LegionRewardRow{PartyType: party, Difficulty: strings.Trim(f[0], "`"), Kind: strings.Trim(f[1], "`")}
-				for _, s := range f[2:] {
-					n, e := strconv.ParseInt(s, 10, 64)
-					if e != nil {
-						return nil, fmt.Errorf("[%s] value %q", name, s)
-					}
-					row.Values = append(row.Values, n)
-				}
-				out = append(out, row)
+				row.Values = append(row.Values, n)
 			}
+			out = append(out, row)
 		}
 	}
 	return out, nil

@@ -11,7 +11,6 @@ param(
     [string]$Python = 'D:\ProgramFiles\Python310\python.exe',
     [switch]$WithServer,
     [string]$ClientExe,
-    [string]$CandidateDirectory,
     [string]$Go = (Join-Path $env:USERPROFILE 'go\pkg\mod\golang.org\toolchain@v0.0.1-go1.26.0.windows-amd64\bin\go.exe')
 )
 $ErrorActionPreference = 'Stop'
@@ -19,11 +18,6 @@ $taskRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location -LiteralPath $taskRoot
 $patchDir = Join-Path $taskRoot 'client-patchs\adventure-elite'
 $distDir = Join-Path $patchDir 'dist'
-if ($CandidateDirectory) {
-    $candidatePath = [IO.Path]::GetFullPath($CandidateDirectory)
-    if (!$candidatePath.StartsWith($distDir + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw '候选目录必须位于补丁 dist 内。' }
-    $distDir = $candidatePath
-}
 if (!(Test-Path -LiteralPath $VCVars) -or !(Test-Path -LiteralPath $Python)) {
     throw '缺少 MSVC x64 环境或 Python；请用 -VCVars / -Python 指定。'
 }
@@ -56,7 +50,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw '通知观察机制测试构建失败。' }
     & (Join-Path $distDir 'notification-observer-test.exe')
     if ($LASTEXITCODE -ne 0) { throw '通知观察机制测试失败。' }
-    foreach ($testName in @('preparation-state-test', 'preparation-hook-test', 'trace-record-test', 'lifecycle-snapshot-test', 'lifecycle-trace-test', 'native-completion-test', 'entry-trace-test', 'combat-trace-test', 'combat-ownership-test', 'catchup-policy-test')) {
+    foreach ($testName in @('preparation-state-test', 'preparation-hook-test', 'trace-record-test', 'lifecycle-snapshot-test', 'lifecycle-trace-test', 'native-completion-test', 'entry-trace-test', 'combat-trace-test', 'combat-ownership-test')) {
         $compilePreparation = 'call "' + $VCVars + '" >nul && cl /nologo /std:c++17 /W4 /WX /O2 /MT /utf-8 "' + (Join-Path $patchDir ('src\' + $testName + '.cpp')) + '" /Fe:' + $testName + '.exe /Fo:' + $testName + '.obj' + $hookObjects + ' /link /INCREMENTAL:NO'
         & cmd.exe /d /s /c $compilePreparation
         if ($LASTEXITCODE -ne 0) { throw ($testName + ' build failed.') }
@@ -78,7 +72,7 @@ try {
     if (!(Test-Path -LiteralPath $ClientExe -PathType Leaf)) { throw 'Missing client bytes for offline startup fixture; specify -ClientExe.' }
     & (Join-Path $distDir 'registration-startup-test.exe') $ClientExe
     if ($LASTEXITCODE -ne 0) { throw ('Registration startup fixture failed: ' + $LASTEXITCODE) }
-    & $Python (Join-Path $patchDir 'build-mod.py') --dist $distDir
+    & $Python (Join-Path $patchDir 'build-mod.py')
     if ($LASTEXITCODE -ne 0) { throw 'mod 打包失败。' }
     Write-Host '资格 DLL 构建、机制测试和打包完成；包未安装。'
 } finally { Pop-Location }
@@ -105,8 +99,7 @@ if ($WithServer) {
 
 # Candidate identity accompanies the DLL. CheckOnly can validate without launching.
 $artifactRows = @()
-$dllRelativePath = $distDir.Substring($taskRoot.Length + 1).Replace('\','/') + '/AdventureElite.dll'
-foreach ($artifactPath in @($dllRelativePath, 'server/work/dfo-lan/bin/wireprobe-handoff-source.exe', 'server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe')) {
+foreach ($artifactPath in @('client-patchs/adventure-elite/dist/AdventureElite.dll', 'server/work/dfo-lan/bin/wireprobe-handoff-source.exe', 'server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe')) {
     $artifactFile = Join-Path $taskRoot $artifactPath
     $artifactHash = if (Test-Path -LiteralPath $artifactFile -PathType Leaf) { (Get-FileHash -LiteralPath $artifactFile -Algorithm SHA256).Hash.ToLowerInvariant() } else { '' }
     $artifactRows += [ordered]@{ path = $artifactPath; sha256 = $artifactHash }
@@ -118,5 +111,5 @@ foreach ($resourcePath in @('client/DFO.exe', 'client/Script.pvf', 'client/sk.da
         $resourceRows += [ordered]@{ path = $resourcePath; bytes = (Get-Item -LiteralPath $resourceFile).Length; sha256 = (Get-FileHash -LiteralPath $resourceFile -Algorithm SHA256).Hash.ToLowerInvariant() }
     }
 }
-$buildIdentity = [ordered]@{ version = '0.3.15'; changeFrom030 = 'native-path-and-scene-apc-catchup-candidate'; apcCatchupAttempt = '3/3'; apcCatchupScopedCorrection = 'native-retention-reactivation-authorized'; serverCandidateStage = 'ordinary-reentry'; serverCandidateAttempt = '1/3'; registrationReentryAttempt = '2/3'; generatedAt = [DateTime]::UtcNow.ToString('o'); artifacts = $artifactRows; resources = $resourceRows }
+$buildIdentity = [ordered]@{ version = '0.3.10'; changeFrom030 = 'ordinary-owned-combat-candidate'; serverCandidateStage = 'ordinary-reentry'; serverCandidateAttempt = '1/3'; registrationReentryAttempt = '2/3'; generatedAt = [DateTime]::UtcNow.ToString('o'); artifacts = $artifactRows; resources = $resourceRows }
 [IO.File]::WriteAllText((Join-Path $distDir 'adventure-elite-build.json'), ($buildIdentity | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding($false)))

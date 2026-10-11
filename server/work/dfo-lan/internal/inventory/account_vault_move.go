@@ -76,23 +76,6 @@ func accountVaultItemAllowed(item VaultItem, items catalog.LootCatalog, equipmen
 		if !ok || def.Kind != "stackable" || strings.Contains(def.StackableType, "quest") {
 			return fmt.Errorf("物品不属于可存入账号金库的普通物品")
 		}
-		if item.WeaponShape != 0 {
-			script, err := items.ItemScript(item.Template)
-			if err != nil {
-				return err
-			}
-			def.Script = script
-			allowed := false
-			for i, t := range script.Cells {
-				if t.Text == "[attach type]" && i+1 < len(script.Cells) {
-					a := script.Cells[i+1].Text
-					allowed = a == "[free]" || a == "[account]"
-				}
-			}
-			if !allowed {
-				return fmt.Errorf("该武器外观道具不可转移给其他角色")
-			}
-		}
 		characterBound := false
 		contents := false
 		for i, token := range def.Script.Cells {
@@ -171,7 +154,7 @@ func MoveAccountVault(role Role, saved AccountVaultState, rules BagRules, items 
 		}
 		for _, row := range bag.Items {
 			if row.Slot == slot {
-				return &VaultItem{Slot: slot, Template: row.Template, Amount: row.Amount, ExpireTime: row.ExpireTime, WeaponShape: row.WeaponShape}
+				return &VaultItem{Slot: slot, Template: row.Template, Amount: row.Amount, ExpireTime: row.ExpireTime}
 			}
 		}
 		for _, row := range bag.Equipment {

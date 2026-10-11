@@ -12,8 +12,8 @@ func TestRaidRecoveryDeadlineMatchesNativeDeathCampVector(t *testing.T) {
 	if binary.LittleEndian.Uint32(native[47:]) != 1791137149 {
 		t.Fatal("wrong native recovery deadline")
 	}
-	r := NativeRaidRecruitment{ID: 0x035c0061, Create: NativeRaidCreateRequest{Title: "1234"}, Leader: 482, LeaderName: "moyius", LeaderProfession: 0x10, LeaderAdvancement: 0x35, LeaderLevel: 115, MemberCount: 1, MemberPosition: 1, MemberArea: 2, MemberMax: 12, MemberRecoveryUntil: 1791137149}
-	body, e := NativeRaidAssignmentUpdate(r)
+	r := RaidRecruitment{ID: 0x035c0061, Create: RaidCreateRequest{Title: "1234"}, Leader: 482, LeaderName: "moyius", LeaderProfession: 0x10, LeaderAdvancement: 0x35, LeaderLevel: 115, MemberCount: 1, MemberPosition: 1, MemberArea: 2, MemberMax: 12, MemberRecoveryUntil: 1791137149}
+	body, e := RaidAssignmentUpdate(r)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -23,7 +23,7 @@ func TestRaidRecoveryDeadlineMatchesNativeDeathCampVector(t *testing.T) {
 		t.Fatal("deadline was not encoded at member+64 field")
 	}
 	r.MemberRecoveryUntil = 0
-	empty, e := NativeRaidAssignmentUpdate(r)
+	empty, e := RaidAssignmentUpdate(r)
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -8,22 +8,6 @@ import (
 	"sort"
 )
 
-// The town model uses a separate override from the combat actor. Keep both
-// bound to the saved choice, without inventing a weapon in an empty slot.
-// Zero clears the override and restores the unchanged worn weapon avatar.
-func weaponSkinForAppearance(raw json.RawMessage) uint32 {
-	bag, err := inventory.ReadBag(raw)
-	if err != nil || bag.WeaponSkin == 0 {
-		return 0
-	}
-	for _, item := range bag.Worn {
-		if item.Slot == inventory.WeaponSlot && item.Template != 0 {
-			return bag.WeaponSkin
-		}
-	}
-	return 0
-}
-
 // wornAppearance projects the worn set onto the list-row block the client
 // reads when it builds its equipment array.
 //
@@ -51,7 +35,6 @@ func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 			// → 145BD63D0 → 145BEE6C0）正是读那个字段，所以覆盖它才能让重登后
 			// 仍然显示幻化外观。
 			WeaponSkin uint32 `json:"weapon_skin"`
-			TitleSkin  uint32 `json:"title_skin"`
 		} `json:"inventory"`
 	}
 	if err := json.Unmarshal(raw, &state); err != nil {
@@ -112,9 +95,6 @@ func wornAppearance(raw json.RawMessage) ([]protocol.Equipment, error) {
 		levelBySlot[byte(item.Slot)] = item.Record[10] & 0x1f
 	}
 	var rows []protocol.Equipment
-	if state.Inventory.TitleSkin != 0 && bySlot[13] != 0 {
-		bySlot[13] = state.Inventory.TitleSkin
-	}
 	for slot, itemID := range bySlot {
 		row := protocol.Equipment{Slot: slot, Item: itemID}
 		if slot == skinSlot {

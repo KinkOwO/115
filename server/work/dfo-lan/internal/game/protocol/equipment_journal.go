@@ -115,13 +115,13 @@ const EquipmentCraftOpcode uint16 = 2259
 const (
 	// EquipmentCraftBodySize 是 2259 请求正文的**固定**长度（实机 5 帧全部 128）。
 	EquipmentCraftBodySize = 128
-	// EquipmentCraftHeaderSize 是 13 字节不透明前缀 + u32 付款组号。
+	// EquipmentCraftHeaderSize 是正文头长度：u32 上下文 + u32 恒 0 + u32 面板 + u8 + u8 + 3 B 保留。
 	EquipmentCraftHeaderSize = 17
 	// EquipmentCraftEntryCount 是记录条数，等于「装备槽 12..25」这 14 个槽。
 	EquipmentCraftEntryCount = 14
 	// EquipmentCraftEntrySize 是单条记录长度：u24 分组 + u32 装备模板。
 	EquipmentCraftEntrySize = 7
-	// EquipmentCraftTrailerSize 是 6 字节原生尾部（+115 生成标志、+116 u32 上下文、+120 标志）与 7 字节传输填充。
+	// EquipmentCraftTrailerSize 是尾部长度（实机恒定 13 字节、以 00 01 开头，语义未定）。
 	EquipmentCraftTrailerSize = 13
 	// EquipmentCraftSlotBase 是记录 0 对应的装备槽号 ⇒ 记录 i ↔ 槽 (12+i)。
 	//
@@ -153,12 +153,13 @@ type EquipmentCraftEntry struct {
 	Template uint32
 }
 
-// EquipmentCraftRequest 是 CMD2259 的解析结果。
+// EquipmentCraftRequest 是 CMD2259 的解析结果（由 5 条不重复实机样本钉住）。
 //
-// Panel/Reserved/Context 保留前 12 字节用于诊断，不能参与分派或幂等判断。
-// 原生 sub_1414F4480 不初始化 +0..+12。2026-10-07 的实机 +12 为 185/254。
-// Native +115：0=变换、1=生成；Action 归一化为 0=生成、1=变换以兼容领域接口。
-// PayOption 来自 +13 的 u32 组号低字节（当前原生组号 1/2）。
+//	Panel     = u32@0  栏目/面板标识：装备栏目 = 164，武器栏目 = 197（实机）
+//	Reserved  = u32@4  实测恒 0
+//	Context   = u32@8  **来源窗口**（不是常量）：装备变换 = 0x46ece836，装备生成 = 0x5ff2f9
+//	Action    = u8@12  动作：0 = 装备生成，1 = 装备变换
+//	PayOption = u8@13  **付款方式序号**（1 起，对应 [create cost] 里 [cost] 行的顺序）
 //
 // ★ PayOption 曾被当成常量 1（老注释写「实测恒 1/1」）。2026-09-29 13:52 的实机帧把它推翻了：
 // 同一会话两次「生成」分别是 1 与 2，玩家确认第二次点的就是另一支付法。
@@ -194,11 +195,12 @@ func (r EquipmentCraftRequest) Wanted() (slots, templates []uint32) {
 
 // DecodeEquipmentCraftRequest 解析 CMD2259 正文。
 //
-// 原生发送链：14150CAA8 -> 1414F4480；14150CB8F 写付款组号，
-// 14150CED4 选 CMD2259，14150CEE6..14150CEF6 append 121 字节，传输补齐至 128。
+// 布局（全部来自实机字节，见 analysis/tasks/next124 §8/§9 与 next125）：
 //
-// [0:13] 不透明前缀；[13:17] u32 付款组号；[17:115] 14 个 7 字节记录；
-// +115 生成标志；[116:120] 原生上下文；+120 标志；[121:128] 填充。
+//	[0:17]    头：u32 面板 / u32 恒 0 / u32 来源窗口 / u8 动作(0 生成 / 1 变换) /
+//	          u8 付款方式(1 起) / 3 B 保留
+//	[17:115]  14 条 7 字节记录：`u24 分组 + u32 模板`（0xFFFFFFFF = 空槽）
+//	[115:128] 13 字节恒定尾
 func DecodeEquipmentCraftRequest(p []byte) (EquipmentCraftRequest, error) {
 	var out EquipmentCraftRequest
 	if len(p) != EquipmentCraftBodySize {
@@ -208,14 +210,7 @@ func DecodeEquipmentCraftRequest(p []byte) (EquipmentCraftRequest, error) {
 	out.Panel = binary.LittleEndian.Uint32(p[0:4])
 	out.Reserved = binary.LittleEndian.Uint32(p[4:8])
 	out.Context = binary.LittleEndian.Uint32(p[8:12])
-	// The first 13 bytes are uninitialised in the native sender. In particular
-	// +12 is NOT an action. sub_1414F4480 initialises +115 to zero (transform),
-	// while the create sender at 1404AD3A7 writes one. Keep the public Action
-	// convention (0=create, 1=transform) by normalising the native flag here.
-	if p[115] > 1 {
-		return out, fmt.Errorf("equipment craft invalid create flag %d", p[115])
-	}
-	out.Action = 1 - p[115]
+	out.Action = p[12]
 	out.PayOption = p[13]
 	for i := 0; i < EquipmentCraftEntryCount; i++ {
 		off := EquipmentCraftHeaderSize + i*EquipmentCraftEntrySize

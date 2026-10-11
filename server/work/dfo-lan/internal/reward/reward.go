@@ -30,14 +30,14 @@ import (
 //go:embed scripts/*.lua
 var bundledScripts embed.FS
 
-// BundledScripts exposes the existing embedded rule set for composition with
-// optional MOD scripts, without replacing the built-in character rewards.
+// BundledScripts exposes the same embedded rule set used by New, with Lua
+// files at the filesystem root so callers can compose it with mod scripts.
 func BundledScripts() fs.FS {
-	sub, err := fs.Sub(bundledScripts, "scripts")
+	src, err := fs.Sub(bundledScripts, "scripts")
 	if err != nil {
 		return nil
 	}
-	return sub
+	return src
 }
 
 // GrantFunc persists a set of item grants for one recipient under a stable key.

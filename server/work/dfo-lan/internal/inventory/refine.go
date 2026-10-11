@@ -292,8 +292,6 @@ func (s *WearService) ApplyRefine(role Role, r protocol.RefineRequest) (json.Raw
 
 	// 判定成功率。
 	percent := RefineSuccessPercent(level)
-	// 服务端层 mod 的成功率规则（后处理）：每次掷骰现读，改完立刻生效。
-	percent = enhanceSuccessPercent(enhanceKindRefine, level, percent)
 	roll, err := refineRandomInt(100)
 	if err != nil {
 		return nil, out, err

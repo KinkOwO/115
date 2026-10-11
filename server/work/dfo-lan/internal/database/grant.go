@@ -6,7 +6,6 @@ import (
 	"dfolan/internal/database/sqlcgen"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"time"
 )
 
@@ -45,16 +44,15 @@ func (s *Store) GrantHistory(ctx context.Context, account int64, limit int) ([]G
 // character. Cera is account-scoped because the client reads it from the
 // account's SELECT response, not from character state.
 type Grant struct {
-	ID        string          `json:"id"`
-	AccountID int64           `json:"account_id"`
-	Character int64           `json:"character_id,omitempty"`
-	Cera      int64           `json:"cera,omitempty"`
-	MaxCera   uint64          `json:"-"` // Optional transaction ceiling for client-encodable balances.
-	Gold      uint32          `json:"gold,omitempty"`
-	Items     []GrantItem     `json:"items,omitempty"`
-	Reason    string          `json:"reason"`
-	Operator  string          `json:"operator"`
-	Details   json.RawMessage `json:"details,omitempty"` // Audited GM command; absent in historical grants.
+	ID        string      `json:"id"`
+	AccountID int64       `json:"account_id"`
+	Character int64       `json:"character_id,omitempty"`
+	Cera      int64       `json:"cera,omitempty"`
+	MaxCera   uint64      `json:"-"` // Optional transaction ceiling for client-encodable balances.
+	Gold      uint32      `json:"gold,omitempty"`
+	Items     []GrantItem `json:"items,omitempty"`
+	Reason    string      `json:"reason"`
+	Operator  string      `json:"operator"`
 }
 
 type GrantResult struct {
@@ -89,16 +87,6 @@ func (s *Store) AccountCera(ctx context.Context, account int64) (uint64, error) 
 // source catalog for gold and items), and every ownership boundary is checked
 // inside the transaction.
 func (s *Store) ApplyGrant(ctx context.Context, g Grant, mutate func(Character) (json.RawMessage, json.RawMessage, error)) (GrantResult, error) {
-	var callback func(*Tx, Character) (json.RawMessage, json.RawMessage, error)
-	if mutate != nil {
-		callback = func(_ *Tx, c Character) (json.RawMessage, json.RawMessage, error) { return mutate(c) }
-	}
-	return s.ApplyGrantTx(ctx, g, callback)
-}
-
-// ApplyGrantTx lets operator commands update domain tables in the SAME audited
-// transaction as the character save. It uses the existing engine-neutral API.
-func (s *Store) ApplyGrantTx(ctx context.Context, g Grant, mutate func(*Tx, Character) (json.RawMessage, json.RawMessage, error)) (GrantResult, error) {
 	var out GrantResult
 	if g.ID == "" || g.AccountID == 0 || g.Operator == "" || g.Reason == "" {
 		return out, fmt.Errorf("a grant needs an id, an account, an operator and a reason")
@@ -134,16 +122,6 @@ func (s *Store) ApplyGrantTx(ctx context.Context, g Grant, mutate func(*Tx, Char
 		// Already recorded: hand back the original receipt, pay nothing.
 		if out.Receipt, e = q.AdminGrantReceipt(ctx, g.ID); e != nil {
 			return out, e
-		}
-		if len(g.Details) > 0 {
-			var receipt map[string]json.RawMessage
-			if e = json.Unmarshal(out.Receipt, &receipt); e != nil {
-				return out, e
-			}
-			var original, current any
-			if json.Unmarshal(receipt["request"], &original) != nil || json.Unmarshal(g.Details, &current) != nil || !reflect.DeepEqual(original, current) {
-				return out, fmt.Errorf("GM request id already belongs to a different command")
-			}
 		}
 		balance, err := q.AccountCera(ctx, g.AccountID)
 		if err != nil {
@@ -182,7 +160,7 @@ func (s *Store) ApplyGrantTx(ctx context.Context, g Grant, mutate func(*Tx, Char
 		if e != nil {
 			return out, fmt.Errorf("grant character is not owned by this account: %w", e)
 		}
-		state, rec, e := mutate(newTx(q, g.AccountID, g.Character), *r)
+		state, rec, e := mutate(*r)
 		if e != nil {
 			return out, e
 		}

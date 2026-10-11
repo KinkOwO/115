@@ -21,11 +21,10 @@ type ClearReceipt struct {
 	AllClear                 bool
 	MonsterExperience        uint32
 	CreatureExperienceGained uint32
-	SeasonExperienceGained   uint32    `json:"season_experience_gained,omitempty"`
-	RecommendedDungeonClear  bool      `json:"recommended_dungeon_clear,omitempty"`
-	DungeonID                uint32    `json:"dungeon_id,omitempty"`
-	CharacterLevel           byte      `json:"character_level,omitempty"`
-	CompletedAt              time.Time `json:"completed_at,omitempty"`
+	SeasonExperienceGained   uint32 `json:"season_experience_gained,omitempty"`
+	RecommendedDungeonClear  bool   `json:"recommended_dungeon_clear,omitempty"`
+	DungeonID                uint32 `json:"dungeon_id,omitempty"`
+	CharacterLevel           byte   `json:"character_level,omitempty"`
 	TowerRewards             []inventory.AwardReceipt
 }
 
@@ -141,7 +140,7 @@ func (s *ProgressionService) ClearWithTowerRewards(ctx context.Context, role Cha
 			return nil, nil, e
 		}
 		outcome, e := json.Marshal(ClearReceipt{GrowthClearGain: gain, Source: s.Catalog.Source.SaveIdentity(), Run: run.RunID, Elapsed: uint32(elapsed), BestElapsed: best, NewRecord: improved, AllClear: all, MonsterExperience: uint32(monsterTotal), CreatureExperienceGained: creatureAwarded, SeasonExperienceGained: seasonAwarded,
-			RecommendedDungeonClear: recommended, DungeonID: run.Definition.ID, CharacterLevel: before.Level, CompletedAt: now, TowerRewards: towerRewards})
+			RecommendedDungeonClear: recommended, DungeonID: run.Definition.ID, CharacterLevel: before.Level, TowerRewards: towerRewards})
 		return next.State, outcome, e
 	})
 	if e != nil {

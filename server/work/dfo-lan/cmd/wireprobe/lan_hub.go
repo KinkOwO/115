@@ -26,7 +26,6 @@ import (
 
 // lanPeer is one player connection as seen by the others.
 type lanPeer struct {
-	robot   bool // transient display actor; never a persisted player
 	roleID  int64
 	actorID uint16
 	channel uint32
@@ -80,9 +79,8 @@ type peerPush struct {
 }
 
 type lanHub struct {
-	townRobots *townRobotFleet
-	mu         sync.Mutex
-	peers      map[*lanPeer]struct{}
+	mu    sync.Mutex
+	peers map[*lanPeer]struct{}
 }
 
 func newLanHub() *lanHub {
@@ -138,17 +136,8 @@ func (h *lanHub) add(p *lanPeer) {
 		return
 	}
 	h.mu.Lock()
-	var pushes []peerPush
-	for old := range h.peers {
-		if old.robot && old.actorID == p.actorID {
-			pushes = append(pushes, h.leaveLocked(h.sharedLocked(old), old.actorID)...)
-			old.placed = false
-			delete(h.peers, old)
-		}
-	}
+	defer h.mu.Unlock()
 	h.peers[p] = struct{}{}
-	h.mu.Unlock()
-	h.flush(pushes)
 }
 
 // publish places an actor in a scene, tells the scene it left that the actor

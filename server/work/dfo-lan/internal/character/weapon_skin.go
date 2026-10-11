@@ -34,8 +34,7 @@ import (
 // change also bumps inventory.weapon_skin_seq, which is what keeps the caller's
 // idempotency key unique across an A -> B -> A sequence of applies.
 //
-// A non-zero skin must belong to the transaction's saved cargo, including the
-// legacy applied-only entry, and pass the job gate (inventory.WeaponSkinUsable):
+// A non-zero skin also has to pass the job gate (inventory.WeaponSkinUsable):
 // the storage can hold entries from before the replication check existed - live
 // 2026-09-27, a berserker with a beamsword - and refusing them here is the real
 // enforcement point, since no player data gets deleted. A refusal returns the
@@ -63,22 +62,10 @@ func (s *Service) ApplyWeaponSkin(ctx context.Context, role Character, key strin
 				return cur.State, receipt, nil
 			}
 			if skin != 0 {
-				owned := false
-				for _, id := range b.WeaponSkinStorage() {
-					if id == skin {
-						owned = true
-						break
-					}
-				}
-				if !owned {
-					return nil, nil, inventory.ErrWeaponSkinNotOwned
-				}
 				if err := s.weaponSkinUsable(cur, skin); err != nil {
 					return nil, nil, err
 				}
 			}
-			// Preserve a legacy applied-only skin before switching or clearing it.
-			b.WeaponSkins = b.WeaponSkinStorage()
 			b.WeaponSkin = skin
 			b.WeaponSkinSeq++
 			next, err := inventory.SaveBag(cur.State, b)
@@ -141,6 +128,94 @@ func (s *Service) WeaponSkinUsableFor(cur Character) func(uint32) bool {
 	return func(skin uint32) bool {
 		return !errors.Is(s.weaponSkinUsable(cur, skin), inventory.ErrWeaponSkinNotUsable)
 	}
+}
+
+// ReplicateWeaponSkin settles one replication (CMD1592): the weapon in bag slot
+// and one Linus mold are consumed, and the weapon's own template is recorded as a
+// skin id in the skin storage window.
+//
+// The request carries no item and no materials - just the bag slot the window
+// addressed - so everything spent is resolved here from the save, and the whole
+// settlement lands in one CommitCharacterEvent transaction. A client retry of the
+// same request replays the receipt, so the weapon cannot be eaten twice.
+//
+// mode is the window's material selection (inventory.MoldForMode): the frame carries
+// no item id at all, so the mold the player picked only exists as this field.
+//
+// The weapon has to be usable by this character: the client's own confirmation only
+// refuses non-weapons and equipped items, so a cross-class weapon replicated
+// cleanly and then sat unusable in the storage (live 2026-09-27). Job and
+// advancement come from the catalog and the save; the same rule decides whether the
+// piece can be worn (inventory.UsableByJob), and the source's own [required job
+// skill] then narrows it to the subclasses that can learn that weapon's mastery
+// (inventory.RequiredJobSkill + canLearnSkill - a berserker passes [usable job] for
+// a beamsword because its job text is [swordman] too, but it can never learn skill
+// 33 at advancement 3).
+//
+// A refusal (slot empty, not a weapon, not usable by this class, no mold) returns an
+// error and the closure never applies, which is what keeps the event row out of the
+// table: there is nothing to replay, and buying a mold and confirming again must work.
+//
+// The client's skin cargo container is session state - NOTI1545 only rides along
+// with this confirmation, and a reconnect starts from an empty container - which
+// is why the list is persisted here and re-pushed at entry.
+func (s *Service) ReplicateWeaponSkin(ctx context.Context, role Character, key string, slot uint16, mode uint32) (Character, inventory.WeaponReplication, bool, error) {
+	if s == nil || s.Store == nil {
+		return role, inventory.WeaponReplication{}, false, fmt.Errorf("weapon replication without a store")
+	}
+	if key == "" {
+		return role, inventory.WeaponReplication{}, false, fmt.Errorf("weapon replication without an event key")
+	}
+	var spent inventory.WeaponReplication
+	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "weapon-skin-replicate-v1",
+		func(cur Character) (json.RawMessage, json.RawMessage, error) {
+			b, err := inventory.ReadBag(cur.State)
+			if err != nil {
+				return nil, nil, err
+			}
+			// 职业与转职必须在同一个事务里从 cur 读：role 是入场时的旧快照，
+			// 而幻化可能排在一次转职之后。
+			prof, ok := s.Catalog.Professions[cur.Profession]
+			if !ok {
+				return nil, nil, fmt.Errorf("weapon replication profession unavailable")
+			}
+			var state struct {
+				Advancement byte `json:"advancement"`
+				Awakening   byte `json:"awakening"`
+			}
+			if err := json.Unmarshal(cur.State, &state); err != nil {
+				return nil, nil, err
+			}
+			next, cost, err := b.ReplicateWeaponSkin(slot, s.Equipment, inventory.MoldForMode(mode),
+				inventory.ReplicationActor{
+					Job:         prof.Job,
+					Advancement: state.Advancement,
+					CanUseSkill: s.canLearnSkill(cur.Profession, int(state.Advancement), int(state.Awakening)),
+				})
+			if err != nil {
+				return nil, nil, err
+			}
+			receipt, err := json.Marshal(cost)
+			if err != nil {
+				return nil, nil, err
+			}
+			spent = cost
+			if cost.Duplicate {
+				// 已经登记过同一件外观：一个模具都不扣，状态原样返回。客户端自己的
+				// 重复提示（100007186）走的就是这条；这里只兜住重放。
+				return cur.State, receipt, nil
+			}
+			out, err := inventory.SaveBag(cur.State, next)
+			if err != nil {
+				return nil, nil, err
+			}
+			return out, receipt, nil
+		})
+	if e != nil {
+		return role, inventory.WeaponReplication{}, false, e
+	}
+	saved.WireID = role.WireID
+	return saved, spent, applied && !spent.Duplicate, nil
 }
 
 // canLearnSkill answers "does this character's job/advancement own this job skill?"

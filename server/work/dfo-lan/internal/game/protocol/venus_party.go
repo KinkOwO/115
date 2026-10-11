@@ -17,16 +17,15 @@ package protocol
 // 数据源，黑鸦/伊斯同款）。
 
 // DecodeVenusStandbyParty 解码维纳斯待机区队伍对话框发送的 CMD12，
-// 只接受队伍类型 0x22（34）的普通队伍，保留请求的1至4人容量。
-// 2026-10-05 22:05实机向量是容量1，不能用旧的容量4样本拒绝单人建队。
-func DecodeVenusStandbyParty(p []byte) (LegionStandbyPartyRequest, error) {
-	return decodeLegionStandbyPartyRequest(p, 0x22)
+// 只接受队伍类型 0x22（34）的 4 人军团普通队伍。
+func DecodeVenusStandbyParty(p []byte) ([]byte, error) {
+	return decodeLegionStandbyParty(p, 0x22)
 }
 
 // VenusStandbyPartyReply 按 2.38.2 客户端原生 NOTI9 语法（黑鸦族
-// 1452F2620 写入器布局）构造维纳斯待机区建队应答：容量沿用请求、队伍类型
+// 1452F2620 写入器布局）构造维纳斯待机区建队应答：容量 4、队伍类型
 // 0x22、模式 1。语法层的闪退陷阱与字段依据见 ispins_party.go 的
 // IspinsStandbyPartyReply 注释；类型字节取自本频道实机请求。
-func VenusStandbyPartyReply(name []byte, actor uint16, channel [2]byte, capacity byte) ([]byte, error) {
-	return legionStandbyPartyReplyCapacity(name, actor, channel, 0x22, capacity)
+func VenusStandbyPartyReply(name []byte, actor uint16, channel [2]byte) ([]byte, error) {
+	return legionStandbyPartyReply(name, actor, channel, 0x22)
 }

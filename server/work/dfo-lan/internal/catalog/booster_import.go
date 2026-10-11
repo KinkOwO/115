@@ -27,15 +27,7 @@ func (p BoosterRewardPool) Pick(r *rand.Rand) []BoosterRewardCandidate {
 	}
 	// If only 1 candidate, or all weights 0 / 1000
 	if len(p.Candidates) == 1 {
-		draws := p.DrawCount
-		if draws == 0 {
-			draws = 1
-		}
-		results := make([]BoosterRewardCandidate, draws)
-		for i := range results {
-			results[i] = p.Candidates[0]
-		}
-		return results
+		return []BoosterRewardCandidate{p.Candidates[0]}
 	}
 	var totalWeight uint32
 	for _, c := range p.Candidates {
@@ -147,27 +139,17 @@ func parseBoosterInfo(cells []pvf.Token) []BoosterRewardPool {
 					k := j + 1
 					var nums []uint32
 					for k < len(cells) && !(cells[k].Type == 3 && cells[k].Text == endTag) {
-						// Keep the native -1 empty face and zero cells in their
-						// positions. Dropping them shifts every following tuple.
-						if cells[k].Type == 0 && (cells[k].Value != 0 || tag.Text == "[avatar]") {
-							nums = append(nums, uint32(cells[k].Value))
+						if cells[k].Type == 0 && cells[k].Value != 0 {
+							nums = append(nums, boosterNumber(cells[k].Value))
 						}
 						k++
 					}
 					if tag.Text == "[avatar]" {
-						body := cells[j+1 : k]
-						if pool, handled := parseFixedAvatarPool(body); handled {
+						if pool, handled := parseFixedAvatarPool(cells[j+1 : k]); handled {
 							if k == len(cells) || len(pool.Candidates) == 0 {
 								return nil
 							}
 							pools = append(pools, pool)
-							j = k
-							continue
-						}
-						// Unsupported extended suffix (e.g. native 30/0) is
-						// not a pair of ordinary reward triples. Preserve other
-						// blocks in the mixed package; do not invent an outfit.
-						if len(body) >= 6 && (len(body)-1)%5 == 0 && body[0].Type == 0 && body[0].Value == 1 && body[4].Type == 0 && body[5].Type == 0 && body[5].Value == 0 && body[4].Value != 1 {
 							j = k
 							continue
 						}

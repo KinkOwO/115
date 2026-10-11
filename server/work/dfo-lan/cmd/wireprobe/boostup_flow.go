@@ -55,14 +55,13 @@ func (client *gameConnection) dispatchBoostEvent(requestData *clientRequest) dis
 // 韩文 18 周年通用礼物窗口（实机 2026-10-03 接线前症状）。调用点只有选角名单
 // （CMD8 userInfoMode==2，reason=character_select）与回选角（CMD7，reason=return_selection）。
 func (client *gameConnection) sendBoostChannelEvents(reason string) error {
-	if client == nil || client.gatewayRuntime == nil || client.boostEventInfo == nil {
+	if client.boostEventInfo == nil {
 		return nil
 	}
-	body := eventInfoSnapshot(client.gatewayRuntime)
-	if err := client.output.send(0, 108, body); err != nil {
+	if err := client.output.send(0, 108, client.boostEventInfo); err != nil {
 		return err
 	}
-	client.event(map[string]any{"kind": "channel_open_events_sent", "id": 108, "reason": reason, "bytes": len(body)})
+	client.event(map[string]any{"kind": "channel_open_events_sent", "id": 108, "reason": reason, "bytes": len(client.boostEventInfo)})
 	return nil
 }
 

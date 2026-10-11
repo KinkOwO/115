@@ -17,11 +17,11 @@ import (
 type OmenLedger struct {
 	reward *AttunementRewards
 
-	mu     sync.Mutex
-	held   map[int64]uint32
+	mu   sync.Mutex
+	held map[int64]uint32
 	misses map[int64]uint32
-	last   map[int64]OmenOutcome
-	seq    uint64
+	last map[int64]OmenOutcome
+	seq  uint64
 }
 
 // NewOmenLedger 建一本账。reward 为 nil 时整本是哑的（所有查询返回零值）。

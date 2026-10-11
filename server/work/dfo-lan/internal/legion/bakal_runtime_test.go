@@ -215,7 +215,7 @@ func TestBakalRuntimeMovingWaveAndRollback(t *testing.T) {
 		t.Fatal(e)
 	}
 	old := o.script.Events
-	o.script.Events = append(o.script.Events, catalog.NativeBakalScriptEvent{Trigger: []catalog.NativeBakalScriptInstruction{{Op: "[ON ENTER DUNGEON]", Args: []pvf.Token{{Type: 0, Value: 100003157}}}}, Behavior: []catalog.NativeBakalScriptInstruction{{Op: "invalid"}}})
+	o.script.Events = append(o.script.Events, catalog.BakalScriptEvent{Trigger: []catalog.BakalScriptInstruction{{Op: "[ON ENTER DUNGEON]", Args: []pvf.Token{{Type: 0, Value: 100003157}}}}, Behavior: []catalog.BakalScriptInstruction{{Op: "invalid"}}})
 	_, e = o.runEvent(bakalSignal{op: "[ON ENTER DUNGEON]", id: 100003157}, ready)
 	o.script.Events = old
 	if e == nil || o.anger != before {

@@ -61,6 +61,7 @@ func startSession(ctx context.Context, root string, opts LaunchOptions, console 
 		console = io.Discard
 	}
 	module := filepath.Join(root, "server", "work", "dfo-lan")
+	serverRoot := filepath.Join(root, "server")
 
 	// 1. 预检。任何一项不过都不起进程，失败原因与 --check 完全一致。
 	report, err := LaunchPlan(root, opts)
@@ -69,10 +70,6 @@ func startSession(ctx context.Context, root string, opts LaunchOptions, console 
 	}
 	if message := report.InnerPVF.Message; message != "" {
 		fmt.Fprintln(console, message)
-	}
-
-	for _, warning := range report.Warnings {
-		fmt.Fprintln(console, warning)
 	}
 
 	// 2. 已经有会话在 7001 上，就不要叠一个（launch_local.py L278-L279）。--storage-only
@@ -112,13 +109,6 @@ func startSession(ctx context.Context, root string, opts LaunchOptions, console 
 	if _, err := WriteSessionFixtures(module, session.Out, session.Effective); err != nil {
 		return nil, fmt.Errorf("写协议夹具失败：%w", err)
 	}
-	resolvedStorage := ""
-	if !opts.ClientOnly && strings.HasPrefix(session.Effective, "roles_persist") {
-		resolvedStorage, err = prepareSessionStorage(module, session.Out)
-		if err != nil {
-			return nil, fmt.Errorf("准备会话存储配置失败：%w", err)
-		}
-	}
 
 	// 5. 环境：launch_environment 的合并结果 + launch_local.py 追加的四个变量。
 	env := newChildEnv(BuildServerEnv(CurrentEnv(), report.ProfileEnv, opts.JSONMode))
@@ -130,11 +120,6 @@ func startSession(ctx context.Context, root string, opts LaunchOptions, console 
 		env.Set("DFO_CHANNEL_IDENTITY", "0")
 	}
 	env.Set("DFO_ENABLE_OBSERVER", "0")
-	// Bound the actual gateway launched by Start Game, including inherited tuning.
-	// The Go target controls collection; the Windows Job below enforces commit.
-	env.Set("GOMEMLIMIT", "2GiB")
-	env.Set("GOGC", "100")
-	env.Set("GOMAXPROCS", "4")
 
 	// 5.1 账号：会话登录用的开发账号名（口径见 applySessionAccount）。名字不合法在这里就失败，
 	//     不等网关起来再报一条看不懂的启动错误；真正换了账号时打一行，让启动器日志里能看到
@@ -150,11 +135,10 @@ func startSession(ctx context.Context, root string, opts LaunchOptions, console 
 	// 6. 命令行。exe -h 的能力探测按 Python 的做法跑两次（prune 一次、装备目录一次）。
 	probe := func(exe string) map[string]bool { return ExeFlags(ctx, exe) }
 	gateway, err := buildGatewayCommand(gatewayCommandInput{
-		Project:       module,
-		StorageConfig: resolvedStorage,
-		Session:       session,
-		Env:           env,
-		Probe:         probe,
+		Project: module,
+		Session: session,
+		Env:     env,
+		Probe:   probe,
 	})
 	if err != nil {
 		return nil, err
@@ -199,16 +183,15 @@ func startSession(ctx context.Context, root string, opts LaunchOptions, console 
 	cmd := exec.Command(gateway.Args[0], gateway.Args[1:]...)
 	// 网关的 cwd 是 server\（launch_local.py 给 helper 的 cwd，helper 起网关时没换）。
 	// 出厂相对默认值因此解析不到，这正是上面所有配置文件都下发绝对路径的原因。
-	cmd.Dir = gatewayWorkingDirectory(module, report.InnerPVF)
+	cmd.Dir = serverRoot
 	cmd.Env = env.List()
 	cmd.Stdout = gatewayOut
 	cmd.Stderr = gatewayErr
 	hideConsoleWindow(cmd)
-	child, err := startMemoryBoundedChild(cmd, serverMemoryBudget, "gateway")
+	child, err := startChild(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("拉起网关失败：%w\n命令行：%s", err, commandLine)
 	}
-	fmt.Fprintln(console, "内存保护已启用：服务端提交内存上限 4 GiB，Go 内存目标 2 GiB，导入并发 4；占用记录见 gateway.err。")
 
 	// 8. 等 ready.json。直读 PVF 要先校验来源再开存储，上限比 JSON 档大（L589-L591）。
 	address, err := awaitReady(readyPath, startupChecks(env.Get("DFO_PVF_CATALOGS")), child.exited, time.Sleep, gateway.Args)

@@ -72,10 +72,9 @@ func (w *worldSession) eliteEntryProbeRequest(opcode uint16) error {
 		return nil // original special handlers validate load, stage and transition
 	}
 	switch opcode {
-	case 39, 43, 45, 46, 69, 70, 71, 72, 117, 2015, 2062:
-		// CMD2015 must reach the existing Elvenmere handler after the same
-		// frozen identity/load checks as room movement. That handler owns
-		// dungeon scope and the native teleport response (legacy behavior).
+	case 2015:
+		return fmt.Errorf("精锐普通战斗候选尚未接入专用传送/直进副本")
+	case 39, 43, 45, 46, 69, 70, 71, 72, 117, 2062:
 		p := w.adventureElitePrepared
 		if p == nil || !w.ordinaryEliteSelectionVisible() || p.Owner != w.role.ID || p.Channel != w.channelType ||
 			p.Settings != w.adventureEliteSnapshot || p.Selected == ([3]int64{}) || w.role.WireID == 0 || w.role.WireID == 65535 ||

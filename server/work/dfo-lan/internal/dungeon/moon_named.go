@@ -208,7 +208,7 @@ func (r *MoonSoloOwner) MoonAfterDeath(stamp MoonSoloStamp, member uint16) (*Moo
 		return nil, fmt.Errorf("Moon named actor allocation unavailable")
 	}
 	entry := MoonNamedState{Spawn: protocol.UnassignedMonster115{Grid: [2]byte{s.Room.X, s.Room.Y}, Entity: s.NextEntity, Template: template, X: -100, Y: -100}, Slot: slot}
-	s.NextEntity = advanceMonsterEntity(s.NextEntity, s.monsterEntityStride())
+	s.NextEntity++
 	// Neutral drop rank: do not invent a boss-drop multiplier from its name.
 	s.Monsters = append(s.Monsters, protocol.DungeonMonster{Entity: entry.Spawn.Entity, Template: template, Level: byte(s.Definition.BasisLevel), Team: 100})
 	s.Visited[s.Room.Map] = append([]protocol.DungeonMonster(nil), s.Monsters...)

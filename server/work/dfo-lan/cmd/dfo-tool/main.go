@@ -14,11 +14,10 @@ import (
 	"dfolan/internal/toolcmd/dbq"
 	"dfolan/internal/toolcmd/dungeonimport"
 	"dfolan/internal/toolcmd/dungeonscenesaudit"
-	"dfolan/internal/toolcmd/elvenmereseason"
 	"dfolan/internal/toolcmd/equipfields"
+	"dfolan/internal/toolcmd/flippool"
 	"dfolan/internal/toolcmd/equipmentfull"
 	"dfolan/internal/toolcmd/eventinfogate"
-	"dfolan/internal/toolcmd/flippool"
 	"dfolan/internal/toolcmd/framedump"
 	"dfolan/internal/toolcmd/initialrepair"
 	"dfolan/internal/toolcmd/loginchannel"
@@ -53,7 +52,6 @@ var commands = []command{
 	{"dbq", "maintenance", "[options]", true, 0, dbq.Run},
 	{"dungeonimport", "catalog", "[options]", true, 0, dungeonimport.Run},
 	{"dungeonscenesaudit", "audit", "[options]", true, 0, dungeonscenesaudit.Run},
-	{"elvenmereseason", "maintenance", "[options] (preview; explicit audited account season reset)", true, 0, elvenmereseason.Run},
 	{"equipfields", "catalog", "[options]", true, 0, equipfields.Run},
 	{"flippool", "catalog", "[options]", true, 0, flippool.Run},
 	{"equipmentfull", "catalog", "[options]", true, 0, equipmentfull.Run},

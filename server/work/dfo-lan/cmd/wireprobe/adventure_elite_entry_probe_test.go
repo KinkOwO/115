@@ -85,14 +85,12 @@ func TestAdventureEliteOwnedCombatKeepsScopeAndReusesOrdinaryHandlers(t *testing
 	w := probeWorld()
 	w.adventureEliteEntryProbeUsed = true
 	w.activeDungeon = &dungeon.Session{Loaded: true}
-	for _, id := range []uint16{2062} {
+	for _, id := range []uint16{2015, 2062} {
 		require.Error(t, w.eliteEntryProbeRequest(id))
 	}
-	for _, id := range []uint16{37, 38, 39, 40, 42, 43, 45, 46, 69, 70, 71, 72, 117, 2015} {
+	for _, id := range []uint16{37, 38, 39, 40, 42, 43, 45, 46, 69, 70, 71, 72, 117} {
 		require.NoError(t, w.eliteEntryProbeRequest(id))
 	}
-	_, err := w.elvenmereTeleport(make([]byte, 25))
-	require.Error(t, err, "original handler retains Elvenmere-only scope")
 	w.activeDungeon = nil
 	require.NoError(t, w.eliteEntryProbeRequest(39))
 	w.adventureElitePrepared = nil
@@ -140,7 +138,6 @@ func TestAdventureEliteOwnedCombatRejectsStaleOrSpecialRun(t *testing.T) {
 			}
 			require.Error(t, w.eliteEntryProbeRequest(39))
 			require.Error(t, w.eliteEntryProbeRequest(45))
-			require.Error(t, w.eliteEntryProbeRequest(2015))
 			require.NoError(t, w.eliteEntryProbeRequest(42))
 		})
 	}

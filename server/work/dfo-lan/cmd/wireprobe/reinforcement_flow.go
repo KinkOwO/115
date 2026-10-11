@@ -84,7 +84,12 @@ func reinforcementBranch(role database.Character, r protocol.ReinforcementReques
 		if inventory.IsReinforcementTicket(item.Template) {
 			return reinforcementTicketBranch, nil
 		}
-		if inventory.IsGoldMaterial(item.Template) || inventory.IsSafeMaterial(item.Template) || inventory.IsPortableEnhancement(item.Template, 0) {
+		if inventory.IsPortableUpgradeTemplate(item.Template) {
+			// 便携强化器（[portable upgrade]）：走材料强化路径，
+			// ApplyGoldReinforcement 内部识别并只耗道具本身（不耗金币/无色）。
+			return reinforcementGoldBranch, nil
+		}
+		if inventory.IsGoldMaterial(item.Template) || inventory.IsSafeMaterial(item.Template) {
 			return reinforcementGoldBranch, nil
 		}
 		// 槽位里确实有东西、只是不是券也不是材料：把模板带出来，便于定位玩家放错了什么。
@@ -213,12 +218,6 @@ func (s *equipmentSession) reinforceWithMaterial(ctx context.Context, service *w
 	if err != nil {
 		return nil, err
 	}
-	if out.Destroyed {
-		plan, err = appendEnhancementRemoval(plan, bag, out.EquipmentSpace, out.EquipmentSlot)
-		if err != nil {
-			return nil, err
-		}
-	}
 	if out.MaterialFromStorage {
 		// 只同步材料仓库面板（list35），不发整包 list0 快照 —— 整包重建会打断强化动画引用的装备对象。
 		if counts, e := service.Store.AccountMaterials(ctx, saved.AccountID); e == nil {
@@ -237,7 +236,6 @@ func (s *equipmentSession) reinforceWithMaterial(ctx context.Context, service *w
 		"rate": out.Rate, "streak": out.Streak, "destroyed": out.Destroyed,
 		"protected": out.Protected, "protection_slot": out.ProtectionSlot,
 		"request_protection_slot": r.ProtectionSlot})
-	plan = w.appendEnhancementJournal(plan, out.JournalAdded, out.JournalSkipped, event)
 	return w.appendFameUpdate(plan, event), nil
 }
 
@@ -280,12 +278,6 @@ func (s *equipmentSession) amplifyUpgrade(ctx context.Context, service *workflow
 	if err != nil {
 		return nil, err
 	}
-	if out.Destroyed {
-		plan, err = appendEnhancementRemoval(plan, bag, out.EquipmentSpace, out.EquipmentSlot)
-		if err != nil {
-			return nil, err
-		}
-	}
 	// ★ 金币行单独一包、放在最后发。
 	// 实机：+10 以上增幅失败摧毁装备时，客户端会把金币显示清成 0
 	// （存档里的金币是对的 —— 实测 549,632,620，重新登录即恢复）。
@@ -312,13 +304,12 @@ func (s *equipmentSession) amplifyUpgrade(ctx context.Context, service *workflow
 		"equipment": r.EquipmentTemplate, "space": out.EquipmentSpace, "slot": out.EquipmentSlot,
 		"amplify_type": out.AmplifyType, "before": out.LevelBefore, "after": out.LevelAfter,
 		"result": out.Result, "penalty": out.Penalty, "destroyed": out.Destroyed,
-		"safe": out.Safe, "portable": out.Portable, "rate": out.SuccessPercent,
+		"safe": out.Safe, "rate": out.SuccessPercent,
 		// ACK 是否因「客户端成功回包上限 15」被降级成 result=1 + new=old。
 		// before/after 始终是**落库的真实等级**，ack_* 是实际发给客户端的值。
 		"ack_downgraded": ackDowngraded, "ack_result": ackResult, "ack_new_level": ackNewLevel,
 		"protected": out.Protected, "protection_slot": out.ProtectionSlot,
 		"request_protection_slot": r.ProtectionSlot})
-	plan = w.appendEnhancementJournal(plan, out.JournalAdded, out.JournalSkipped, event)
 	return w.appendFameUpdate(plan, event), nil
 }
 

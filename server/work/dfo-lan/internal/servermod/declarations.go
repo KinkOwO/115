@@ -73,16 +73,6 @@ func RegisteredHooks(modID string) []string {
 			seen[HookProtocolRequest] = true
 		}
 	}
-	for _, t := range ticks {
-		if t.modID == modID {
-			seen[HookServerTick] = true
-		}
-	}
-	for _, s := range shutdowns {
-		if s.modID == modID {
-			seen[HookShutdown] = true
-		}
-	}
 	mu.RUnlock()
 
 	// 脚本注册表用的是自己的锁（见 scripts.go 的 scriptMu）。

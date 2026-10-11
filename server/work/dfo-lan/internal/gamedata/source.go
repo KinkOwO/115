@@ -35,10 +35,7 @@ type Options struct {
 	// 手写常量会与文件脱钩 —— 自愈更新了文件、常量没更新就启动失败（next142 的事故）。
 	// 自动派生不额外读一遍归档：OpenReadOnly完整流式计算一次SHA256并复用它。
 	ExpectedChecksum string
-	// StartupHashWarnings accepts a different valid archive and logs its actual identity.
-	// Audit callers remain strict by default. This never changes the save contract.
-	StartupHashWarnings bool
-	MaxBytes            int64
+	MaxBytes         int64
 	// Empty or "-" disables derived files. The archive is verified even on hits.
 	DerivedCacheDir string
 }
@@ -195,16 +192,9 @@ func Open(options Options) (*Source, error) {
 			log.Printf("PVF metadata cache unavailable; native parse: %v", err)
 		}
 	}
-	pinned := expected
-	if options.StartupHashWarnings {
-		pinned = ""
-	}
-	a, err := pvf.OpenReadOnlyCached(pvf.Options{Path: path, MaxBytes: options.MaxBytes}, pinned, options.DerivedCacheDir, parser)
+	a, err := pvf.OpenReadOnlyCached(pvf.Options{Path: path, MaxBytes: options.MaxBytes}, expected, options.DerivedCacheDir, parser)
 	if err != nil {
 		return nil, fmt.Errorf("open inner PVF: %w", err)
-	}
-	if options.StartupHashWarnings && expected != "" && expected != a.Snapshot().Checksum {
-		log.Printf("WARNING: PVF 哈希值不一致，继续启动：实际=%s，记录=%s，文件=%s", a.Snapshot().Checksum, expected, path)
 	}
 	s.archive = a
 	return s, nil
@@ -298,13 +288,6 @@ func (s *Source) World(path string) (catalog.WorldCatalog, error) {
 	}
 	w.Favor, err = catalog.ImportNPCFavorRules(s.archive)
 	return w, err
-}
-
-func (s *Source) QuestSkipRules() (catalog.QuestSkip, error) {
-	if s.mode != PVF {
-		return catalog.QuestSkip{}, fmt.Errorf("quest skipping requires native PVF")
-	}
-	return catalog.ImportQuestSkip(s.archive)
 }
 
 func (s *Source) Quests(path string) (catalog.QuestCatalog, error) {
@@ -409,29 +392,6 @@ func (s *Source) Equipment(index catalog.ItemIndex) (*inventory.FullEquipmentCat
 	return inventory.RestorePVFEquipment(s.archive, p)
 }
 
-// FlipGearPool retains the existing operator level/rarity policy while deriving
-// eligible item identities and grantability from this verified native source.
-func (s *Source) FlipGearPool(index catalog.ItemIndex, level int32, rarities []int32) ([]uint32, error) {
-	if s.archive == nil {
-		return nil, fmt.Errorf("flip gear requires PVF")
-	}
-	return cachedProjection(s, "flip-gear", struct {
-		Index    string
-		Level    int32
-		Rarities []int32
-	}{itemIndexIdentity(index), level, rarities},
-		func() ([]uint32, error) { return inventory.ImportFlipGearPool(s.archive, index, level, rarities) },
-		func(ids []uint32) ([]uint32, error) {
-			for i, id := range ids {
-				row, ok := index.Items[id]
-				if !ok || row.Kind != "equipment" || (i > 0 && ids[i-1] >= id) {
-					return nil, fmt.Errorf("invalid native flip gear cache")
-				}
-			}
-			return ids, nil
-		})
-}
-
 func (s *Source) Learning(c catalog.Characters) (*character.LearningCatalog, error) {
 	if s.archive == nil {
 		return nil, fmt.Errorf("learning import requires PVF")
@@ -506,10 +466,6 @@ func (s *Source) EquipmentTransformSystem() (catalog.EquipmentTransformSystem, e
 // 源 = etc/115lvability/setpointinfo.cos 与 etc/115lvability2/oathpointinfo.cos（两份 UTF-16 文本），
 // 不经过任何导出 JSON。客户端只用这两张表做逐件明细，**角色总分由服务端算并推 NOTI2634** ——
 // 见 docs/protocol/oath-set-points-20261004.md。
-func (s *Source) OathTruth(index catalog.ItemIndex) (*catalog.OathTruthRules, error) {
-	return catalog.ImportOathTruth(s.archive, index)
-}
-
 func (s *Source) PointRules() (catalog.PointRules, error) {
 	if s.archive == nil {
 		return catalog.PointRules{}, fmt.Errorf("point rules import requires PVF")
@@ -674,15 +630,14 @@ func (s *Source) FullDungeons(world catalog.WorldCatalog, excluded []uint32) (ca
 	if s.archive == nil {
 		return catalog.DungeonCatalog{}, fmt.Errorf("dungeon import requires PVF")
 	}
-	c, err := catalog.ImportFullDungeons(s.archive, world, excluded)
-	return s.attachElvenmere(c, err)
+	return catalog.ImportFullDungeons(s.archive, world, excluded)
 }
 
 func (s *Source) RuntimeFullDungeons(world catalog.WorldCatalog, excluded []uint32) (catalog.DungeonCatalog, error) {
 	if s.archive == nil {
 		return catalog.DungeonCatalog{}, fmt.Errorf("dungeon import requires PVF")
 	}
-	c, err := cachedProjection(s, "dungeons", struct {
+	return cachedProjection(s, "dungeons", struct {
 		World    catalog.WorldCatalog
 		Excluded []uint32
 	}{stableWorldInput(world), excluded}, func() (catalog.DungeonCatalog, error) {
@@ -694,7 +649,6 @@ func (s *Source) RuntimeFullDungeons(world catalog.WorldCatalog, excluded []uint
 		r.Source = s.Snapshot()
 		return catalog.RestoreRuntimeDungeons(s.archive, r)
 	})
-	return s.attachElvenmere(c, err)
 }
 
 func (s *Source) Dungeons(ids []uint32) (catalog.DungeonCatalog, error) {
@@ -705,8 +659,7 @@ func (s *Source) Dungeons(ids []uint32) (catalog.DungeonCatalog, error) {
 	if err != nil {
 		return c, err
 	}
-	c, err = catalog.ValidateDungeons(c)
-	return s.attachElvenmere(c, err)
+	return catalog.ValidateDungeons(c)
 }
 
 func (s *Source) TowerGrief() (catalog.TowerGriefOverlay, error) {
@@ -743,7 +696,7 @@ func (s *Source) Apocalypse() (*catalog.ApocalypseCatalog, error) {
 
 // BakalRaid reads contents/2022/bakalraid/etc/bakal.etc: the raid's rules truth
 // source (waiting room, anger engine, settlement timers, bidding weights).
-func (s *Source) BakalRaid() (*catalog.NativeBakalRaidRules, error) {
+func (s *Source) BakalRaid() (*catalog.BakalRaidRules, error) {
 	if s.archive == nil {
 		return nil, fmt.Errorf("bakal raid import requires PVF")
 	}
@@ -866,27 +819,4 @@ func (s *Source) TownArea(townID, areaID uint32) (*catalog.TownArea, error) {
 		return nil, err
 	}
 	return &area, nil
-}
-
-// Runtime-only reward rules are always read from the active archive, including
-// on a projection-cache hit. No generated JSON is a reward authority.
-func (s *Source) attachElvenmere(c catalog.DungeonCatalog, err error) (catalog.DungeonCatalog, error) {
-	if err != nil {
-		return c, err
-	}
-	if _, ok := c.Dungeons[100003126]; !ok {
-		return c, nil
-	}
-	c.Elvenmere, err = catalog.ImportElvenmereRules(s.archive)
-	if err == nil {
-		err = catalog.AttachElvenmereMaps(&c, s.archive)
-	}
-	return c, err
-}
-
-func (s *Source) WeaponSkinRecipes() (map[uint32]catalog.WeaponSkinRecipe, error) {
-	if s == nil || s.archive == nil {
-		return nil, fmt.Errorf("weapon shape recipes require native PVF")
-	}
-	return catalog.ImportWeaponSkinRecipes(s.archive)
 }

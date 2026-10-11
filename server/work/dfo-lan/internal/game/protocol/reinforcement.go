@@ -146,20 +146,19 @@ func ReinforcementTicketReply(r ReinforcementRequest, remaining uint32, old, lev
 //     真实掉级改由随后的装备行下发（客户端按行更新显示）。
 func ReinforcementGoldReply(r ReinforcementRequest, remaining uint32, old, level, result byte) ([]byte, error) {
 	if r.Mode != 0 || (r.EquipmentSpace != 0 && r.EquipmentSpace != 3) ||
-		r.TicketSpace != 0 || (result != 0 && result != 1 && result != 3) || level > GoldReinforcementMaxLevel || old > GoldReinforcementMaxLevel ||
+		r.TicketSpace != 0 || result > 1 || level > GoldReinforcementMaxLevel || old > GoldReinforcementMaxLevel ||
 		(result == 0 && level > GoldReinforcementResultCap) ||
 		(result == 1 && old != level) {
 		return nil, fmt.Errorf("金币强化结果不符合客户端规则")
 	}
-	// Destruction uses the verified CMD80 kind=10 branch and 36-byte tail;
-	// other outcomes retain the existing mode and 35-byte layout.
+	// 金币强化同样不会摧毁（result > 1 已被上面拒绝），回显 mode 即可。
 	p := []byte{1, cmd80UpgradeKind(r.Mode, result)}
 	p = binary.LittleEndian.AppendUint16(p, r.TicketSlot)
 	p = binary.LittleEndian.AppendUint32(p, remaining)
 	p = binary.LittleEndian.AppendUint16(p, 0xffff)
 	p = append(p, 1, old, result, level, r.EquipmentSpace)
 	p = binary.LittleEndian.AppendUint16(p, r.EquipmentSlot)
-	p = cmd80Tail(p, result == 3)
+	p = cmd80Tail(p, false)
 	return p, nil
 }
 
@@ -276,7 +275,6 @@ const GoldReinforcementResultCap = 15
 // ⚠️ 这与「装备行能渲染 +31」**并不冲突**，是两道互相独立的检查：
 //   - 装备行 reader：认 0..31（client_trace 实证：+16 / +31 都正常渲染）
 //   - CMD80 成功回包 [13]：只认到 15（服主实机：只有 16 卡）
-//
 // 另外 PVF 的 etc/amplifyupgrade.etc 写 [max upgrade level by rarity]=50、
 // 90US 官方源码写 upgradeMaximumCurrentLevelBeforeReject=30（→+31），
 // 都指的是「装备能拥有的等级」，不是这条回包校验。
@@ -297,19 +295,15 @@ const AmplifyUpgradeResultCap = 31
 // ClientAmplifyPatch 记录 115 客户端 DFO.exe 的本地补丁位置，便于回滚与复查。
 //
 // sub_14529B2F0（CMD80 回包 handler）内的等级判据：
-//
-//	0x14529bb33  lea eax, [rdx-1]        ; rdx = 回包 [13] 新等级
-//	0x14529bb36  cmp eax, 0xc   -> ja    ; 新等级 > 15 时走 fallback 分支
-//	...
-//	0x14529bb71  lea eax, [rdx-1]
-//	0x14529bb74  cmp al, 0xa    -> ja    ; ★ 新等级-1 > 10 就上报 ADD_HACKTYPE_CNT
-//
+//   0x14529bb33  lea eax, [rdx-1]        ; rdx = 回包 [13] 新等级
+//   0x14529bb36  cmp eax, 0xc   -> ja    ; 新等级 > 15 时走 fallback 分支
+//   ...
+//   0x14529bb71  lea eax, [rdx-1]
+//   0x14529bb74  cmp al, 0xa    -> ja    ; ★ 新等级-1 > 10 就上报 ADD_HACKTYPE_CNT
 // ⇒ 原逻辑：新等级 16 时 16-3=13>12 进 fallback，再 16-1=15>10 → hack。
 //
 // 补丁：文件偏移 0x529bb75 处 0x0a(10) → 0x1e(30)，
-//
-//	使上限变成「新等级-1 <= 30」即**新等级 <= 31**，与官方 31 上限对齐。
-//
+//       使上限变成「新等级-1 <= 30」即**新等级 <= 31**，与官方 31 上限对齐。
 // 原值 0x0a，备份见 .workbuddy/backup-client-20261007/DFO.exe。
 const ClientAmplifyPatchOffset = 0x529bb75
 const ClientAmplifyPatchOrig = 0x0a

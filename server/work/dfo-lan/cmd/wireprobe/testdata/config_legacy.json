@@ -107,9 +107,7 @@
     "WorldRules": "configs/world-probe.json",
     "VenusFlipGear": "configs/venus-flip-gear.generated.json",
     "ApocalypseFlipGear": "configs/apocalypse-flip-gear.generated.json",
-    "BoostUpEvent": true,
-    "AttunementQuantityMultiplier": 1,
-    "AttunementRarityWeightMultiplier": 1
+    "BoostUpEvent": true
   },
   "cases": [
     {

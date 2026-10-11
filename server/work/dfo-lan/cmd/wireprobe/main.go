@@ -5,15 +5,10 @@
 package main
 
 import (
-	"context"
 	"dfolan/internal/catalog"
 	"dfolan/internal/channelrefresh"
-	"dfolan/internal/localgm"
-	"dfolan/internal/modcompanion"
 	"dfolan/internal/modpolicy"
-	"dfolan/internal/ranking"
 	"dfolan/internal/servermod"
-	"dfolan/internal/social"
 	"dfolan/mods"
 	"encoding/json"
 	"errors"
@@ -23,7 +18,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,11 +25,6 @@ import (
 )
 
 func main() {
-	// Bound Go-managed memory during cold PVF preparation and later gameplay.
-	// This default is local to the gateway; an explicit operator limit wins.
-	if os.Getenv("GOMEMLIMIT") == "" {
-		debug.SetMemoryLimit(2 << 30)
-	}
 	if _, err := ispinsWeeklyLimited(); err != nil {
 		log.Fatal(err)
 	}
@@ -62,11 +51,6 @@ func runGateway(startup Config) error {
 	// 上游的复活用例与默认放行用例都因此失败。
 	modpolicy.Reset()
 	defer modpolicy.Reset()
-	// 副本同伴（internal/modcompanion）与模式策略同一条生命周期：进程级状态，
-	// 进来先清空、退出再清空。理由与上面那段完全相同 —— 网关会在同一进程里被
-	// 反复起停（测试就是），留着上一次的注册等于让下一次的副本带上上一次的同伴。
-	modcompanion.Reset()
-	defer modcompanion.Reset()
 	// —— 服务端层 mod：注册阶段（必须在 prepareRuntime **之前**）——
 	//
 	// 为什么这么早：奖励管线是在 prepareRuntime 内部构造的
@@ -104,26 +88,10 @@ func runGateway(startup Config) error {
 	if err := servermod.Boot(&servermod.BootContext{
 		Version:      versionString(),
 		ChannelCount: 0,
-		// 给 mod 一个"服务端把自己的东西放在哪"的权威答案，别让它们各猜一套。
-		RootDir: serverModuleDir(),
 	}); err != nil {
 		return err
 	}
 	log.Print(servermod.Description())
-	// 副本同伴生效状态打一行：与 `odyssey mode rules: …` 同口径，
-	// 让"规则没生效"永远看得出来，不会静默。
-	log.Printf("副本同伴规则：%s", modcompanion.Current())
-	// —— 场景实体能力（internal/modactor）宿主接线 ——
-	//
-	// 放这里而不是更早：宿主要把 mod 造出来的假人放进 lanHub，而 hub 是
-	// prepareRuntime 里建的（bootstrap.go）。装早了拿不到 hub，装晚了 mod 的
-	// boot 钩子就想造东西了。这个位置正好在 Boot() 之前、hub 之后。
-	if err = installActorHost(prepared.hub); err != nil {
-		return fmt.Errorf("装载场景实体宿主失败：%w", err)
-	}
-	// 进程内单例，退出必须撤：runGateway 在同一进程里会被反复起停（测试就是），
-	// 留着上一次的宿主等于让下一次拿到一个指向已死 hub 的实现。
-	defer uninstallActorHost()
 	// —— 声明与注册的一致性核对 ——
 	//
 	// mod.json 里声明了钩子、Go 里却忘了注册 → "装成功、编成功、什么也没发生"，
@@ -226,9 +194,6 @@ func runGateway(startup Config) error {
 			return err
 		}
 		channelCfg.Dungeons = prepared.channelInfo.AreaDungeons
-		if err = publishSourceRaidChannels(&channelCfg, prepared.channelDirectory, prepared.raidEntrances); err != nil {
-			return err
-		}
 		for _, ch := range channelCfg.Channels {
 			channelTypes[ch.ID] = ch.Type
 		}
@@ -279,6 +244,9 @@ func runGateway(startup Config) error {
 		listeners = append(listeners, channelListener{channel: 0, ln: l})
 	}
 	ready, _ := json.Marshal(map[string]any{"address": l.Addr().String(), "advertise": advertised, "pid": os.Getpid(), "fixture_bytes": len(raw), "channels": len(listeners)})
+	if err = os.WriteFile(filepath.Join(startup.Output, "ready.json"), ready, 0600); err != nil {
+		return err
+	}
 	f, err := os.OpenFile(filepath.Join(startup.Output, "events.jsonl"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		return err
@@ -293,22 +261,7 @@ func runGateway(startup Config) error {
 			log.Print(err)
 		}
 	}
-	if prepared.rankingRules != nil {
-		rankingServer, rankingListener, e := prepared.rankingRules.Serve(ranking.LocalAddress, event)
-		if e != nil {
-			return fmt.Errorf("ranking HTTP: %w", e)
-		}
-		defer rankingServer.Close()
-		event(map[string]any{"kind": "ranking_http_ready", "address": rankingListener.Addr().String(), "source_paths": len(prepared.rankingRules.Paths), "score_writer": "unavailable"})
-	}
-	if prepared.socialProfiles {
-		communityServer, e := social.Serve(prepared.gameStore.SocialCharacterInfo, event)
-		if e != nil {
-			return fmt.Errorf("social HTTP: %w", e)
-		}
-		defer communityServer.Close()
-		event(map[string]any{"kind": "social_http_ready", "address": social.LocalAddress})
-	}
+	fmt.Println(string(ready))
 	if endpoints != nil {
 		cl, e := channelrefresh.Serve(channelCfg, endpoints, event)
 		if e != nil {
@@ -316,23 +269,6 @@ func runGateway(startup Config) error {
 		}
 		defer cl.Close()
 		event(map[string]any{"kind": "channel_refresh_ready", "address": cl.Addr().String(), "channels": len(endpoints)})
-	}
-	if err = os.WriteFile(filepath.Join(startup.Output, "ready.json"), ready, 0600); err != nil {
-		return err
-	}
-	fmt.Println(string(ready))
-
-	if os.Getenv("DFO_LOCAL_GM") == "1" && prepared.gameStore != nil {
-		db, e := prepared.gameStore.DatabaseName(context.Background())
-		if e != nil {
-			return e
-		}
-		prepared.onlineGM = &onlineGMRegistry{database: db}
-		closeGM, e := localgm.Serve(db, prepared.onlineGM.execute)
-		if e != nil {
-			return fmt.Errorf("local GM: %w", e)
-		}
-		defer closeGM()
 	}
 	gateway := &gameGateway{runtime: prepared, channels: channelCfg, channelTypes: channelTypes, event: event}
 	for _, set := range listeners {
@@ -347,12 +283,5 @@ func runGateway(startup Config) error {
 			}
 		}(set)
 	}
-	// —— 周期调度与收摊 ——
-	//
-	// 两条 defer 的先后顺序是有意的（后注册先跑）：先停 ticker，再让 mod 收摊。
-	// 反过来会留一条"最后一轮 tick 还在跑、mod 却在撤实体"的缝。
-	stopModTicks := startModTicks()
-	defer servermod.Shutdown()
-	defer stopModTicks()
 	select {}
 }

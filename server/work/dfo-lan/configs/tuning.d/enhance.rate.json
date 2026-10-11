@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "reinforce_percent": 100,
+  "safe_percent": 100,
+  "amplify_percent": 100,
+  "refine_percent": 100,
+  "override": {
+    "reinforce": {},
+    "safe": {},
+    "amplify": {},
+    "refine": {}
+  }
+}

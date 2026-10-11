@@ -98,10 +98,6 @@ func (s *equipmentSession) awakenEquipment(service *workflow.WearService, w *wor
 		"record_healed":  out.RecordHealed,
 		"spent":          spentDetail,
 		"payload_offset": r.PayloadOffset, "request_hex": hex.EncodeToString(p)})
-	plan = append(plan, w.oathPointPackets()...)
-	if r.Space == 3 && r.Slot >= 36 && r.Slot <= 47 {
-		plan = append(plan, w.oathDisplayRefresh(ctx, "equipment_awakening_oath_info_refreshed")...)
-	}
 	return w.appendFameUpdate(plan, event), nil
 }
 

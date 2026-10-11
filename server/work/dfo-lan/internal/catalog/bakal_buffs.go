@@ -5,18 +5,18 @@ import (
 	"fmt"
 )
 
-type NativeBakalWeightedBuff struct {
+type BakalWeightedBuff struct {
 	Kind   string
 	Weight int
 }
-type NativeBakalBuffDefinition struct {
+type BakalBuffDefinition struct {
 	Kind                            string
 	Duration, Cooltime, ServerValue int
 	Raid                            bool
 	Appendage                       []int
 }
 
-func loadBakalMonsterBuffs(ts []pvf.Token, m *NativeBakalRaidMonster) error {
+func loadBakalMonsterBuffs(ts []pvf.Token, m *BakalRaidMonster) error {
 	var err error
 	if m.BuffCount, err = bakalRowInt(ts, "[buff count]"); err != nil {
 		return err
@@ -31,7 +31,7 @@ func loadBakalMonsterBuffs(ts []pvf.Token, m *NativeBakalRaidMonster) error {
 	}
 	for _, entry := range []struct {
 		label string
-		out   *[]NativeBakalWeightedBuff
+		out   *[]BakalWeightedBuff
 	}{{"[buff list]", &m.BuffPool}, {"[additional buff list]", &m.AdditionalBuffPool}, {"[hard buff list]", &m.HardBuffPool}, {"[hard additional buff list]", &m.HardAdditionalBuffPool}} {
 		blocks, e := bakalBlocks(ts, entry.label, "[/"+entry.label[1:])
 		if e != nil {
@@ -51,20 +51,20 @@ func loadBakalMonsterBuffs(ts []pvf.Token, m *NativeBakalRaidMonster) error {
 			if b[i].Type != 6 || b[i].Text == "" || b[i+1].Type != 0 || b[i+1].Value <= 0 {
 				return fmt.Errorf("invalid source buff weight")
 			}
-			*entry.out = append(*entry.out, NativeBakalWeightedBuff{b[i].Text, int(b[i+1].Value)})
+			*entry.out = append(*entry.out, BakalWeightedBuff{b[i].Text, int(b[i+1].Value)})
 		}
 	}
 	return nil
 }
-func loadBakalBuffDefinitions(a *pvf.Archive, r *NativeBakalRaidRules) error {
-	ts, err := nativeReadBakalCOSTokens(a, "contents/2022/bakalraid/etc/bakalbuff.cos")
+func loadBakalBuffDefinitions(a *pvf.Archive, r *BakalRaidRules) error {
+	ts, err := readBakalCOSTokens(a, "contents/2022/bakalraid/etc/bakalbuff.cos")
 	if err != nil {
 		return err
 	}
 	if r.RaidBuffCooldownMillis, err = bakalRowInt(ts, "[raid buff cooltime]"); err != nil || r.RaidBuffCooldownMillis < 0 {
 		return fmt.Errorf("invalid source shared buff cooldown")
 	}
-	r.BuffDefinitions = map[string]NativeBakalBuffDefinition{}
+	r.BuffDefinitions = map[string]BakalBuffDefinition{}
 	for _, kind := range []string{"[party buff]", "[raid buff]"} {
 		blocks, e := bakalBlocks(ts, kind, "[/"+kind[1:])
 		if e != nil {
@@ -75,7 +75,7 @@ func loadBakalBuffDefinitions(a *pvf.Archive, r *NativeBakalRaidRules) error {
 			if len(names) != 1 {
 				return fmt.Errorf("invalid source buff name")
 			}
-			d := NativeBakalBuffDefinition{Kind: names[0], Raid: kind == "[raid buff]"}
+			d := BakalBuffDefinition{Kind: names[0], Raid: kind == "[raid buff]"}
 			if d.Duration, e = bakalRowInt(b, "[duration]"); e != nil {
 				return e
 			}

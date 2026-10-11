@@ -24,15 +24,15 @@ import (
 // Opt-in contribution profile. No change to the ordinary upstream server.
 // Pool/weights are operator policy, not claimed official smart-drop rates.
 type moonSoloConfig struct {
-	ClientProfile string                `json:"client_profile"`
-	Channel       uint32                `json:"channel"`
-	Remaining     byte                  `json:"test_remaining"`
-	Rewards       loot.MoonRewardPolicy `json:"rewards"`
+	ClientProfile string                 `json:"client_profile"`
+	Channel       uint32                 `json:"channel"`
+	Remaining     byte                   `json:"test_remaining"`
+	Rewards       loot.MoonRewardPolicy  `json:"rewards"`
 	// SourceRewards 是**源声明驱动**的翻牌策略（唯一权威来源，见
 	// internal/loot/moon_source_rewards.go）：装配时从副本的 [difficulty dropitem group list]
 	// 直读，见 cmd/wireprobe/moon_source_config.go。`Rewards` 只为**旧的 JSON 配置档**保留，
 	// 运行时不再从它出发。
-	SourceRewards loot.MoonSourcePolicy  `json:"-"`
+	SourceRewards loot.MoonSourcePolicy `json:"-"`
 	Entry         database.WorldPosition `json:"entry"`
 	// RewardPool 是翻牌池的**直读来源描述**（组号与模板@权重），只用于启动日志：
 	// 池的成员与权重全部从源推导，不是配置项，也没有对应的 JSON 档。
@@ -57,9 +57,7 @@ type moonSoloState struct {
 	autoPickAt time.Time
 	// resuming 表示「撤退回城后点了 Continue、正在重推入场序列」。
 	// 它只影响 CMD37：那一次必须走**完整**加载路径，见 case 37 与 moonResumeRun。
-	resuming          bool
-	autoPickRun       string
-	autoPickCharacter int64
+	resuming bool
 }
 
 // defaultMoonSoloConfig 从**直读**推导沉月湖单人配置，取代原先"必须手工提供 JSON 配置档"
@@ -380,7 +378,7 @@ func (w *worldSession) moonEnterPackets(floor bool) ([]outboundPacket, error) {
 			return nil, err
 		}
 	}
-	plan := moonEntryPlan(floor, moonEntryParts{
+	return moonEntryPlan(floor, moonEntryParts{
 		Handoff:  handoff,
 		Basic:    basic,
 		Addition: more,
@@ -390,8 +388,7 @@ func (w *worldSession) moonEnterPackets(floor bool) ([]outboundPacket, error) {
 		Dungeon:  protocol.DungeonInfo(protocol.DungeonInfoState{ID: s.Definition.ID, Maze: s.Maze.Index, Boss: s.Maze.Boss}),
 		Map:      mapBody,
 		MoonInfo: w.moonInfo(2, false),
-	})
-	return w.allDungeonEliteEntryPlan(context.Background(), s, plan)
+	}), nil
 }
 
 // moonEntryParts 是进场序列里已经构造好的各段包体。把「顺序」与「怎么造包」
@@ -892,11 +889,12 @@ func (w *worldSession) moonHandle(id uint16, p []byte, now time.Time, event func
 		if !w.cardScrolled {
 			return fail(fmt.Errorf("Moon card layout before scroll"))
 		}
-		if !w.cardLayoutSent && !w.moon.claimed {
-			w.moon.autoPickAt = now.Add(3 * time.Second)
-			w.moon.autoPickRun = s.RunID
-			w.moon.autoPickCharacter = w.role.ID
-		}
+		// 布局发出后给玩家 3 秒选牌；到点还没选就替他选第一张（见 autoPickMoonCard）。
+		//
+		// 沉月湖的翻牌走 dispatchSpecialContent -> moonHandle，**不经过**
+		// dispatchDungeon 里那段「card_layout_ack 时置 cardAutoPickAt」的后处理，
+		// 所以这里要自己置一次计时器；否则客户端停在「一张都没翻」。
+		w.moon.autoPickAt = now.Add(3 * time.Second)
 		w.cardLayoutSent = true
 		return true, []outboundPacket{{"card_layout_ack", 1, 70, protocol.CardLayout()}}, nil
 	case 71, 1426:
@@ -1176,24 +1174,30 @@ func (w *worldSession) autoPickMoonCard(now time.Time) ([]outboundPacket, error)
 	if w == nil || w.moon.autoPickAt.IsZero() || now.Before(w.moon.autoPickAt) {
 		return nil, nil
 	}
-	clear := func() { w.moon.autoPickAt = time.Time{}; w.moon.autoPickRun = ""; w.moon.autoPickCharacter = 0 }
-	if w.moon.owner == nil || w.activeDungeon == nil || w.moon.owner.Session() != w.activeDungeon ||
-		w.moon.autoPickRun != w.activeDungeon.RunID || w.moon.autoPickCharacter != w.role.ID ||
-		!w.resultSent || w.moon.plan == nil || w.moon.plan.Run != w.moon.autoPickRun ||
-		w.moon.plan.Character != w.role.ID || w.moon.plan.Account != w.role.AccountID || w.moon.plan.Source != w.role.ConfigVersion ||
-		w.moon.claimed {
-		clear()
+	// 没有本局（人已经回城/换场）：什么都不做，也不 panic。
+	if w.moon.owner == nil {
 		return nil, nil
 	}
+	// 奖单还没冻结（case 46 还没跑）：清掉计时器，免得每个 tick 空转。
+	if !w.resultSent || w.moon.plan == nil {
+		w.moon.autoPickAt = time.Time{}
+		return nil, nil
+	}
+	// 已经领过（玩家自己选了）：不能再替他选一张。
+	if w.moon.claimed {
+		return nil, nil
+	}
+	// 布局还没发出去：不发，否则会在玩家还没看到牌的时候就定死第一张。
 	if !w.cardLayoutSent {
 		return nil, nil
 	}
 	packets, err := w.moonClaim(0)
 	if err != nil {
+		// 未提交则保留奖单，稍后重试；不吞奖。
 		w.moon.autoPickAt = now.Add(5 * time.Second)
 		return nil, err
 	}
-	clear()
+	w.moon.autoPickAt = time.Time{}
 	return packets, nil
 }
 
@@ -1207,29 +1211,18 @@ func (w *worldSession) moonClaim(index byte) ([]outboundPacket, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	var body []byte
-	saved, fresh, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).ClaimMoonRewardPrepared(ctx, w.role, w.moon.plan.Run, func(next database.Character) error {
-		var err error
-		body, err = w.loot.Bootstrap(workflow.LootRole(next))
-		return err
-	})
+	saved, _, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).ClaimMoonReward(ctx, w.role, w.moon.plan.Run)
 	if e != nil {
 		return nil, e
 	}
-	if !fresh {
-		body, e = w.loot.Bootstrap(workflow.LootRole(saved))
-		if e != nil {
-			return nil, e
-		}
-	}
 	w.role = saved
 	w.moon.claimed = true
-	w.moon.autoPickAt = time.Time{}
-	w.moon.autoPickRun = ""
-	w.moon.autoPickCharacter = 0
+	body, e := w.loot.Bootstrap(workflow.LootRole(saved))
+	if e != nil {
+		return nil, e
+	}
 	return []outboundPacket{{"moon_reward_inventory", 0, 13, body}, {"card_selection_ack", 1, 71, card}, w.moonInfo(5, true)}, nil
 }
-
 // moonLeaveFrames 组「离开副本回城」那一串**帧**（N2622 + 23/24/3/2/2/14），
 // **不含任何状态收尾** —— 收尾分两个变体：moonReturn（收局）与 moonLeaveKeepRun（保留本局）。
 func (w *worldSession) moonLeaveFrames(success bool) ([]outboundPacket, error) {

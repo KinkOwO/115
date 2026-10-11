@@ -2,16 +2,18 @@ package character
 
 import (
 	"context"
-	"dfolan/internal/catalog"
 	"dfolan/internal/inventory"
 	"encoding/json"
 	"fmt"
 )
 
-// ExpandSkinSlot consumes one aura/creature ticket and unlocks its USERINFO1 bit.
-// An explicit requestedSlot is checked inside the transaction; absent/zero
-// means the caller has no native slot and needs a matching owned ticket.
-// Never spend a different slot than the inventory row published by the caller.
+// ExpandSkinSlot consumes one pet-skin-slot expansion ticket and unlocks the
+// creature bit (bit 5) of the same USERINFO1 unlock byte the armoury padlocks
+// use - the client reads that byte straight into actor+0x198.
+//
+// The ticket is located by template rather than by the slot the request named:
+// the wire slot is not authoritative for every caller (a caller with no slot
+// passes 0), so the mask is resolved against the bag contents.
 //
 // The whole change - the spent ticket row and the new unlock byte - lands in one
 // CommitCharacterEvent transaction keyed by the request, so a client retry
@@ -21,11 +23,11 @@ import (
 //
 // Callers re-publish USERINFO1 afterwards: no other packet carries the unlock
 // byte (see worldSession.unlockRefresh).
-func (s *Service) ExpandSkinSlot(ctx context.Context, role Character, key string, mask byte, source catalog.LootCatalog, requestedSlot ...uint16) (Character, bool, error) {
+func (s *Service) ExpandSkinSlot(ctx context.Context, role Character, key string, mask byte) (Character, bool, error) {
 	if s == nil || s.Store == nil {
 		return role, false, fmt.Errorf("skin slot expansion without a store")
 	}
-	if mask != inventory.ExpandAuraSkin && mask != inventory.ExpandCreatureSkin {
+	if mask == 0 {
 		return role, false, fmt.Errorf("skin slot expansion without a mask")
 	}
 	if key == "" {
@@ -37,17 +39,7 @@ func (s *Service) ExpandSkinSlot(ctx context.Context, role Character, key string
 			if err != nil {
 				return nil, nil, err
 			}
-			slot, ok := inventory.SkinSlotTicketSlot(b, mask, source)
-			if len(requestedSlot) > 0 && requestedSlot[0] != 0 {
-				slot, ok = requestedSlot[0], false
-				for _, item := range b.Items {
-					if item.Slot == slot {
-						m, recognized := inventory.SkinSlotMaskForTicket(item.Template, source)
-						ok = recognized && m == mask && item.Amount > 0
-						break
-					}
-				}
-			}
+			slot, ok := inventory.SkinSlotTicketSlot(b, mask)
 			if !ok {
 				return nil, nil, fmt.Errorf("no ticket for unlock mask %#02x in the main bag", mask)
 			}

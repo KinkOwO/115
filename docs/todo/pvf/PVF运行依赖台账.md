@@ -167,8 +167,6 @@ Go 1.26.5 候选 build 与 `go vet ./...` 通过；Python 3.11 启动器测试 1
 
 ## 下一批建议与证据缺口
 
-艾尔文泪湖换层回归关联审计：当前源 `contents/2022/elvenmere/etc/elvenmere.cos` 的 `[weekly reward]`、`[season reward]`、`[floor clear exp]`、`[max floor]` 和 `[area group]` 已有内容定义，`internal/dungeon/elvenmere.go` 仍手写奖励 ID/数量和经验公式，`cmd/wireprobe/dungeon_flow.go:elvenmereTeleport` 直接消费这些函数并写死层数上限。经验首层源值为 0，现函数首层为 90000，不能称数值同源。上述路径相对 `server/work/dfo-lan/`。本次已提示业主，暂保留原行为以隔离 CMD2015 精锐门禁回归；尚未迁移。建议扩展同一 Source 的 COS reader/领域规则后替换手工表；奖励标记持久化、周期与发奖事务错误处理仍需当前客户端及 live 语义证据。源身份和本次入口证据见 `server/work/dfo-lan/docs/protocol/elvenmere-elite-teleport-20261010.md`。本次恢复已有处理器不表示奖励源驱动已完成。
-
 1. **Phase 01 源码整合与离线验证完成**：最终结构、底层解析职责、架构契约、build/vet/test/Python 状态、54 域 prepared-check、Lottery 与 RolePrewarm 真实归档结果及未实机/未换 bin 的限制，见本节前述记录。读取错误不得隐式切实现；Baseline compare 与运维/玩法策略不混入目录 facade。本结论不表示 configs 剩余内容依赖已清除。
 2. 审计高优先级手工内容清单：pvf-drop-policy.basic_equipment_ids、pvf-box-policy.templates/cos_paths、pvf-selection-policy.templates、pvf-item-shop-policy.routes。先比较源字段及客户端消费证据，不增删 ID、不改变数值；证据不足继续保留。
 3. 逐字段拆分成功率、掉落率、迷宫选择、stack limit、背包槽位与快捷栏：标注 PVF source field、IDA reader、运营决定或 unknown。只有闭环字段才能进入后续迁移。

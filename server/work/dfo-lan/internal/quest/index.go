@@ -28,8 +28,6 @@ type Entry struct {
 	GrowTypes        []int32
 	TargetCharacters []targetCharacter
 	TargetUsable     bool
-	Grade            string
-	PaysOnForceClear bool
 	NPC              uint32
 	NPCReach         NPCReachObjective
 	Range            RangeObjective
@@ -150,7 +148,6 @@ func BuildIndex(c catalog.QuestCatalog) *Index {
 			Jobs: d.Jobs, Prerequisites: d.Prerequisites, PrerequisiteGroups: groups,
 			Collisions: d.Collisions,
 		}
-		e.Grade, e.PaysOnForceClear = Grade(d), RewardableOnForceClear(d)
 		e.TargetCharacters, e.TargetUsable = targetCharacters(d.Script.Cells)
 		for _, g := range cells(d.Script.Cells, "[grow type]") {
 			if g.Type != 0 {

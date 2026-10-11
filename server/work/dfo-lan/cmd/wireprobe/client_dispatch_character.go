@@ -128,12 +128,6 @@ func (client *gameConnection) dispatchSessionTransitions(requestData *clientRequ
 		}
 		client.event(map[string]any{"kind": "menu_response", "id": requestData.frame.ID, "character_id": client.selectedCharacterID, "option": option, "plain_hex": hex.EncodeToString(payload)})
 		if requestData.frame.ID == 3 || requestData.frame.ID == 7 {
-			if client.worldState != nil {
-				if note, closed := client.legionState.abandonOnLeave("menu session transition", client.worldState.role.ID); closed {
-					client.event(note)
-				}
-			}
-			client.flushWeeklyClock()
 			client.selectedCharacterID = 0
 			client.selectedBasic, client.selectedAddition = nil, nil
 			if client.worldState != nil {

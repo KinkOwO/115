@@ -23,9 +23,12 @@ import "encoding/binary"
 //	[2:6)  u32 值A
 //	[6:10) u32 值B
 //
-// 字段语义与自身键按上游后续取证：A=誓约积分，B=套装积分，自身键=0xFFFF。
-// 本机反汇编已核对 10 字节 reader、两个 u32 落点与自身键初始化。
-// 源积分与登录时机见 docs/protocol/upstream/oath-set-points-20261004.md §7。
+// ⚠️ 仍是缺口、**在定案前不要发这个包**（猜包会污染客户端状态，见根 AGENTS §0.3）：
+//  1. 值A / 值B 的语义（是 Set Point / Oath Point，还是"当前值 / 达成值"）—— 等
+//     `sub_145F06760` 的写偏移与读取方定案；
+//  2. 哪些 u16 是合法部位（`qword_14E683C08` 的注册表枚举，含不含"誓约/晶体"那一档）。
+//
+// 证据与进度见 docs/protocol/oath-set-points-20261004.md §5.0。
 const (
 	// PartSetPointOpcode 是 2634（当前值）。
 	PartSetPointOpcode uint16 = 2634
@@ -37,7 +40,7 @@ const (
 
 // PartSetPoint 组 2634/2635 的单部位载荷：`u16 部位号 + u32 值A + u32 值B`。
 //
-// 只做几何、不做语义：调用方负责给出部位号与两个数值。
+// 只做几何、不做语义：调用方负责给出部位号与两个数值（等 §5.0 的缺口定案后接线）。
 func PartSetPoint(part uint16, a, b uint32) []byte {
 	body := make([]byte, PartSetPointSize)
 	binary.LittleEndian.PutUint16(body[0:2], part)

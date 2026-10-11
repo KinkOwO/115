@@ -37,30 +37,15 @@ func itemPremiumActivations(values []inventory.PremiumActivation) []database.Cas
 // The recovery effect is the client's own: the native success acknowledgement
 // carries no restored amount, so nothing is invented here.
 func (s *ItemService) Consume(ctx context.Context, role database.Character, r protocol.UseStackableRequest) (database.Character, inventory.ConsumeReceipt, bool, error) {
-	return s.ConsumeCheckedWithRole(ctx, role, r, nil, nil)
+	return s.ConsumeChecked(ctx, role, r, nil, nil)
 }
 
-// ConsumeChecked preserves the upstream run-budget callback contract.
+// Check runs only for a new committed use. A receipt replay must remain
+// readable even when a run allowance has since reached zero.
 func (s *ItemService) ConsumeChecked(ctx context.Context, role database.Character, r protocol.UseStackableRequest, check func() error, committed func()) (database.Character, inventory.ConsumeReceipt, bool, error) {
-	var wrapped func(database.Character, protocol.UseStackableRequest) error
-	if check != nil {
-		wrapped = func(database.Character, protocol.UseStackableRequest) error { return check() }
-	}
-	return s.ConsumeCheckedWithRole(ctx, role, r, wrapped, committed)
-}
-
-// ConsumeWithCheck validates against the saved role inside the original transaction.
-func (s *ItemService) ConsumeWithCheck(ctx context.Context, role database.Character, r protocol.UseStackableRequest, check func(database.Character, protocol.UseStackableRequest) error) (database.Character, inventory.ConsumeReceipt, bool, error) {
-	return s.ConsumeCheckedWithRole(ctx, role, r, check, nil)
-}
-
-func (s *ItemService) ConsumeCheckedWithRole(ctx context.Context, role database.Character, r protocol.UseStackableRequest, check func(database.Character, protocol.UseStackableRequest) error, committed func()) (database.Character, inventory.ConsumeReceipt, bool, error) {
 	var out inventory.ConsumeReceipt
 	fail := func(e error) (database.Character, inventory.ConsumeReceipt, bool, error) {
 		return role, out, false, e
-	}
-	if cashshop.IsRestrictedContract(r.Template) {
-		return fail(fmt.Errorf("契约包含尚未支持的源限制，物品已保留"))
 	}
 	key, e := s.Items.ConsumeKey(InventoryRole(role), r)
 	if e != nil {
@@ -75,7 +60,7 @@ func (s *ItemService) ConsumeCheckedWithRole(ctx context.Context, role database.
 		s.Items.Catalog.Source.SaveIdentity(), key, s.Items.Model,
 		func(current database.Character) (json.RawMessage, json.RawMessage, []database.CashPremiumActivation, error) {
 			if check != nil {
-				if err := check(current, r); err != nil {
+				if err := check(); err != nil {
 					return nil, nil, nil, err
 				}
 			}

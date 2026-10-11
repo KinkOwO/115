@@ -1,8 +1,10 @@
 // Package legion holds the in-memory state and wire contract for the legion /
 // apocalypse subsystem (军团频道 / 末世录).
 //
-// Session is currently a per-connection UI/request tracker. This repository
-// has no Apocalypse shared run executor or durable reward owner. Historical
+// The imported per-connection Session is only a UI/request tracker. The
+// production shared party/run owner now lives in internal/partyrun; do not
+// restore the upstream solo-only assumption. Rewards use durable personal
+// plans/receipts, whereas an active room is still in-memory. Historical
 // next64/next65 notes are not current-version function-address evidence.
 package legion
 
@@ -30,8 +32,8 @@ const (
 	CmdVenusEndAtPhase4     uint16 = 2293 // ENUM_CMDPACKET_VENUS_END_AT_PHASE4
 )
 
-// These are verified registered IDs, not a claim that each notification or
-// the corresponding gameplay executor is implemented.
+// N2895/N2896 and the N2252 personal result/exit path are wired. Other declared
+// IDs are not automatically implemented; native full-route acceptance remains.
 const (
 	NotiClearRewardBasic      uint16 = 2252 // ENUM_NOTIPACKET_LEGION_BASIC_CLEAR_REWARD
 	NotiClearRewardAdditional uint16 = 2253 // ENUM_NOTIPACKET_LEGION_ADDITIONAL_CLEAR_REWARD
@@ -45,7 +47,7 @@ const (
 
 // EnvelopeSize is an opaque13-byte prefix INSIDE this family's plaintext.
 // The observed start body has12 FF bytes plus00, not a13-byte network header.
-// Current1424FE3F0/1424FE290 write fields at+13/+17 before copying the body.
+// Current1424FEBB0/1424FEA50 write fields at+13/+17 before copying the body.
 // Transport padding is not a field; the prefix semantics remain unnamed.
 const EnvelopeSize = 13
 
@@ -83,7 +85,7 @@ func DecodeStart(p []byte) (StartRequest, error) {
 	}, nil
 }
 
-// CMD2043: generic success byte, then1424FD900 reads a4B result code.
+// CMD2043: generic success byte, then1424FE0C0 reads a4B result code.
 // Inner code0 is accepted; it does NOT replace the outer success byte.
 const StartAckSize = 1 + 4
 
@@ -132,13 +134,13 @@ func DecodeOperationSelect(p []byte) (OperationSelectRequest, error) {
 	}, nil
 }
 
-// CMD2354: generic success byte, then1424FD320 reads u16 content +14B.
+// CMD2354: generic success byte, then1424FDAE0 reads u16 content +14B.
 const OperationAckSize = 1 + 2 + 14
 
 // OperationAck echoes the action the player requested.
 //
-// The current handler1424FD320 reads the content u16, then the14-byte
-// structure, and hands it to14069A360, which branches on the first dword:
+// The current handler1424FDAE0 reads the content u16, then the14-byte
+// structure, and hands it to14069AA80, which branches on the first dword:
 // 1 refreshes the operation screen (using a dword at +6), 2 confirms and enters
 // — on that branch the client sends CMD2045 itself. Both ends use 1 and 2 for
 // the same two actions, so echoing the request back is the smallest assumption
@@ -160,8 +162,8 @@ func OperationAck(action uint32) []byte {
 // client's own caller pins the fields: the operation-screen confirm branch
 // invokes sub_1424FE290(107, *(a1 + 115)) — the same 107 channel code as the
 // rest of the family, and the current stage held at manager+115. Native
-// 14069B5A0 uses that same value to index the6x12 stage array; it is NOT the
-// CTP difficulty key. Difficulty is the choice byte+1 (1406996E0).
+// 140698C60 uses that same value to index the6x12 stage array; it is NOT the
+// CTP difficulty key. Difficulty is the choice byte+1 (140699750).
 type EnterDungeonRequest struct {
 	Channel    uint32
 	Stage      uint32
@@ -225,9 +227,10 @@ func RoleSelectAck() []byte { return successfulReply(1) }
 
 // FailRequest is the decoded CMD2044 LEGION_FAIL body.
 //
-// Current1424FE340 copies ecx to u32@13 and sends17B. The caller/owner and
-// full retreat transition remain unclosed; do not infer a failure verdict
-// or reason code from this value, nor from the packet's presence.
+// Layout (next65 §1, evidence sub_1424FE340): int32 @13, 17 bytes total.
+// The client sends it from the run-abandon path. @13 is passed straight through
+// by the caller and no consuming branch has been pinned down, so it is recorded
+// rather than interpreted — do not read a reason code out of it.
 type FailRequest struct {
 	Argument   uint32
 	BodyLength int
@@ -254,11 +257,10 @@ func FailAck() []byte { return successfulReply(FailAckSize) }
 
 // RewardEndRequest is the decoded CMD2046 LEGION_REWARD_END body.
 //
-// Current1424FE4A0 writes ecx to u32@13, r8d to u32@17 and dl to u8@21,
-// then sends22B. Generic1425045C0 derives ecx from142AB29C0's content tag;
-// Current107 vt+340 is140697020: Second is142AB2500's mode outcome;
-// Flag is140698540's current phase destination (manager row@83), NOT the
-// difficulty. The positional Go field names are retained for compatibility.
+// Historical layout: int32 @13 = a1, int32 @17 = a3,
+// char @21 = a2, 22 bytes total. The register names in the client are the only
+// names we have, so the fields keep their positions instead of being renamed
+// into gameplay meanings.
 type RewardEndRequest struct {
 	First      uint32
 	Second     uint32
@@ -280,10 +282,12 @@ func DecodeRewardEnd(p []byte) (RewardEndRequest, error) {
 	}, nil
 }
 
-// RewardEndAckSize includes the generic success byte and13B read by the
-// current1424FD3A0, registered by1424FE600. That handler also invokes reward/UI
-// cleanup. Length evidence alone does not authorize successful completion
-// before durable rewards; this tracker does not implement those grants.
+// RewardEndAckSize is the body size the client reads for CMD2046: its handler
+// sub_1424FD3A0 calls sub_146EA0BE0(v50, 13). Again only the length is
+// contract. G0380 re-located the current handler via the2046 registration at
+// 1424FEEDE:1424FDB60 still reads13B, then invokes client reward/UI cleanup.
+// The older1424FD3A0 address is not this handler in2.38.3.25. Length evidence
+// alone does not authorize a successful reply before durable own rewards.
 const RewardEndAckSize = 1 + 13
 
 // RewardEndAck builds the CMD2046 response body.
@@ -344,10 +348,11 @@ type Session struct {
 	// the request carries it.
 	Argument uint32
 
-	// Operation is the difficulty chosen through CMD2354; Phase is the stage
-	// requested through CMD2045. Roles belong to an owned run's real roster,
-	// not to this per-connection UI tracker.
+	// Operation is the operation chosen through CMD2354 (P2), RoleValue the
+	// role chosen through CMD2355 (P3), Phase the current phase driven by
+	// NOTI2657 (P4). They stay zero until their phase lands.
 	Operation uint32
+	RoleValue uint32
 	Phase     byte
 
 	// Failed records a CMD2044 LEGION_FAIL from the client (P5). It is a
@@ -360,11 +365,15 @@ type Session struct {
 	// Auxiliary is the accompanying byte the UI passed through.
 	Action    uint32
 	Auxiliary byte
+
+	// PartySize is always 1: the solo-party decision (D2). It is named rather
+	// than inlined so the compromise is visible at every use site.
+	PartySize int
 }
 
 // NewSession starts a session for a character.
 func NewSession(characterID int64) *Session {
-	return &Session{CharacterID: characterID}
+	return &Session{CharacterID: characterID, PartySize: 1}
 }
 
 // Begin records a CMD2043 request. Re-entering is idempotent: the client may
@@ -387,11 +396,15 @@ func (s *Session) SelectOperation(action uint32, auxiliary byte) {
 }
 
 // EnterDungeon records the accepted entry STAGE without changing difficulty.
-// This tracker alone does not authorize or create a dungeon session.
+// Production admission/validation is owned by partyrun, not this tracking row.
 func (s *Session) EnterDungeon(stage uint32) {
 	s.Phase = byte(stage)
 	s.Entered = true
 }
+
+// SelectRole records a CMD2355 role change. The client only sends the packet
+// when the value actually changed, so re-recording the same value is harmless.
+func (s *Session) SelectRole(role uint32) { s.RoleValue = role }
 
 // Fail records a CMD2044 LEGION_FAIL. The client sends this from its abandon
 // path, so the session is marked failed and left otherwise intact: the run
@@ -412,6 +425,7 @@ func (s *Session) EndReward() { s.Reset() }
 func (s *Session) Reset() {
 	s.Entered = false
 	s.Operation = 0
+	s.RoleValue = 0
 	s.Phase = 0
 	s.Failed = false
 	s.Action = 0

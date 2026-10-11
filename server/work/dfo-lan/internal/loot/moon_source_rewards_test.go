@@ -54,8 +54,8 @@ func moonSourceRole(s *Service) Role {
 // 族别按条目名判定：Oath/Crystal → 誓约族；Equipment/Weapon → 装备族；其余不参与。
 func TestMoonSourceFamiliesByName(t *testing.T) {
 	cases := []struct {
-		name            string
-		oath, equipment bool
+		name              string
+		oath, equipment   bool
 	}{
 		{"SetEquipmentReward", false, true},
 		{"WeaponEquipmentReward", false, true},
@@ -145,13 +145,13 @@ func TestMoonSourcePlanRatesMultiplesAndSkips(t *testing.T) {
 		Source:            s.Catalog.Source.SaveIdentity(),
 		SettlementDungeon: 100004137,
 		Block:             block,
-		Fixed:             []MoonRewardChoice{{Template: 102, Count: 3}},
+		Fixed:         []MoonRewardChoice{{Template: 102, Count: 3}},
 		// 装备掷骰的两个池故意留空：它必须进 Skipped 而不是静默消失。
 		// 套装盒 / 誓约盒各给一个「只有一件」的展开池：断言它们改发装备、不再发占位件。
-		SetEquipmentPool: []MoonOathPoolMember{{Template: 102, Weight: 1000, Rarity: 3}},
-		OathPool:         []MoonOathPoolMember{{Template: 101, Weight: 1000, Rarity: 3}},
-		Level:            115,
-		Rank:             3,
+		SetEquipmentPool:  []MoonOathPoolMember{{Template: 102, Weight: 1000, Rarity: 3}},
+		OathPool:          []MoonOathPoolMember{{Template: 101, Weight: 1000, Rarity: 3}},
+		Level:             115,
+		Rank:              3,
 	}
 	out, e := s.PlanMoonRewardsFromSource(moonSourceRole(s), moonSourceRun(), p)
 	if e != nil {
@@ -296,7 +296,6 @@ func TestMoonSourcePlanRefusesEmptyResult(t *testing.T) {
 		t.Fatal("全都发不出去时应报错")
 	}
 }
-
 // 分组判据**只看堆叠物目录**：只有装备模板的组必须是"产出池"，绝不能落到固定产物里。
 //
 // 这条钉住一个实测过的坑：早先用"组 ∩ 可入包装备 非空"判定，Equipment 为 nil 或目录不全时

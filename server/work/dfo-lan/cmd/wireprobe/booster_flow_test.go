@@ -512,7 +512,6 @@ func TestBoosterOpenLifeTokenBox(t *testing.T) {
 }
 
 func TestBoosterOpenMasterContractPackage(t *testing.T) {
-	installBoosterContractFixture(t)
 	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "0") // 本用例断言原即时 NOTI66 行为
 	cat, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
@@ -603,7 +602,6 @@ func TestBoosterOpenMasterContractPackage(t *testing.T) {
 // 修复开启（DFO_CONTRACT_PURCHASE_CRASH_FIX!=0，默认即开启）时，booster 开箱
 // 命中契约奖不再追加即时 NOTI66，避免客户端闪退；契约仍激活落库。
 func TestBoosterOpenMasterContractPackageCrashFix(t *testing.T) {
-	installBoosterContractFixture(t)
 	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "1")
 	cat, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
@@ -738,7 +736,6 @@ func TestBoosterOpenRemySparklingTouchBox(t *testing.T) {
 }
 
 func TestBoosterDirectContractActivation(t *testing.T) {
-	installBoosterContractFixture(t)
 	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "0") // 本用例断言原即时 NOTI66 行为
 	cat, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {
@@ -803,7 +800,6 @@ func TestBoosterDirectContractActivation(t *testing.T) {
 // 修复开启（DFO_CONTRACT_PURCHASE_CRASH_FIX!=0，默认即开启）时，直接使用契约
 // 道具同样不追加即时 NOTI66；契约仍激活落库。
 func TestBoosterDirectContractActivationCrashFix(t *testing.T) {
-	installBoosterContractFixture(t)
 	t.Setenv("DFO_CONTRACT_PURCHASE_CRASH_FIX", "1")
 	cat, err := catalog.LoadBoosterCatalog("../../internal/catalog/testdata/booster-flow.json", "../../internal/catalog/testdata/booster-items.json")
 	if err != nil {

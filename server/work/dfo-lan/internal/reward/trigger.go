@@ -87,8 +87,8 @@ type Entitlements struct {
 	// （个人金库容量、账号金库容量、账号材料仓、账号皮肤仓库）。本结构只负责"收集意图"，
 	// 落到哪张表由服务端的 EntitlementFunc 决定（applier 会分派到各自的事务入口）。
 	// 同样遵守"零值/缺省即不改"。
-	Pets     []ItemGrant `json:"pets,omitempty"`     // 宠物本体（模板，count 恒为 1）
-	PetItems []ItemGrant `json:"petItems,omitempty"` // 宠物用品（模板 + 数量）
+	Pets     []ItemGrant `json:"pets,omitempty"`      // 宠物本体（模板，count 恒为 1）
+	PetItems []ItemGrant `json:"petItems,omitempty"`  // 宠物用品（模板 + 数量）
 	// Vault1Slots / Vault2Slots 是个人金库两层容量的目标值；AccountVaultSlots 是账号金库。
 	// nil = 不改；只会往大改（只升不降）。
 	Vault1Slots       *uint16 `json:"vault1Slots,omitempty"`

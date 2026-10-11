@@ -168,9 +168,6 @@ func ImportEnhancements(a *pvf.Archive, index catalog.ItemIndex, policyPath stri
 			return nil, err
 		}
 		fields := ticketFields(cells)
-		if err := c.importPortable(id, item.Path, fields); err != nil {
-			return nil, err
-		}
 		if _, ok := fields["[equipment reinforcement ticket]"]; ok {
 			c.ReinforcementTickets[id] = reinforcementTicket{Path: item.Path, Fields: fields}
 		}

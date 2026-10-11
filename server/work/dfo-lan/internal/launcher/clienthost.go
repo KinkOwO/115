@@ -299,7 +299,6 @@ func startHostedClient(options ClientHostOptions, isolate bool) (*HostedClient, 
 	hosted.process = process
 	hosted.Pid = process.Pid
 	log.line(fmt.Sprintf("ROOT_PID %d", process.Pid))
-	log.line(fmt.Sprintf("MEMORY_GUARD client_job_commit_mib=%d", clientMemoryBudget>>20))
 	if wrapper.Enabled() {
 		// stderr 先接上（握手失败时它就是唯一的原因来源）：实时落 helper.err，同时留一份尾部。
 		if process.stderr != nil {

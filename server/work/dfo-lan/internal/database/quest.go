@@ -54,17 +54,8 @@ func (s *Store) AcceptQuestGroups(ctx context.Context, account, characterID int6
 	prior, e := queries.Quest(ctx, sqlcgen.QuestParams{CharacterID: characterID, QuestID: int32(qid)})
 	if e == nil {
 		out.Status, out.Progress, out.ConfigVersion, out.ProgressModel = prior.Status, uint32(prior.Progress), prior.ConfigVersion, prior.ProgressModel
-		if out.ConfigVersion != version {
-			return out, quest.ErrSourceMigrationRequired
-		}
-		if out.Status == "completed" {
-			return out, quest.ErrAlreadyCompleted
-		}
-		if out.Status != "accepted" {
-			return out, errors.New("quest is not in an accepted state")
-		}
-		if out.ProgressModel != model {
-			return out, quest.ErrProgressMigrationRequired
+		if out.Status != "accepted" || out.ConfigVersion != version || out.ProgressModel != model {
+			return out, errors.New("quest is completed or requires configuration migration")
 		}
 		return out, tx.commit(ctx)
 	}

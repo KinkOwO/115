@@ -205,162 +205,148 @@ func (s *Service) Learn(ctx context.Context, role Character, key string, req pro
 	}
 	hasTactician, _ := s.Store.HasTacticianPremium(ctx, role.AccountID, time.Now())
 	saved, applied, e := s.Store.CommitCharacterEvent(ctx, role.AccountID, role.ID, role.ConfigVersion, key, "source-skill-learning-v1", func(current Character) (json.RawMessage, json.RawMessage, error) {
-		return s.applySkillPurchase(current, req, hasTactician)
-	})
-	saved.WireID = role.WireID
-	return saved, applied, e
-}
-
-// ApplySkillPurchase validates the ordinary source learning rules without a
-// player store. Companion archives commit the returned state atomically.
-func (s *Service) ApplySkillPurchase(current Character, req protocol.SkillPurchase) (json.RawMessage, error) {
-	if s == nil || s.Learning == nil || req.Tree != 0 || current.ConfigVersion != s.Catalog.Source.SaveIdentity() {
-		return nil, fmt.Errorf("learning service/source unavailable")
-	}
-	next, _, err := s.applySkillPurchase(current, req, false)
-	return next, err
-}
-
-func (s *Service) applySkillPurchase(current Character, req protocol.SkillPurchase, hasTactician bool) (json.RawMessage, json.RawMessage, error) {
-	var state State
-	if e := json.Unmarshal(current.State, &state); e != nil {
-		return nil, nil, e
-	}
-	known, e := s.knownSkills(current, state, int(req.Tree))
-	if e != nil {
-		return nil, nil, e
-	}
-	seen := map[uint16]bool{}
-	base := initialSkills(state)
-	floor := map[uint16]byte{}
-	for _, v := range base {
-		floor[v.ID] = v.Level
-	}
-	free, e := s.automaticSkills(current, state)
-	if e != nil {
-		return nil, nil, e
-	}
-	for id, rank := range free {
-		if floor[id] < rank {
-			floor[id] = rank
+		var state State
+		if e := json.Unmarshal(current.State, &state); e != nil {
+			return nil, nil, e
 		}
-	}
-	awakened, e := s.awakeningSkills(current, state)
-	if e != nil {
-		return nil, nil, e
-	}
-	for id, rank := range awakened {
-		if floor[id] < rank {
-			floor[id] = rank
+		known, e := s.knownSkills(current, state, int(req.Tree))
+		if e != nil {
+			return nil, nil, e
 		}
-	}
-	points := int(state.SkillPoints[req.Tree])
-	changes := map[uint16]byte{}
-	reduced := map[uint16]bool{}
-	var newlyLearned []uint16
-	effectiveLevel := int(state.Level)
-	if hasTactician {
-		effectiveLevel += 5
-	}
-	for _, v := range req.Entries {
-		d, ok, sourceErr := s.Learning.Definition(current.Profession, v.ID)
-		if sourceErr != nil {
-			return nil, nil, sourceErr
+		seen := map[uint16]bool{}
+		base := initialSkills(state)
+		floor := map[uint16]byte{}
+		for _, v := range base {
+			floor[v.ID] = v.Level
 		}
-		if !ok || seen[v.ID] || v.Delta == 0 || v.Refund > 1 {
-			return nil, nil, fmt.Errorf("invalid job skill learning request")
+		free, e := s.automaticSkills(current, state)
+		if e != nil {
+			return nil, nil, e
 		}
-		seen[v.ID] = true
-		target := int(known[v.ID]) + int(v.Delta)
-		if v.Refund == 1 {
-			target = int(known[v.ID]) - int(v.Delta)
-			if target < int(floor[v.ID]) || target < 0 {
-				return nil, nil, fmt.Errorf("cannot refund source initial ranks or absent skill")
-			}
-			for lv := int(known[v.ID]); lv > target; lv-- {
-				cost, err := d.costForLevel(state, effectiveLevel, lv, known)
-				if err != nil {
-					return nil, nil, err
-				}
-				points += cost
-				if points > 65535 {
-					return nil, nil, fmt.Errorf("SP refund overflow")
-				}
+		for id, rank := range free {
+			if floor[id] < rank {
+				floor[id] = rank
 			}
 		}
-		for lv := int(known[v.ID]) + 1; lv <= target; lv++ {
-			cost, e := d.costForLevel(state, effectiveLevel, lv, known)
-			if e != nil {
-				return nil, nil, fmt.Errorf("skill %d rank %d: %w", v.ID, lv, e)
+		awakened, e := s.awakeningSkills(current, state)
+		if e != nil {
+			return nil, nil, e
+		}
+		for id, rank := range awakened {
+			if floor[id] < rank {
+				floor[id] = rank
 			}
-			points -= cost
-			if points < 0 {
-				return nil, nil, fmt.Errorf("not enough SP")
-			}
 		}
-		if known[v.ID] == 0 && target > 0 {
-			newlyLearned = append(newlyLearned, v.ID)
+		points := int(state.SkillPoints[req.Tree])
+		changes := map[uint16]byte{}
+		reduced := map[uint16]bool{}
+		var newlyLearned []uint16
+		effectiveLevel := int(state.Level)
+		if hasTactician {
+			effectiveLevel += 5
 		}
-		reduced[v.ID] = target < int(known[v.ID])
-		known[v.ID] = byte(target)
-		changes[v.ID] = byte(target)
-	}
-	if e := s.validateLearningPrerequisites(current.Profession, known, changes, reduced); e != nil {
-		return nil, nil, e
-	}
-	if len(changes) == 0 && req.Intensions == nil && req.Options == nil {
-		return nil, nil, fmt.Errorf("empty learning request")
-	}
-	if e := s.applyVariations(current.Profession, &state, known, req); e != nil {
-		return nil, nil, e
-	}
-	if state.LearnedSkills[req.Tree] == nil {
-		state.LearnedSkills[req.Tree] = map[uint16]byte{}
-	}
-	for id, lv := range changes {
-		if lv == 0 {
-			delete(state.LearnedSkills[req.Tree], id)
-			delete(state.SkillSlots[req.Tree], id)
-		} else {
-			state.LearnedSkills[req.Tree][id] = lv
-		}
-	}
-	if state.Advancement > 0 {
-		for id := range state.LearnedSkills[req.Tree] {
-			d, ok, sourceErr := s.Learning.Definition(current.Profession, id)
+		for _, v := range req.Entries {
+			d, ok, sourceErr := s.Learning.Definition(current.Profession, v.ID)
 			if sourceErr != nil {
 				return nil, nil, sourceErr
 			}
-			if ok {
-				if !d.ForAdvancement(int(state.Advancement)) && !d.ForAwakening(int(state.Advancement), int(state.Awakening)) {
-					delete(state.LearnedSkills[req.Tree], id)
-					delete(state.SkillSlots[req.Tree], id)
+			if !ok || seen[v.ID] || v.Delta == 0 || v.Refund > 1 {
+				return nil, nil, fmt.Errorf("invalid job skill learning request")
+			}
+			seen[v.ID] = true
+			target := int(known[v.ID]) + int(v.Delta)
+			if v.Refund == 1 {
+				target = int(known[v.ID]) - int(v.Delta)
+				if target < int(floor[v.ID]) || target < 0 {
+					return nil, nil, fmt.Errorf("cannot refund source initial ranks or absent skill")
+				}
+				for lv := int(known[v.ID]); lv > target; lv-- {
+					cost, err := d.costForLevel(state, effectiveLevel, lv, known)
+					if err != nil {
+						return nil, nil, err
+					}
+					points += cost
+					if points > 65535 {
+						return nil, nil, fmt.Errorf("SP refund overflow")
+					}
+				}
+			}
+			for lv := int(known[v.ID]) + 1; lv <= target; lv++ {
+				cost, e := d.costForLevel(state, effectiveLevel, lv, known)
+				if e != nil {
+					return nil, nil, fmt.Errorf("skill %d rank %d: %w", v.ID, lv, e)
+				}
+				points -= cost
+				if points < 0 {
+					return nil, nil, fmt.Errorf("not enough SP")
+				}
+			}
+			if known[v.ID] == 0 && target > 0 {
+				newlyLearned = append(newlyLearned, v.ID)
+			}
+			reduced[v.ID] = target < int(known[v.ID])
+			known[v.ID] = byte(target)
+			changes[v.ID] = byte(target)
+		}
+		if e := s.validateLearningPrerequisites(current.Profession, known, changes, reduced); e != nil {
+			return nil, nil, e
+		}
+		if len(changes) == 0 && req.Intensions == nil && req.Options == nil {
+			return nil, nil, fmt.Errorf("empty learning request")
+		}
+		if e := s.applyVariations(current.Profession, &state, known, req); e != nil {
+			return nil, nil, e
+		}
+		if state.LearnedSkills[req.Tree] == nil {
+			state.LearnedSkills[req.Tree] = map[uint16]byte{}
+		}
+		for id, lv := range changes {
+			if lv == 0 {
+				delete(state.LearnedSkills[req.Tree], id)
+				delete(state.SkillSlots[req.Tree], id)
+			} else {
+				state.LearnedSkills[req.Tree][id] = lv
+			}
+		}
+		if state.Advancement > 0 {
+			for id := range state.LearnedSkills[req.Tree] {
+				d, ok, sourceErr := s.Learning.Definition(current.Profession, id)
+				if sourceErr != nil {
+					return nil, nil, sourceErr
+				}
+				if ok {
+					if !d.ForAdvancement(int(state.Advancement)) && !d.ForAwakening(int(state.Advancement), int(state.Awakening)) {
+						delete(state.LearnedSkills[req.Tree], id)
+						delete(state.SkillSlots[req.Tree], id)
+					}
 				}
 			}
 		}
-	}
-	state.SkillPoints[req.Tree] = uint16(points)
-	rows, e := s.skillRows(current, state, int(req.Tree))
-	if e != nil {
-		return nil, nil, e
-	}
-	s.placeNewShortcuts(current.Profession, rows, newlyLearned)
-	state.SkillSlots[req.Tree] = map[uint16]uint16{}
-	for _, v := range rows {
-		state.SkillSlots[req.Tree][v.ID] = v.Slot
-	}
-	p, e := mergeSkillState(current.State, state)
-	if e != nil {
-		return nil, nil, e
-	}
-	// 活动 662 第三关（技能进化点）与技能保存同事务判定：变体已通过源校验后，
-	// 按活动源的 [condition] 点数把关卡推进。未装载活动时原样返回。
-	p, _, e = s.completeBoostVPSave(p, state, req)
-	if e != nil {
-		return nil, nil, e
-	}
-	receipt, e := json.Marshal(map[string]any{"skills": changes, "sp": points, "source": s.Learning.Source.SaveIdentity()})
-	return p, receipt, e
+		state.SkillPoints[req.Tree] = uint16(points)
+		rows, e := s.skillRows(current, state, int(req.Tree))
+		if e != nil {
+			return nil, nil, e
+		}
+		s.placeNewShortcuts(current.Profession, rows, newlyLearned)
+		state.SkillSlots[req.Tree] = map[uint16]uint16{}
+		for _, v := range rows {
+			state.SkillSlots[req.Tree][v.ID] = v.Slot
+		}
+		p, e := mergeSkillState(current.State, state)
+		if e != nil {
+			return nil, nil, e
+		}
+		// 活动 662 第三关（技能进化点）与技能保存同事务判定：变体已通过源校验后，
+		// 按活动源的 [condition] 点数把关卡推进。未装载活动时原样返回。
+		p, _, e = s.completeBoostVPSave(p, state, req)
+		if e != nil {
+			return nil, nil, e
+		}
+		receipt, e := json.Marshal(map[string]any{"skills": changes, "sp": points, "source": s.Learning.Source.SaveIdentity()})
+		return p, receipt, e
+	})
+	saved.WireID = role.WireID
+	return saved, applied, e
 }
 
 // Auto-bind only newly purchased active skills. Rank upgrades never undo a

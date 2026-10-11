@@ -10,6 +10,7 @@ import (
 	"math"
 	"sort"
 	"time"
+
 )
 
 type CashOrder = cashshop.CashOrder
@@ -594,9 +595,6 @@ func (s *Store) purchaseCash(ctx context.Context, o CashOrder, deliver func(json
 		return CashReceipt{}, false, e
 	}
 	if e = q.SaveCashOrderReceipt(ctx, sqlcgen.SaveCashOrderReceiptParams{AccountID: o.Account, OrderKey: o.Key, Receipt: saved}); e != nil {
-		return CashReceipt{}, false, e
-	}
-	if e = s.observeCashAccount(ctx, tx, role, receipt); e != nil {
 		return CashReceipt{}, false, e
 	}
 	if e = tx.commit(ctx); e != nil {

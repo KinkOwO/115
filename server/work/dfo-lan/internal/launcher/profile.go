@@ -55,7 +55,6 @@ var flagKeys = map[string]bool{
 	"DFO_ODYSSEY_REWARDS_RELEASE":   true,
 	"DFO_ODYSSEY_TEMPORARY_CREDITS": true,
 	"DFO_SHOP_OPEN_ALL":             true,
-	"DFO_LOCAL_GM":                  true,
 	"DFO_PVF_VERIFY_BASELINES":      true,
 	"DFO_ATTUNEMENT_REBALANCE":      true,
 	"DFO_FATIGUE_FREE":              true,
@@ -93,10 +92,12 @@ var pvfDomains = func() map[string]bool {
 // has no fullmatch, so every pattern is anchored instead.
 var (
 	dropPercentValue = regexp.MustCompile(`^[0-9]{1,5}$`)
-	multiplierValue  = regexp.MustCompile(`^[0-9]{1,3}$`)
 	sha256Value      = regexp.MustCompile(`^[0-9a-fA-F]{64}$`)
 	omenInfoValue    = regexp.MustCompile(`^[0-9a-fA-Fx,; \-]+$`)
 	oathGradesValue  = regexp.MustCompile(`^\d{1,3}(,\d{1,3})?$`)
+	// 调律（attunement）的两个倍率：正整数，上限见 validMultiplier。
+	// 键名与取值口径来自服务端源码里真正读它们的地方（见 applyEnvironment 的注释）。
+	multiplierValue = regexp.MustCompile(`^[0-9]{1,5}$`)
 )
 
 // Profile is a loaded launcher profile: which binary to run, which files it needs, and
@@ -249,12 +250,6 @@ func (p *Profile) applyEnvironment(module, key string, raw json.RawMessage) erro
 			return invalidProfileValue(key)
 		}
 		p.Env[key] = strconv.Itoa(percent)
-	case (key == "DFO_ATTUNEMENT_QUANTITY_MULTIPLIER" || key == "DFO_ATTUNEMENT_RARITY_WEIGHT_MULTIPLIER") && isString && multiplierValue.MatchString(text):
-		multiplier, err := strconv.Atoi(text)
-		if err != nil || multiplier < 1 || multiplier > 100 {
-			return invalidProfileValue(key)
-		}
-		p.Env[key] = strconv.Itoa(multiplier)
 	case key == "DFO_PVF_SHA256" && isString && (text == "" || sha256Value.MatchString(text)):
 		// Empty means "derive it from the inner archive"; a value pins the version and is
 		// lower-cased so the comparison cannot depend on how it was typed.
@@ -265,13 +260,20 @@ func (p *Profile) applyEnvironment(module, key string, raw json.RawMessage) erro
 	case key == "DFO_OATH_GRADES" && isString && (text == "" || oathGradesValue.MatchString(text)):
 		// Diagnostic: fixed oath grades, "45" or "45,45"; empty is the normal path.
 		p.Env[key] = text
-	case (key == "DFO_ISPINS_MODE" || key == "DFO_BAKAL_MODE") && isString && (text == "unlimited" || text == "weekly"):
+	case key == "DFO_ISPINS_MODE" && isString && (text == "unlimited" || text == "weekly"):
 		p.Env[key] = text
-	case key == "DFO_ELITE_COMPANION_PILOT" && isString && (text == "attunement" || text == "all"):
-		// Owner-authorized isolated candidate; all reuses the native mode-2 adapter.
-		p.Env[key] = text
-	case key == "DFO_WEAPON_SKIN_ANIMATION" && isString && text == "r1":
-		// Confirmed animation adapter shipped with the cumulative local release.
+	case key == "DFO_ATTUNEMENT_QUANTITY_MULTIPLIER" && isString && validMultiplier(text):
+		// 调律数量倍率。消费点：服务端调律（attunement）奖励换算。1 = 官方数值。
+		// 上限与 DFO_HELL_PARTY_DROP_PERCENT 同口径（10000）。
+		p.Env[key] = normalizeMultiplier(text)
+	case key == "DFO_ATTUNEMENT_RARITY_WEIGHT_MULTIPLIER" && isString && validMultiplier(text):
+		// 调律品质权重倍率，与上面同一消费族，取值口径一致。
+		p.Env[key] = normalizeMultiplier(text)
+	case key == "DFO_BAKAL_MODE" && isString && bakalModes[text]:
+		// 巴卡尔团本次数口径。服务端源码里的比较是
+		//   os.Getenv("DFO_BAKAL_MODE") == "unlimited"
+		// 所以这里**只放行源码真正认的字面量**：放行别的值，等于让玩家以为改了口径、
+		// 实际服务端仍走默认分支。要加新口径必须先在服务端源码里落地。
 		p.Env[key] = text
 	case flagKeys[key] && (text == "0" || text == "1"):
 		// Only the two literal strings: a JSON number or boolean is not a flag value, and

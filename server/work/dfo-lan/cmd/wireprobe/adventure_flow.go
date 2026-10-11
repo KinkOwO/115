@@ -77,24 +77,18 @@ func (w *worldSession) adventureInfo(ctx context.Context, selected int64) (proto
 	if len(roles) > math.MaxUint16 {
 		return info, fmt.Errorf("冒险团角色总数超出客户端范围")
 	}
-	profile, err := w.prepareAdventure(ctx)
+	// 固定首个创建的角色，不受角色选择页拖拽排序影响。
+	sort.Slice(roles, func(i, j int) bool { return roles[i].ID < roles[j].ID })
+	profile, err := w.store.LoadAdventure(ctx, w.account, selected, adventureDefaultName(roles[0].Name))
 	if err != nil {
 		return info, err
 	}
-	return w.adventureInfoForRoles(profile, roles)
-}
-
-// 同一份账号快照生成职业收藏与主力角色。排序只作用于副本，精锐索引
-// 必须继续使用 Characters 返回的真实选角顺序。
-func (w *worldSession) adventureInfoForRoles(profile database.AccountAdventure, roles []database.Character) (protocol.AdventureInfo, error) {
-	var info protocol.AdventureInfo
-	if len(roles) == 0 || len(roles) > math.MaxUint16 {
-		return info, fmt.Errorf("冒险团账号角色数量无效")
+	profile, err = w.prepareAdventure(ctx)
+	if err != nil {
+		return info, err
 	}
-	roles = append([]database.Character(nil), roles...)
-	sort.Slice(roles, func(i, j int) bool { return roles[i].ID < roles[j].ID })
 	identity := w.characters.ChannelContext
-	info = protocol.AdventureInfo{Name: profile.Name, SymbolID: profile.Data.SymbolID, Level: profile.Level, Experience: profile.Experience,
+	info = protocol.AdventureInfo{Name: profile.Name, Level: profile.Level, Experience: profile.Experience,
 		CharacterCount: uint16(len(roles)), ConnectionDays: profile.Data.ConnectionDays,
 		RecommendedDungeonClears: profile.Data.RecommendedDungeonClears,
 		Points:                   profile.Data.Points, Purchases: profile.Data.Purchases,
@@ -177,19 +171,9 @@ func (w *worldSession) setAdventureBestHonor(ctx context.Context, p, raw []byte,
 			return nil, fmt.Errorf("所选冒险团主力角色不存在或资料已变化，请重新打开设置")
 		}
 	}
-	profile, err := w.prepareAdventure(ctx)
-	if err != nil {
-		return nil, err
-	}
-	key := fmt.Sprintf("adventure-best-honor:%s:%d:%x", prefix, profile.Data.SettingsRevision, sha256.Sum256(raw))
+	key := fmt.Sprintf("adventure-best-honor:%s:%x", prefix, sha256.Sum256(raw))
 	_, _, _, err = w.store.CommitAdventure(ctx, w.account, w.role.ID, key,
 		func(role database.Character, profile *database.AccountAdventure) (json.RawMessage, json.RawMessage, error) {
-			if profile.Data.BestHonorCharacter != selected {
-				if profile.Data.SettingsRevision == math.MaxUint64 {
-					return nil, nil, fmt.Errorf("冒险团设置版本已超出范围")
-				}
-				profile.Data.SettingsRevision++
-			}
 			profile.Data.BestHonorCharacter = selected
 			receipt, e := json.Marshal(map[string]any{"character_id": selected, "automatic": automatic})
 			return role.State, receipt, e

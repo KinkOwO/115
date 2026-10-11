@@ -21,7 +21,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"time"
 )
 
 const amplifyUpgradeModel = "amplify-upgrade-v1"
@@ -233,15 +232,12 @@ type AmplifyUpgradeReceipt struct {
 	Result         byte                          `json:"result"` // 0 成功 / 1 失败
 	Penalty        string                        `json:"penalty"`
 	Destroyed      bool                          `json:"destroyed"`
-	JournalAdded   []JournalRegistration         `json:"journal_added,omitempty"`
-	JournalSkipped []JournalSkip                 `json:"journal_skipped,omitempty"`
 	// Protected：本次增幅失败落在「会碎」区间，但背包里有增幅保护券，装备被保住（等级归零）。
 	Protected bool `json:"protected,omitempty"`
 	// ProtectionSlot：被消耗的那张增幅保护券在背包里的槽位（客户端增幅窗口没有保护券槽，
 	// 请求里恒为 0xffff，这是服务端全背包查找后找到的位置）。
 	ProtectionSlot    uint16 `json:"protection_slot,omitempty"`
 	Safe              bool   `json:"safe"` // 是否走安全增幅（材料不同、失败无惩罚）
-	Portable          bool   `json:"portable,omitempty"`
 	MaterialSlot      uint16 `json:"material_slot"`
 	MaterialRemaining uint32 `json:"material_remaining"`
 	MaterialSpent     uint32 `json:"material_spent"`
@@ -290,44 +286,34 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 		return nil, out, Refuse(RefusalUnsupported, "该装备没有次元属性，不能增幅（先用增幅书打红字）")
 	}
 	level := amplifyLevel(row[:])
-	var tool BagItem
+
+	// 安全增幅按「券槽」位放的材料模板区分（与强化用材料区分 ticket/gold/safe 同套路）。
+	// 便携增幅器（[portable amplify]）恒走普通材料增幅路径（safe=false），只耗道具本身。
+	safe := false
 	portable := false
 	for _, item := range bag.Items {
 		if item.Slot == r.TicketSlot {
-			tool = item
-			portable = IsPortableEnhancement(item.Template, 1)
+			safe = IsAmplifySafeMaterial(item.Template)
+			portable = IsPortableAmplifyTemplate(item.Template)
 			break
 		}
 	}
 	if portable {
-		if space != r.EquipmentSpace {
-			return nil, out, Refuse(RefusalItems, "一次性增幅的目标装备已移动")
-		}
-		if err = s.validatePortable(role, r, tool, gear, d, level); err != nil {
-			return nil, out, err
-		}
-		bag, err = spendPortableMaterials(bag, tool.Template, r.TicketSlot, time.Now().Unix())
-		if err != nil {
-			return nil, out, err
-		}
-	}
-
-	// 安全增幅按「券槽」位放的材料模板区分（与强化用材料区分 ticket/gold/safe 同套路）。
-	safe := false
-	for _, item := range bag.Items {
-		if item.Slot == r.TicketSlot {
-			safe = IsAmplifySafeMaterial(item.Template)
-			break
-		}
+		safe = false
 	}
 
 	var count, gold uint32
+	// 增幅上限保护（过渡方案）：客户端未打客户端补丁前，CMD80 成功回包只认
+	// ≤+15（更高的成功回包会触发 ADD_HACKTYPE_CNT 锁死窗口，见
+	// internal/game/protocol/reinforcement.go 的 AmplifyUpgradeResultCap 注释）。
+	// 因此这里把普通/便携增幅直接限到 +15（+14→+15 是最后一次），
+	// 与客户端行为对齐；安全增幅另有 AmplifySafeMaxLevel()=9 的上限。
+	// 后续统一给客户端打补丁（放开 31）后，把 AmplifyMaxLevelCap 放宽到 31 即可。
+	if !safe && level >= AmplifyMaxLevelCap {
+		return nil, out, Refuse(RefusalLimit, "增幅已达上限 +%d，无法继续增幅", AmplifyMaxLevelCap)
+	}
 	if portable {
-		// One native portable action spends one tool, with the existing ordinary
-		// amplification probability and penalty. No normal material/Gold cost.
-		if _, ok := AmplifyMaterialCount(level); !ok {
-			return nil, out, Refuse(RefusalLimit, "增幅等级超出已支持的规则范围")
-		}
+		// 便携增幅器固定消耗 1 个、不耗金币。
 		count, gold = 1, 0
 	} else if safe {
 		// ★ 官方条件原文（dfoneople「Safe Amplification」）："+9 or lower Amplified"。
@@ -369,13 +355,14 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 		if item.Slot != r.TicketSlot {
 			continue
 		}
-		if portable {
-			if item.Template != tool.Template {
-				return nil, out, Refuse(RefusalItems, "一次性增幅道具已变化")
-			}
-		} else if safe {
+		if safe {
 			if !IsAmplifySafeMaterial(item.Template) {
 				return nil, out, Refuse(RefusalMaterials, "增幅材料槽位放的不是安全增幅材料（槽 %d 里是模板 %d，需要 10327282）",
+					r.TicketSlot, item.Template)
+			}
+		} else if portable {
+			if !IsPortableAmplifyTemplate(item.Template) {
+				return nil, out, Refuse(RefusalMaterials, "增幅材料槽位放的不是便携增幅器（槽 %d 里是模板 %d）",
 					r.TicketSlot, item.Template)
 			}
 		} else if !IsAmplifyMaterial(item.Template) {
@@ -399,10 +386,8 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 	}
 	bag.Gold -= gold
 
-	// 判定成功率（官方页数据）。
+	// 判定成功率（官方页数据；便携增幅器沿用普通增幅成功率表）。
 	percent := AmplifySuccessPercent(level)
-	// 服务端层 mod 的成功率规则（后处理）：每次掷骰现读，改完立刻生效。
-	percent = enhanceSuccessPercent(enhanceKindAmplify, level, percent)
 	roll, err := amplifyUpgradeRandomInt(100)
 	if err != nil {
 		return nil, out, err
@@ -459,7 +444,7 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 	out = AmplifyUpgradeReceipt{
 		Request: r, Equipment: gear, EquipmentSpace: space, EquipmentSlot: r.EquipmentSlot,
 		AmplifyType: ampType, LevelBefore: byte(level), LevelAfter: newLevel,
-		Result: result, Penalty: penalty, Destroyed: destroyed, Protected: protected, ProtectionSlot: protectionSlot, Safe: safe, Portable: portable,
+		Result: result, Penalty: penalty, Destroyed: destroyed, Protected: protected, ProtectionSlot: protectionSlot, Safe: safe,
 		MaterialSlot: r.TicketSlot, MaterialRemaining: remaining, MaterialSpent: count,
 		GoldSpent: gold, Gold: bag.Gold, SuccessPercent: percent,
 	}
@@ -490,12 +475,6 @@ func (s *WearService) ApplyAmplifyUpgrade(role Role, r protocol.ReinforcementReq
 	next, err := SaveBag(role.State, bag)
 	if err != nil {
 		return nil, out, err
-	}
-	if destroyed {
-		next, out.JournalAdded, out.JournalSkipped, err = s.registerDestroyedEquipment(next, gear)
-		if err != nil {
-			return nil, out, err
-		}
 	}
 	return next, out, nil
 }
