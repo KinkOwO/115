@@ -2,6 +2,7 @@ package gamedata
 
 import (
 	"dfolan/internal/adventure"
+	"dfolan/internal/aradpass"
 	"dfolan/internal/attendance"
 	"dfolan/internal/boostup"
 	"dfolan/internal/cashshop"
@@ -65,28 +66,31 @@ type Catalogs struct {
 	Bakal                        *catalog.BakalRaidRules
 	BoostUp                      *boostup.Catalog
 	Attendance                   *attendance.Catalog
-	RaidEntrances                map[uint32]catalog.RaidEntrance
-	MazeRates                    *catalog.MazeChanceOverlay
-	HellMaps                     *catalog.SourceMapOverlay
-	HellRules                    *catalog.HellPartyRules
-	Grief                        *catalog.TowerGriefOverlay
-	Dazzlement                   *catalog.DazzlementOverlay
-	Quests                       *catalog.QuestCatalog
-	Progression                  *catalog.Progression
-	World                        *catalog.WorldCatalog
-	Items                        *catalog.ItemIndex
-	ItemBasics                   *catalog.ItemBasics
-	Equipment                    *inventory.FullEquipmentCatalog
-	AvatarDisjoint               *inventory.AvatarDisjointRules
-	AvatarSockets                *inventory.AvatarSocketRules
-	EmblemInlay                  *inventory.EmblemInlayRules
-	AvatarRecast                 *inventory.AvatarRecastRules
-	EmblemCompound               *inventory.EmblemCompoundRules
-	Periods                      []uint32
-	Skins                        map[uint32]catalog.SkinStorageEntry
-	Journal                      *catalog.EquipmentJournalRules
-	CreateCost                   *catalog.EquipmentCreateCost
-	Transform                    *catalog.EquipmentTransformSystem
+	// AradPass 是战令（阿拉德通行证，活动 516/10005）的原生目录；nil = 源读取失败，
+	// 2209/2210 推送与 680 领奖都按「活动未开启」处理。上游 origin/main 新增。
+	AradPass       *aradpass.Catalog
+	RaidEntrances  map[uint32]catalog.RaidEntrance
+	MazeRates      *catalog.MazeChanceOverlay
+	HellMaps       *catalog.SourceMapOverlay
+	HellRules      *catalog.HellPartyRules
+	Grief          *catalog.TowerGriefOverlay
+	Dazzlement     *catalog.DazzlementOverlay
+	Quests         *catalog.QuestCatalog
+	Progression    *catalog.Progression
+	World          *catalog.WorldCatalog
+	Items          *catalog.ItemIndex
+	ItemBasics     *catalog.ItemBasics
+	Equipment      *inventory.FullEquipmentCatalog
+	AvatarDisjoint *inventory.AvatarDisjointRules
+	AvatarSockets  *inventory.AvatarSocketRules
+	EmblemInlay    *inventory.EmblemInlayRules
+	AvatarRecast   *inventory.AvatarRecastRules
+	EmblemCompound *inventory.EmblemCompoundRules
+	Periods        []uint32
+	Skins          map[uint32]catalog.SkinStorageEntry
+	Journal        *catalog.EquipmentJournalRules
+	CreateCost     *catalog.EquipmentCreateCost
+	Transform      *catalog.EquipmentTransformSystem
 	// Points 是逐件「套装积分 / 誓约积分」表（setpointinfo.cos / oathpointinfo.cos），
 	// 与 transform 同域装载；服务端算角色总分、推 NOTI2634 时用。
 	Points                                       *catalog.PointRules

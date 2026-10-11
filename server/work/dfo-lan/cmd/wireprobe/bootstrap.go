@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/aradpass"
 	"dfolan/internal/attendance"
 	"dfolan/internal/boostup"
 	"dfolan/internal/cashshop"
@@ -44,6 +45,7 @@ type gatewayRuntime struct {
 	boosterCatalog        *BoosterCatalog
 	boostCatalog          *boostup.Catalog
 	attendanceCatalog     *attendance.Catalog
+	aradPassCatalog       *aradpass.Catalog
 	boostEventInfo        []byte
 	characters            *character.Service
 	channelDirectory      *catalog.ChannelDirectory
@@ -1757,6 +1759,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		boosterCatalog:        boosterCatalog,
 		boostCatalog:          boostCatalog,
 		attendanceCatalog:     pvfCatalogs.Attendance,
+		aradPassCatalog:       pvfCatalogs.AradPass,
 		boostEventInfo:        boostEventInfo,
 		characters:            characters,
 		channelDirectory:      pvfCatalogs.ChannelDirectory,

@@ -134,6 +134,7 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 		// Starter Boost 662：会话拿装配层冻结的活动目录；nil = 活动关闭，一切照旧。
 		client.worldState.boostup = client.boostCatalog
 		client.worldState.attendance = client.attendanceCatalog
+		client.worldState.aradPass = client.aradPassCatalog
 		// 末世录（频道 Type 119）：CMD2062 直进要在 dungeon 派发层先于通用
 		// 「没有 activeDungeon 就拒绝」的守卫被接管，所以把 legionSession 挂到
 		// worldSession 上；apocalypse 指针在 apocalypseRun() 里随 run 建立同步
@@ -436,7 +437,7 @@ func (client *gameConnection) serve() {
 // sendPlanBatched 与 sendPlan 同样按顺序编码，但**整批只写一次**（一次 write 系统调用）。
 //
 // 为什么需要它：客户端有个别处理器会从**本次 recv 到的字节**里按固定长度取数据
-//（次元回廊的 N2252 = `sub_1424FDC30` 固定取 0x1E5C=7772 字节）—— 逐帧 write 会让
+// （次元回廊的 N2252 = `sub_1424FDC30` 固定取 0x1E5C=7772 字节）—— 逐帧 write 会让
 // 每次 recv 只拿到本帧的十几个字节，那个处理器就会走空写守卫崩掉（0xC0000005）。
 // 整批一次写出时，客户端一次 recv 就能拿到后面所有帧，读取才有足够的字节。
 //
