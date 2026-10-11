@@ -21,22 +21,6 @@
 // 拦这一条（有 git 时中止并报错，没有 git 的解包目录只告警）。
 package mods
 
-import (
-	mod_demo_request_hook_pilot   "dfolan/mods/demo.request-hook-pilot"
-	mod_drops_multiplier          "dfolan/mods/drops.multiplier"
-	mod_enhance_rate              "dfolan/mods/enhance.rate"
-	mod_giveaway_random_equipment "dfolan/mods/giveaway.random-equipment"
-	mod_odyssey_hardcore          "dfolan/mods/odyssey.hardcore"
-	mod_town_companion            "dfolan/mods/town.companion"
-)
-
 // RegisterMods 按稳定顺序调用每个 mod 的注册入口。
 // 服务端在完成配置与存储初始化之后、开始监听之前调用它。
-func RegisterMods() {
-	mod_demo_request_hook_pilot.Register()
-	mod_drops_multiplier.Register()
-	mod_enhance_rate.Register()
-	mod_giveaway_random_equipment.Register()
-	mod_odyssey_hardcore.Register()
-	mod_town_companion.Register()
-}
+func RegisterMods() {}
