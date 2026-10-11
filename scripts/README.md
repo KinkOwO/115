@@ -8,7 +8,7 @@
 
 | 文件 | 作用 | 谁调用 |
 | --- | --- | --- |
-| `编译游戏.cmd` / `build-game.ps1` | 全量 build / vet / test 后分别构建并核对启动器与源码候选，备份旧文件后安装；保留默认服务端 | 双击 `编译游戏.cmd`；完成后手动运行 `scripts\启动游戏-SQLite.cmd --source-build` |
+| `编译游戏.cmd` / `build-game.ps1` | 按本机已安装 mod 生成临时 Go overlay，仓库加载器原文保持；全量 build / vet / test 后分别构建并核对启动器与源码候选，本机已有精锐专用启动器时同步重建，备份旧文件后安装；保留默认服务端 | 双击 `编译游戏.cmd`；完成后手动运行 `scripts\启动游戏-SQLite.cmd --source-build` |
 | `build-adventure-elite.ps1` | 构建 x64 `/MT` 精锐资格 DLL、执行机制测试并打包 schema 2；`-WithServer` 另构建隔离服务端/启动器，不启动游戏 | [资格候选说明](../client-patchs/adventure-elite/README.md)，[普通/剧情/奥德赛计划](../docs/todo/adventure-elite-ordinary-plan.md) |
 | `test-adventure-elite-launch.ps1` | 验证精确开关、丢失环境后的提权传递、Unicode 参数及引号值；仅运行临时 PowerShell 测试入口 | 开发验证，不启动服务端或游戏 |
 | `build-bot-client.ps1 -Survey` | 集中观察候选，仅构建与离线测试；帧/通知/阶段/清理/角色事件共用一轮，输出到忽略目录 `build/survey` | [集中清单](../docs/todo/bot-client-v1-research.md)，不启动游戏 |
@@ -29,6 +29,8 @@
 > **启动器内嵌的那一个**（`gm/` → `gmbridge.exe`，Go，见启动器仓库 README「GM 与存储档」）。
 > 本目录仍保留的 Python 只剩 `build_publish_zip.py`（打包，属另一条工作）；包外那份便携 Python
 > （`..\gm-tool\python`）仍被仓库根的 `build-publish.ps1` 用来打 zip，所以继续保留。
+
+`build-game.ps1` 的完整基础测试使用临时的干净 mod 加载器，保留“未安装 mod”的奖励基线；另行用已安装 mod 的加载器及实际启用名单核对声明与注册。两组测试都必须通过。全量 build/vet 和最终候选包含本机已安装 mod，生成物与 overlay 留在 `runtime/build-game/`，不改写或提交 `mods/zz_mods_gen.go`。
 
 ### 写 `.cmd` 的硬要求（2026-10-05 实机踩坑后定）
 

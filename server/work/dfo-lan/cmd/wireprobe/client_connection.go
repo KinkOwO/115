@@ -134,6 +134,12 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 		// Starter Boost 662：会话拿装配层冻结的活动目录；nil = 活动关闭，一切照旧。
 		client.worldState.boostup = client.boostCatalog
 		client.worldState.attendance = client.attendanceCatalog
+		client.worldState.honeyTime = client.honeyTimeCatalog
+		// 期间轨的轮数来自源脚本（`[loop]`），要放进 1294 的 `@47` 才会被客户端迭代。
+		if client.honeyTimeCatalog != nil {
+			SetHoneyTimePeriodLoop(client.honeyTimeCatalog.PeriodLoop)
+		}
+		// 战令（阿拉德通行证）：nil = 未装配，2209/2210 推送与 680 领奖都按活动未开启处理。
 		client.worldState.aradPass = client.aradPassCatalog
 		// 末世录（频道 Type 119）：CMD2062 直进要在 dungeon 派发层先于通用
 		// 「没有 activeDungeon 就拒绝」的守卫被接管，所以把 legionSession 挂到
@@ -374,6 +380,31 @@ func (client *gameConnection) serve() {
 					client.event(map[string]any{"kind": "creature_loyalty_error", "character_id": client.selectedCharacterID, "error": loyaltyErr.Error()})
 				} else {
 					if client.sendPlan(loyaltyPackets, nil) != nil {
+						return
+					}
+				}
+				// 活动 313：把这一段在线秒数累计进去并落库（换角色/重登能续上），
+				// 值真的变了才回一帧 NOTI1294 让面板跟着走。每一跳都记一条
+				// （sendPlan 不逐包记日志，见 honeyTimeTick 的注释）。
+				honeyCtx, honeyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				honeyPackets, honeyErr := client.worldState.honeyTimeTick(honeyCtx, now, client.event)
+				honeyCancel()
+				if honeyErr != nil {
+					client.event(map[string]any{"kind": "honey_time_tick_error", "character_id": client.selectedCharacterID, "error": honeyErr.Error()})
+				} else if len(honeyPackets) > 0 {
+					if client.sendPlan(honeyPackets, nil) != nil {
+						return
+					}
+				}
+				// 战令：GM 工具/外部脚本是直写数据库的，会话里看不见；这里定时复核
+				// "通行证物品到手没"，到手就地激活并补发状态（不必重登）。幂等。
+				passCtx, passCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				passPackets, passErr := client.worldState.refreshAradPassActivation(passCtx)
+				passCancel()
+				if passErr != nil {
+					client.event(map[string]any{"kind": "arad_pass_activation_error", "character_id": client.selectedCharacterID, "reason": passErr.Error()})
+				} else if len(passPackets) > 0 {
+					if client.sendPlan(passPackets, nil) != nil {
 						return
 					}
 				}

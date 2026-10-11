@@ -114,7 +114,7 @@ func Load(src TextSource) (*Catalog, error) {
 //
 // `[reward items]` 的值是**成对**的（模板, 数量），奇数个直接报错（宁可拒绝，不要猜）。
 func Parse(text string) (*Catalog, error) {
-	tokens := tokenize(text)
+	tokens := Tokenize(text)
 	c := &Catalog{}
 	var current *Day
 	for i := 0; i < len(tokens); i++ {
@@ -243,11 +243,16 @@ func (c *Catalog) DayRewards(day int) ([]Reward, bool) {
 	return nil, false
 }
 
-// tokenize 把脚本文本拍平成 token：`[tag]` 原样保留，值去掉反引号与首尾空白。
+// Tokenize 把脚本文本拍平成 token：`[tag]` 原样保留，值去掉反引号与首尾空白。
+//
+// **导出**给同族的活动包用（313 HoneyTime 的 `honeytime.evt` 是同一种"标签 + 反引号值"
+// 方言）。为什么不在每个活动包里各抄一份：两个活动的"第几天 / 哪一档"必须同口径，
+// 解析器的边界（反引号串里可以有空格、裸值段按空白切）抄漏一处就会静默错位 ——
+// 与 `DayNumber` 被 honeytime 复用是同一条理由（各写一份迟早漂移）。
 //
 // 两种值要区别对待：**反引号串**（“ `a b` “）整体是一个 token，内部允许空格；
 // **裸值段**（`590015045 1000 590015133 1`）按空白切成多个 token。
-func tokenize(text string) []string {
+func Tokenize(text string) []string {
 	var out []string
 	for _, raw := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n") {
 		line := strings.TrimSpace(raw)

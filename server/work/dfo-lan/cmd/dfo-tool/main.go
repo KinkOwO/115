@@ -19,6 +19,7 @@ import (
 	"dfolan/internal/toolcmd/equipmentfull"
 	"dfolan/internal/toolcmd/eventinfogate"
 	"dfolan/internal/toolcmd/framedump"
+	"dfolan/internal/toolcmd/honeytimecmd"
 	"dfolan/internal/toolcmd/initialrepair"
 	"dfolan/internal/toolcmd/loginchannel"
 	"dfolan/internal/toolcmd/npcpresenceaudit"
@@ -57,6 +58,7 @@ var commands = []command{
 	{"equipmentfull", "catalog", "[options]", true, 0, equipmentfull.Run},
 	{"eventinfogate", "audit", "[options]", true, 0, eventinfogate.Run},
 	{"framedump", "protocol", "<label> <key.bin> <stream.bin> <all|id|offset:size> [header]", false, 4, framedump.Run},
+	{"honeytime", "maintenance", "[options]", true, 0, honeytimecmd.Run},
 	{"initialrepair", "maintenance", "[options]", true, 0, initialrepair.Run},
 	{"loginchannel", "protocol", "<input.bin> <output.bin> <channel-type>", false, 3, loginchannel.Run},
 	{"npcpresenceaudit", "audit", "[options]", true, 0, npcpresenceaudit.Run},
