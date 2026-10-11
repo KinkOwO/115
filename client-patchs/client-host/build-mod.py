@@ -24,7 +24,7 @@ STAGE = os.path.join(DIST, "staging")
 README = os.path.join(HERE, "HOST-README.md")
 
 MOD_ID = "qol.client-host"
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 
 def sha256_of(path):
@@ -51,6 +51,8 @@ def main():
         "description": (
             "把客户端唯一可自动加载的 DLL 槽位做成插件目录：加载并启动 "
             "<客户端>\\.115us-mods\\*.dll 里的客户端 mod 插件。"
+            "1.1.0 起支持：无入口点插件照样登记（A）、子目录依赖递归加载（B）、"
+            "plugins.json 显式清单控制顺序/启停/依赖（C）、导出 GetPlugin 供插件互相取句柄（D）。"
             "自身不改游戏行为；日志写在客户端根 client-host.log。"
         ),
         "permissions": ["client.file.write"],

@@ -39,7 +39,7 @@ import sys
 import zipfile
 
 MOD_ID = "nuannuan.shop"
-VERSION = "3.2.0"
+VERSION = "3.2.1"
 ZIP_DATE = (2026, 10, 10, 0, 0, 0)  # 固定时间戳 → 同样输入产出同样字节
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -185,11 +185,14 @@ def build_manifest(v32, v2, extbtn=None):
                  "并主动加载 ChineseLocalization.dll（qol.client-host 宿主），"
                  "所以汉化代理与 .115us-mods 插件链不受影响；卸载逐字节还原原代理。"
                  "它只在 DFO.exe 镜像布局校验通过后才挂钩，不匹配就只记一行日志、不影响启动"))
-    client_ops.append(op(
-        "file.add", ".115us-mods/NuanNuanShop.dll", "client/NuanNuanShop.dll",
-        *v32["dinput8.dll"],
-        note="原包的 dinput8.dll 改名而来：不占 dinput8 槽位，由 qol.client-host "
-             "宿主 LoadLibrary 触发 DllMain，保住汉化代理与它的两个插件"))
+    # 2026-10-11：撤掉 `.115us-mods/NuanNuanShop.dll` 那条 op。
+    # 理由（见 docs/HANDOVER-2026-10-11.md §7.1，按 PE 导出表实测）：
+    #   该 DLL 的导出表是 DirectInput8Create / DllCanUnloadNow / DllGetClassObject /
+    #   DllRegisterServer / DllUnregisterServer / GetdfDIJoystick —— 即它是**旧版**
+    #   扩展按钮（同样带 "BEAST controller … F9/F10" 功能串），而客户端根的
+    #   dinput8.dll 已经是它的**新版**（855,040 B）。宿主永远不会调用上面任何一个导出，
+    #   所以把它放进 .115us-mods 只能触发它的 DllMain，等于让新旧两个扩展按钮同时初始化。
+    #   能力由客户端根 dinput8.dll 唯一提供，无需第二条落位。
 
     res_ops = []
     for name in V32_ADD_NPK + V2_ADD_NPK:
@@ -224,10 +227,12 @@ def build_manifest(v32, v2, extbtn=None):
         "name": "暖暖商城（龙皮龙武国服特色 + 第四套龙袍 + 神兽第1期 15 套）",
         "author": "暖暖商城作者 / 打包：115us",
         "description": ("客户端资源整档：Script.pvf+sk.dat（pvf 层 replace）、dstr.dat、"
-                        "4 个字体、龙袍变身插件 DLL；dinput8.dll 换成带「商城标签页 / "
+                        "4 个字体；dinput8.dll 换成带「商城标签页 / "
                         "扩展按钮」的版本（顶替唯一槽位，卸载还原）；"
                         "NPK 新增 17 个 / 替换 5 个；装完自动重建 ImagePacks2/NpkIndex.etc。"
                         "不动 DFO.exe。"
+                        "3.2.1 起不再落 .115us-mods/NuanNuanShop.dll（旧版扩展按钮，"
+                        "与客户端根 dinput8.dll 功能重复，且宿主调不到它的导出）。"
                         "配套服务端体验开关（商城全开等 6 项）需在启动器 profile 里设置，不在本包内。"),
         "permissions": ["client.file.write", "pvf.merge", "resource.npk",
                         "resource.index", "exec.script"],
@@ -254,10 +259,7 @@ def collect_members(manifest, want_v2, pwsh_src, extbtn_src=None):
         add(o["source"], os.path.join(SRC_V32, os.path.basename(o["target"])))
     for o in manifest["layers"]["client"]["ops"]:
         src = o["source"]
-        if src.endswith("NuanNuanShop.dll"):
-            # 原包自带的 dinput8.dll 改名而来（业主选择保留，无害：宿主只加载不调用）
-            add(src, os.path.join(SRC_V32, "dinput8.dll"))
-        elif src == "client/dinput8.dll":
+        if src == "client/dinput8.dll":
             if not extbtn_src:
                 continue
             add(src, extbtn_src)

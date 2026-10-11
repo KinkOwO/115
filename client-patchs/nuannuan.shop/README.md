@@ -1,4 +1,4 @@
-# 暖暖商城 mod（nuannuan.shop 3.2.0）
+# 暖暖商城 mod（nuannuan.shop 3.2.1）
 
 把「10月4日版暖暖商城 mod」的 v2 + v3.2 合并成**一个**可一键安装 / 一键卸载的 modkit 包。
 
@@ -12,11 +12,33 @@
 所以：**源码在 `client-patchs\nuannuan.shop\`，产物 zip 在 `.tmp\nuannuan-dist\`（已 gitignore），
 两者都不在启动器的库目录里。**
 
-## 1. 打包
+## 0.1 ⚠️ 2026-10-11：原始源码目录已被删除，`build-mod.py` 跑不了
+
+`~/Downloads/10月4日版暖暖商城mod\`（v2 + v3.2 原始素材）**已被删除**，
+`build-mod.py` 现在会直接报 `FAIL: 源目录不存在：…\暖暖商城_覆盖安装包_v3.2\安装用文件\客户端`。
+而且**无法从成品包完整还原**：包内没有作者的 `_payload_manifest.json`，
+而 v3.2 的 size/sha256 就是直接采信它的。
+
+**今后改这个包走"派生"路线，不再跑 `build-mod.py`**：
+
+1. 基线是 `.tmp\nuannuan-dist\nuannuan.shop-3.2.1.zip`（成品包本身自洽：每条 op 的
+   size/sha256 都在 `mod.json` 里）；
+2. 用 `.tmp\hosttest\derive-321.py` 做流式改包 —— 只改 `mod.json`（删/加 op、升 version），
+   其余条目逐个复制，**不落盘解压**（5.3GB 约 2.5 分钟）；
+3. `modkit verify` 通过后再 `modkit install`（同 id 升级，引擎自动"先还原旧条目再重放"）。
+
+参考实现见 `.tmp\hosttest\derive-321.py`：删 op 用
+`[o for o in ops if o["target"] != "<目标>"]`，并从 zip 里一并剔除对应 source 条目。
+
+> ⚠️ 派生时用的是 `compresslevel=1`（内容本就是压缩容器，级别高低几乎不影响体积），
+> 包会比原版小几百 MB —— 这是**正常**的：modkit 只校验每条 source 的**内容** sha256，
+> 与压缩方式无关。
+
+## 1. 打包（⚠️ 当前不可用，见 §0.1）
 
 ```bat
 cd /d C:\Game\dof\115us\115\client-patchs\nuannuan.shop
-python build-mod.py                :: 全量（v2+v3.2，约 5.9GB）
+python build-mod.py                :: 全量（v2+v3.2，约 5.9GB）—— 需要原始素材，现已缺失
 python build-mod.py --skip-v2      :: 只打 v3.2（约 1.9GB）
 python build-mod.py --dry-run      :: 只列清单，不打 zip
 ```
