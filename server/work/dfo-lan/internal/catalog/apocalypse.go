@@ -98,8 +98,6 @@ type ApocalypseCatalog struct {
 	Duties      *ApocalypseDuties     `json:"duties"`
 	Records     []pvf.CTPRecord       `json:"records"`
 	Trailer     []pvf.CTPColumn       `json:"trailer"`
-	Doors       []ApocalypseDoor      `json:"-"` // source-linked OBJ/ACT rules, never a JSON fallback
-	BossMoves   []ApocalypseBossMove  `json:"-"` // source-linked MOB last ACT, never a JSON fallback
 }
 
 // LoadApocalypseCatalog reads the generated table and refuses anything that no

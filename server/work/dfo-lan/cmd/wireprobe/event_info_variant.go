@@ -69,33 +69,6 @@ const eventInfoTableLegacyHex = "" +
 // eventInfoTableLegacy 解码上表（只解一次）。
 var eventInfoTableLegacy = mustHexDecode(eventInfoTableLegacyHex)
 
-// eventInfoSnapshot is shared by selection, return-to-selection and entry.
-// Keep the runtime challenge setting: the static fallback has no 665 row.
-// The known raw vectors are retained; this does not introduce unverified
-// single-row incremental semantics or compressed bodies.
-func eventInfoSnapshot(runtime *gatewayRuntime) []byte {
-	var body []byte
-	switch os.Getenv("DFO_EVENT_INFO_VARIANT") {
-	case "plain":
-		body = eventInfoTable
-	case "legacy":
-		body = eventInfoTableLegacy
-	default:
-		body = townEventInfoTable
-		if runtime != nil && runtime.boostEventInfo != nil {
-			body = runtime.boostEventInfo
-		}
-	}
-	return append([]byte(nil), body...)
-}
-
-func (p entryPayloads) eventInfoSnapshot() []byte {
-	if p.ChannelEventInfo != nil {
-		return append([]byte(nil), p.ChannelEventInfo...)
-	}
-	return eventInfoSnapshot(nil)
-}
-
 // townEventInfoTable 是**进城 announce 实际发出的** 108 表体。默认即合并表：
 // 频道门 19 行 + 活动行（662/10017/10018 + 毕业后的 665），一条发完，
 // 客户端不会再把活动行抹掉。

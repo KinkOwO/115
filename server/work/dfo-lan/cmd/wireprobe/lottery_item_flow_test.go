@@ -87,10 +87,10 @@ func TestLotteryItemAtomicConsumeGrantAndWire(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(packets) != 2 || packets[0].ID != 27 || packets[1].ID != 14 || len(packets[0].Payload) != 184 {
+	if len(packets) != 2 || packets[0].ID != 27 || packets[1].ID != 14 || len(packets[0].Payload) != 186 {
 		t.Fatalf("unexpected lottery response: %+v", packets)
 	}
-	if binary.LittleEndian.Uint16(packets[0].Payload[1:]) != 91 || binary.LittleEndian.Uint32(packets[0].Payload[5:]) != 3600 {
+	if binary.LittleEndian.Uint16(packets[0].Payload[3:]) != 91 || binary.LittleEndian.Uint32(packets[0].Payload[7:]) != 3600 {
 		t.Fatalf("wrong CMD27 result body: %x", packets[0].Payload[:15])
 	}
 	after, err := inventory.ReadBag(store.character.State)
@@ -122,7 +122,7 @@ func TestLotteryGoldPotAtomicConsumeGrantAndWire(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(packets) != 2 || len(packets[0].Payload) != 184 || binary.LittleEndian.Uint16(packets[0].Payload[1:]) != 70 || binary.LittleEndian.Uint32(packets[0].Payload[5:]) != 0 || binary.LittleEndian.Uint32(packets[0].Payload[9:]) != 1000000 {
+	if len(packets) != 2 || len(packets[0].Payload) != 186 || binary.LittleEndian.Uint16(packets[0].Payload[3:]) != 70 || binary.LittleEndian.Uint32(packets[0].Payload[7:]) != 0 || binary.LittleEndian.Uint32(packets[0].Payload[11:]) != 1000000 {
 		t.Fatalf("wrong gold pot CMD27 result: %+v", packets)
 	}
 	after, err := inventory.ReadBag(store.character.State)
@@ -197,7 +197,7 @@ func TestLotteryLegacyReceiptReplaysWithoutConsumingAnotherPot(t *testing.T) {
 	w := &worldSession{role: role, loot: &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: "test"}}}}
 	pools := &lotteryItemCatalog{byTemplate: map[uint32]*lotteryItemPool{7772: {SourceItem: 7772, total: 1}}}
 	packets, err := w.openLotteryItem(context.Background(), &store, pools, nil, request, request)
-	if err != nil || len(packets) != 2 || binary.LittleEndian.Uint32(packets[0].Payload[5:]) != 3600 {
+	if err != nil || len(packets) != 2 || binary.LittleEndian.Uint32(packets[0].Payload[7:]) != 3600 {
 		t.Fatalf("legacy receipt replay failed: packets=%+v err=%v", packets, err)
 	}
 	after, err := inventory.ReadBag(store.character.State)
@@ -251,7 +251,7 @@ func TestLotteryEquipmentGrantAndFullBagRollback(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(packets) != 2 || len(packets[0].Payload) != 184 || binary.LittleEndian.Uint16(packets[0].Payload[3:]) != 9 || binary.LittleEndian.Uint32(packets[0].Payload[5:]) != 10858 || binary.LittleEndian.Uint16(packets[0].Payload[14:]) != 60 {
+		if len(packets) != 2 || len(packets[0].Payload) != 186 || binary.LittleEndian.Uint16(packets[0].Payload[5:]) != 9 || binary.LittleEndian.Uint32(packets[0].Payload[7:]) != 10858 || binary.LittleEndian.Uint16(packets[0].Payload[16:]) != 60 {
 			t.Fatalf("wrong armor result: %+v", packets)
 		}
 		after, readErr := inventory.ReadBag(store.character.State)
@@ -278,7 +278,7 @@ func TestLotteryAvatarGrantAndReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(packets) != 3 || len(packets[0].Payload) != 188 || binary.LittleEndian.Uint32(packets[0].Payload[5:]) != 48357 || packets[2].Payload[0] != 1 {
+	if len(packets) != 3 || len(packets[0].Payload) != 190 || binary.LittleEndian.Uint32(packets[0].Payload[7:]) != 48357 || packets[2].Payload[0] != 1 {
 		t.Fatalf("wrong avatar result: %+v", packets)
 	}
 	after, err := inventory.ReadBag(store.character.State)

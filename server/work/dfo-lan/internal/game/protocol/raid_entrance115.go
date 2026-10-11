@@ -8,16 +8,16 @@ import (
 
 // Current-client raid entrance contract, recovered from the handover
 // raid_entrance.go:19/156/183/221/239/250 and its DWARF field offsets.
-type NativeRaidCreateRequest struct {
+type RaidCreateRequest struct {
 	Kind    byte
 	Title   string
 	Options [6]byte
 	Limit   uint32
 }
-type NativeRaidRecruitment struct {
+type RaidRecruitment struct {
 	State                                    byte
 	ID                                       uint32
-	Create                                   NativeRaidCreateRequest
+	Create                                   RaidCreateRequest
 	Leader                                   uint16
 	LeaderAdvancement, LeaderProfession      byte
 	LeaderName                               string
@@ -28,8 +28,8 @@ type NativeRaidRecruitment struct {
 	MemberMax, LeaderFame                    uint32
 }
 
-func NativeDecodeRaidCreateRequest(p []byte) (NativeRaidCreateRequest, error) {
-	var r NativeRaidCreateRequest
+func DecodeRaidCreateRequest(p []byte) (RaidCreateRequest, error) {
+	var r RaidCreateRequest
 	if len(p) < 5 {
 		return r, fmt.Errorf("short native raid create request")
 	}
@@ -52,13 +52,13 @@ func NativeDecodeRaidCreateRequest(p []byte) (NativeRaidCreateRequest, error) {
 	}
 	return r, nil
 }
-func NativeRaidTeamID(server, channel, sequence uint32) (uint32, error) {
+func RaidTeamID(server, channel, sequence uint32) (uint32, error) {
 	if server == 0 || server > 255 || channel == 0 || channel > 255 || sequence == 0 || sequence > 65535 {
 		return 0, fmt.Errorf("invalid native raid team identity")
 	}
 	return server<<24 | channel<<16 | sequence, nil
 }
-func NativeDecodeRaidInfoRequest(p []byte) (byte, uint32, error) {
+func DecodeRaidInfoRequest(p []byte) (byte, uint32, error) {
 	if len(p) < 5 {
 		return 0, 0, fmt.Errorf("short native raid info request")
 	}
@@ -70,9 +70,9 @@ func NativeDecodeRaidInfoRequest(p []byte) (byte, uint32, error) {
 	return p[0], binary.LittleEndian.Uint32(p[1:5]), nil
 }
 
-// NativeDecodeRaidUpdateControl is native CMD2121. Handover raid_entrance.go:288
+// DecodeRaidUpdateControl is native CMD2121. Handover raid_entrance.go:288
 // accepts the one-byte control, with zero padding to an 8/16-byte boundary.
-func NativeDecodeRaidUpdateControl(p []byte) (bool, error) {
+func DecodeRaidUpdateControl(p []byte) (bool, error) {
 	if (len(p) != 1 && len(p) != 8 && len(p) != 16) || p[0] > 1 {
 		return false, fmt.Errorf("invalid native raid update control")
 	}
@@ -83,7 +83,7 @@ func NativeDecodeRaidUpdateControl(p []byte) (bool, error) {
 	}
 	return p[0] == 1, nil
 }
-func raidLeaderRecord115(p []byte, r NativeRaidRecruitment, slot byte) []byte {
+func raidLeaderRecord115(p []byte, r RaidRecruitment, slot byte) []byte {
 	p = binary.LittleEndian.AppendUint16(p, r.Leader)
 	p = append(p, 1) // live member discriminator, captured 1353/N578
 	p = binary.LittleEndian.AppendUint32(p, uint32(len(r.LeaderName)))
@@ -108,7 +108,7 @@ func raidLeaderRecord115(p []byte, r NativeRaidRecruitment, slot byte) []byte {
 	// u16, two u32, u8, and two u32 reserved fields.
 	return append(p, make([]byte, 38)...)
 }
-func raidRecruitmentRecord115(p []byte, r NativeRaidRecruitment) []byte {
+func raidRecruitmentRecord115(p []byte, r RaidRecruitment) []byte {
 	p = binary.LittleEndian.AppendUint32(p, r.ID)
 	p = binary.LittleEndian.AppendUint32(p, uint32(len(r.Create.Title)))
 	p = append(p, r.Create.Title...)
@@ -128,13 +128,13 @@ func raidRecruitmentRecord115(p []byte, r NativeRaidRecruitment) []byte {
 	p = binary.LittleEndian.AppendUint32(p, 0)
 	return raidLeaderRecord115(p, r, r.MemberPosition)
 }
-func validateRaidRecruitment115(r NativeRaidRecruitment) error {
+func validateRaidRecruitment115(r RaidRecruitment) error {
 	if r.ID == 0 || r.Leader == 0 || r.Leader == 65535 || r.MemberCount != 1 || r.MemberMax == 0 || r.Create.Title == "" || r.LeaderName == "" || len(r.Create.Title) > 255 || len(r.LeaderName) > 255 {
 		return fmt.Errorf("invalid owned solo raid recruitment")
 	}
 	return nil
 }
-func NativeRaidOwnedDetails(r NativeRaidRecruitment) ([]byte, error) {
+func RaidOwnedDetails(r RaidRecruitment) ([]byte, error) {
 	if err := validateRaidRecruitment115(r); err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func NativeRaidOwnedDetails(r NativeRaidRecruitment) ([]byte, error) {
 	p = append(p, 1)
 	return raidLeaderRecord115(p, r, r.MemberPosition), nil
 }
-func NativeRaidMemberInfoSuccess(r NativeRaidRecruitment) ([]byte, error) {
+func RaidMemberInfoSuccess(r RaidRecruitment) ([]byte, error) {
 	if err := validateRaidRecruitment115(r); err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func NativeRaidMemberInfoSuccess(r NativeRaidRecruitment) ([]byte, error) {
 	p = append(p, 1)
 	return raidLeaderRecord115(p, r, r.MemberPosition), nil
 }
-func NativeRaidFullInfoSuccess(r NativeRaidRecruitment) ([]byte, error) {
+func RaidFullInfoSuccess(r RaidRecruitment) ([]byte, error) {
 	if err := validateRaidRecruitment115(r); err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func NativeRaidFullInfoSuccess(r NativeRaidRecruitment) ([]byte, error) {
 }
 
 // CMD661 action0: actor u32 at4, formation position u32 at8.
-func NativeDecodeRaidAssignment(p []byte) (uint16, uint32, error) {
+func DecodeRaidAssignment(p []byte) (uint16, uint32, error) {
 	if len(p) != 12 && len(p) != 16 {
 		return 0, 0, fmt.Errorf("invalid native raid assignment length")
 	}
@@ -182,7 +182,7 @@ func NativeDecodeRaidAssignment(p []byte) (uint16, uint32, error) {
 	return uint16(actor), binary.LittleEndian.Uint32(p[8:]), nil
 }
 
-func NativeRaidAssignmentUpdate(r NativeRaidRecruitment) ([]byte, error) {
+func RaidAssignmentUpdate(r RaidRecruitment) ([]byte, error) {
 	if err := validateRaidRecruitment115(r); err != nil {
 		return nil, err
 	}
@@ -193,10 +193,10 @@ func NativeRaidAssignmentUpdate(r NativeRaidRecruitment) ([]byte, error) {
 	return binary.LittleEndian.AppendUint32(p, r.LeaderFame), nil
 }
 
-// nativeRaidBodySize accepts exactly the logical body size or its 8/16-byte aligned
+// raidBodySize accepts exactly the logical body size or its 8/16-byte aligned
 // form; nonzero trailing padding is rejected. Retained for the entry-query and
 // leave helpers that mirror the current-client padding contract.
-func nativeRaidBodySize(p []byte, size int) error {
+func raidBodySize(p []byte, size int) error {
 	if len(p) < size || (len(p) != size && len(p) != (size+7)/8*8 && len(p) != (size+15)/16*16) {
 		return fmt.Errorf("invalid raid body length %d for %d fields", len(p), size)
 	}
@@ -208,18 +208,18 @@ func nativeRaidBodySize(p []byte, size int) error {
 	return nil
 }
 
-// NativeDecodeRaidLeaveRequest reads the native CMD657 context value (a client
+// DecodeRaidLeaveRequest reads the native CMD657 context value (a client
 // context u16, not our channel ID).
-func NativeDecodeRaidLeaveRequest(p []byte) (uint16, error) {
-	if err := nativeRaidBodySize(p, 2); err != nil {
+func DecodeRaidLeaveRequest(p []byte) (uint16, error) {
+	if err := raidBodySize(p, 2); err != nil {
 		return 0, err
 	}
 	return binary.LittleEndian.Uint16(p[:2]), nil
 }
 
-// NativeRaidKindForChannel is the native channel-to-raid-kind switch. These are
+// RaidKindForChannel is the native channel-to-raid-kind switch. These are
 // protocol IDs, not mutable gameplay rules and not the F7 channel ID.
-func NativeRaidKindForChannel(channel uint32) (byte, bool) {
+func RaidKindForChannel(channel uint32) (byte, bool) {
 	switch channel {
 	case 23, 25:
 		return 0, true
@@ -247,23 +247,23 @@ func NativeRaidKindForChannel(channel uint32) (byte, bool) {
 	return 0, false
 }
 
-// NativeRaidEmptyEntryCostInfo is NOTI585 with an empty record vector. Even an empty
+// RaidEmptyEntryCostInfo is NOTI585 with an empty record vector. Even an empty
 // vector completes the native pending entry-cost query; omitting it leaves the
 // raid UI locked.
-func NativeRaidEmptyEntryCostInfo() []byte { return add32(nil, 0) }
+func RaidEmptyEntryCostInfo() []byte { return add32(nil, 0) }
 
-// NativeRaidAssignmentSuccess is the native CMD661 mode-0 answer.
-func NativeRaidAssignmentSuccess() []byte { return add32([]byte{1}, 0) }
+// RaidAssignmentSuccess is the native CMD661 mode-0 answer.
+func RaidAssignmentSuccess() []byte { return add32([]byte{1}, 0) }
 
-// NativeRaidCreateSuccess answers CMD656 create with a u32 raid identity.
-func NativeRaidCreateSuccess(id uint32) []byte { return add32([]byte{1}, id) }
+// RaidCreateSuccess answers CMD656 create with a u32 raid identity.
+func RaidCreateSuccess(id uint32) []byte { return add32([]byte{1}, id) }
 
-// NativeRaidLeaveSuccess answers CMD657; the trailing u8 is the normal/penalty flag.
-func NativeRaidLeaveSuccess() []byte { return []byte{1, 0} }
+// RaidLeaveSuccess answers CMD657; the trailing u8 is the normal/penalty flag.
+func RaidLeaveSuccess() []byte { return []byte{1, 0} }
 
-// NativeRaidRecruitmentList is NOTI577 with one record per entry. An empty vector is
+// RaidRecruitmentList is NOTI577 with one record per entry. An empty vector is
 // a valid result for the pending query; records use the current-client layout.
-func NativeRaidRecruitmentList(entries []NativeRaidRecruitment) ([]byte, error) {
+func RaidRecruitmentList(entries []RaidRecruitment) ([]byte, error) {
 	if len(entries) > 128 {
 		return nil, fmt.Errorf("raid list too large")
 	}

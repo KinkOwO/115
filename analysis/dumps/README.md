@@ -2,8 +2,6 @@
 
 本目录汇总了从当前 115 级客户端（`client/DFO.exe`）、PVF 资源（`Script.inner.pvf`）与本地化数据（`client/dstr.dat`）中提取的核心数据资产，供逆向工程、IDB 分析及服务端协议实现快速查阅与索引。
 
-APC场景移除链补充：idb_funcs.tsv收录145DFFF70、145DFF4D0、145B97400及actor720读写。PID15920实机命中145DFFCD5清理返回145DFFCDA；加载器登记后还有145B253BC原生启用调用，v0.3.15补此步骤后艾尔文换层APC出现已获业主确认。见 [取证记录](../tasks/elite-apc-native-removal-trace-20261011.md) 与 [确认范围](../tasks/elite-apc-catchup-confirmed-20261011.json)。
-
 ---
 
 ## 1. 产物总览
@@ -115,10 +113,3 @@ APC场景移除链补充：idb_funcs.tsv收录145DFFF70、145DFF4D0、145B97400�
 | §8 | 军团/末世录 **包契约速查表**（C2S 布局 + S2C 最小长度） |
 | §9 | **7 条已踩过的坑**（cmd/noti 同号不同义、`table_slot_va` 不是 handler 槽、toggle 语义…） |
 | §10 | 工具与脚本索引 + IDA 批处理调用方式（含必清 `PYTHONPATH`） |
-
-
-原生 APC 寻路索引已补入 `idb_funcs.tsv`：位置组件 getter、A* 格子/搜索/下一格/节点池/邻居更新。契约与本机 EXE 原生向量见 `../tasks/elite-apc-native-path-candidate-20261011.md`；搜索返回0不能单独证明不可达，需区分open list耗尽与预算限制。仅维护静态索引，未修改/保存权威IDB。
-
-APC换层取证补充：idb_funcs.tsv新增原生世界状态、场景弱引用getter及登记入口/核心索引。动态证明副本状态3、同一场景清理后精锐成员缺失；详见../tasks/elite-apc-scene-debug-20261011.md。未修改/保存权威IDB，恢复登记候选仍待实机。
-
-v0.3.13失败checkpoint：首房加载器首参是副本上下文，不能当作global14E66C090世界对象。PID8232只读比较完整锚点，只有world地址域不相等；IDA当前场景getter与首房调用点索引已补齐。业主授权限定来源修正v0.3.14，详见../tasks/elite-apc-anchor-source-fix-20261011.md，仍待实机，不更新confirmed baseline。

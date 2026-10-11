@@ -65,7 +65,6 @@ const (
 	// SkinFamilyAirshipEffect is `[type]` `airship effect` (11 templates, PVF
 	// `skin/teleport`), family class 8.
 	SkinFamilyAirshipEffect
-	SkinFamilyWeaponShape
 )
 
 // skinFamilyLabels maps the `.skn`'s own `[type]` text to the family class the client's
@@ -79,7 +78,6 @@ var skinFamilyLabels = map[string]SkinFamily{
 	"instant emoticon": SkinFamilyInstantEmoticon,
 	"spray":            SkinFamilySpray,
 	"airship effect":   SkinFamilyAirshipEffect,
-	"weapon skin":      SkinFamilyWeaponShape,
 }
 
 // SkinKey is the ID NOTI1545/1546 carry for this skin.

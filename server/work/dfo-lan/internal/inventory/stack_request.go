@@ -89,9 +89,6 @@ func (b Bag) MoveStackRequest(c catalog.LootCatalog, rules BagRules, r protocol.
 		}
 		return n, nil
 	}
-	if !b.OrdinarySlotUnlocked(to) || (z != nil && (z.Template != a.Template || z.WeaponShape != a.WeaponShape) && !b.OrdinarySlotUnlocked(from)) {
-		return fail("destination outside ordinary inventory capacity")
-	}
 	cap, e := limit(*a, to)
 	if e != nil {
 		return b, e
@@ -107,28 +104,35 @@ func (b Bag) MoveStackRequest(c catalog.LootCatalog, rules BagRules, r protocol.
 		return fail("stack move exceeds source")
 	}
 	b.Items = append([]BagItem{}, b.Items...)
-	put := func(slot uint16, item BagItem, n uint32) {
+	put := func(slot uint16, id, n uint32) {
 		kept := make([]BagItem, 0, len(b.Items)+1)
+		var exp uint32
+		if a != nil && a.Template == id {
+			exp = a.ExpireTime
+		} else if z != nil && z.Template == id {
+			exp = z.ExpireTime
+		}
 		for _, x := range b.Items {
 			if x.Slot != slot {
 				kept = append(kept, x)
+			} else if x.ExpireTime != 0 {
+				exp = x.ExpireTime
 			}
 		}
 		if n > 0 {
-			item.Slot, item.Amount = slot, n
-			kept = append(kept, item)
+			kept = append(kept, BagItem{Slot: slot, Template: id, Amount: n, ExpireTime: exp})
 		}
 		b.Items = kept
 	}
-	if z != nil && (z.Template != a.Template || z.WeaponShape != a.WeaponShape) {
+	if z != nil && z.Template != a.Template {
 		if amount != a.Amount {
 			return fail("partial stack swap")
 		}
 		if _, e = limit(*z, from); e != nil {
 			return b, e
 		}
-		put(from, *z, z.Amount)
-		put(to, *a, a.Amount)
+		put(from, z.Template, z.Amount)
+		put(to, a.Template, a.Amount)
 	} else {
 		total := uint64(amount)
 		if z != nil {
@@ -137,8 +141,8 @@ func (b Bag) MoveStackRequest(c catalog.LootCatalog, rules BagRules, r protocol.
 		if total > uint64(cap) {
 			return fail("stack merge exceeds limit")
 		}
-		put(from, *a, a.Amount-amount)
-		put(to, *a, uint32(total))
+		put(from, a.Template, a.Amount-amount)
+		put(to, a.Template, uint32(total))
 	}
 	return b, nil
 }

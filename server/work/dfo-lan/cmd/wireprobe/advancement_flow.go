@@ -53,21 +53,17 @@ func changeGrowType(service *character.Service, w *worldSession, p, keys []byte,
 	if err != nil {
 		return nil, err
 	}
-	projection, err := service.WithEntryProjectionSnapshot(w.role)
-	if err != nil {
-		return nil, err
-	}
 	planFor := func(role database.Character) ([]preparedPacket, error) {
 		role.WireID = w.role.WireID
-		basic, e := projection.EntryBasicProbe(role, [2]byte{})
+		basic, e := service.EntryBasicProbe(role, [2]byte{})
 		if e != nil {
 			return nil, e
 		}
-		skills, e := projection.EntrySkills(role)
+		skills, e := service.EntrySkills(role)
 		if e != nil {
 			return nil, e
 		}
-		restored, e := appearanceRestore(projection, role)
+		restored, e := appearanceRestore(service, role)
 		if e != nil {
 			return nil, e
 		}
@@ -88,7 +84,7 @@ func changeGrowType(service *character.Service, w *worldSession, p, keys []byte,
 		}
 		plan = append(plan, restored...)
 		plan = append(plan, outboundPacket{"advancement_skills_updated", 0, 19, skills})
-		plan, e = appendSkillPresetRestore(plan, projection, role, "skill_preset_restored_after_advancement")
+		plan, e = appendSkillPresetRestore(plan, service, role, "skill_preset_restored_after_advancement")
 		if e != nil {
 			return nil, e
 		}

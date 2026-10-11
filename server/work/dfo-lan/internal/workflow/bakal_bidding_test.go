@@ -45,7 +45,7 @@ func (s *biddingEventFake) CharacterEventReceipt(_ context.Context, account, id 
 	return r, nil
 }
 
-func biddingFixture(t *testing.T) (*NativeBakalRewardService, *biddingEventFake, time.Time) {
+func biddingFixture(t *testing.T) (*BakalRewardService, *biddingEventFake, time.Time) {
 	t.Helper()
 	state, e := inventory.SaveBag(json.RawMessage(`{"unrelated":{"keep":true}}`), inventory.Bag{Version: "ordinary-bag-v1", Gold: 1000})
 	if e != nil {
@@ -55,7 +55,7 @@ func biddingFixture(t *testing.T) (*NativeBakalRewardService, *biddingEventFake,
 	svc, _ := bakalTestService(t, role)
 	store := &biddingEventFake{role: role, receipts: map[string]json.RawMessage{}}
 	svc.Store = store
-	svc.Rules.Bidding = catalog.NativeBakalBiddingRules{StartDelaySecs: 10, Hards: []catalog.BakalBiddingHard{{Hard: 0, Rates: []catalog.BakalBiddingRate{{Grade: 2, Weight: 1}}}}, Items: []catalog.NativeBakalRewardEntry{{Template: 10418036, Amount: 1, Weight: 1}}, WeeklyCounts: []catalog.BakalBiddingHard{{Hard: 0, Rates: []catalog.BakalBiddingRate{{Grade: 0, Weight: 1}}}}}
+	svc.Rules.Bidding = catalog.BakalBiddingRules{StartDelaySecs: 10, Hards: []catalog.BakalBiddingHard{{Hard: 0, Rates: []catalog.BakalBiddingRate{{Grade: 2, Weight: 1}}}}, Items: []catalog.BakalRewardEntry{{Template: 10418036, Amount: 1, Weight: 1}}, WeeklyCounts: []catalog.BakalBiddingHard{{Hard: 0, Rates: []catalog.BakalBiddingRate{{Grade: 0, Weight: 1}}}}}
 	at := time.Unix(1800000000, 0)
 	if _, _, e := svc.Freeze(context.Background(), role, "owned-run", 3, at); e != nil {
 		t.Fatal(e)

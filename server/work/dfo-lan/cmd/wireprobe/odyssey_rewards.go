@@ -83,7 +83,7 @@ func applyOdysseyWeaponBox(role database.Character, rewards *catalog.OdysseyCrea
 	}
 	var slot uint16
 	for n := uint16(65); n <= 120; n++ {
-		if b.OrdinarySlotUnlocked(n) && !occupied[n] {
+		if !occupied[n] {
 			slot = n
 			break
 		}

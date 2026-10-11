@@ -60,15 +60,6 @@ func TestPVFAdventureLocalArchive(t *testing.T) {
 	if err := auditPVFCatalog(c.AdventureRules, actual); err != nil {
 		t.Fatal(err)
 	}
-	if len(actual.Symbols) != 28 || !actual.Symbols[0] || !actual.Symbols[258] || actual.Sources["etc/airshipcustomobject.etc"] == "" {
-		t.Fatal("native badge source missing", actual.Symbols)
-	}
-	if len(actual.EliteContents) != 1 || len(actual.EliteContents[2]) != 36 || actual.Sources[adventure.EliteContentsPath] == "" {
-		t.Fatal("native elite source binding missing", actual.EliteContents)
-	}
-	if mode, ok := actual.EliteModeForDungeon(100000527); !ok || mode != 2 {
-		t.Fatal("native Black Purgatory elite binding missing", mode, ok)
-	}
 	if actual.MaxLevel != 50 || actual.Experience[50] != 171361456285 || actual.Experience[60] != 369956531543 || len(actual.Shops) != 3 {
 		t.Fatal("adventure source scope changed")
 	}
@@ -489,10 +480,6 @@ func TestPVFApocalypseLocalArchive(t *testing.T) {
 	x, err := c.LoadApocalypse("missing.json")
 	if err != nil {
 		t.Fatal(err)
-	}
-	content, ok := c.LegionContents.Contents["Apocalypse"]
-	if !ok || !content.Complete || c.LegionContents.Source.Checksum != c.SourceChecksum || content.Waiting.Town == 0 || content.Waiting.Area == 0 {
-		t.Fatal("party waiting area is not prepared from the same source")
 	}
 	clock, err := legion.NewApocalypseClock(x)
 	if err != nil || clock.Len() != 6 || len(x.Operations) != 4 {

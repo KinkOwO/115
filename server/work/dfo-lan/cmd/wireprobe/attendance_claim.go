@@ -18,7 +18,7 @@ package main
 //
 // ## 幂等
 //
-// 领取走 `workflow.NativeAttendanceService.Claim`：状态更新与系统邮件在**同一事务**里，
+// 领取走 `workflow.AttendanceService.Claim`：状态更新与系统邮件在**同一事务**里，
 // 事件键 `attendance-331:<期>:<天>` ⇒ 重复点同一天只会入账一次（重放读回既有回执）。
 import (
 	"context"
@@ -33,7 +33,7 @@ import (
 // dispatchAttendanceClaim 是入站派发链里的一站：只管 CMD680 且活动号为 331 的那些帧。
 func (client *gameConnection) dispatchAttendanceClaim(requestData *clientRequest) dispatchAction {
 	w := client.worldState
-	if requestData.frame.Type != 1 || !requestData.verified || !client.bootstrapped || w == nil || w.nativeAttendance == nil {
+	if requestData.frame.Type != 1 || !requestData.verified || !client.bootstrapped || w == nil || w.attendance == nil {
 		return dispatchNext
 	}
 	if requestData.frame.ID != 680 {
@@ -74,7 +74,7 @@ func (w *worldSession) claimAttendanceDay(ctx context.Context, day uint32) ([]ou
 	refuse := func(code uint16, err error) ([]outboundPacket, error) {
 		return []outboundPacket{{"attendance_claim_refused", 1, 680, protocol.EventRefusal115(attendance.EventID, code, false)}}, err
 	}
-	if w == nil || w.nativeAttendance == nil {
+	if w == nil || w.attendance == nil {
 		return refuse(19, fmt.Errorf("attendance 331 catalog is not prepared"))
 	}
 	if w.role.ID == 0 || w.store == nil {
@@ -82,7 +82,7 @@ func (w *worldSession) claimAttendanceDay(ctx context.Context, day uint32) ([]ou
 	}
 	now := time.Now()
 	today := attendanceDayNumber(now.Unix())
-	svc := &workflow.NativeAttendanceService{Store: w.store, Catalog: w.nativeAttendance}
+	svc := &workflow.AttendanceService{Store: w.store, Catalog: w.attendance}
 	role, receipt, applied, err := svc.Claim(ctx, w.role, int(day), today,
 		int64(attendanceEventStart), attendanceMailSender, attendanceMailText(int(day)))
 	if err != nil {

@@ -19,7 +19,6 @@ type preparedPacket struct {
 	Raw []byte
 }
 type entryPayloads struct {
-	Attendance, Weekly                                                                     []byte
 	ChannelEventInfo                                                                       []byte
 	Select, Basic, Addition, Skills, SkillPreset, Vault, UserArea, Area, Fatigue, Complete []byte
 	Experience, CompletedQuests, Inventory                                                 []byte
@@ -44,7 +43,7 @@ type entryPayloads struct {
 	// 它在 packets() 里的位置必须晚于 2758，见那里的注释。
 	EquipmentSkill []byte
 	// OathPartSetPoints 是 NOTI2634「每角色一对 Set/Oath Point」的若干条候选帧
-	// （每条 10 字节：`u16 实体键 + u32 OathPoint + u32 SetPoint`）。它们在 packets()
+	// （每条 10 字节：`u16 实体键 + u32 SetPoint + u32 OathPoint`）。它们在 packets()
 	// 里被排在**所有帧之后**：handler 写的是角色实体对象，必须等 actor 重建完。
 	OathPartSetPoints []outboundPacket
 	// 冒险图鉴为账号登记集合，登录即恢复，不依赖角色移动上报。
@@ -112,10 +111,7 @@ type entryPayloads struct {
 	// that fills the same page, and a character with no skin applied leaves it
 	// empty so preparePackets drops the frame.
 	SkinSelection                                                 []byte
-	WeaponSkinActor                                               []byte
 	Avatars, AvatarReady, Creatures, CreatureList, CreatureGrowth []byte
-	TitleBooks                                                    [][]byte
-	TitleAppearance                                               []byte
 	CinematicSkips                                                []byte
 	// SkinRecent is the NOTI1547 body the storage window's 最近获得 strip rebuilds from
 	// its own five cells. The frame is absolute state - the reader clears the manager
@@ -329,7 +325,7 @@ func (p entryPayloads) packets() []outboundPacket {
 		// too (probe V4), so the frame keeps the empty tail.
 		// event_info_variant.go exposes DFO_EVENT_INFO_VARIANT for the 662
 		// entry investigation; unset = exactly this table.
-		{"event_info_sent", 0, 108, p.eventInfoSnapshot()},
+		{"event_info_sent", 0, 108, townEventInfoTable},
 		{"dungeon_enter_count_info_sent", 0, 537, dungeonEnterCountInfo},
 		{"entry_basic_probe_sent", 0, 2, p.Basic},
 		{"entry_addition_sent", 0, 2, p.Addition},
@@ -386,8 +382,6 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"town_entry_probe_sent", 0, 24, p.Area},
 		outboundPacket{"fatigue_sent", 0, 36, p.Fatigue},
 		outboundPacket{"enter_gameworld_complete_sent", 0, 124, p.Complete},
-		outboundPacket{"attendance_progress_restored", 0, 1379, p.Attendance},
-		outboundPacket{"weekly_progress_restored", 0, 1753, p.Weekly},
 		// 训练进度帧排在 124 之后：任务面板对象在进城完成前不存在，早到的 2638
 		// 会被丢掉，客户端的活动关卡停在旧值（实机第三关「面板不刷新」同一坑）。
 		outboundPacket{"boost_training_progress_restored", 0, 2638, p.BoostTraining},
@@ -498,18 +492,8 @@ func (p entryPayloads) packets() []outboundPacket {
 	)
 	// NOTI2634（每角色一对 Set/Oath Point）排在**最后**：handler 直接写角色实体对象的
 	// `实体+1872/+1876`，必须等 actor_appearance_ready 重建完实体再写，否则会被覆盖。
-	// 见 docs/protocol/upstream/oath-set-points-20261004.md §7.1。
-	for _, book := range p.TitleBooks {
-		out = append(out, outboundPacket{"title_book_restored_entry", 0, 344, book})
-	}
-	if len(p.TitleAppearance) > 0 {
-		out = append(out, outboundPacket{"title_appearance_restored_entry", 1, 560, p.TitleAppearance})
-	}
-	out = append(out, p.OathPartSetPoints...)
-	if len(p.WeaponSkinActor) > 0 {
-		out = append(out, outboundPacket{"weapon_skin_actor_restored_entry", 1, 1565, p.WeaponSkinActor})
-	}
-	return out
+	// 见 docs/protocol/oath-set-points-20261004.md §7.1。
+	return append(out, p.OathPartSetPoints...)
 }
 
 // Prepare every frame before the first write. In particular, a missing cipher

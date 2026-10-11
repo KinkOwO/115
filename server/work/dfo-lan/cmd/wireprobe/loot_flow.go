@@ -29,22 +29,6 @@ func (w *worldSession) pickup(p []byte) ([]outboundPacket, error) {
 	return w.finishPickup(ctx, saved, receipt, applied, true)
 }
 
-func (w *worldSession) pickupRefusal(p []byte) ([]byte, error) {
-	r, err := protocol.DecodePickup(p)
-	if err != nil {
-		return nil, err
-	}
-	var template uint32
-	if w.drops != nil && w.activeDungeon != nil {
-		if drop, err := w.drops.Owned(w.activeDungeon, w.account, w.role.ID, w.role.WireID, r.Object); err == nil {
-			template = drop.Award.Template
-		}
-	}
-	// Resolve only from the authoritative current-room drop. A scene object
-	// supplied by the client is never an item template or an award.
-	return protocol.PickupRefused(template)
-}
-
 func (w *worldSession) finishPickup(ctx context.Context, saved database.Character, receipt loot.PickupReceipt, applied, acknowledge bool) ([]outboundPacket, error) {
 	previousState := w.role.State
 	// 落账成功后先保留最新状态，后续通知构造失败也不能恢复旧背包。

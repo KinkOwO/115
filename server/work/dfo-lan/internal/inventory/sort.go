@@ -67,17 +67,6 @@ func sortOrdinaryItems(b Bag, rules BagRules, r protocol.SortItemRequest) (Bag, 
 		}
 		seen[v] = true
 	}
-	// Validate every destination before changing the shared input slices.
-	for _, row := range b.Items {
-		if int(row.Slot) < len(r.Slots) && rules.Modelled(row.Slot) && r.Slots[row.Slot] != row.Slot && !b.OrdinarySlotUnlocked(r.Slots[row.Slot]) {
-			return b, fmt.Errorf("sort destination outside ordinary inventory capacity")
-		}
-	}
-	for _, row := range b.Equipment {
-		if int(row.Slot) < len(r.Slots) && rules.Modelled(row.Slot) && r.Slots[row.Slot] != row.Slot && !b.OrdinarySlotUnlocked(r.Slots[row.Slot]) {
-			return b, fmt.Errorf("sort destination outside ordinary inventory capacity")
-		}
-	}
 	for idx := range b.Items {
 		if e := sortSlot(&b.Items[idx].Slot, r.Slots, rules); e != nil {
 			return b, e

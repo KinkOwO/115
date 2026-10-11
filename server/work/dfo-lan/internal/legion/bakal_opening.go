@@ -3,7 +3,7 @@
 // (28 methods, see next151 §0.3): it owns the N574 phase lifecycle, the
 // open/health/settlement bursts, dungeon authorization, the script warp /
 // camp-return gates and the buff bookkeeping, all fed by the catalog
-// projection of bakal.etc (internal/catalog NativeBakalRaidRules) — no rule value
+// projection of bakal.etc (internal/catalog BakalRaidRules) — no rule value
 // is re-typed here.
 //
 // Lifecycle (B-layer clear run, 241-event timeline):
@@ -58,7 +58,7 @@ const (
 type BakalOpening struct {
 	runtime  *bakalRuntime
 	eventErr error
-	rules    *catalog.NativeBakalRaidRules
+	rules    *catalog.BakalRaidRules
 	script   *catalog.BakalPhaseRules // NormalPhase or HardPhase per hard
 	hard     bool
 
@@ -100,7 +100,7 @@ type BakalOpening struct {
 
 	// rewardInventory is spliced into the settlement burst between the
 	// return-to-camp and the clear result (timeline 237→238→239→240). The
-	// 10141B N13 body is the reward service's (impl: workflow NativeBakalRewardService).
+	// 10141B N13 body is the reward service's (impl: workflow BakalRewardService).
 	rewardInventory []byte
 
 	// GrantHook returns the buff slots a boss-dungeon clear grants. The
@@ -113,7 +113,7 @@ type BakalOpening struct {
 // PrepareBakalOpening binds a run to its catalog rules. The rules carry the
 // waiting-room anchors (town 152 area 2) — without them the waiting room is
 // not bound, so the captured refusal reason applies.
-func PrepareBakalOpening(rules *catalog.NativeBakalRaidRules, hard bool) (*BakalOpening, error) {
+func PrepareBakalOpening(rules *catalog.BakalRaidRules, hard bool) (*BakalOpening, error) {
 	if rules == nil {
 		return nil, ErrBakalWaitingRoomNotBound
 	}

@@ -11,27 +11,27 @@ package legion
 func DimCloisterClearSequence() []DimCloisterVector {
 	return []DimCloisterVector{
 		{
-			Name:  "Clear_2059_800",
-			Kind:  1,
-			ID:    2059,
+			Name: "Clear_2059_800",
+			Kind: 1,
+			ID:   2059,
 			Frame: 800,
 			Body: []byte{
 				0x01, 0x00, 0x00, 0x00, 0x00, 0x2e, 0x00, 0x00, 0x24, 0x5e, 0xac, 0xa8, 0x36, 0x00, 0x00, 0x00,
 			},
 		},
 		{
-			Name:  "Clear_38_801",
-			Kind:  0,
-			ID:    38,
+			Name: "Clear_38_801",
+			Kind: 0,
+			ID:   38,
 			Frame: 801,
 			Body: []byte{
 				0xff, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xeb, 0xd5, 0x93, 0x82, 0x3b, 0x00, 0x00, 0x00,
 			},
 		},
 		{
-			Name:  "Clear_14_802",
-			Kind:  0,
-			ID:    14,
+			Name: "Clear_14_802",
+			Kind: 0,
+			ID:   14,
 			Frame: 802,
 			Body: []byte{
 				0x00, 0x01, 0x00, 0x5c, 0x00, 0xe0, 0xbf, 0x9d, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -49,27 +49,27 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_279_803",
-			Kind:  0,
-			ID:    279,
+			Name: "Clear_279_803",
+			Kind: 0,
+			ID:   279,
 			Frame: 803,
 			Body: []byte{
 				0xe8, 0x03, 0x00, 0x00, 0xd5, 0x2f, 0xe4, 0xf4, 0x33, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			},
 		},
 		{
-			Name:  "Clear_31_804",
-			Kind:  0,
-			ID:    31,
+			Name: "Clear_31_804",
+			Kind: 0,
+			ID:   31,
 			Frame: 804,
 			Body: []byte{
 				0x41, 0x3a, 0x00, 0x00, 0x6f, 0x13, 0xb3, 0x97, 0x3b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			},
 		},
 		{
-			Name:  "Clear_2168_805",
-			Kind:  0,
-			ID:    2168,
+			Name: "Clear_2168_805",
+			Kind: 0,
+			ID:   2168,
 			Frame: 805,
 			Body: []byte{
 				0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x54, 0x2b, 0x43, 0x00, 0x01, 0x00, 0x00, 0x00,
@@ -78,9 +78,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_2168_806",
-			Kind:  0,
-			ID:    2168,
+			Name: "Clear_2168_806",
+			Kind: 0,
+			ID:   2168,
 			Frame: 806,
 			Body: []byte{
 				0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x58, 0x2b, 0x43, 0x00, 0x01, 0x00, 0x00, 0x00,
@@ -89,9 +89,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_2168_807",
-			Kind:  0,
-			ID:    2168,
+			Name: "Clear_2168_807",
+			Kind: 0,
+			ID:   2168,
 			Frame: 807,
 			Body: []byte{
 				0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x5b, 0x22, 0x06, 0x00, 0x01, 0x00, 0x00, 0x00,
@@ -100,9 +100,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_2168_808",
-			Kind:  0,
-			ID:    2168,
+			Name: "Clear_2168_808",
+			Kind: 0,
+			ID:   2168,
 			Frame: 808,
 			Body: []byte{
 				0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x62, 0x22, 0x06, 0x00, 0x01, 0x00, 0x00, 0x00,
@@ -111,9 +111,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_2168_809",
-			Kind:  0,
-			ID:    2168,
+			Name: "Clear_2168_809",
+			Kind: 0,
+			ID:   2168,
 			Frame: 809,
 			Body: []byte{
 				0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x57, 0x2b, 0x43, 0x00, 0x01, 0x00, 0x00, 0x00,
@@ -122,9 +122,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_14_810",
-			Kind:  0,
-			ID:    14,
+			Name: "Clear_14_810",
+			Kind: 0,
+			ID:   14,
 			Frame: 810,
 			Body: []byte{
 				0x00, 0x01, 0x00, 0x94, 0x00, 0xcb, 0xc0, 0x9d, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -142,9 +142,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_2252_811",
-			Kind:  0,
-			ID:    2252,
+			Name: "Clear_2252_811",
+			Kind: 0,
+			ID:   2252,
 			Frame: 811,
 			Body: []byte{
 				0x78, 0x9c, 0xed, 0xce, 0x21, 0x15, 0x00, 0x20, 0x14, 0x04, 0xc1, 0x0b, 0x41, 0x1a, 0x1c, 0x41,
@@ -154,9 +154,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_2168_812",
-			Kind:  0,
-			ID:    2168,
+			Name: "Clear_2168_812",
+			Kind: 0,
+			ID:   2168,
 			Frame: 812,
 			Body: []byte{
 				0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x57, 0x2b, 0x43, 0x00, 0x01, 0x00, 0x00, 0x00,
@@ -165,9 +165,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_2168_813",
-			Kind:  0,
-			ID:    2168,
+			Name: "Clear_2168_813",
+			Kind: 0,
+			ID:   2168,
 			Frame: 813,
 			Body: []byte{
 				0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x57, 0x2b, 0x43, 0x00, 0x01, 0x00, 0x00, 0x00,
@@ -176,9 +176,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_2168_814",
-			Kind:  0,
-			ID:    2168,
+			Name: "Clear_2168_814",
+			Kind: 0,
+			ID:   2168,
 			Frame: 814,
 			Body: []byte{
 				0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x57, 0x2b, 0x43, 0x00, 0x01, 0x00, 0x00, 0x00,
@@ -187,9 +187,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_14_815",
-			Kind:  0,
-			ID:    14,
+			Name: "Clear_14_815",
+			Kind: 0,
+			ID:   14,
 			Frame: 815,
 			Body: []byte{
 				0x00, 0x01, 0x00, 0x94, 0x00, 0xcb, 0xc0, 0x9d, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -207,9 +207,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_14_816",
-			Kind:  0,
-			ID:    14,
+			Name: "Clear_14_816",
+			Kind: 0,
+			ID:   14,
 			Frame: 816,
 			Body: []byte{
 				0x00, 0x01, 0x00, 0x95, 0x00, 0xcc, 0xc0, 0x9d, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -227,9 +227,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_14_817",
-			Kind:  0,
-			ID:    14,
+			Name: "Clear_14_817",
+			Kind: 0,
+			ID:   14,
 			Frame: 817,
 			Body: []byte{
 				0x00, 0x01, 0x00, 0x8b, 0x00, 0xf3, 0x94, 0x9d, 0x00, 0x91, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -247,9 +247,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_14_818",
-			Kind:  0,
-			ID:    14,
+			Name: "Clear_14_818",
+			Kind: 0,
+			ID:   14,
 			Frame: 818,
 			Body: []byte{
 				0x00, 0x01, 0x00, 0x8c, 0x00, 0xf1, 0x94, 0x9d, 0x00, 0xde, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -267,9 +267,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_2253_820",
-			Kind:  0,
-			ID:    2253,
+			Name: "Clear_2253_820",
+			Kind: 0,
+			ID:   2253,
 			Frame: 820,
 			Body: []byte{
 				0x78, 0x9c, 0x63, 0x3c, 0x7d, 0x60, 0x2e, 0x83, 0x0c, 0x03, 0x03, 0x03, 0x33, 0x03, 0x7e, 0x70,
@@ -279,9 +279,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_2316_821",
-			Kind:  0,
-			ID:    2316,
+			Name: "Clear_2316_821",
+			Kind: 0,
+			ID:   2316,
 			Frame: 821,
 			Body: []byte{
 				0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -338,9 +338,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_9_823",
-			Kind:  0,
-			ID:    9,
+			Name: "Clear_9_823",
+			Kind: 0,
+			ID:   9,
 			Frame: 823,
 			Body: []byte{
 				0x01, 0x00, 0x0f, 0x27, 0x20, 0x00, 0x03, 0x61, 0x1a, 0x01, 0x01, 0x00, 0x02, 0x00, 0x02, 0x00,
@@ -357,9 +357,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_2314_824",
-			Kind:  0,
-			ID:    2314,
+			Name: "Clear_2314_824",
+			Kind: 0,
+			ID:   2314,
 			Frame: 824,
 			Body: []byte{
 				0x00, 0x00, 0xff, 0x02, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
@@ -372,16 +372,17 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_1658_825",
-			Kind:  0,
-			ID:    1658,
+			Name: "Clear_1658_825",
+			Kind: 0,
+			ID:   1658,
 			Frame: 825,
-			Body:  []byte{},
+			Body: []byte{
+			},
 		},
 		{
-			Name:  "Clear_2168_826",
-			Kind:  0,
-			ID:    2168,
+			Name: "Clear_2168_826",
+			Kind: 0,
+			ID:   2168,
 			Frame: 826,
 			Body: []byte{
 				0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x34, 0xf4, 0x53, 0x00, 0x01, 0x00, 0x00, 0x00,
@@ -390,9 +391,9 @@ func DimCloisterClearSequence() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Clear_115_827",
-			Kind:  0,
-			ID:    115,
+			Name: "Clear_115_827",
+			Kind: 0,
+			ID:   115,
 			Frame: 827,
 			Body: []byte{
 				0x01, 0x01, 0xff, 0x09, 0xe2, 0x50, 0x92, 0x00, 0x3e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

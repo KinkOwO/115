@@ -329,9 +329,6 @@ func (w *worldSession) openBoosterItem(
 	}
 
 	// 2. Direct contract item activation (e.g. Tactician, Conqueror, Growth, Cube, NeoPremium)
-	if cashshop.IsRestrictedContract(boxItem.Template) {
-		return nil, fmt.Errorf("契约包含尚未支持的源限制，物品已保留")
-	}
 	if contract, isContract := cashshop.ResolveContract(boxItem.Template); isContract {
 		if req.Amount != 1 || len(req.Selections) != 0 {
 			return nil, fmt.Errorf("契约道具必须单独使用一件")
@@ -681,19 +678,30 @@ func (w *worldSession) openBoosterItem(
 				if durErr != nil {
 					log.Printf("booster grant %d: durability unresolved (%v); granted at 0", g.Template, durErr)
 				}
-				slots := [2]uint16{9, 64}
-				if lootSvc != nil && lootSvc.BagRules.EquipmentSlots != [2]uint16{} {
-					slots = lootSvc.BagRules.EquipmentSlots
+				occupied := map[uint16]bool{}
+				for _, eq := range b.Equipment {
+					occupied[eq.Slot] = true
 				}
-				available, slotErr := b.EquipmentAwardSlots(slots, g.Count)
-				if slotErr != nil {
-					return nil, nil, slotErr
+				for _, it := range b.Items {
+					occupied[it.Slot] = true
 				}
-				for _, slot := range available {
-					eq := inventory.BagEquipment{Slot: slot, Template: g.Template, Durability: dur}
-					// Preserve the source selection's crafted reinforcement/refine.
-					inventory.SetCraftedStatus(&eq, selectionReinforce, selectionRefine)
-					b.Equipment = append(b.Equipment, eq)
+				for cnt := uint32(0); cnt < g.Count; cnt++ {
+					foundSlot := false
+					for s := uint16(9); s <= 64; s++ {
+						if !occupied[s] {
+							occupied[s] = true
+							eq := inventory.BagEquipment{Slot: s, Template: g.Template, Durability: dur}
+							// 成品礼盒（如 590015876）的分类块自己声明 +12/+8；
+							// 没有声明时 selectionReinforce/Refine 为 0，盖章不生效。
+							inventory.SetCraftedStatus(&eq, selectionReinforce, selectionRefine)
+							b.Equipment = append(b.Equipment, eq)
+							foundSlot = true
+							break
+						}
+					}
+					if !foundSlot {
+						return nil, nil, fmt.Errorf("equipment inventory full")
+					}
 				}
 				continue
 			}

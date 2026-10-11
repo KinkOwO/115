@@ -52,7 +52,7 @@ func MoveVaultCross(primary, secondary Vault, limit uint32, r protocol.ItemMoveR
 	}
 	remaining := want
 	merge := func(item *VaultItem) {
-		if item == nil || item.IsEquip || item.Template != from.Template || item.ExpireTime != from.ExpireTime || item.WeaponShape != from.WeaponShape || item.Amount >= limit {
+		if item == nil || item.IsEquip || item.Template != from.Template || item.ExpireTime != from.ExpireTime || item.Amount >= limit {
 			return
 		}
 		n := limit - item.Amount
@@ -81,7 +81,7 @@ func MoveVaultCross(primary, secondary Vault, limit uint32, r protocol.ItemMoveR
 		if n > limit {
 			n = limit
 		}
-		dst.Items = append(dst.Items, VaultItem{Slot: r.DestinationSlot, Template: from.Template, Amount: n, ExpireTime: from.ExpireTime, WeaponShape: from.WeaponShape})
+		dst.Items = append(dst.Items, VaultItem{Slot: r.DestinationSlot, Template: from.Template, Amount: n, ExpireTime: from.ExpireTime})
 		remaining -= n
 	}
 	moved := want - remaining

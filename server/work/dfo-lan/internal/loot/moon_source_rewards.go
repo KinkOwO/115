@@ -27,13 +27,13 @@ import (
 //
 // 产出模型（三段，逐段可回指源标签）：
 //
-//  1. 固定产物   ← 固定组（[normal group index] 里非装备那些组）的成员
-//  2. 基础产物   ← 逐条 Special：按 Rate/1000 掷一次，命中从它的组里等权抽 1 件
-//  3. 效率产出   ← 逐条 Multiple：类别 2（装备）掷 Normal 次装备池（源组 ∩ 可入包装备，
-//     走源的品质/概率表 ⇒ 品质分布就是游戏自己那套率）；类别 3（誓约·星蕴石）
-//     掷 Normal 次**誓约/结晶装备池**（源掉落表里整组都是 `[oath]`/`[primer]`
-//     装备的那些组，按源权重）—— 源里 [special setinfo reward] 指向的那两组装的是
-//     打不开的显示件，见 MoonSourcePolicy.OathPool 的取证
+//	1. 固定产物   ← 固定组（[normal group index] 里非装备那些组）的成员
+//	2. 基础产物   ← 逐条 Special：按 Rate/1000 掷一次，命中从它的组里等权抽 1 件
+//	3. 效率产出   ← 逐条 Multiple：类别 2（装备）掷 Normal 次装备池（源组 ∩ 可入包装备，
+//	                走源的品质/概率表 ⇒ 品质分布就是游戏自己那套率）；类别 3（誓约·星蕴石）
+//	                掷 Normal 次**誓约/结晶装备池**（源掉落表里整组都是 `[oath]`/`[primer]`
+//	                装备的那些组，按源权重）—— 源里 [special setinfo reward] 指向的那两组装的是
+//	                打不开的显示件，见 MoonSourcePolicy.OathPool 的取证
 //
 // ⚠️ 两条**明确的假设**（只写在这里，不散落到调用方）：
 //
@@ -139,6 +139,7 @@ const moonRatePermille = 1000
 // `Item/new_equipment/19_OathPrimer/Primer/Primer_00_Basic.img`（与誓约装备同族）。
 // 所以「这条声明该不该按誓约族改发装备」**不能只看名字** —— 见 MoonOathDeclaration，
 // 它把名字与**组内容的图标**两条判据合起来。
+//
 func moonFamilyOath(name string) bool {
 	l := strings.ToLower(name)
 	return strings.Contains(l, "oath") || strings.Contains(l, "crystal")
@@ -171,12 +172,12 @@ func moonPickMember(templates []uint32, seed []byte) (uint32, error) {
 
 // moonSourceSink 把"发一件 / 跳过一件"集中到一处，避免计划器与掷骰函数各写一份。
 type moonSourceSink struct {
-	svc          *Service
-	plan         *MoonRewardPlan
-	grants       int
-	skips        []MoonSourceSkip
-	maxRows      int
-	rowCapLogged bool
+	svc           *Service
+	plan          *MoonRewardPlan
+	grants        int
+	skips         []MoonSourceSkip
+	maxRows       int
+	rowCapLogged  bool
 }
 
 func (g *moonSourceSink) grant(what string, c MoonRewardChoice) bool {
@@ -476,7 +477,7 @@ func moonOathEquipmentType(text string) (string, bool) {
 
 // moonEquipmentTypeText 取装备定义里 [equipment type] 的原文（type-6 字符串）。
 //
-// ⚠️ 这一段实测是**两格**：“ `[oath]` 21 “ —— 原文 + 一个整数。所以判据只看
+// ⚠️ 这一段实测是**两格**：`` `[oath]` 21 `` —— 原文 + 一个整数。所以判据只看
 // `cells[0]`，不能要求恰好一格（第一版写成 len != 1 时整段失效，实测池子恒空）。
 func moonEquipmentTypeText(cells []pvf.Token) string {
 	if len(cells) == 0 || cells[0].Type != 6 {
@@ -841,7 +842,7 @@ func (s *Service) SplitMoonSourceGroups(groups []uint32) (pool, fixed []uint32) 
 // 而本副本的池里只有 rarity 2/3/4/6 ⇒ 照原表掷，96.5% 会落到「该档无模板」再退到最近档，
 // 实际产出 ≈ 99% 都是稀有档。业主口径是：**把无模板那几档占的比例，按各可用档自身的权重
 // 分摊给有模板的几档** —— 数学上就是「在可用档上重归一化」。单机修复允许适度提高产出
-// （国服实测确实以稀有档为主，所以这只是一点上浮，不改变体感）。
+//（国服实测确实以稀有档为主，所以这只是一点上浮，不改变体感）。
 //
 // w[r] = table[r] - table[r-1]（table 是累计阈值，分母 1e6）；可用集 A = {r | len(pool[r]) > 0}；
 // W = Σ_{r∈A} w[r]；返回的权重是 w[r]/W。没有可用档、或 W ≤ 0 时返回 nil（调用方记跳过）。

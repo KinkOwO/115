@@ -2,22 +2,16 @@ package main
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/character"
 	"dfolan/internal/inventory"
 	"dfolan/internal/managementdata"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sort"
 )
 
 type preparedGMData struct {
-	awarder     *inventory.Awarder
-	index       *ItemIndex
-	progression catalog.Progression
-	quests      catalog.QuestCatalog
-	skills      *character.Service
+	awarder *inventory.Awarder
+	index   *ItemIndex
 }
 
 func prepareNativeGMData(p paths, f managementdata.Flags) (*preparedGMData, error) {
@@ -66,35 +60,8 @@ func prepareNativeGMData(p paths, f managementdata.Flags) (*preparedGMData, erro
 		return nil, err
 	}
 	ix.finish()
-	var progression catalog.Progression
-	var quests catalog.QuestCatalog
-	var skills *character.Service
-	if defaultEdition != "" {
-		progression, err = s.Progression("")
-		if err != nil {
-			return nil, err
-		}
-		quests, err = s.Quests("")
-		if err != nil {
-			return nil, err
-		}
-		jobs, e := s.Characters("")
-		if e != nil {
-			return nil, e
-		}
-		learning, e := s.Learning(jobs)
-		if e != nil {
-			return nil, e
-		}
-		skills = &character.Service{Catalog: jobs, Learning: learning}
-		if _, err = os.Stat(filepath.Join(p.configs, "refine.json")); err == nil {
-			if err = inventory.LoadRefineRules(filepath.Join(p.configs, "refine.json")); err != nil {
-				return nil, err
-			}
-		}
-	}
 	ok = true
-	return &preparedGMData{awarder: a, index: ix, progression: progression, quests: quests, skills: skills}, nil
+	return &preparedGMData{awarder: a, index: ix}, nil
 }
 
 // The proxy gets classification and stackability from the prepared backend.

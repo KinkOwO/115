@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
 type MailSendItem struct {
@@ -200,7 +202,7 @@ type MailAttachmentView struct {
 	Sender                       string
 	Gold                         uint32
 	Record                       [CurrentItemRecordSize]byte
-	SentAt                       uint32
+	Remaining                    uint32
 	State                        byte
 	Avatar                       bool
 	AvatarOptions, AvatarSockets []byte
@@ -210,15 +212,13 @@ type MailTextView struct {
 	ID           uint64
 	SenderID     uint32
 	Sender, Text string
-	SentAt       uint32
+	Remaining    uint32
 	Status       uint16
 	State        byte
 }
 
 // NOTI97 0x14530A3A0；普通装备直接复用 181 字节实例记录。
-// 普通邮件的时间字段是发送时间 Unix 秒。145FD5030 -> 145FD514E
-// 按发送时间 + 15天 - 当前 Unix 时间显示；不能传剩余秒数。
-// 146D780E9 调用当前客户端的 UTF-8 转换入口 149185A00 (CP65001)。
+// 剩余时间单位为秒：0x145FCDDC0 减去 (当前毫秒时钟-接收时钟)/1000。
 func MailboxList(items []MailAttachmentView, letters []MailTextView, total uint16) ([]byte, error) {
 	if len(items) > 255 || len(letters) > 32767 || total > 32767 {
 		return nil, fmt.Errorf("邮箱列表超出协议容量")
@@ -260,7 +260,7 @@ func MailboxList(items []MailAttachmentView, letters []MailTextView, total uint1
 			p = append(p, a.AvatarSockets...)
 			p = add32(p, a.AvatarPeriod)
 		}
-		p = add32(p, a.SentAt)
+		p = add32(p, a.Remaining)
 		p = binary.LittleEndian.AppendUint64(p, a.MessageID)
 		p = append(p, a.State)
 	}
@@ -270,15 +270,18 @@ func MailboxList(items []MailAttachmentView, letters []MailTextView, total uint1
 		if m.ID == 0 || len(m.Sender) > 29 || len(m.Text) > 512 || !utf8.ValidString(m.Sender) || !utf8.ValidString(m.Text) {
 			return nil, fmt.Errorf("邮件正文快照无效")
 		}
-		// Stored text and the current native reader both use UTF-8.
-		if strings.ContainsRune(m.Text+m.Sender, 0) {
-			return nil, fmt.Errorf("邮件正文含无效空字符")
+		// 当前客户端 0x146D78070 -> 0x146E90CF0 按 ANSI 代码页
+		// 转为宽字符；本地中文环境为 CP936。存档仍保留 UTF-8，
+		// 只在正文发包边界转为 GBK，旧邮件无需改写或重新投递。
+		text, err := simplifiedchinese.GBK.NewEncoder().String(m.Text)
+		if err != nil || len(text) > 512 || strings.ContainsRune(text, 0) {
+			return nil, fmt.Errorf("邮件正文无法编码为客户端支持的 GBK 文本")
 		}
 		p = binary.LittleEndian.AppendUint64(p, m.ID)
 		p = add32(p, m.SenderID)
 		p = addName(p, m.Sender)
-		p = addName(p, m.Text)
-		p = add32(p, m.SentAt)
+		p = addName(p, text)
+		p = add32(p, m.Remaining)
 		p = add16(p, m.Status)
 		p = append(p, m.State)
 		p = add32(p, 0)

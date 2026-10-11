@@ -88,9 +88,6 @@ type EntryAdditionProbe struct {
 	Stats          PackedEntryStats
 	SkillTrees     [2][]EntrySkill
 	Worn           []DetailedWorn
-	// CompanionEquipment uses the complete instance rows consumed by the same
-	// 1452c1540 reader. Remote companions do not receive the owner's N13/N14.
-	CompanionEquipment bool
 	// ExpandEquipFlags is the saved extended-slot unlock byte (support 1,
 	// magic stone 2, earring 16). Native 14563d692 reads it straight into the
 	// character's +0x198 and 145cf28f0 gates equipment slots 22/23/25 on those
@@ -131,11 +128,7 @@ func UserInfoAdditionProbe(s EntryAdditionProbe) ([]byte, error) {
 	// 14563d6cb -> 1452c1540 always consumes an equipment block, even
 	// when empty: u8 rows, u32 scalar, u8 collection count, u64 flags.
 	// Omitting these 14 bytes shifts switching inventory and skill trees.
-	encodeEquipment := DetailedEquipment
-	if s.CompanionEquipment {
-		encodeEquipment = TagEquipment
-	}
-	equipment, e := encodeEquipment(s.Worn)
+	equipment, e := DetailedEquipment(s.Worn)
 	if e != nil {
 		return nil, e
 	}

@@ -12,17 +12,17 @@ import (
 // Only the selected Bakal channel publishes its owned weekly cache. N1434
 // replaces the raid table; do not invent empty rows for unrelated raids.
 func (w *worldSession) syncBakalWeeklyQuota(now time.Time, send func(byte, uint16, []byte) error, event func(map[string]any)) error {
-	if w == nil || w.channelType != legion.BakalChannelType || w.nativeBakalRules == nil || w.role.ID == 0 {
+	if w == nil || w.channelType != legion.BakalChannelType || w.bakalRules == nil || w.role.ID == 0 {
 		return nil
 	}
-	if w.nativeBakalRules.RaidID <= 0 || w.nativeBakalRules.RaidID > 255 {
+	if w.bakalRules.RaidID <= 0 || w.bakalRules.RaidID > 255 {
 		return fmt.Errorf("Bakal source raid kind outside weekly wire range")
 	}
 	usage, err := workflow.BakalWeeklyUsage(w.role, now)
 	if err != nil {
 		return err
 	}
-	body, err := protocol.RaidWeeklyClearInfo115(byte(w.nativeBakalRules.RaidID), usage.Clears, usage.Rewards)
+	body, err := protocol.RaidWeeklyClearInfo115(byte(w.bakalRules.RaidID), usage.Clears, usage.Rewards)
 	if err != nil {
 		return err
 	}
@@ -34,8 +34,8 @@ func (w *worldSession) syncBakalWeeklyQuota(now time.Time, send func(byte, uint1
 	}
 	w.bakalQuotaRole, w.bakalQuotaBody = w.role.ID, body
 	event(map[string]any{"kind": "bakal_weekly_quota_synchronized", "character_id": w.role.ID,
-		"raid_kind": w.nativeBakalRules.RaidID, "clears_used": usage.Clears, "rewards_used": usage.Rewards,
-		"clear_limit": w.nativeBakalRules.WeeklyClearLimit, "reward_limit": w.nativeBakalRules.WeeklyRewardLimit,
+		"raid_kind": w.bakalRules.RaidID, "clears_used": usage.Clears, "rewards_used": usage.Rewards,
+		"clear_limit": w.bakalRules.WeeklyClearLimit, "reward_limit": w.bakalRules.WeeklyRewardLimit,
 		"plain_hex": fmt.Sprintf("%x", body)})
 	return nil
 }

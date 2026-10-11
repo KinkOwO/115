@@ -6,10 +6,10 @@ import (
 	"strconv"
 )
 
-type NativeBakalStageRule struct{ HealthPercent, UnlockGradeBelow int32 }
+type BakalStageRule struct{ HealthPercent, UnlockGradeBelow int32 }
 
 // PROC orders the phase-shift action while the first boss is still alive.
-func loadBakalStage(a *pvf.Archive, r *NativeBakalRaidRules) error {
+func loadBakalStage(a *pvf.Archive, r *BakalRaidRules) error {
 	ts, e := a.Tokens("contents/2022/bakalraid/monster/bakal/action/proc.act")
 	if e != nil {
 		return e
@@ -25,7 +25,7 @@ func loadBakalStage(a *pvf.Archive, r *NativeBakalRaidRules) error {
 				if e != nil || hp <= 0 || hp >= 100 || grade <= 0 {
 					return fmt.Errorf("invalid source phase transition")
 				}
-				r.Stage = NativeBakalStageRule{HealthPercent: int32(hp), UnlockGradeBelow: grade}
+				r.Stage = BakalStageRule{HealthPercent: int32(hp), UnlockGradeBelow: grade}
 				return nil
 			}
 		}

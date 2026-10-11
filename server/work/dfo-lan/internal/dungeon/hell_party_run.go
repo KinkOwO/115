@@ -130,7 +130,7 @@ func newHellPartyRun(c catalog.DungeonCatalog, s *Session, draw func(uint64) (ui
 			}
 			run.Rows = append(run.Rows, m)
 			run.Actors[nextEntity] = HellPartyRunActor{Group: group.ID, Order: uint16(order), RewardRolls: mode.Columns[0], HellMonster: source.HellMonster}
-			nextEntity = advanceMonsterEntity(nextEntity, s.monsterEntityStride())
+			nextEntity++
 		}
 	}
 	if len(run.Rows) == 0 || len(run.Rows) > 255 {

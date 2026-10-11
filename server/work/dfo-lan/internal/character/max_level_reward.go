@@ -61,7 +61,7 @@ func (s *ProgressionService) MaxLevelRewardMail(ctx context.Context, role Charac
 	if !ok {
 		return role, false, fmt.Errorf("max level reward mail store missing")
 	}
-	next, applied, err := store.CommitMaxLevelRewardMail(ctx, role.AccountID, role.ID, savecontract.Identity(), s.MaxLevelReward.Title, s.MaxLevelReward.TextForLevelCap(s.Rules.LevelCap), s.ApplyMaxLevelRewardMail)
+	next, applied, err := store.CommitMaxLevelRewardMail(ctx, role.AccountID, role.ID, savecontract.Identity(), s.MaxLevelReward.Title, s.MaxLevelReward.Text, s.ApplyMaxLevelRewardMail)
 	if err != nil {
 		return role, false, err
 	}

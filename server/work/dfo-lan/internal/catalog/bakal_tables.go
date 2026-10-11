@@ -14,18 +14,18 @@ const (
 	BakalSymbolsSource  = "contents/2022/bakalraid/etc/bakal.etc.symbol"
 )
 
-type NativeBakalRaidSlot struct {
+type BakalRaidSlot struct {
 	Index   uint32
 	Type    string
 	Dungeon uint32
 	Maps    []uint32
 }
-type NativeBakalRaidMonster struct {
+type BakalRaidMonster struct {
 	BuffCount                            int
 	BuffCheck                            string
-	BuffPool, AdditionalBuffPool         []NativeBakalWeightedBuff
+	BuffPool, AdditionalBuffPool         []BakalWeightedBuff
 	HardBuffCount                        int
-	HardBuffPool, HardAdditionalBuffPool []NativeBakalWeightedBuff
+	HardBuffPool, HardAdditionalBuffPool []BakalWeightedBuff
 	Type                                 string
 	Template, SecondTemplate             uint32
 	SecondGrid                           [2]byte
@@ -37,7 +37,7 @@ type NativeBakalRaidMonster struct {
 
 // Text COS and binary ETC use the same section/value model. Text COS values
 // are delimited by backticks; malformed tokens fail instead of being ignored.
-func nativeReadBakalCOSTokens(a *pvf.Archive, path string) ([]pvf.Token, error) {
+func readBakalCOSTokens(a *pvf.Archive, path string) ([]pvf.Token, error) {
 	f, ok := a.FindFile(path)
 	if !ok {
 		return nil, fmt.Errorf("missing native Bakal table %s", path)
@@ -100,8 +100,8 @@ func bakalTextTokens(text string) ([]pvf.Token, error) {
 	return out, nil
 }
 
-func nativeLoadBakalRaidTables(a *pvf.Archive, r *NativeBakalRaidRules) error {
-	cells, err := nativeReadBakalCOSTokens(a, BakalSlotsSource)
+func loadBakalRaidTables(a *pvf.Archive, r *BakalRaidRules) error {
+	cells, err := readBakalCOSTokens(a, BakalSlotsSource)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func nativeLoadBakalRaidTables(a *pvf.Archive, r *NativeBakalRaidRules) error {
 	if err != nil {
 		return err
 	}
-	r.Slots = make(map[uint32]NativeBakalRaidSlot, len(blocks))
+	r.Slots = make(map[uint32]BakalRaidSlot, len(blocks))
 	for _, b := range blocks {
 		index, e := bakalRowInt(b, "[slot]")
 		if e != nil || index <= 0 {
@@ -119,7 +119,7 @@ func nativeLoadBakalRaidTables(a *pvf.Archive, r *NativeBakalRaidRules) error {
 		if len(names) != 1 {
 			return fmt.Errorf("Bakal slot %d has no type", index)
 		}
-		slot := NativeBakalRaidSlot{Index: uint32(index), Type: names[0]}
+		slot := BakalRaidSlot{Index: uint32(index), Type: names[0]}
 		if row, ok := bakalRowByLabel(b, "[dungeon]"); ok {
 			v := bakalInts(row.Args)
 			if len(v) != 1 || v[0] <= 0 {
@@ -143,7 +143,7 @@ func nativeLoadBakalRaidTables(a *pvf.Archive, r *NativeBakalRaidRules) error {
 		}
 		r.Slots[slot.Index] = slot
 	}
-	cells, err = nativeReadBakalCOSTokens(a, BakalMonstersSource)
+	cells, err = readBakalCOSTokens(a, BakalMonstersSource)
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func nativeLoadBakalRaidTables(a *pvf.Archive, r *NativeBakalRaidRules) error {
 	if err != nil {
 		return err
 	}
-	r.Monsters = make(map[string]NativeBakalRaidMonster, len(blocks))
+	r.Monsters = make(map[string]BakalRaidMonster, len(blocks))
 	for _, b := range blocks {
 		names := bakalRowStrings(b, "[monster type]")
 		if len(names) != 1 {
@@ -169,7 +169,7 @@ func nativeLoadBakalRaidTables(a *pvf.Archive, r *NativeBakalRaidRules) error {
 		if e != nil {
 			return e
 		}
-		m := NativeBakalRaidMonster{Type: names[0], Template: uint32(template), Position: [2]uint32{uint32(pos[0]), uint32(pos[1])}, SpecificMap: specific}
+		m := BakalRaidMonster{Type: names[0], Template: uint32(template), Position: [2]uint32{uint32(pos[0]), uint32(pos[1])}, SpecificMap: specific}
 		if err := loadBakalMonsterBuffs(b, &m); err != nil {
 			return err
 		}
@@ -200,7 +200,7 @@ func nativeLoadBakalRaidTables(a *pvf.Archive, r *NativeBakalRaidRules) error {
 	if err := loadBakalBuffDefinitions(a, r); err != nil {
 		return err
 	}
-	cells, err = nativeReadBakalCOSTokens(a, BakalSymbolsSource)
+	cells, err = readBakalCOSTokens(a, BakalSymbolsSource)
 	if err != nil {
 		return err
 	}
@@ -285,7 +285,7 @@ func nativeLoadBakalRaidTables(a *pvf.Archive, r *NativeBakalRaidRules) error {
 	return nil
 }
 
-func loadBakalRewards(a *pvf.Archive, r *NativeBakalRaidRules) error {
+func loadBakalRewards(a *pvf.Archive, r *BakalRaidRules) error {
 	s, err := ResolveScript(a, "contents/system/raidsystem/raidreward.etc")
 	if err != nil {
 		return err
@@ -322,7 +322,7 @@ func loadBakalRewards(a *pvf.Archive, r *NativeBakalRaidRules) error {
 						if len(v) != 5 || v[1] <= 0 || v[2] <= 0 {
 							return fmt.Errorf("invalid native Bakal bidding reward")
 						}
-						r.Bidding.Items = append(r.Bidding.Items, NativeBakalRewardEntry{Category: names[0], Difficulty: v[0], Weight: uint32(v[1]), Template: uint32(v[2]), Amount: 1})
+						r.Bidding.Items = append(r.Bidding.Items, BakalRewardEntry{Category: names[0], Difficulty: v[0], Weight: uint32(v[1]), Template: uint32(v[2]), Amount: 1})
 					}
 				}
 			}
@@ -346,7 +346,7 @@ func loadBakalRewards(a *pvf.Archive, r *NativeBakalRaidRules) error {
 			if v[1] <= 0 || v[2] <= 0 {
 				return fmt.Errorf("invalid native Bakal reward weight/template")
 			}
-			r.Rewards = append(r.Rewards, NativeBakalRewardEntry{Category: names[0], Difficulty: v[0], Weight: uint32(v[1]), Template: uint32(v[2]), Amount: 1})
+			r.Rewards = append(r.Rewards, BakalRewardEntry{Category: names[0], Difficulty: v[0], Weight: uint32(v[1]), Template: uint32(v[2]), Amount: 1})
 		}
 		if len(r.Rewards) == 0 {
 			return fmt.Errorf("native normal raid rewards missing")
@@ -356,7 +356,7 @@ func loadBakalRewards(a *pvf.Archive, r *NativeBakalRaidRules) error {
 	return fmt.Errorf("native normal raid reward source missing")
 }
 
-func (r *NativeBakalRaidRules) SlotForMap(dungeon, mapID uint32) (NativeBakalRaidSlot, bool) {
+func (r *BakalRaidRules) SlotForMap(dungeon, mapID uint32) (BakalRaidSlot, bool) {
 	for _, slot := range r.Slots {
 		if slot.Dungeon != dungeon {
 			continue
@@ -367,5 +367,5 @@ func (r *NativeBakalRaidRules) SlotForMap(dungeon, mapID uint32) (NativeBakalRai
 			}
 		}
 	}
-	return NativeBakalRaidSlot{}, false
+	return BakalRaidSlot{}, false
 }

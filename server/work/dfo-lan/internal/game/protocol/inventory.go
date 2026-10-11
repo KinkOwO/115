@@ -183,12 +183,13 @@ func GoldPickupConfirmed(object uint32, actor uint16, amount uint32) ([]byte, er
 	return append(p, make([]byte, 36)...), nil
 }
 
-// Failure consumes an item template index after the dispatcher's u16 error
-// code, not the CMD43 scene object. The native handler compares this index
-// with item-record+0x18 before clearing entity+0x2e79 (1452457bf/1452457ca).
-// Zero is an unmatched index when no owned drop can be resolved.
-func PickupRefused(template uint32) ([]byte, error) {
-	return add32(Refusal(4), template), nil
+// Failure consumes the scene object after the dispatcher's u16 error code.
+// A generic Refusal alone truncates145244e5d and leaves pickup in flight.
+func PickupRefused(object uint32) ([]byte, error) {
+	if object == 0 {
+		return nil, fmt.Errorf("zero pickup refusal object")
+	}
+	return add32(Refusal(4), object), nil
 }
 
 func MonsterDeathDrops(entity uint16, drops []SceneDrop) ([]byte, error) {

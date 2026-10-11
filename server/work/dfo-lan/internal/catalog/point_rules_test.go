@@ -220,7 +220,7 @@ func TestSetPointsAggregation(t *testing.T) {
 	}{
 		{"-1 行用本件套装号补，命中", PointItem{Template: 1001, PartSetIndex: 16201}, 65, 1},
 		{"没有套装号可归属 ⇒ 不累加", PointItem{Template: 1002, PartSetIndex: -1}, 0, 0},
-		{"同套装同档位的不同值歧义 ⇒ 拒绝累计", PointItem{Template: 1003, PartSetIndex: 16201}, 0, 0},
+		{"两行都用本件套装号 ⇒ 累加", PointItem{Template: 1003, PartSetIndex: 16201}, 115 + 130, 1},
 		{"能力组不在表里 ⇒ 0", PointItem{Template: 1004, PartSetIndex: 16201}, 0, 0},
 		{"多组里只有一组有行", PointItem{Template: 1005, PartSetIndex: 16201}, 65, 1},
 		{"档位只精确匹配，不回退 0 档", PointItem{Template: 1003, Awakening: 3, PartSetIndex: 16201}, 0, 0},
@@ -238,8 +238,8 @@ func TestSetPointsAggregation(t *testing.T) {
 		{Template: 1001, PartSetIndex: 16201},
 		{Template: 1003, PartSetIndex: 16201},
 		{Template: 1002, PartSetIndex: -1},
-	}); total != 65 || hits != 1 {
-		t.Errorf("aggregate = %d/%d, want %d/1", total, hits, 65)
+	}); total != 65+115+130 || hits != 2 {
+		t.Errorf("aggregate = %d/%d, want %d/2", total, hits, 65+115+130)
 	}
 	// 未装载能力组 ⇒ 返回"算不出"(0,0)，调用方不得当"角色积分为 0"。
 	if total, hits := (PointRules{Set: table}).SetPoints([]PointItem{{Template: 1001, PartSetIndex: 16201}}); total != 0 || hits != 0 {

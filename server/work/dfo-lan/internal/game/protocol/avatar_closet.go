@@ -5,7 +5,7 @@ import "fmt"
 // Avatar Closet（寄存衣柜）：基础 1 槽，买 Tier1/2/3 各 +1，上限 4 槽。
 // 已购档位数（0..3）与槽数（1..4）的关系：slots = expansion + 1。
 const (
-	MaxAvatarClosetExpansion byte = 3                            // Tier1/2/3
+	MaxAvatarClosetExpansion byte = 3                  // Tier1/2/3
 	MaxAvatarClosetSlots     byte = MaxAvatarClosetExpansion + 1 // 4
 )
 
@@ -41,3 +41,4 @@ func AvatarClosetInfo(slots byte) ([]byte, error) {
 func AvatarClosetSet() []byte {
 	return []byte{0, 0, 0, 0}
 }
+

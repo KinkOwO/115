@@ -183,7 +183,15 @@ func (client *gameConnection) dispatchEvildom(requestData *clientRequest) dispat
 
 	// 进图确认（CMD2045）也在这里接管：它**带着玩家选中的关卡号**，是加载副本的
 	// 唯一时机（CMD2043 只开窗口）。
+	//
+	// ★ 这道身份门**必须**有：军团家族（末世录/伊斯/维纳斯/苏醒之森）**共用 CMD2045
+	// 信封**，而本派发器排在 `dispatchLegion` 之前。少了它，末世录的进图确认帧会被
+	// 次元回廊接走、加载成"第 1 界"——业主实机现象就是「末世录军团副本进入了次元回廊」。
+	// 判据与同文件里的 CMD2043（内容号 0x0d）一致：**用内容身份，不用频道号**。
 	if requestData.frame.ID == legion.CmdEnterDungeon {
+		if !s.isDimCloister() {
+			return dispatchNext
+		}
 		result, err := s.dimCloisterLoadStage(w, requestData.plaintext)
 		if err != nil {
 			client.event(map[string]any{

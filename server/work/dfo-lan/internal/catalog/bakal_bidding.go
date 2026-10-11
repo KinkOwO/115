@@ -7,7 +7,7 @@ import (
 
 const BakalWeeklyBiddingSource = "contents/2022/bakalraid/etc/bakalweeklybidding.etc"
 
-func loadBakalWeeklyBidding(a *pvf.Archive, r *NativeBakalRaidRules) error {
+func loadBakalWeeklyBidding(a *pvf.Archive, r *BakalRaidRules) error {
 	s, e := ResolveScript(a, BakalWeeklyBiddingSource)
 	if e != nil {
 		return e
@@ -15,7 +15,7 @@ func loadBakalWeeklyBidding(a *pvf.Archive, r *NativeBakalRaidRules) error {
 	return parseBakalWeeklyBidding(s.Cells, &r.Bidding)
 }
 
-func parseBakalWeeklyBidding(ts []pvf.Token, out *NativeBakalBiddingRules) error {
+func parseBakalWeeklyBidding(ts []pvf.Token, out *BakalBiddingRules) error {
 	count, e := bakalBlock(ts, "[weekly bidding reward count]", "[/weekly bidding reward count]")
 	if e != nil {
 		return e
@@ -68,7 +68,7 @@ func parseBakalWeeklyBidding(ts []pvf.Token, out *NativeBakalBiddingRules) error
 	if e != nil {
 		return e
 	}
-	out.WeeklyGroups = map[int][]NativeBakalBiddingItem{}
+	out.WeeklyGroups = map[int][]BakalBiddingItem{}
 	for _, g := range groups {
 		rows := bakalRows(g)
 		if len(rows) == 0 || len(bakalInts(rows[0].Args)) != 1 {
@@ -90,7 +90,7 @@ func parseBakalWeeklyBidding(ts []pvf.Token, out *NativeBakalBiddingRules) error
 			if values[i] <= 0 || values[i+1] < 0 {
 				return fmt.Errorf("invalid weekly template/weight")
 			}
-			item := NativeBakalBiddingItem{Template: uint32(values[i]), Weight: values[i+1]}
+			item := BakalBiddingItem{Template: uint32(values[i]), Weight: values[i+1]}
 			copy(item.Values[:], values[i+2:i+7])
 			out.WeeklyGroups[id] = append(out.WeeklyGroups[id], item)
 		}

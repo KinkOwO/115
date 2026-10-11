@@ -45,28 +45,21 @@ func awakenCharacter(service *character.Service, w *worldSession, p, keys []byte
 	if err != nil {
 		return nil, err
 	}
-	// Actor projection reads persisted frame/quest/options data. Resolve those
-	// lookups before CommitCharacterEvent so packet validation stays pure under
-	// the SQLite write lock; keep using its authoritative current role below.
-	projection, err := service.WithEntryProjectionSnapshot(w.role)
-	if err != nil {
-		return nil, err
-	}
 	planFor := func(role database.Character) ([]preparedPacket, error) {
 		role.WireID = w.role.WireID
-		basic, e := projection.EntryBasicProbe(role, [2]byte{})
+		basic, e := service.EntryBasicProbe(role, [2]byte{})
 		if e != nil {
 			return nil, e
 		}
-		skills, e := projection.EntrySkills(role)
+		skills, e := service.EntrySkills(role)
 		if e != nil {
 			return nil, e
 		}
-		restored, e := appearanceRestore(projection, role)
+		restored, e := appearanceRestore(service, role)
 		if e != nil {
 			return nil, e
 		}
-		preset, e := projection.SkillPresetInfo(role)
+		preset, e := service.SkillPresetInfo(role)
 		if e != nil {
 			return nil, e
 		}

@@ -339,11 +339,11 @@ func TestCreateArcadeRoom(t *testing.T) {
 	}
 	// 非法组合必须拒。
 	bad := []MakeRequest{
-		{SpecialMode: 3, Flag: 0},                        // Flag 下界外
-		{SpecialMode: 3, Flag: 4},                        // Flag 上界外
-		{SpecialMode: 3, Flag: 1, Map: 1},                // Map 必须 0
+		{SpecialMode: 3, Flag: 0},                // Flag 下界外
+		{SpecialMode: 3, Flag: 4},                // Flag 上界外
+		{SpecialMode: 3, Flag: 1, Map: 1},        // Map 必须 0
 		{SpecialMode: 3, Flag: 1, Password: []byte("x")}, // 不接受密码
-		{SpecialMode: 1, Flag: 1},                        // SpecialMode 不对
+		{SpecialMode: 1, Flag: 1},                // SpecialMode 不对
 	}
 	for i, req := range bad {
 		var m Manager

@@ -13,7 +13,6 @@ import (
 type EnhancementCatalog struct {
 	ReinforcementTickets map[uint32]reinforcementTicket
 	AmplifyTickets       map[uint32]reinforcementTicket
-	Portable             map[uint32]reinforcementTicket `json:",omitempty"`
 	Grimoires            amplifyGrimoireRules
 	Enchant              enchantBeadConfig
 	Gold                 goldRulesConfig
@@ -76,12 +75,6 @@ func ReadEnhancementBaseline(dir string) (*EnhancementCatalog, error) {
 func (c *EnhancementCatalog) Validate() error {
 	if c == nil {
 		return fmt.Errorf("missing enhancement catalog")
-	}
-	for id, row := range c.Portable {
-		v := row.Fields["[action type]"]
-		if _, ok := portableMode(row.Fields); !ok || id < 2 || row.Path == "" || len(v) != 3 || v[1].Type != 0 || v[2].Type != 0 || v[1].Value < 0 || v[2].Value < v[1].Value || v[2].Value > 31 {
-			return fmt.Errorf("invalid portable enhancement %d", id)
-		}
 	}
 	for _, group := range []struct {
 		rows    map[uint32]reinforcementTicket
@@ -149,7 +142,6 @@ func (c *EnhancementCatalog) Activate() error {
 	}
 	reinforcementTickets = c.ReinforcementTickets
 	amplifyTickets = c.AmplifyTickets
-	portableEnhancements = c.Portable
 	amplifyGrimoires = &c.Grimoires
 	pureGrimoireTemplates = pure
 	enchantBeadCards = beads

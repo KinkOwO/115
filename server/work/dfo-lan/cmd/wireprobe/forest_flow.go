@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
 	"dfolan/internal/legion"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -120,7 +123,7 @@ type forestRun struct {
 	// 无选音符窗、第 1 关走 CMD2045，第 2/3 关由客户端 CMD2062 直进。
 	hard bool
 	// potionUsed[stage] 是本关已使用的消耗品次数（CMD44）：军团口径每关
-	// 按源数据限次；仅首次进入该阶段清零，撤退重进保留计数。
+	// 限 8 次（用户要求），进图时清零、超限拒绝（UseStackableRefused）。
 	potionUsed [3]int
 }
 
@@ -135,8 +138,7 @@ func isForestRequest(id uint16, p []byte) bool {
 	if !legion.Requests(id) || len(p) < legion.EnvelopeSize+4 {
 		return false
 	}
-	content := binary.LittleEndian.Uint32(p[legion.EnvelopeSize:])
-	return content == legion.ForestContentID || content == legion.ForestHardContentID
+	return binary.LittleEndian.Uint32(p[legion.EnvelopeSize:]) == legion.ForestContentID
 }
 
 // isForestHardFamilyRequest 判别内容 105（Extreme）的家族命令
@@ -211,21 +213,6 @@ func (w *worldSession) forestOperation(p []byte) ([]outboundPacket, []map[string
 			{"forest_info_ready", 0, legion.NotiForestInfo, info},
 			{"forest_operation_ready_ack", 1, legion.CmdForestOperationSelect, legion.ForestOperationReadyAck()},
 		}, []map[string]any{{"kind": "forest_operation_ready", "character_id": w.role.ID, "stage": stage}}, nil
-	case 4:
-		// Current C2226 reader 141d41db0 handles action4 through the same
-		// selection-window branch as action1. Live retreat request uses FFFF.
-		if req.Value != 0xffff {
-			return nil, nil, fmt.Errorf("forest melody reset target %d is invalid", req.Value)
-		}
-		info, err := legion.ForestReadyInfo(stage)
-		if err != nil {
-			return nil, nil, err
-		}
-		w.forest.choice, w.forest.target = 0xff, 0
-		return []outboundPacket{
-			{"forest_info_melody_reset", 0, legion.NotiForestInfo, info},
-			{"forest_operation_reset_ack", 1, legion.CmdForestOperationSelect, legion.ForestOperationResetAck()},
-		}, []map[string]any{{"kind": "forest_melody_reset", "character_id": w.role.ID, "stage": stage}}, nil
 	case 2:
 		if req.Value == 0 || req.Value == 0xffff || req.Value == 0xffffffff {
 			return nil, nil, fmt.Errorf("forest melody target %d is not a selection", req.Value)
@@ -365,9 +352,6 @@ func (w *worldSession) enterForestStage(p []byte) ([]outboundPacket, []map[strin
 		return nil, nil, loyaltyErr
 	}
 	plan = append(plan, loyaltyPackets...)
-	if run.stageClock[stage].IsZero() {
-		run.potionUsed[stage] = 0
-	}
 	if run.hard {
 		// 军团帧列（N26/781/782/476/629/465）：官服每关进图都发，伊斯进图一直
 		// 发这一套（HUD 正常），本仓极难度此前**一条都没发**。
@@ -631,8 +615,10 @@ func (w *worldSession) beginForestStageEntry(s *dungeon.Session, stage int) {
 //	N31 横幅 → N2252（token）→ N2 角色资料 → N2253 第二排 →
 //	N9 队伍稳态 → N2563 cleared
 //
-// Extreme：当前原生 141D362A0 接收 N2565 下一阶段，141D38510 在
-// 15 秒计时后发送 CMD2062 进入下一关。前两关不发普通 cleared 或奖励包。
+// Extreme（连战，第 1/3 次尝试）：清怪投影 = N2565 状态推进（state 2、
+// 下一阶段；终点关 state 3），镜像维纳斯的「清怪投影推进权威状态、客户端
+// 自行直进」——硬模式无选音符/CMD46 环节的官服样本，投影值按家族同构取，
+// 实机帧决定第 2/3 次取值。
 func (w *worldSession) completeForestStage() ([]outboundPacket, error) {
 	if !w.activeDungeon.Completed() || w.completionSent {
 		return nil, nil
@@ -676,17 +662,28 @@ func (w *worldSession) completeForestStage() ([]outboundPacket, error) {
 	//（2026-10-08 抓包解压后的真表，见 forest_rewards.go）；Normal 第 1/2 关
 	// = N2252 token-only + N2253 三条。
 	// 显示与发放同源（同一张表），全部经 Awarder 真实入库。
+	var basicItems, additionalItems []legion.ForestRewardItem
 	if run.hard {
-		clearedInfo, err = legion.ForestHardNativeInfo(2, 3, int32(stage))
+		basicItems = legion.ForestHardFinalBasic()
+		additionalItems = legion.ForestHardFinalAdditional()
+	} else if stage == len(legion.ForestStageDungeons)-1 {
+		basicItems = legion.ForestNormalFinalBasic()
+		additionalItems = legion.ForestNormalFinalAdditional()
+	} else {
+		additionalItems = legion.ForestNormalStageRewards()
 	}
-	if err != nil {
-		return nil, err
+	// 装备槽 roll：Normal 终局 3 件 115 级魔器/神器（维纳斯翻牌池子）。
+	// Extreme 七行全是确定模板，没有装备槽。
+	var gear []uint32
+	for _, item := range basicItems {
+		if item.Template == 0 {
+			gear = append(gear, 0)
+		}
 	}
-	basicItems, additionalItems, inventoryPlan, err := w.settleForestRewards(stage)
-	if err != nil {
-		return nil, err
+	if len(gear) != 0 {
+		gear = legion.VenusRollFlipGear(venusFlipGearPool, len(gear))
 	}
-	flip, err := legion.ForestBasicClearReward(stage, basicItems, nil, run.hard)
+	flip, err := legion.ForestBasicClearReward(stage, basicItems, gear, run.hard)
 	if err != nil {
 		return nil, err
 	}
@@ -719,9 +716,57 @@ func (w *worldSession) completeForestStage() ([]outboundPacket, error) {
 			outboundPacket{"forest_settlement_character_detail", 0, 2, detailInfo},
 		)
 	}
+	// 入库：翻牌两排的每一条（含装备槽 roll 结果）经 Awarder 真实发放 +
+	// N14 背包刷新（显示与发放同源）。
+	var inventoryPlan []outboundPacket
+	if w.loot != nil {
+		grant := make([]legion.ForestRewardItem, 0, len(basicItems)+len(additionalItems))
+		gearAt := 0
+		for _, item := range basicItems {
+			if item.Template == 0 {
+				if gearAt < len(gear) {
+					grant = append(grant, legion.ForestRewardItem{Template: gear[gearAt], Amount: 1})
+				}
+				gearAt++
+				continue
+			}
+			grant = append(grant, item)
+		}
+		grant = append(grant, additionalItems...)
+		awarder := &inventory.Awarder{
+			Catalog:   w.loot.Catalog,
+			Rules:     w.loot.BagRules,
+			Equipment: w.loot.Equipment,
+		}
+		before, _ := inventory.ReadBag(w.role.State)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		for _, item := range grant {
+			updated, _, gErr := awarder.Grant(w.role.State, item.Template, item.Amount)
+			if gErr != nil {
+				log.Printf("forest flip award failed: template=%d amount=%d error=%v", item.Template, item.Amount, gErr)
+				continue
+			}
+			w.role.State = updated
+		}
+		if w.store != nil {
+			key := "forest-flip:" + w.activeDungeon.RunID
+			_, _, _ = w.store.CommitCharacterEvent(ctx, w.account, w.role.ID, w.role.ConfigVersion,
+				key, "forest-flip-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
+					proof, _ := json.Marshal(map[string]any{"stage": stage, "hard": run.hard, "granted": grant})
+					return w.role.State, proof, nil
+				})
+		}
+		cancel()
+		if after, rErr := inventory.ReadBag(w.role.State); rErr == nil {
+			if updatePayload, uErr := protocol.InventoryUpdate(inventory.ChangedItemRows(before, after)); uErr == nil {
+				inventoryPlan = append(inventoryPlan, outboundPacket{"forest_flip_inventory_updated", 0, 14, updatePayload})
+				log.Printf("forest flip award: hard=%v stage=%d granted=%+v n14_bytes=%d", run.hard, stage, grant, len(updatePayload))
+			}
+		}
+	}
 	plan = append(plan, inventoryPlan...)
 	plan = append(plan, outboundPacket{"forest_additional_clear_reward", 0, legion.NotiIspinsAdditionalClearReward, additional})
-	party, err := w.soloPartyInfo(nil)
+	party, err := protocol.SoloPartyInfo(w.role.WireID)
 	if err != nil {
 		return nil, err
 	}
@@ -742,7 +787,7 @@ func (w *worldSession) completeForestStage() ([]outboundPacket, error) {
 // 21:42:19.431 同款位置：CMD37 ack 之后、N30 之前由 venus 挂点同序）。N1474
 // 只驱动客户端显示，失败判定是服务端职责（1474 规格文档）。
 func (w *worldSession) forestStageTimer(now time.Time) []outboundPacket {
-	if w.forest == nil || w.activeDungeon == nil || w.activeDungeon.Completed() || !legion.IsForestStageDungeonAny(w.activeDungeon.Definition.ID) {
+	if w.forest == nil || w.activeDungeon == nil || !legion.IsForestStageDungeonAny(w.activeDungeon.Definition.ID) {
 		return nil
 	}
 	stage, _, err := legion.ForestStageOfDungeonAny(w.activeDungeon.Definition.ID)
@@ -757,20 +802,12 @@ func (w *worldSession) forestStageTimer(now time.Time) []outboundPacket {
 		log.Printf("forest stage timer encode failed (stage %d): %v", stage, err)
 		return nil
 	}
-	plan := []outboundPacket{}
-	if w.forest.hard {
-		info, err := legion.ForestHardNativeInfo(2, 0, int32(stage))
-		if err != nil {
-			return nil
-		}
-		plan = append(plan, outboundPacket{"forest_hard_phase_loaded", 0, legion.NotiForestHardInfo, info})
-	}
-	return append(plan, outboundPacket{"forest_stage_timer_sync", 0, legion.NotiDungeonTimeoutTime, body})
+	return []outboundPacket{{"forest_stage_timer_sync", 0, legion.NotiDungeonTimeoutTime, body}}
 }
 
 // forestStageTimeout 判定关卡倒计时到期（挑战失败，venusStageTimeout 同款
 // 链路）：N33 原生超时失败开路（reason 100=timeout），42-ack 不发；失败演出
-// 把角色置入死亡态，城镇序列末尾补原生复活；回对应模式等待态并整场复位
+// 把角色置入死亡态，城镇序列末尾补原生复活；末尾回等待态 N2563 并整场复位
 // （苏醒之森超时=本场作废，重新开团走 CMD2043）。
 func (w *worldSession) forestStageTimeout(now time.Time, event func(map[string]any)) []outboundPacket {
 	if w.forest == nil || w.activeDungeon == nil || w.activeDungeon.Completed() ||
@@ -801,6 +838,7 @@ func (w *worldSession) forestStageTimeout(now time.Time, event func(map[string]a
 	w.completionSent = false
 	w.resultSent = false
 	w.resetCards()
+	// 超时=本场作废：保留模式（Extreme 重开团仍走 N2565），只清进度。
 	w.forest = &forestRun{choice: 0xff, hard: hard}
 	if event != nil {
 		event(map[string]any{"kind": "forest_stage_timeout", "character_id": w.role.ID,
@@ -898,11 +936,7 @@ func (w *worldSession) forestResult(p []byte) ([]outboundPacket, error) {
 	if stage < 0 {
 		return nil, nil
 	}
-	if stage >= len(run.cleared) || !run.cleared[stage] {
-		return nil, fmt.Errorf("forest result before committed stage completion")
-	}
 	terminal := stage == len(legion.ForestStageDungeons)-1
-	// Captured upstream flow: N31 -> CMD46 -> hard tick/window -> CMD2062.
 	next := stage + 1
 	var plan []outboundPacket
 	switch {
@@ -948,7 +982,7 @@ func (w *worldSession) forestResult(p []byte) ([]outboundPacket, error) {
 
 // forestRewardEnd handles the terminal CMD2046 (content 104/105, stage 2):
 // ACK + 终局状态（Normal = N2563 state3，官服 21:45:39.092；Extreme =
-// N2565 state3/outcome1）。非终局或任一阶段未清关拒绝。
+// N2565 state3，第 1/3 次尝试值）。非终局或未清关拒绝。
 func (w *worldSession) forestRewardEnd(p []byte) ([]outboundPacket, []map[string]any, error) {
 	req, err := legion.DecodeForestEnter(p)
 	if err != nil {
@@ -962,20 +996,11 @@ func (w *worldSession) forestRewardEnd(p []byte) ([]outboundPacket, []map[string
 	if stage != len(legion.ForestStageDungeons)-1 {
 		return nil, nil, fmt.Errorf("forest reward end stage %d is not the terminal stage", stage)
 	}
-	for phase := 0; phase <= stage; phase++ {
-		if !run.cleared[phase] {
-			return nil, nil, fmt.Errorf("forest reward end before stage %d was cleared", phase)
-		}
+	if !run.cleared[stage] {
+		return nil, nil, fmt.Errorf("forest reward end before stage %d was cleared", stage)
 	}
 	if run.finalDone {
 		return []outboundPacket{{"forest_reward_end_ack", 1, legion.CmdRewardEnd, legion.RewardEndAck()}}, nil, nil
-	}
-	finalInfo, infoID := legion.ForestFinalInfo(), legion.NotiForestInfo
-	if run.hard {
-		finalInfo, err = legion.ForestHardNativeInfo(3, 1, 2)
-		if err != nil {
-			return nil, nil, err
-		}
 	}
 	run.finalDone = true
 	if run.hard {
@@ -994,7 +1019,7 @@ func (w *worldSession) forestRewardEnd(p []byte) ([]outboundPacket, []map[string
 	}
 	return []outboundPacket{
 			{"forest_reward_end_ack", 1, legion.CmdRewardEnd, legion.RewardEndAck()},
-			{"forest_info_final", 0, infoID, finalInfo},
+			{"forest_info_final", 0, legion.NotiForestInfo, legion.ForestFinalInfo()},
 		}, []map[string]any{{
 			"kind":         "forest_reward_end",
 			"character_id": w.role.ID,
@@ -1106,9 +1131,7 @@ func (w *worldSession) enterForestStageDirectMove(r protocol.DungeonDirectMove) 
 		)
 	}
 	run.stage = stage
-	if run.stageClock[stage].IsZero() {
-		run.potionUsed[stage] = 0
-	}
+	run.potionUsed[stage] = 0
 	// 会话样板与主循环一致（dispatch 发送后把 pending 落位 activeDungeon，
 	// 宠物忠诚由该路径统一刷新，这里不重复）。
 	w.deathSent = map[uint16]bool{}
@@ -1122,6 +1145,25 @@ func (w *worldSession) enterForestStageDirectMove(r protocol.DungeonDirectMove) 
 	w.pendingTownArrival = nil
 	w.leaveScene()
 	return s, plan, nil
+}
+
+// forestPotionGate 是苏醒之森副本内的消耗品限制（军团口径每关 8 次）：
+// 命中返回拒绝应答；未命中把计数 +1 并返回 nil。计数在进图时清零。
+const forestPotionLimit = 8
+
+func (w *worldSession) forestPotionGate(r protocol.UseStackableRequest) []outboundPacket {
+	if w.forest == nil || w.activeDungeon == nil {
+		return nil
+	}
+	stage, _, err := legion.ForestStageOfDungeonAny(w.activeDungeon.Definition.ID)
+	if err != nil || stage >= len(w.forest.potionUsed) {
+		return nil
+	}
+	if w.forest.potionUsed[stage] >= forestPotionLimit {
+		return []outboundPacket{{"forest_potion_refused", 1, 44, protocol.UseStackableRefused(r)}}
+	}
+	w.forest.potionUsed[stage]++
+	return nil
 }
 
 // forestStoryPause 应答终局演出期间的 CMD191（剧情暂停/恢复，维纳斯同款）：
@@ -1228,18 +1270,6 @@ func (client *gameConnection) dispatchForest(requestData *clientRequest) dispatc
 	// 107/101/106，互不相认。
 	if requestData.frame.ID == legion.CmdStart && len(requestData.plaintext) >= legion.EnvelopeSize+4 {
 		content := binary.LittleEndian.Uint32(requestData.plaintext[legion.EnvelopeSize:])
-		if content != legion.ForestContentID && content != legion.ForestHardContentID {
-			if client.event != nil {
-				client.event(map[string]any{"kind": "forest_start_foreign_content", "content": content})
-			}
-			return dispatchNext
-		}
-		if w.channelType != 96 {
-			if client.output.send(1, legion.CmdStart, protocol.Refusal(8)) != nil {
-				return dispatchClose
-			}
-			return dispatchHandled
-		}
 		hard := w.forestPartyHard
 		switch {
 		case content == legion.ForestHardContentID:
@@ -1360,8 +1390,7 @@ func isForestStartRequest(id uint16, p []byte) bool {
 	if id != legion.CmdStart || len(p) < legion.EnvelopeSize+4 {
 		return false
 	}
-	content := binary.LittleEndian.Uint32(p[legion.EnvelopeSize:])
-	return content == legion.ForestContentID || content == legion.ForestHardContentID
+	return binary.LittleEndian.Uint32(p[legion.EnvelopeSize:]) == legion.ForestContentID
 
 }
 

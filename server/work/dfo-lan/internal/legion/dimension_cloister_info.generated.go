@@ -130,9 +130,10 @@ var DimCloisterEntryLedger = []byte{
 var dimCloisterInfoFrames = map[string]DimCloisterInfoFrame{
 	"hallInitial": {Name: "hallInitial", Frame: 754, Body: dimCloisterInfoHallInitial},
 	"hallOptions": {Name: "hallOptions", Frame: 758, Body: dimCloisterInfoHallOptions},
-	"hallPicked":  {Name: "hallPicked", Frame: 770, Body: dimCloisterInfoHallPicked},
-	"dungeon0":    {Name: "dungeon0", Frame: 897, Body: dimCloisterInfoDungeon0},
-	"dungeon1":    {Name: "dungeon1", Frame: 981, Body: dimCloisterInfoDungeon1},
-	"dungeon2":    {Name: "dungeon2", Frame: 993, Body: dimCloisterInfoDungeon2},
-	"finale":      {Name: "finale", Frame: 985, Body: dimCloisterInfoFinale},
+	"hallPicked": {Name: "hallPicked", Frame: 770, Body: dimCloisterInfoHallPicked},
+	"dungeon0": {Name: "dungeon0", Frame: 897, Body: dimCloisterInfoDungeon0},
+	"dungeon1": {Name: "dungeon1", Frame: 981, Body: dimCloisterInfoDungeon1},
+	"dungeon2": {Name: "dungeon2", Frame: 993, Body: dimCloisterInfoDungeon2},
+	"finale": {Name: "finale", Frame: 985, Body: dimCloisterInfoFinale},
 }
+

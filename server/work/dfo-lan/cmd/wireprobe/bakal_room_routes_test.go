@@ -13,8 +13,8 @@ func TestBakalNativeRoomRoutesAfterClear(t *testing.T) {
 	c, at := bakalNativeClient(t)
 	w := c.worldState
 	rooms, edges, returns := 0, 0, 0
-	for _, source := range w.nativeBakalRules.Dungeons {
-		d := w.nativeBakalRules.DungeonCatalog.Dungeons[source.Index]
+	for _, source := range w.bakalRules.Dungeons {
+		d := w.bakalRules.DungeonCatalog.Dungeons[source.Index]
 		for _, maze := range d.Mazes {
 			if maze.Index != 0 {
 				continue // gateway selects maze 0 for this mode
@@ -91,7 +91,7 @@ func TestBakalNativeRoomRoutesAfterClear(t *testing.T) {
 func TestBakalDragonDeathOpensNativeReturnWithoutGenericCompletion(t *testing.T) {
 	c, at := bakalNativeClient(t)
 	w := c.worldState
-	for _, source := range w.nativeBakalRules.Dungeons {
+	for _, source := range w.bakalRules.Dungeons {
 		if source.Type != "skasa" && source.Type != "sparazzi" && source.Type != "hisma" {
 			continue
 		}
@@ -102,7 +102,7 @@ func TestBakalDragonDeathOpensNativeReturnWithoutGenericCompletion(t *testing.T)
 		if _, _, err := c.bakalLoadingDone(nil); err != nil {
 			t.Fatal(err)
 		}
-		boss := w.nativeBakalRules.Monsters[source.Type].Template
+		boss := w.bakalRules.Monsters[source.Type].Template
 		found := false
 		for _, actor := range w.activeDungeon.Monsters {
 			if actor.Template == boss && actor.Rank == 3 {
@@ -115,13 +115,13 @@ func TestBakalDragonDeathOpensNativeReturnWithoutGenericCompletion(t *testing.T)
 		if !found || !w.activeDungeon.RoomCleared() || w.activeDungeon.Completed() {
 			t.Fatalf("%s boss-only death left exit blocked", source.Type)
 		}
-		if _, err := w.nativeBakalConfirmDefeats(at); err != nil {
+		if _, err := w.bakalConfirmDefeats(at); err != nil {
 			t.Fatal(err)
 		}
 		if !w.bakal.IsCleared(source.Index) {
 			t.Fatalf("%s source clear not recorded", source.Type)
 		}
-		for _, loc := range w.nativeBakalRules.Locations {
+		for _, loc := range w.bakalRules.Locations {
 			if loc.Dungeon != source.Index {
 				continue
 			}

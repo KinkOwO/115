@@ -89,15 +89,19 @@ func TestSessionBeginIsIdempotent(t *testing.T) {
 	if s.Argument != 2 {
 		t.Fatalf("argument %d, want the latest (2)", s.Argument)
 	}
+	if s.PartySize != 1 {
+		t.Fatalf("party size %d, want 1 (solo-party decision D2)", s.PartySize)
+	}
 }
 
 func TestSessionResetClearsEntry(t *testing.T) {
 	s := NewSession(42)
 	s.Begin(42, 5)
 	s.Operation = 9
+	s.RoleValue = 3
 	s.Phase = 2
 	s.Reset()
-	if s.Entered || s.Operation != 0 || s.Phase != 0 {
+	if s.Entered || s.Operation != 0 || s.RoleValue != 0 || s.Phase != 0 {
 		t.Fatalf("reset left state behind: %+v", s)
 	}
 }
@@ -276,7 +280,7 @@ func TestRoleSelectAckHasSuccessPrefix(t *testing.T) {
 	}
 }
 
-func TestSessionEnterIsIdempotent(t *testing.T) {
+func TestSessionEnterAndRoleAreIdempotent(t *testing.T) {
 	s := NewSession(42)
 	s.Begin(42, 1)
 	s.Operation = 1
@@ -287,6 +291,11 @@ func TestSessionEnterIsIdempotent(t *testing.T) {
 	}
 	if !s.Entered {
 		t.Fatal("entering must keep the entry flag")
+	}
+	s.SelectRole(3)
+	s.SelectRole(3)
+	if s.RoleValue != 3 {
+		t.Fatalf("role %d, want 3", s.RoleValue)
 	}
 }
 

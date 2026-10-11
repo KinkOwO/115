@@ -119,3 +119,4 @@ func TestSQLiteEngineGuardReleaseIsIdempotent(t *testing.T) {
 	}
 	release()
 }
+

@@ -34,10 +34,7 @@ func TestNativeEnhancementsCurrentArchiveFingerprint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Retain the historical fingerprint of the six original families.
-	legacy := *native
-	legacy.Portable = nil
-	b, err := json.Marshal(&legacy)
+	b, err := json.Marshal(native)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -59,6 +59,8 @@ func SQLiteTarget(path string) EngineTarget {
 	}
 }
 
+
+
 // BackupFile 是备份目录里的一个数据文件及其哈希。
 type BackupFile struct {
 	Name   string `json:"name"`
@@ -80,7 +82,6 @@ type BackupEntry struct {
 	Directory string       `json:"directory"`
 	CreatedAt string       `json:"created_at"`
 	Source    string       `json:"source"`
-	Database  string       `json:"database,omitempty"`
 	Files     []BackupFile `json:"files"`
 	Tables    []TableRows  `json:"tables,omitempty"`
 	TotalRows int64        `json:"total_rows"`
@@ -88,6 +89,7 @@ type BackupEntry struct {
 	SizeBytes int64  `json:"size_bytes,omitempty"`
 	Note      string `json:"note,omitempty"`
 }
+
 
 // RestoreReport 是一次还原的结论。
 type RestoreReport struct {
@@ -105,6 +107,7 @@ type RestoreReport struct {
 // 打码：报告、日志、manifest 只允许出现打码后的 DSN
 // ---------------------------------------------------------------------------
 
+
 // ---------------------------------------------------------------------------
 // 备份
 // ---------------------------------------------------------------------------
@@ -118,17 +121,6 @@ type RestoreReport struct {
 func Backup(ctx context.Context, target EngineTarget, backupsDir string, log func(string, ...any)) (BackupEntry, error) {
 	if log == nil {
 		log = func(string, ...any) {}
-	}
-	identity := ""
-	if target.Engine == DriverSQLite {
-		var err error
-		identity, err = ExistingSQLitePath(target.Config.SQLitePath, "")
-		if err != nil {
-			return BackupEntry{}, err
-		}
-		if resolved, e := filepath.EvalSymlinks(identity); e == nil {
-			identity = resolved
-		}
 	}
 	if strings.TrimSpace(backupsDir) == "" {
 		return BackupEntry{}, errors.New("未指定备份目录")
@@ -147,7 +139,6 @@ func Backup(ctx context.Context, target EngineTarget, backupsDir string, log fun
 		Directory: dir,
 		CreatedAt: time.Now().Format(time.RFC3339),
 		Source:    target.Label,
-		Database:  identity,
 	}
 	var err error
 	switch target.Engine {
@@ -213,6 +204,7 @@ func backupSQLite(ctx context.Context, target EngineTarget, dir string, entry *B
 	log("SQLite 在线备份完成：%s（%d 字节，%d 张表）", filepath.Base(dest), file.Size, len(tables))
 	return nil
 }
+
 
 // ListBackups 列出备份目录下的所有备份，最新的排在最前面。
 //
@@ -313,6 +305,7 @@ func VerifyBackup(entry BackupEntry) error {
 // 复制：覆盖式写入另一端
 // ---------------------------------------------------------------------------
 
+
 // autoBackupTarget 在覆盖目标端之前自动备份它。目标端还没有数据时如实说明并跳过
 // （没有可覆盖的东西，就不存在"备份失败还照覆盖"）。
 func autoBackupTarget(ctx context.Context, target EngineTarget, backupsDir string, log func(string, ...any)) (*BackupEntry, error) {
@@ -337,6 +330,7 @@ func autoBackupTarget(ctx context.Context, target EngineTarget, backupsDir strin
 	log("目标端已自动备份：%s", entry.Directory)
 	return &entry, nil
 }
+
 
 // ---------------------------------------------------------------------------
 // 还原：把一份备份写回它自己的引擎（覆盖）
@@ -415,6 +409,7 @@ func restoreSQLite(ctx context.Context, entry BackupEntry, target EngineTarget, 
 	log("SQLite 已还原：%s（来自 %s）", dest, entry.Name)
 	return nil
 }
+
 
 // toInt64 把 SQLite 可能给出的几种表示收敛成 int64。
 func toInt64(value any) (int64, error) {
@@ -663,6 +658,7 @@ func sqliteRowCounts(ctx context.Context, path string) ([]TableRows, int64, erro
 	return out, total, nil
 }
 
+
 // sqliteColumnNames 读一张 SQLite 表的列名（按声明顺序）。
 func sqliteColumnNames(ctx context.Context, db *sql.DB, table string) ([]string, error) {
 	rows, err := db.QueryContext(ctx, "PRAGMA table_info("+quoteIdent(table)+")")
@@ -689,7 +685,11 @@ func sqliteColumnNames(ctx context.Context, db *sql.DB, table string) ([]string,
 // 与引擎的连接串刻意不同：不给副本建立 -shm/-wal，也不加锁，所以"读一遍备份"不会
 // 改动备份目录里的任何字节（否则清单里的 sha256 会在校验之后失效）。
 func openSQLiteImmutable(ctx context.Context, path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", sqliteFileURI(path)+"?mode=ro&immutable=1&_timezone=UTC&_dqs=0")
+	slashed := filepath.ToSlash(path)
+	if !strings.HasPrefix(slashed, "/") {
+		slashed = "/" + slashed // C:/x -> /C:/x，与 sqliteDSN 同一处理
+	}
+	db, err := sql.Open("sqlite", "file://"+slashed+"?mode=ro&immutable=1&_timezone=UTC&_dqs=0")
 	if err != nil {
 		return nil, err
 	}
@@ -850,3 +850,4 @@ func containsInt(list []int, want int) bool {
 	}
 	return false
 }
+

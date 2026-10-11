@@ -36,7 +36,7 @@ func (r *MoonSoloOwner) MoonEnterRoom(stamp MoonSoloStamp, member uint16, now ti
 		}
 		row := gate.Spawn
 		row.Entity = s.NextEntity
-		s.NextEntity = advanceMonsterEntity(s.NextEntity, s.monsterEntityStride())
+		s.NextEntity++
 		gate.Spawn, gate.Planned = row, false
 		s.MoonNamed[s.Room.Map] = gate
 		if s.MoonDynamic == nil {
@@ -59,7 +59,7 @@ func (r *MoonSoloOwner) MoonEnterRoom(stamp MoonSoloStamp, member uint16, now ti
 			}
 			// G0260 N2194 uses-1/-1;300/300 in cos is not blindly a spawn point.
 			row := protocol.UnassignedMonster115{Grid: grid, Entity: s.NextEntity, Template: 109017557, X: -1, Y: -1}
-			s.NextEntity = advanceMonsterEntity(s.NextEntity, s.monsterEntityStride())
+			s.NextEntity++
 			if s.MoonDynamic == nil {
 				s.MoonDynamic = map[uint16]protocol.UnassignedMonster115{}
 			}

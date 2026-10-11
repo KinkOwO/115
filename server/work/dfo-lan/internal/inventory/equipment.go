@@ -438,9 +438,21 @@ func (b Bag) AddEquipment(c *EquipmentCatalog, slots [2]uint16, id, count uint32
 	if e != nil {
 		return b, nil, e
 	}
-	available, e := b.EquipmentAwardSlots(slots, count)
-	if e != nil {
-		return b, nil, e
+	occupied := map[uint16]bool{}
+	for _, i := range b.Items {
+		occupied[i.Slot] = true
+	}
+	for _, i := range b.Equipment {
+		occupied[i.Slot] = true
+	}
+	var available []uint16
+	for n := uint32(slots[0]); n <= uint32(slots[1]) && len(available) < int(count); n++ {
+		if !occupied[uint16(n)] {
+			available = append(available, uint16(n))
+		}
+	}
+	if len(available) != int(count) {
+		return b, nil, fmt.Errorf("equipment bag is full")
 	}
 	b.Equipment = append([]BagEquipment(nil), b.Equipment...)
 	for _, n := range available {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"time"
+
 )
 
 // TowerProgress keeps each tower's account progression and daily admissions

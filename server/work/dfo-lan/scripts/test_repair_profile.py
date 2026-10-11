@@ -6,21 +6,6 @@ from repair_profile import load_profile
 
 
 class RepairProfileTests(unittest.TestCase):
-    def test_weapon_animation_profile_matches_frozen_version(self):
-        _, _, env = self.load_explicit_profile('.', {'DFO_WEAPON_SKIN_ANIMATION': 'r1'})
-        self.assertEqual(env['DFO_WEAPON_SKIN_ANIMATION'], 'r1')
-        for value in ('r2', '1', '', True):
-            with self.subTest(value=value), self.assertRaises(ValueError):
-                self.load_explicit_profile('.', {'DFO_WEAPON_SKIN_ANIMATION': value})
-
-    def test_bakal_validation_entry_policy(self):
-        for value in ('unlimited', 'weekly'):
-            _, _, env = self.load_explicit_profile('.', {'DFO_BAKAL_MODE': value})
-            self.assertEqual(env['DFO_BAKAL_MODE'], value)
-        for value in ('anything', '1', True):
-            with self.assertRaises(ValueError):
-                self.load_explicit_profile('.', {'DFO_BAKAL_MODE': value})
-
     def test_hell_drop_percent_is_numeric_policy(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
@@ -44,11 +29,9 @@ class RepairProfileTests(unittest.TestCase):
     def test_default_profile_keeps_full_scope_without_exports(self):
         project = pathlib.Path(__file__).resolve().parent.parent
         binary, required, env = load_profile(project / 'configs/pvf-default.json', project)
-        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 62)
-        self.assertIn('transform', env['DFO_PVF_CATALOGS'].split(','))
+        self.assertEqual(len(env['DFO_PVF_CATALOGS'].split(',')), 56)
         self.assertEqual(env['DFO_PVF_VERIFY_BASELINES'], '0')
-        self.assertEqual(binary.parent, project / 'bin')
-        self.assertTrue(binary.name.startswith('wireprobe-') and binary.suffix == '.exe')
+        self.assertEqual(binary, project / 'bin/wireprobe-bakal-weekly-quota-candidate.exe')
         self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))
 
     def test_native_character_profile_preserves_save_source_and_policy_only_paths(self):
@@ -56,10 +39,7 @@ class RepairProfileTests(unittest.TestCase):
         _, required, env = load_profile(project / 'configs/pvf-default.json', project)
         self.assertIn('characters', env['DFO_PVF_CATALOGS'].split(','))
         policy = json.loads(pathlib.Path(env['DFO_PVF_CHARACTER_POLICY']).read_text(encoding='utf-8'))
-        # The retained character policy binds to the selected read-only Source;
-        # the release profile pins the actual archive separately.
-        self.assertEqual(policy['source_checksum'], '')
-        self.assertRegex(env['DFO_PVF_SHA256'], r'^[0-9a-f]{64}$')
+        self.assertEqual(policy['source_checksum'], env['DFO_PVF_SHA256'])
         self.assertEqual(len(policy['initial_skill_slots']), 17)
         self.assertFalse(policy['enable_source_commands'])
         self.assertFalse(policy['enable_advancement_shortcuts'])
@@ -118,7 +98,7 @@ class RepairProfileTests(unittest.TestCase):
         _, required, env = load_profile(project / 'configs/pvf-default.json', project)
         self.assertIn('item-shops', env['DFO_PVF_CATALOGS'].split(','))
         policy = json.loads(pathlib.Path(env['DFO_PVF_ITEM_SHOP_POLICY']).read_text(encoding='utf-8'))
-        self.assertEqual(len(policy['routes']), 533)
+        self.assertEqual(len(policy['routes']), 527)
         self.assertEqual(policy['purchase_limit_mode'], 'disabled')
         self.assertTrue(all(set(r) <= {'server_shop_id', 'native_shop_id', 'script_path'} for r in policy['routes']))
         self.assertTrue(all(p.suffix != '.json' or 'policy' in p.name for p in required))

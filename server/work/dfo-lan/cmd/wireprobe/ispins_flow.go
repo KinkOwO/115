@@ -1,14 +1,10 @@
 package main
 
 import (
-	"context"
-	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/legion"
-	"dfolan/internal/loot"
-	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -21,11 +17,11 @@ import (
 
 // ispinsRun 是一次伊斯大陆挑战的会话状态。
 //
-// 每次挑战按服主要求随机排列；挑战内的重试和操作重选沿用同一顺序。
-// C2045 的 stage 是阶段序号，C2046 尾字节才是 COS 源副本索引。
+// v1 限制：阶段固定按官服默认顺序（nemaug→nagor→ashcore→itrenog，即
+// IspinsStageDungeons 的数组顺序）推进。CMD2047 变体 A 的选择 token 未解，
+// 服务端无法从请求里还原玩家实际选择的顺序；玩家若在 UI 换序，进本阶段号
+// 与服务端加载的副本会不一致，此限制待官服向量补解后再放开。
 type ispinsRun struct {
-	order      [4]byte
-	orderOwned bool
 	// stage 是当前进入（或下一个待进）的阶段号 0..3。
 	stage int
 	// cleared 记录已通关阶段。
@@ -36,13 +32,9 @@ type ispinsRun struct {
 	finalDone bool
 	// storyFinished is presentation completion, not dungeon/party departure.
 	// Keep ownership until the actual CMD72 town exit has been prepared.
-	storyFinished           bool
-	operationIndex          uint16
-	cards                   [4][3]catalog.IspinsCard
-	cardsOwned              [4]bool
-	potionLimit, potionUsed uint32
-	coinsUsed               uint32
-	deadline                time.Time
+	storyFinished  bool
+	operationIndex uint16
+	deadline       time.Time
 }
 
 // 官服 S1 局（默认顺序）各 ACK 尾 5B token，逐帧回放（next78 §5.1：语义
@@ -248,20 +240,12 @@ func (w *worldSession) startIspins(p []byte) ([]outboundPacket, []map[string]any
 	if err := w.checkIspinsWeeklyAdmission(); err != nil {
 		return nil, nil, err
 	}
-	if w.ispins != nil && !w.ispins.storyFinished {
-		return nil, nil, fmt.Errorf("ispins challenge already owned")
-	}
-	order, err := newIspinsOrder(w.lastIspinsOrder, w.hasIspinsOrder)
-	if err != nil {
-		return nil, nil, err
-	}
-	w.ispins = &ispinsRun{order: order, orderOwned: true}
-	w.lastIspinsOrder, w.hasIspinsOrder = order, true
+	w.ispins = &ispinsRun{}
 	entry, err := legion.IspinsEntryCharacterInfo(false, [4]bool{}, [5]byte{})
 	if err != nil {
 		return nil, nil, err
 	}
-	info, err := w.ispinsInfoPayload("initial", [5]byte{})
+	info, err := legion.IspinsInfoPayload("initial", [5]byte{})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -272,13 +256,13 @@ func (w *worldSession) startIspins(p []byte) ([]outboundPacket, []map[string]any
 		}, []map[string]any{{
 			"kind":         "ispins_started",
 			"character_id": w.role.ID,
-			"stage_order":  order,
+			"stage_order":  "official default (nemaug, nagor, ashcore, itrenog)",
 		}}, nil
 }
 
 // ispinsWaitInfo builds the N2255 waiting-state body for the next stage.
 func (w *worldSession) ispinsWaitInfo() ([]byte, error) {
-	return w.ispinsInfoPayload(fmt.Sprintf("wait%d", w.ispinsClearedCount()), [5]byte{})
+	return legion.IspinsInfoPayload(fmt.Sprintf("wait%d", w.ispinsClearedCount()), [5]byte{})
 }
 
 // ispinsOperation handles CMD2047. Variant A selects an operation (official
@@ -296,16 +280,11 @@ func (w *worldSession) ispinsOperation(p []byte) ([]outboundPacket, []map[string
 		return nil, nil, fmt.Errorf("ispins operation inside a dungeon")
 	}
 	count := w.ispinsClearedCount()
-	// A delayed selection after the fourth clear must not index the four
-	// recorded ACK nonces or reopen an already completed run.
-	if count >= len(w.ispins.cleared) || w.ispins.finalDone {
-		return nil, nil, fmt.Errorf("ispins operation after the full clear")
-	}
 	switch req.Variant {
 	case 1:
 		w.ispins.confirmed = false
 		w.ispins.operationIndex = 0
-		info, err := w.ispinsInfoPayload(fmt.Sprintf("chosen%d", count), [5]byte{})
+		info, err := legion.IspinsInfoPayload(fmt.Sprintf("chosen%d", count), [5]byte{})
 		if err != nil {
 			return nil, nil, err
 		}
@@ -319,30 +298,18 @@ func (w *worldSession) ispinsOperation(p []byte) ([]outboundPacket, []map[string
 				"token":        fmt.Sprintf("%x", req.Token),
 			}}, nil
 	case 2:
-		if w.ispins.orderOwned {
-			if err := w.ensureIspinsCards(count); err != nil {
-				return nil, nil, err
-			}
-			presented := false
-			for _, card := range w.ispins.cards[count] {
-				presented = presented || card.Index == req.OperationIndex
-			}
-			if !presented {
-				return nil, nil, fmt.Errorf("Ispins operation%d not presented in owned phase%d", req.OperationIndex, count)
-			}
-		}
 		if w.dungeons != nil {
 			if _, ok := w.dungeons.IspinsOperations[req.OperationIndex]; !ok {
 				return nil, nil, fmt.Errorf("ispins operation%d absent from source", req.OperationIndex)
 			}
 		}
+		w.ispins.confirmed = true
+		w.ispins.operationIndex = req.OperationIndex
 		plan, err := appendIspinsReplays([]outboundPacket{}, "confirm_echo_b", "confirm_support", "confirm_quest_a", "confirm_quest_b", "confirm_quest_c")
 		if err != nil {
 			return nil, nil, err
 		}
 		ack := outboundPacket{"ispins_operation_ack_b", 1, legion.CmdIspinsOperationSelect, legion.IspinsOperationAckB(req.Auxiliary, ispinsOperationAckBNonce)}
-		w.ispins.confirmed = true
-		w.ispins.operationIndex = req.OperationIndex
 		return append([]outboundPacket{ack}, plan...), []map[string]any{{
 			"kind":            "ispins_operation_confirmed",
 			"character_id":    w.role.ID,
@@ -356,14 +323,6 @@ func (w *worldSession) ispinsOperation(p []byte) ([]outboundPacket, []map[string
 		// This is a change-operation request, not a new difficulty value.
 		w.ispins.confirmed = false
 		w.ispins.operationIndex = 0
-		if w.ispins.orderOwned {
-			w.ispins.cardsOwned[count] = false
-			info, err := w.ispinsWaitInfo()
-			if err != nil {
-				return nil, nil, err
-			}
-			return []outboundPacket{{"ispins_operation_reset_info", 0, legion.NotiIspinsInfo, info}, {"ispins_operation_reset_ack", 1, legion.CmdIspinsOperationSelect, legion.IspinsOperationResetAck(uint32(time.Now().Unix()))}}, []map[string]any{{"kind": "ispins_operation_reset", "character_id": w.role.ID}}, nil
-		}
 		return []outboundPacket{{"ispins_operation_reset_ack", 1, legion.CmdIspinsOperationSelect, legion.IspinsOperationResetAck(uint32(time.Now().Unix()))}},
 			[]map[string]any{{"kind": "ispins_operation_reset", "character_id": w.role.ID}}, nil
 	}
@@ -393,22 +352,12 @@ func (w *worldSession) enterIspinsStage(p []byte) ([]outboundPacket, []map[strin
 		return nil, nil, fmt.Errorf("ispins stage %d already cleared", stage)
 	}
 	if stage != w.ispinsClearedCount() {
-		return nil, nil, fmt.Errorf("ispins phase ordinal %d, want %d", stage, w.ispinsClearedCount())
+		return nil, nil, fmt.Errorf("ispins v1 follows the official default order; enter stage %d, want %d", stage, w.ispinsClearedCount())
 	}
 	if w.activeDungeon != nil {
 		return nil, nil, fmt.Errorf("ispins enter while a dungeon is active")
 	}
-	if w.dungeons == nil {
-		return nil, nil, fmt.Errorf("Ispins dungeon source missing")
-	}
-	if operation, ok := w.dungeons.IspinsOperations[run.operationIndex]; ok && !catalog.IspinsOperationKindSupported(operation.Type) {
-		return nil, nil, fmt.Errorf("ispins operation%d outcome executor is not bound (source type%d)", run.operationIndex, operation.Type)
-	}
-	dungeonID, err := catalog.IspinsDefaultStageDungeon(w.dungeons.LegionContents, int(run.dungeonIndex(stage)))
-	if err != nil {
-		return nil, nil, err
-	}
-	sel := protocol.DungeonSelection{ID: dungeonID, Party: 65535}
+	sel := protocol.DungeonSelection{ID: legion.IspinsStageDungeons[stage], Party: 65535}
 	s, err := dungeon.Select(*w.dungeons, sel, w.level, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ispins stage %d entry unavailable: %w", stage, err)
@@ -460,7 +409,7 @@ func (w *worldSession) enterIspinsStage(p []byte) ([]outboundPacket, []map[strin
 		}
 	}
 	if w.soloPartyBootstrap {
-		party, e := w.soloPartyInfo(nil)
+		party, e := protocol.SoloPartyInfo(w.role.WireID)
 		if e != nil {
 			return nil, nil, e
 		}
@@ -470,28 +419,14 @@ func (w *worldSession) enterIspinsStage(p []byte) ([]outboundPacket, []map[strin
 	if err != nil {
 		return nil, nil, err
 	}
-	info, err := w.ispinsInfoPayload(fmt.Sprintf("dungeon%d", stage), [5]byte{})
+	info, err := legion.IspinsInfoPayload(fmt.Sprintf("dungeon%d", stage), [5]byte{})
 	if err != nil {
 		return nil, nil, err
 	}
 	plan = append(plan, outboundPacket{"ispins_info_dungeon", 0, legion.NotiIspinsInfo, info})
-	plan, err = appendIspinsReplays(plan, "fatigue_acceleration")
+	plan, err = appendIspinsReplays(plan, "fatigue_acceleration", "stackable_dungeon_limit")
 	if err != nil {
 		return nil, nil, err
-	}
-	run.stage = stage
-	potionLimit, err := w.ispinsPotionLimit(s.Definition.ID)
-	if err != nil {
-		return nil, nil, err
-	}
-	if w.dungeons.StackableLimits != nil {
-		plan = append(plan, outboundPacket{"ispins_potion_limit", 0, 1584, protocol.StackableDungeonLimit115(potionLimit)})
-	} else {
-		// Existing unselected diagnostic fixtures do not own a source run.
-		plan, err = appendIspinsReplays(plan, "stackable_dungeon_limit")
-		if err != nil {
-			return nil, nil, err
-		}
 	}
 	// N28/N29 携带真实迷宫数据（副本 id / 地图 id / boss）。
 	plan = append(plan, outboundPacket{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss})})
@@ -529,13 +464,7 @@ func (w *worldSession) enterIspinsStage(p []byte) ([]outboundPacket, []map[strin
 		return nil, nil, err
 	}
 	// 会话样板与主循环 pending 机制一致（main.go 4299-4323）。
-	plan, err = w.allDungeonEliteEntryPlan(context.Background(), s, plan)
-	if err != nil {
-		return nil, nil, err
-	}
 	w.activeDungeon = s
-	run.potionLimit, run.potionUsed = potionLimit, 0
-	run.coinsUsed = 0
 	run.deadline = time.Unix(s.StartedAt.Unix(), 0).Add(limit)
 	w.deathSent = map[uint16]bool{}
 	w.drops = nil
@@ -559,10 +488,10 @@ func (w *worldSession) enterIspinsStage(p []byte) ([]outboundPacket, []map[strin
 
 // [ISPINS-AUX-REPLAY] 结算链辅助包（next79 §26，2026-10-03 七测）。官服 s4
 // 的阶段结算链在 N31/N2252/N2253/N115 前后夹着整组辅助包（N2204 军团场地
-// 对象、N2201 星团、N279 延迟统计、N2168 训练计数器），
+// 对象、N2201 星团、N279 延迟统计、N2168 训练计数器、N14 奖励物品台账），
 // 六/七测逐字节对齐主链后仍闪退，剩余偏差即这组包缺失。Body 全部从官服
-// 四阶段抓包 verbatim 回放（存档 next79-aux-bodies.json）。原抓包中的 N14
-// 带其他角色的背包槽位和累计数量，已移除；只刷新当前角色的真实库存。
+// 四阶段抓包 verbatim 回放（存档 next79-aux-bodies.json）；N14 的 count 是
+// 官服会话的累计值，物品本身不入库（v1 限制）。
 type ispinsAuxPacket struct {
 	Name string
 	ID   uint16
@@ -613,19 +542,23 @@ var ispinsAuxPre2252 = [4][]ispinsAuxPacket{
 		{"ispins_training_counter", 2168, decodeHexOrDie("00000000010000006f27430001000000010000000000000000000000ffffffff000000000000a00ed835440000000000")},
 		{"ispins_training_counter", 2168, decodeHexOrDie("0000000001000000731e060001000000010000000000000000000000ffffffff000000000000a3ff1d633d0000000000")},
 		{"ispins_training_counter", 2168, decodeHexOrDie("00000000010000006e27430001000000140000000000000000000000ffffffff000000000000c90beea8390000000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001007f00bcb19d001400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000066d3c2763c000000")},
 	},
 	{ // stage 1
 		{"ispins_training_counter", 2168, decodeHexOrDie("00000000010000006c27430001000000010000000000000000000000ffffffff00000000000027a9cab0370000000000")},
 		{"ispins_training_counter", 2168, decodeHexOrDie("00000000010000006f27430001000000020000000000000000000000ffffffff00000000000029aee78a350000000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001007f00bcb19d004400000000000000000000000000000000000000ca31b100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006298437242000000")},
 	},
 	{ // stage 2
 		{"ispins_training_counter", 2168, decodeHexOrDie("00000000010000006a27430001000000010000000000000000000000ffffffff000000000000f00b73ed340000000000")},
 		{"ispins_training_counter", 2168, decodeHexOrDie("00000000010000006f27430001000000030000000000000000000000ffffffff000000000000bdf9feb5390000000000")},
 		{"ispins_training_counter", 2168, decodeHexOrDie("0000000001000000721e060001000000010000000000000000000000ffffffff0000000000007a6b509c360000000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001007f00bcb19d0074000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f38bd9f237000000")},
 	},
 	{ // stage 3
 		{"ispins_training_counter", 2168, decodeHexOrDie("00000000010000006927430001000000010000000000000000000000ffffffff0000000000005ec265d93c0000000000")},
 		{"ispins_training_counter", 2168, decodeHexOrDie("00000000010000006f27430001000000040000000000000000000000ffffffff000000000000123a48b73c0000000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001007f00bcb19d00a400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000085f4061045000000")},
 	},
 }
 var ispinsAuxPre2253 = [4][]ispinsAuxPacket{
@@ -633,12 +566,30 @@ var ispinsAuxPre2253 = [4][]ispinsAuxPacket{
 		{"ispins_training_counter", 2168, decodeHexOrDie("00000000010000006e27430001000000300000000000000000000000ffffffff00000000000000bb89e7360000000000")},
 		{"ispins_training_counter", 2168, decodeHexOrDie("00000000010000006e274300010000003c0000000000000000000000ffffffff000000000000d851ec74400000000000")},
 		{"ispins_training_counter", 2168, decodeHexOrDie("00000000010000006e27430001000000640000000000000000000000ffffffff0000000000009d0ffa603f0000000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001007f00bcb19d0030000000000000000000000000000000000000008da4940bf315564a46754a4e2b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000019c52efd37000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001008000bdb19d000c000000000000000000000000000000000000008da49495aac7ed73c4120b4ecb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000d3c3e43245000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001008100f3949d0032000000000000000000000000000000000000008da494c376f444ac07266c83d500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c84966143c000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001008200f6949d001900000000000000000000000000000000000000670ce75a43b7448e5a75f46ee9000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f40100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008c5109c23a000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001007d00f1949d006d00000000000000000000000000000000000000789128877bf045a2789128877b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ad57144f45000000")},
 	},
 	{ // stage 1
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001007f00bcb19d0060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000451dece135000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001008000bdb19d001800000000000000000000000000000000000000fa61bd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008a115df34000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001008100f3949d006400000000000000000000000000000000000000f8fa2c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000009f6ed0633d000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001007d00f1949d00d1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000edc05b243d000000")},
 	},
 	{ // stage 2
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001007f00bcb19d0090000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ba17e8e93a000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001008000bdb19d002400000000000000000000000000000000000000f24c8400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006ccb84ce3a000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001008100f3949d009600000000000000000000000000000000000000275d8f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006448662744000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001007d00f1949d0035010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b61cda1242000000")},
 	},
 	{ // stage 3
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001007f00bcb19d00c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a7fe73d63b000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001008000bdb19d0030000000000000000000000000000000000000003c8dfc0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000841ef98136000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001008100f3949d00c800000000000000000000000000000000000000b1635b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007377f5e837000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001007d00f1949d00990100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003439e0923a000000")},
+		{"ispins_reward_item_granted", 14, decodeHexOrDie("0001008300200e9e000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000041b0dce03b000000")},
 	},
 }
 var ispinsAuxPre115 = [4][]ispinsAuxPacket{
@@ -659,14 +610,13 @@ var ispinsAuxPre115 = [4][]ispinsAuxPacket{
 // completeIspinsStage is the per-stage settlement chain (§1.4), entered from
 // completeDungeon. The chain is byte-aligned with official s4 stage0 frames
 // 468-496 (next79 §24/§26/§27): aux(2204/2201/279) → N31 → N2256(stage≠2) →
-// aux(2168×n) → N2252 → aux(2168×n) → N13 (saved inventory) → N2 (settlement character info,
+// aux(2168×n/14) → N2252 → aux(2168×n/14×n) → N2 (settlement character info,
 // locally rebuilt with the role name/WireID, §27) → N2253 → N2254 (stage flags
 // lit) → N9 (steady party re-affirmation, §27) → N2255 clear → N1658 (empty) →
 // aux(2168) → N115 (stage0/3 only). The official N2/N9 bodies embed
 // official-session actor/role names and the new-client NOTI9 layout, so both
 // are locally rebuilt (protocol.IspinsSettlementCharacterInfo / SoloPartyInfo);
-// Reward pools are source-bound and frozen before projection. Inventory and
-// character refreshes use the same committed products as both reward panels.
+// the reward items in the N14 echoes are not persisted in v1.
 func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 	if w.ispins != nil && !w.ispins.deadline.IsZero() && !time.Now().Before(w.ispins.deadline) {
 		return w.ispinsTimeout(time.Now())
@@ -679,70 +629,42 @@ func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 		return nil, nil
 	}
 	stage := run.stage
-	if stage < 0 || stage >= len(run.cleared) {
-		return nil, fmt.Errorf("ispins settlement stage %d out of range", stage)
-	}
-	captureStage := run.captureStage(stage)
-	now := time.Now()
-	rewardService, rewardPlan, err := w.freezeIspinsRewards(now)
+	basic, err := legion.IspinsBasicClearReward(stage)
 	if err != nil {
 		return nil, err
 	}
-	elapsed := time.Duration(0)
-	if !w.activeDungeon.StartedAt.IsZero() {
-		elapsed = now.Sub(w.activeDungeon.StartedAt)
+	additional, err := legion.IspinsAdditionalClearReward(stage)
+	if err != nil {
+		return nil, err
 	}
-	project := func(items []loot.Award) []legion.IspinsRewardItem {
-		out := make([]legion.IspinsRewardItem, 0, len(items))
-		for _, item := range items {
-			out = append(out, legion.IspinsRewardItem{Template: item.Template, Amount: item.Amount})
+	clearInfo, err := legion.IspinsInfoPayload(fmt.Sprintf("clear%d", stage), [5]byte{})
+	if err != nil {
+		return nil, err
+	}
+	if stage == 3 {
+		if err := w.recordIspinsFullClear(); err != nil {
+			return nil, err
 		}
-		return out
 	}
-	basic, additional, err := legion.IspinsSourceRewardPayloads(project(rewardPlan.Basic), project(rewardPlan.Additional), elapsed, rewardPlan.Eligible)
-	if err != nil {
-		return nil, err
-	}
-	clearInfo, err := w.ispinsInfoPayload(fmt.Sprintf("clear%d", stage), [5]byte{})
-	if err != nil {
-		return nil, err
-	}
-	cleared := run.cleared
-	cleared[stage] = true
-	entry, err := legion.IspinsEntryCharacterInfo(false, cleared, [5]byte{})
+	run.cleared[stage] = true
+	entry, err := legion.IspinsEntryCharacterInfo(false, run.cleared, [5]byte{})
 	if err != nil {
 		return nil, err
 	}
 	// 链序逐字节对齐官服 s4（帧 468-496，next79 §26/§27）。官服在主链包之间
-	// 还夹着整组辅助包（2204/2201/279、2168），此前缺失即七测仍闪退
+	// 还夹着整组辅助包（2204/2201/279、2168、14），此前缺失即七测仍闪退
 	// 的剩余偏差；链尾 N2/N9（内嵌官服会话 actor/角色名）八测证明同样
 	// 不可省，本地构造见下（§27）。
-	plan := appendIspinsAux(nil, ispinsAuxPre31[captureStage])
+	plan := appendIspinsAux(nil, ispinsAuxPre31[stage])
 	// 主循环按这个名字置 completionSent（与通用 N31 同名）。
-	plan = append(plan, outboundPacket{"dungeon_clear_enabled", 0, 31, legion.IspinsDungeonClearEnabled(captureStage)})
-	// Owned source selection, not the capture's operation11 or boss ordinal.
-	// The bound time executor reaches this path only before its deadline.
-	// Unbound diagnostic runs have no operation identity to report.
-	if run.operationIndex != 0 {
-		operationResult, err := legion.IspinsOperationNotice(run.operationIndex, true)
-		if err != nil {
-			return nil, err
-		}
-		plan = append(plan, outboundPacket{"ispins_operation_notice", 0, legion.NotiIspinsOperation, operationResult})
+	plan = append(plan, outboundPacket{"dungeon_clear_enabled", 0, 31, legion.IspinsDungeonClearEnabled(stage)})
+	// 官服 N2256 只在 stage 0/1/3 出现，stage2 直接 2168（帧 656→657）。
+	if stage != 2 {
+		plan = append(plan, outboundPacket{"ispins_operation_notice", 0, legion.NotiIspinsOperation, legion.IspinsOperationNotice()})
 	}
-	plan = appendIspinsAux(plan, ispinsAuxPre2252[captureStage])
+	plan = appendIspinsAux(plan, ispinsAuxPre2252[stage])
 	plan = append(plan, outboundPacket{"ispins_basic_clear_reward", 0, legion.NotiIspinsBasicClearReward, basic})
-	// Capture N14 frames contain another player's slots and cumulative counts.
-	// They are presentation evidence, never this owner's inventory updates.
-	// Keep the other accepted notifications and refresh only actual saved items.
-	plan = appendIspinsAux(plan, ispinsAuxPre2253[captureStage])
-	if w.loot != nil {
-		body, err := w.loot.Bootstrap(workflow.LootRole(w.role))
-		if err != nil {
-			return nil, err
-		}
-		plan = append(plan, outboundPacket{"ispins_saved_inventory_refreshed", 0, 13, body})
-	}
+	plan = appendIspinsAux(plan, ispinsAuxPre2253[stage])
 	// The newer official N2 template is incompatible with the local equipment
 	// reader (145639906 ->1459a0220 ->146d77f50 ->146ea0be0). The live
 	// next79 §30 stack proves it reads beyond that body. Refresh through the
@@ -769,7 +691,7 @@ func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 	// 官服帧 491：N2254 与 N2255 之间还有一帧稳态 N9（176B 新版布局，
 	// p[4:6]=105，verbatim 回放触发 §21.6 成员数越界崩溃），本地改发
 	// SoloPartyInfo——进图时客户端已接受的同型帧，重申作战中队伍状态。
-	party, err := w.soloPartyInfo(nil)
+	party, err := protocol.SoloPartyInfo(w.role.WireID)
 	if err != nil {
 		return nil, err
 	}
@@ -782,16 +704,16 @@ func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 		// 六测仍闪退的根因之一）；非 nil 空 slice 语义 = 真空包放行。
 		outboundPacket{"ispins_req_dungeon_clear_info", 0, 1658, []byte{}},
 	)
-	plan = appendIspinsAux(plan, ispinsAuxPre115[captureStage])
+	plan = appendIspinsAux(plan, ispinsAuxPre115[stage])
 	// [ISPINS-ARENA-BOSS] 官服 s4 的阶段结算链以 N115 收尾（帧 495
 	// 16B `01 01 <target> <5B token> <7B零>`，回显客户端 CMD117 报的
 	// 完成目标），位置在整个 N31 家族之后、客户端 CMD2046（帧 496）之前。
 	// 官服只在 stage0/3 有 CMD117→N115（c2s 帧 337/488），stage1/2 不发
 	//（IspinsBossCheckConfirmed 返回 nil）。CompletionTarget 优先取
 	// CMD117 上报值，死亡驱动结算时回退为房内 rank3 领主实体。
-	if captureStage == 0 || captureStage == 3 {
+	if stage == 0 || stage == 3 {
 		if target := w.activeDungeon.CompletionTarget(); target != 0 {
-			confirmed, err := protocol.IspinsBossCheckConfirmed(target, captureStage)
+			confirmed, err := protocol.IspinsBossCheckConfirmed(target, stage)
 			if err != nil {
 				return nil, err
 			}
@@ -800,22 +722,6 @@ func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 			}
 		}
 	}
-	// Commit progress only after all required native payloads were prepared.
-	// A rejected character/inventory encoder must leave this stage retryable.
-	questPlan, err := w.mapClearQuestPlan()
-	if err != nil {
-		return nil, err
-	}
-	plan = append(plan, questPlan...)
-	if err := w.claimIspinsRewards(rewardService, rewardPlan, plan); err != nil {
-		return nil, err
-	}
-	if stage == 3 {
-		if err := w.recordIspinsFullClear(); err != nil {
-			return nil, err
-		}
-	}
-	run.cleared = cleared
 	return plan, nil
 }
 
@@ -836,26 +742,22 @@ func (w *worldSession) ispinsRewardEnd(p []byte) ([]outboundPacket, []map[string
 	if stage < 0 || stage > 3 || !run.cleared[stage] {
 		return nil, nil, fmt.Errorf("ispins reward end stage %d is not a cleared stage", req.Stage)
 	}
-	if stage != run.stage {
-		return nil, nil, fmt.Errorf("ispins reward end stage %d does not own current stage %d", stage, run.stage)
-	}
-	ackNext := run.dungeonIndex(stage)
-	if next != uint32(ackNext) {
-		return nil, nil, fmt.Errorf("ispins reward source index%d does not own phase%d (source%d)", next, stage, ackNext)
-	}
+	// 官服 next 恒为 (stage+2)%4（next78 §1.4；文档 §1.4 表格的 (stage+1)%4
+	// 为笔误，四帧实测均为 +2）。
+	ackNext := byte((uint32(stage) + 2) % 4)
 	all := run.cleared[0] && run.cleared[1] && run.cleared[2] && run.cleared[3]
 	note := map[string]any{
-		"kind":                 "ispins_reward_end",
-		"character_id":         w.role.ID,
-		"stage":                stage,
-		"source_dungeon_index": next,
+		"kind":         "ispins_reward_end",
+		"character_id": w.role.ID,
+		"stage":        stage,
+		"request_next": next,
 	}
 	if stage == 3 && all {
-		final, err := w.ispinsInfoPayload("final", [5]byte{})
+		run.finalDone = true
+		final, err := legion.IspinsInfoPayload("final", [5]byte{})
 		if err != nil {
 			return nil, nil, err
 		}
-		run.finalDone = true
 		return []outboundPacket{
 			{"ispins_info_final", 0, legion.NotiIspinsInfo, final},
 			{"ispins_reward_end_ack", 1, legion.CmdRewardEnd, legion.IspinsRewardEndAck(byte(stage), ackNext, ispinsRewardEndAckNonces[stage])},
@@ -893,7 +795,7 @@ func (w *worldSession) ispinsStoryPause(p []byte) ([]outboundPacket, []map[strin
 	}
 	plan := []outboundPacket{{"ispins_story_pause", 0, 170, legion.IspinsStoryPause(resumed, nonce)}}
 	if resumed {
-		leave, err := w.ispinsInfoPayload("leave", [5]byte{})
+		leave, err := legion.IspinsInfoPayload("leave", [5]byte{})
 		if err != nil {
 			return nil, nil, err
 		}

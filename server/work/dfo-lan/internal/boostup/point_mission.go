@@ -48,7 +48,6 @@ func (r *PointRequirement) Satisfied(points map[int32]uint32, contracts map[uint
 	}
 	return false
 }
-
 // 第三关「技能进化点」的完成门槛读自 [mission][condition]：源里写的是 3，
 // 客户端引导条也是「使用 3 点以上」。本地规则原来要求五点全花完，比源更严，
 // 只加 3 点的玩家会卡在第三关不刷新。

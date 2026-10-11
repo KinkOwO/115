@@ -23,7 +23,7 @@ func recoveryClient(t *testing.T) (*gameConnection, time.Time) {
 	}
 	w.service = &world.Service{}
 	w.state.Position = database.WorldPosition{Town: 152, Area: 2, X: 350, Y: 246}
-	w.bakalRecruitment = &protocol.NativeRaidRecruitment{ID: 1, Create: protocol.NativeRaidCreateRequest{Title: "owned"}, Leader: w.role.WireID, LeaderName: w.role.Name, LeaderLevel: 115, MemberCount: 1, MemberMax: 12, MemberPosition: 1, MemberArea: 2}
+	w.bakalRecruitment = &protocol.RaidRecruitment{ID: 1, Create: protocol.RaidCreateRequest{Title: "owned"}, Leader: w.role.WireID, LeaderName: w.role.Name, LeaderLevel: 115, MemberCount: 1, MemberMax: 12, MemberPosition: 1, MemberArea: 2}
 	return c, at
 }
 
@@ -43,7 +43,7 @@ func TestBakalDeathReturnsToCampWithRecoveryInsteadOfOrdinaryFailure(t *testing.
 	if e != nil {
 		t.Fatal(e)
 	}
-	until := at.Add(deathFailTimeout + time.Duration(w.nativeBakalRules.RevivalTimes[0])*time.Second)
+	until := at.Add(deathFailTimeout + time.Duration(w.bakalRules.RevivalTimes[0])*time.Second)
 	if !w.bakal.RecoveryUntil().Equal(until) || w.bakalRecruitment.MemberRecoveryUntil != uint32(until.Unix()) {
 		t.Fatal("member recovery deadline missing")
 	}
@@ -114,19 +114,19 @@ func TestBakalRecoveryFinishPublishedOnceOnSerialTick(t *testing.T) {
 	until := w.bakal.RecoveryUntil()
 	out, _, events := newDispatchTestClient()
 	out.worldState = w
-	if e := out.tickNativeBakalOpening(until.Add(-time.Nanosecond)); e != nil {
+	if e := out.tickBakalOpening(until.Add(-time.Nanosecond)); e != nil {
 		t.Fatal(e)
 	}
 	if w.bakalRecruitment.MemberRecoveryUntil == 0 {
 		t.Fatal("recovery cleared early")
 	}
-	if e := out.tickNativeBakalOpening(until); e != nil {
+	if e := out.tickBakalOpening(until); e != nil {
 		t.Fatal(e)
 	}
 	if w.bakalRecruitment.MemberRecoveryUntil != 0 {
 		t.Fatal("recovery member state not cleared at deadline")
 	}
-	if e := out.tickNativeBakalOpening(until.Add(time.Second)); e != nil {
+	if e := out.tickBakalOpening(until.Add(time.Second)); e != nil {
 		t.Fatal(e)
 	}
 	n := 0

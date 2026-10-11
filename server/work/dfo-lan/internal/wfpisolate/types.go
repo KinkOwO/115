@@ -48,12 +48,12 @@ func (g GUID) String() string {
 
 // FWP_DATA_TYPE 与 FWP_MATCH_TYPE（fwptypes.h L111-L137、L192-L209）。
 const (
-	DataTypeUint8      uint32 = 1  // FWP_UINT8
-	DataTypeUint16     uint32 = 2  // FWP_UINT16
-	DataTypeUint32     uint32 = 3  // FWP_UINT32
-	DataTypeByteBlob   uint32 = 12 // FWP_BYTE_BLOB_TYPE; 13 is FWP_SID.
-	MatchEqual         uint32 = 0  // FWP_MATCH_EQUAL
-	MatchFlagsNoneSet  uint32 = 8  // FWP_MATCH_FLAGS_NONE_SET
+	DataTypeUint8      uint32 = 1 // FWP_UINT8
+	DataTypeUint16     uint32 = 2 // FWP_UINT16
+	DataTypeUint32     uint32 = 3 // FWP_UINT32
+	DataTypeByteBlob   uint32 = 13
+	MatchEqual         uint32 = 0 // FWP_MATCH_EQUAL
+	MatchFlagsNoneSet  uint32 = 8 // FWP_MATCH_FLAGS_NONE_SET
 	ActionBlock        uint32 = 0x1001
 	SessionFlagDynamic uint32 = 0x00000001 // FWPM_SESSION_FLAG_DYNAMIC
 )

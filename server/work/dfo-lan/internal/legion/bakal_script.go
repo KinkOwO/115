@@ -124,7 +124,7 @@ func BakalOpenBuffCounts(phase *catalog.BakalPhaseRules) [5]byte {
 
 // BakalLocationOfDungeon resolves the raid-map location of one of the 17
 // opened dungeons from the catalog location table.
-func BakalLocationOfDungeon(rules *catalog.NativeBakalRaidRules, dungeon uint32) (uint32, error) {
+func BakalLocationOfDungeon(rules *catalog.BakalRaidRules, dungeon uint32) (uint32, error) {
 	for _, loc := range rules.Locations {
 		if loc.Dungeon == dungeon {
 			return uint32(loc.Index), nil
@@ -135,7 +135,7 @@ func BakalLocationOfDungeon(rules *catalog.NativeBakalRaidRules, dungeon uint32)
 
 // BakalDungeonOfLocation resolves the dungeon a raid-map location belongs to
 // (0 for camp/hub locations that map no dungeon).
-func BakalDungeonOfLocation(rules *catalog.NativeBakalRaidRules, location uint32) uint32 {
+func BakalDungeonOfLocation(rules *catalog.BakalRaidRules, location uint32) uint32 {
 	for _, loc := range rules.Locations {
 		if uint32(loc.Index) == location {
 			return loc.Dungeon

@@ -45,7 +45,7 @@ func TestBakalLiveWaitingRoomCreateAndDetails(t *testing.T) {
 	c.gatewayRuntime = &gatewayRuntime{}
 	w.serverID = 1
 	w.bakal = nil
-	w.nativeBakalRewards = &workflow.NativeBakalRewardService{Rules: w.nativeBakalRules}
+	w.bakalRewards = &workflow.BakalRewardService{Rules: w.bakalRules}
 	w.state.Position = database.WorldPosition{Town: 152, Area: 1}
 	// Actual failed-session 656 vector, 2026-10-06 02:44:30 +08.
 	body, _ := hex.DecodeString("08010000003100000007000000000000")
@@ -60,7 +60,7 @@ func TestBakalLiveWaitingRoomCreateAndDetails(t *testing.T) {
 	if id != 0x01520001 || id != w.bakalRecruitment.ID {
 		t.Fatal("native wire team ID not owned")
 	}
-	if w.bakalRecruitment.MemberPosition != 0 || w.bakalRecruitment.MemberMax != uint32(w.nativeBakalRules.RaidMemberMax) {
+	if w.bakalRecruitment.MemberPosition != 0 || w.bakalRecruitment.MemberMax != uint32(w.bakalRules.RaidMemberMax) {
 		t.Fatal("initial live leader or source member limit lost")
 	}
 	if w.bakalRecruitment.MemberArea != uint16(w.state.Position.Area) {
@@ -81,7 +81,7 @@ func TestBakalLiveWaitingRoomCreateAndDetails(t *testing.T) {
 		t.Fatalf("native formation assignment failed: %+v %v", assigned, err)
 	}
 	memberAreaOffset := 9 + 24 + len(w.bakalRecruitment.LeaderName)
-	if binary.LittleEndian.Uint16(assigned[0].Payload[memberAreaOffset:]) != uint16(w.nativeBakalRules.WaitingRoomArea) {
+	if binary.LittleEndian.Uint16(assigned[0].Payload[memberAreaOffset:]) != uint16(w.bakalRules.WaitingRoomArea) {
 		t.Fatal("native same-area predicate would reject the sole owned member")
 	}
 	binary.LittleEndian.PutUint32(assignment[4:], uint32(w.role.WireID)+1)
@@ -180,7 +180,7 @@ func TestBakalFormationBeforeTownMoveSynchronizesMemberArea(t *testing.T) {
 	c.gatewayRuntime = &gatewayRuntime{}
 	w.serverID = 1
 	w.bakal = nil
-	w.nativeBakalRewards = &workflow.NativeBakalRewardService{Rules: w.nativeBakalRules}
+	w.bakalRewards = &workflow.BakalRewardService{Rules: w.bakalRules}
 	w.state.Position = database.WorldPosition{Town: 152, Area: 1}
 	create, _ := hex.DecodeString("0803000000313131000100070100000000000000000000000000000000000000")
 	if _, _, err := c.handleBakalRequest(656, create, now); err != nil {
@@ -336,7 +336,7 @@ func TestBakalFieldBossDoesNotRespawnAfterNativeReturn(t *testing.T) {
 	if _, _, err := c.bakalLoadingDone(nil); err != nil {
 		t.Fatal(err)
 	}
-	template := w.nativeBakalRules.Monsters["basilisk"].Template
+	template := w.bakalRules.Monsters["basilisk"].Template
 	var entity uint16
 	for _, actor := range w.activeDungeon.Monsters {
 		if actor.Template == template {
@@ -384,12 +384,12 @@ func TestBakalFieldBossDoesNotRespawnAfterNativeReturn(t *testing.T) {
 		}
 	}
 	// A genuinely new raid resets the source placements.
-	o, err := legion.PrepareBakalOpening(w.nativeBakalRules, false)
+	o, err := legion.PrepareBakalOpening(w.bakalRules, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	o.Start(w.role.Name, now)
-	o.Tick(now.Add(time.Duration(w.nativeBakalRules.StartDelaySecs) * time.Second))
+	o.Tick(now.Add(time.Duration(w.bakalRules.StartDelaySecs) * time.Second))
 	w.bakal = o
 	if _, err := w.bakalDungeonEntry(100003157, 0, &grid, now.Add(4*time.Second), false); err != nil {
 		t.Fatal(err)
@@ -415,13 +415,13 @@ func TestBakalNativeDragonEntryAwakensAndSurvivesRoomSnapshot(t *testing.T) {
 			c, now := bakalNativeClient(t)
 			w := c.worldState
 			var id uint32
-			for _, d := range w.nativeBakalRules.Dungeons {
+			for _, d := range w.bakalRules.Dungeons {
 				if d.Type == name {
 					id = d.Index
 				}
 			}
 			key := "[" + strings.ToUpper(name) + " AWAKEN]"
-			symbol, ok := w.nativeBakalRules.Symbols[key]
+			symbol, ok := w.bakalRules.Symbols[key]
 			if !ok {
 				t.Fatal("source awakening symbol missing")
 			}
@@ -447,13 +447,13 @@ func TestBakalNativeDragonEntryAwakensAndSurvivesRoomSnapshot(t *testing.T) {
 				t.Fatal("snapshot reset awakened dragon to init0")
 			}
 			// Parsed source action changes execution without a Go dragon table.
-			setBakalSourceAssignment(t, w.nativeBakalRules.NormalPhase, id, key, 2)
-			fresh, err := legion.PrepareBakalOpening(w.nativeBakalRules, false)
+			setBakalSourceAssignment(t, w.bakalRules.NormalPhase, id, key, 2)
+			fresh, err := legion.PrepareBakalOpening(w.bakalRules, false)
 			if err != nil {
 				t.Fatal(err)
 			}
 			fresh.Start(w.role.Name, now)
-			fresh.Tick(now.Add(time.Duration(w.nativeBakalRules.StartDelaySecs) * time.Second))
+			fresh.Tick(now.Add(time.Duration(w.bakalRules.StartDelaySecs) * time.Second))
 			fresh.EnterDungeon(id, 12, now.Add(4*time.Second))
 			if value := read(bakalOutgoing(fresh.SymbolsSnapshot())); value != 2 {
 				t.Fatal("parsed source SET mutation ignored")
@@ -466,14 +466,14 @@ func TestBakalNativeDragonEntryAwakensAndSurvivesRoomSnapshot(t *testing.T) {
 				t.Fatal("cleared dragon retained awake flag")
 			}
 			// HP0 fails the native entry condition even when awake still0.
-			w.nativeBakalRules.NormalPhase.InitialSymbols["["+strings.ToUpper(name)+" HP]"] = 0
-			setBakalSourceAssignment(t, w.nativeBakalRules.NormalPhase, 0, "["+strings.ToUpper(name)+" HP]", 0)
-			empty, err := legion.PrepareBakalOpening(w.nativeBakalRules, false)
+			w.bakalRules.NormalPhase.InitialSymbols["["+strings.ToUpper(name)+" HP]"] = 0
+			setBakalSourceAssignment(t, w.bakalRules.NormalPhase, 0, "["+strings.ToUpper(name)+" HP]", 0)
+			empty, err := legion.PrepareBakalOpening(w.bakalRules, false)
 			if err != nil {
 				t.Fatal(err)
 			}
 			empty.Start(w.role.Name, now)
-			empty.Tick(now.Add(time.Duration(w.nativeBakalRules.StartDelaySecs) * time.Second))
+			empty.Tick(now.Add(time.Duration(w.bakalRules.StartDelaySecs) * time.Second))
 			empty.EnterDungeon(id, 12, now.Add(4*time.Second))
 			if value := read(bakalOutgoing(empty.SymbolsSnapshot())); value != 0 {
 				t.Fatal("zero HP dragon awakened")
@@ -567,7 +567,7 @@ func bakalNativeClient(t *testing.T) (*gameConnection, time.Time) {
 	}
 	o.Start("Lansmt", now)
 	o.Tick(now.Add(time.Duration(rules.StartDelaySecs) * time.Second))
-	w := &worldSession{bakal: o, bakalRun: "review-run", nativeBakalRules: rules, dungeons: rules.DungeonCatalog, level: 115, channelType: 82, role: database.Character{ID: 2, AccountID: 1, WireID: 1, Name: "Lansmt", ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":115}`)}}
+	w := &worldSession{bakal: o, bakalRun: "review-run", bakalRules: rules, dungeons: rules.DungeonCatalog, level: 115, channelType: 82, role: database.Character{ID: 2, AccountID: 1, WireID: 1, Name: "Lansmt", ConfigVersion: savecontract.Identity(), State: json.RawMessage(`{"level":115}`)}}
 	return &gameConnection{worldState: w, event: func(map[string]any) {}}, now.Add(4 * time.Second)
 }
 
@@ -602,7 +602,7 @@ func TestBakalNativeDirectMoveAndOwnedDeath(t *testing.T) {
 	if w.bakal.IsCleared(w.bakalCurrent) {
 		t.Fatal("damage report cleared a dungeon")
 	}
-	for _, d := range w.nativeBakalRules.Dungeons {
+	for _, d := range w.bakalRules.Dungeons {
 		if d.Type == "sparazzi" {
 			grid := bakalNativeBossGrid(t, w, "sparazzi")
 			if _, err := w.bakalDungeonEntry(d.Index, 0, &grid, now, false); err != nil {
@@ -616,7 +616,7 @@ func TestBakalNativeDirectMoveAndOwnedDeath(t *testing.T) {
 			for _, p := range packets {
 				if p.ID == 2194 {
 					spawned = true
-					if binary.LittleEndian.Uint32(p.Payload[7:]) != w.nativeBakalRules.Monsters["sparazzi"].Template || p.Payload[12] != 3 {
+					if binary.LittleEndian.Uint32(p.Payload[7:]) != w.bakalRules.Monsters["sparazzi"].Template || p.Payload[12] != 3 {
 						t.Fatal("native dynamic boss lost template/rank")
 					}
 				}
@@ -624,7 +624,7 @@ func TestBakalNativeDirectMoveAndOwnedDeath(t *testing.T) {
 			if !spawned {
 				t.Fatal("source named boss not spawned")
 			}
-			target := w.nativeBakalRules.Monsters["sparazzi"].Template
+			target := w.bakalRules.Monsters["sparazzi"].Template
 			var entity uint16
 			for _, m := range w.activeDungeon.Monsters {
 				if m.Template == target {
@@ -659,9 +659,9 @@ func TestBakalNativeTwoPhasesLoadFinalDungeon(t *testing.T) {
 	w := c.worldState
 	defeat := func(name string) {
 		t.Helper()
-		target := w.nativeBakalRules.Monsters[name].Template
+		target := w.bakalRules.Monsters[name].Template
 		if name == "bakal" && w.bakal.SecondPhase() {
-			target = w.nativeBakalRules.Monsters[name].SecondTemplate
+			target = w.bakalRules.Monsters[name].SecondTemplate
 		}
 		var entity uint16
 		for _, m := range w.activeDungeon.Monsters {
@@ -683,7 +683,7 @@ func TestBakalNativeTwoPhasesLoadFinalDungeon(t *testing.T) {
 	}
 	for _, name := range []string{"sparazzi", "skasa", "hisma", "bakal"} {
 		var id uint32
-		for _, d := range w.nativeBakalRules.Dungeons {
+		for _, d := range w.bakalRules.Dungeons {
 			if d.Type == name {
 				id = d.Index
 			}
@@ -705,14 +705,14 @@ func TestBakalNativeTwoPhasesLoadFinalDungeon(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !w.bakal.SecondPhase() || w.activeDungeon.Room.Y != w.nativeBakalRules.Monsters["bakal"].SecondGrid[1] || len(packets) == 0 || packets[0].ID != 2070 {
+	if !w.bakal.SecondPhase() || w.activeDungeon.Room.Y != w.bakalRules.Monsters["bakal"].SecondGrid[1] || len(packets) == 0 || packets[0].ID != 2070 {
 		t.Fatal("native cinematic did not authorize second actor")
 	}
 	if _, _, err := c.bakalLoadingDone(nil); err != nil {
 		t.Fatal(err)
 	}
 	defeat("bakal")
-	if w.bakal.Stage() != legion.BakalOpeningFinal || w.activeDungeon == nil || w.activeDungeon.Definition.ID != uint32(w.nativeBakalRules.NormalPhase.FinalClearDungeon) || w.bakalLocation != uint32(w.nativeBakalRules.NormalPhase.SettlementTimer.Sub) {
+	if w.bakal.Stage() != legion.BakalOpeningFinal || w.activeDungeon == nil || w.activeDungeon.Definition.ID != uint32(w.bakalRules.NormalPhase.FinalClearDungeon) || w.bakalLocation != uint32(w.bakalRules.NormalPhase.SettlementTimer.Sub) {
 		t.Fatalf("no final owned dungeon: stage=%v location=%d dungeon=%v", w.bakal.Stage(), w.bakalLocation, w.activeDungeon)
 	}
 	if _, _, err := c.bakalLoadingDone(nil); err != nil {
@@ -758,9 +758,9 @@ func TestBakalSettlementRetryPaysBeforeInventory(t *testing.T) {
 	c, now := bakalNativeClient(t)
 	w := c.worldState
 	// Confirm three source dragon dungeons before the Bakal settlement trigger.
-	for _, d := range w.nativeBakalRules.Dungeons {
+	for _, d := range w.bakalRules.Dungeons {
 		if d.Type != "" {
-			loc, err := legion.BakalLocationOfDungeon(w.nativeBakalRules, d.Index)
+			loc, err := legion.BakalLocationOfDungeon(w.bakalRules, d.Index)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -771,7 +771,7 @@ func TestBakalSettlementRetryPaysBeforeInventory(t *testing.T) {
 			}
 		}
 	}
-	id := uint32(w.nativeBakalRules.NormalPhase.SettlementDungeon)
+	id := uint32(w.bakalRules.NormalPhase.SettlementDungeon)
 	w.bakal.EnterDungeon(id, 24, now)
 	w.bakal.LoadingDone(id)
 	w.bakal.DefeatMonster(id, 24, now)
@@ -790,11 +790,11 @@ func TestBakalSettlementRetryPaysBeforeInventory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rules := *w.nativeBakalRules
-	rules.Rewards = []catalog.NativeBakalRewardEntry{{Category: "party_card", Template: 10418036, Amount: 1, Weight: 1}, {Category: "squad_item", Template: 10418036, Amount: 1, Weight: 1}}
+	rules := *w.bakalRules
+	rules.Rewards = []catalog.BakalRewardEntry{{Category: "party_card", Template: 10418036, Amount: 1, Weight: 1}, {Category: "squad_item", Template: 10418036, Amount: 1, Weight: 1}}
 	store := &bakalLedgerFake{role: w.role, failKey: "bakal-clear:" + w.bakalRun}
 	w.loot = &loot.Service{Catalog: lc, BagRules: bags, Equipment: gear, RewardBoxes: bakalStackableBoxes{}}
-	w.nativeBakalRewards = &workflow.NativeBakalRewardService{Store: store, Loot: w.loot, Rules: &rules, Content: rules.Source}
+	w.bakalRewards = &workflow.BakalRewardService{Store: store, Loot: w.loot, Rules: &rules, Content: rules.Source}
 	due := now.Add(time.Duration(rules.NormalPhase.SettlementTimer.Secs) * time.Second)
 	if err = w.bakalSettleSplice(due); err == nil {
 		t.Fatal("failed freeze ignored")
@@ -833,11 +833,11 @@ func TestBakalSettlementRetryPaysBeforeInventory(t *testing.T) {
 
 func bakalNativeBossGrid(t *testing.T, w *worldSession, name string) [2]byte {
 	t.Helper()
-	for _, spawn := range w.nativeBakalRules.NormalPhase.InitMonsters {
+	for _, spawn := range w.bakalRules.NormalPhase.InitMonsters {
 		if spawn.Name != name {
 			continue
 		}
-		for _, loc := range w.nativeBakalRules.Locations {
+		for _, loc := range w.bakalRules.Locations {
 			if loc.Index != spawn.Location {
 				continue
 			}
@@ -855,7 +855,7 @@ func TestBakalNativeBossOnlyInSourceArena(t *testing.T) {
 	c, now := bakalNativeClient(t)
 	w := c.worldState
 	bossGrid := bakalNativeBossGrid(t, w, "bakal")
-	d := w.nativeBakalRules.DungeonCatalog.Dungeons[uint32(w.nativeBakalRules.NormalPhase.EnterBakalDungeon)]
+	d := w.bakalRules.DungeonCatalog.Dungeons[uint32(w.bakalRules.NormalPhase.EnterBakalDungeon)]
 	for _, room := range d.Mazes[0].Rooms {
 		grid := [2]byte{room.X, room.Y}
 		if _, err := w.bakalDungeonEntry(d.ID, 0, &grid, now, false); err != nil {
@@ -884,10 +884,10 @@ func TestBakalNativeBossOnlyInSourceArena(t *testing.T) {
 func TestBakalFailedRunCanRestartWithOwnedFormation(t *testing.T) {
 	c, now := bakalNativeClient(t)
 	w := c.worldState
-	w.bakalRecruitment = &protocol.NativeRaidRecruitment{ID: 1, Create: protocol.NativeRaidCreateRequest{Kind: 8, Title: "retry"}, Leader: w.role.WireID, LeaderName: w.role.Name, MemberCount: 1, MemberMax: 12, MemberPosition: 1, MemberArea: 2}
+	w.bakalRecruitment = &protocol.RaidRecruitment{ID: 1, Create: protocol.RaidCreateRequest{Kind: 8, Title: "retry"}, Leader: w.role.WireID, LeaderName: w.role.Name, MemberCount: 1, MemberMax: 12, MemberPosition: 1, MemberArea: 2}
 	w.bakalName = w.role.Name
 	old := w.bakal
-	old.Tick(now.Add(time.Duration(w.nativeBakalRules.PhaseTimeOverSecs+1) * time.Second))
+	old.Tick(now.Add(time.Duration(w.bakalRules.PhaseTimeOverSecs+1) * time.Second))
 	if old.Stage() != legion.BakalOpeningFailed {
 		t.Fatal("source timeout did not fail")
 	}
@@ -932,7 +932,7 @@ func TestBakalNativeMinionPresencePrecedesMapInitialization(t *testing.T) {
 	if len(checks) == 0 {
 		t.Fatal("source incoming action has no presence guard")
 	}
-	symbol := w.nativeBakalRules.Symbols["[IS EXIST BASILISK]"]
+	symbol := w.bakalRules.Symbols["[IS EXIST BASILISK]"]
 	matches := false
 	for _, v := range checks {
 		matches = matches || v == symbol
@@ -970,7 +970,7 @@ func TestBakalNativeMinionPresencePrecedesMapInitialization(t *testing.T) {
 	if _, _, err := c.bakalLoadingDone(nil); err != nil {
 		t.Fatal(err)
 	}
-	template := w.nativeBakalRules.Monsters["basilisk"].Template
+	template := w.bakalRules.Monsters["basilisk"].Template
 	var boss uint16
 	for _, m := range w.activeDungeon.Monsters {
 		if m.Template == template {
@@ -1005,8 +1005,8 @@ func TestBakalNativeMinionPresencePrecedesMapInitialization(t *testing.T) {
 	verify(killed)
 	verify(bakalOutgoing(w.bakal.SymbolsSnapshot()))
 	// No hardcoded symbol IDs: output follows a changed source symbol index.
-	delete(w.nativeBakalRules.Symbols, "[IS EXIST BASILISK]")
-	w.nativeBakalRules.Symbols["[IS EXIST BASILISK]"] = 9001
+	delete(w.bakalRules.Symbols, "[IS EXIST BASILISK]")
+	w.bakalRules.Symbols["[IS EXIST BASILISK]"] = 9001
 	symbol = 9001
 	verify(bakalOutgoing(w.bakal.SymbolsSnapshot()))
 }
@@ -1016,21 +1016,21 @@ func TestBakalNativeInitialReservationsDriveMinionPresence(t *testing.T) {
 	w := c.worldState
 	// Retain source rules but change a delay and reduce its source placement
 	// candidates to one; the executor must follow both rather than a fixed table.
-	if len(w.nativeBakalRules.NormalPhase.ReserveMonsters) == 0 {
+	if len(w.bakalRules.NormalPhase.ReserveMonsters) == 0 {
 		t.Fatal("missing source initial reservations")
 	}
-	reservation := w.nativeBakalRules.NormalPhase.ReserveMonsters[0]
-	w.nativeBakalRules.NormalPhase.ReserveMonsters[0].Location = 19
-	for i := range w.nativeBakalRules.NormalPhase.Events {
-		for j := range w.nativeBakalRules.NormalPhase.Events[i].Behavior {
-			ins := &w.nativeBakalRules.NormalPhase.Events[i].Behavior[j]
+	reservation := w.bakalRules.NormalPhase.ReserveMonsters[0]
+	w.bakalRules.NormalPhase.ReserveMonsters[0].Location = 19
+	for i := range w.bakalRules.NormalPhase.Events {
+		for j := range w.bakalRules.NormalPhase.Events[i].Behavior {
+			ins := &w.bakalRules.NormalPhase.Events[i].Behavior[j]
 			if ins.Op == "[RESERVE CREATE MONSTER]" && ins.Args[1].Text == reservation.Name && ins.Args[0].Value == int32(reservation.Location) {
 				ins.Args[0].Value = 19
 			}
 		}
 	}
 	var target int
-	for i, loc := range w.nativeBakalRules.Locations {
+	for i, loc := range w.bakalRules.Locations {
 		var keep []string
 		for _, kind := range loc.Creatable {
 			if kind != reservation.Name {
@@ -1042,21 +1042,21 @@ func TestBakalNativeInitialReservationsDriveMinionPresence(t *testing.T) {
 				keep = append(keep, kind)
 			}
 		}
-		w.nativeBakalRules.Locations[i].Creatable = keep
+		w.bakalRules.Locations[i].Creatable = keep
 	}
 	if target == 0 {
 		t.Fatal("no source candidate")
 	}
-	fresh, err := legion.PrepareBakalOpening(w.nativeBakalRules, false)
+	fresh, err := legion.PrepareBakalOpening(w.bakalRules, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	fresh.Start(w.role.Name, now)
-	ready := now.Add(time.Duration(w.nativeBakalRules.StartDelaySecs) * time.Second)
+	ready := now.Add(time.Duration(w.bakalRules.StartDelaySecs) * time.Second)
 	fresh.Tick(ready)
 	value := func() uint32 {
 		t.Helper()
-		id := w.nativeBakalRules.Symbols["[IS EXIST "+strings.ToUpper(reservation.Name)+"]"]
+		id := w.bakalRules.Symbols["[IS EXIST "+strings.ToUpper(reservation.Name)+"]"]
 		for _, f := range fresh.SymbolsSnapshot() {
 			if f.ID == 570 && binary.LittleEndian.Uint32(f.Body[1:]) == id {
 				return binary.LittleEndian.Uint32(f.Body[5:])
@@ -1097,7 +1097,7 @@ func TestBakalNativeReservedLeaderHasOwnedSourceActor(t *testing.T) {
 	c, now := bakalNativeClient(t)
 	w := c.worldState
 	w.bakal.Tick(now.Add(20 * time.Second))
-	for _, reservation := range w.nativeBakalRules.NormalPhase.ReserveMonsters {
+	for _, reservation := range w.bakalRules.NormalPhase.ReserveMonsters {
 		var placement catalog.BakalMonsterSpawn
 		for _, p := range w.bakal.MonsterPlacements() {
 			if p.Name == reservation.Name {
@@ -1109,7 +1109,7 @@ func TestBakalNativeReservedLeaderHasOwnedSourceActor(t *testing.T) {
 			t.Fatalf("source reservation missing %s", reservation.Name)
 		}
 		var loc catalog.BakalLocationInfo
-		for _, v := range w.nativeBakalRules.Locations {
+		for _, v := range w.bakalRules.Locations {
 			if v.Index == placement.Location {
 				loc = v
 				break
@@ -1123,7 +1123,7 @@ func TestBakalNativeReservedLeaderHasOwnedSourceActor(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		expected := w.nativeBakalRules.Monsters[reservation.Name].Template
+		expected := w.bakalRules.Monsters[reservation.Name].Template
 		found := false
 		for _, p := range plan {
 			if p.ID == 2194 && len(p.Payload) == 34 && binary.LittleEndian.Uint32(p.Payload[7:]) == expected {
@@ -1167,7 +1167,7 @@ func TestBakalCapturedPortalsEnterLivingSourceArenas(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			target := w.nativeBakalRules.Monsters[tc.name].Template
+			target := w.bakalRules.Monsters[tc.name].Template
 			found := false
 			for _, v := range plan {
 				if v.ID == 2194 && len(v.Payload) == 34 && binary.LittleEndian.Uint32(v.Payload[7:]) == target {
@@ -1288,7 +1288,7 @@ func TestBakalRuntimeCommanderEnvelopeAndMemberOwnership(t *testing.T) {
 	if _, _, err := c.handleBakalRequest(2072, body, now); err == nil {
 		t.Fatal("buff use without owned formation")
 	}
-	w.bakalRecruitment = &protocol.NativeRaidRecruitment{MemberPosition: 5}
+	w.bakalRecruitment = &protocol.RaidRecruitment{MemberPosition: 5}
 	handled, plan, err := c.handleBakalRequest(2072, body, now)
 	if err != nil || !handled {
 		t.Fatal(err)

@@ -30,7 +30,6 @@ func TestVenusDeathLeaveResetsStageClock(t *testing.T) {
 				cleared:    [4]bool{true, false, false, false},
 				stageClock: [4]time.Time{{}, time.Unix(1791000000, 0), {}, {}}},
 			activeDungeon: &dungeon.Session{
-				RunID:      "venus-run-1",
 				Definition: catalog.DungeonDefinition{ID: legion.VenusStageDungeons[1]},
 				Loaded:     true,
 			},
@@ -78,7 +77,6 @@ func TestVenusDeathLeaveResetsStageClock(t *testing.T) {
 		worldState: &worldSession{channelType: 99,
 			venus: &venusRun{choice: 0xff},
 			activeDungeon: &dungeon.Session{
-				RunID:      "r2",
 				Definition: catalog.DungeonDefinition{ID: legion.VenusStageDungeons[0]},
 				Loaded:     true,
 			},

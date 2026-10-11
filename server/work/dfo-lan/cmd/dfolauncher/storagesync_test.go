@@ -93,7 +93,7 @@ func TestStorageSyncBlockedByAdminLease(t *testing.T) {
 }
 
 // TestResolveStorageSyncStoreUsesActiveProfile：活动档优先、模板兜底；活动档里写坏
-// （缺少路径）要直说，模板写坏只丢这一端。相对路径由明确的module解析。
+// （相对路径）要直说，模板写坏只丢这一端。
 func TestResolveStorageSyncStoreUsesActiveProfile(t *testing.T) {
 	root, dbPath := storageRootWithSQLite(t)
 	storage := storageSyncDir(root)
@@ -116,19 +116,19 @@ func TestResolveStorageSyncStoreUsesActiveProfile(t *testing.T) {
 		t.Fatalf("没有用活动档：origin 的 basename = %s", got)
 	}
 
-	// 活动档自己写坏了（缺少路径）就直说，不能悄悄退回模板装作没事。
+	// 活动档自己写坏了（相对路径）就直说：服务端启动同样会拒绝它，不能悄悄退回模板装作没事。
 	writeStorageFile(t, filepath.Join(storage, "local.json"),
-		`{"driver":"sqlite","sqlite_path":""}`)
-	if _, _, err := resolveStorageSyncStore(root); err == nil || !strings.Contains(err.Error(), "缺少") {
-		t.Fatalf("活动档里的空 sqlite_path 没有被拒绝：%v", err)
+		`{"driver":"sqlite","sqlite_path":"runtime/storage/x.sqlite3"}`)
+	if _, _, err := resolveStorageSyncStore(root); err == nil || !strings.Contains(err.Error(), "绝对路径") {
+		t.Fatalf("活动档里的相对 sqlite_path 没有被拒绝：%v", err)
 	}
 
 	// 坏掉的是**模板**时，只丢这一端，不能拖垮整条命令（--list 照样能列备份）。
 	writeStorageFile(t, filepath.Join(storage, "local.json"),
-		`{"driver":"sqlite","sqlite_path":""}`)
+		`{"driver":"sqlite","sqlite_path":"runtime/storage/x.sqlite3"}`)
 	writeStorageFile(t, filepath.Join(storage, "local.sqlite.json"),
-		`{"driver":"sqlite","sqlite_path":""}`)
-	if _, _, err := resolveStorageSyncStore(root); err == nil || !strings.Contains(err.Error(), "缺少") {
+		`{"driver":"sqlite","sqlite_path":"relative/x.sqlite3"}`)
+	if _, _, err := resolveStorageSyncStore(root); err == nil || !strings.Contains(err.Error(), "绝对路径") {
 		t.Fatalf("活动档坏档时必须报错，得到：%v", err)
 	}
 

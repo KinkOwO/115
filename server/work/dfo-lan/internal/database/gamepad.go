@@ -5,6 +5,7 @@ import (
 	"context"
 	"dfolan/internal/database/sqlcgen"
 	"fmt"
+
 )
 
 // GamepadPayloadSize is the fixed size of NOTI 2128 packet body (0x583).

@@ -8,14 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 )
 
 // LootService commits and replays state prepared by the loot domain.
 type LootService struct {
-	Store        *database.Store
-	Loot         *loot.Service
-	ElvenmereNow func() time.Time
+	Store *database.Store
+	Loot  *loot.Service
 }
 
 func (s *LootService) FreezeMoonReward(ctx context.Context, role database.Character, run *dungeon.Session, p loot.MoonRewardPolicy) (loot.MoonRewardPlan, error) {
@@ -52,13 +50,6 @@ func (s *LootService) ReadMoonReward(ctx context.Context, role database.Characte
 	return s.Loot.DecodeMoonReward(LootRole(role), run, raw)
 }
 func (s *LootService) ClaimMoonReward(ctx context.Context, role database.Character, run string) (database.Character, bool, error) {
-	return s.ClaimMoonRewardPrepared(ctx, role, run, nil)
-}
-
-// ClaimMoonRewardPrepared validates the reply projection before the atomic
-// award commit. The callback must not access storage. Legacy callers keep
-// their existing contract through ClaimMoonReward.
-func (s *LootService) ClaimMoonRewardPrepared(ctx context.Context, role database.Character, run string, prepare func(database.Character) error) (database.Character, bool, error) {
 	p, e := s.ReadMoonReward(ctx, role, run)
 	if e != nil {
 		return role, false, e
@@ -67,13 +58,6 @@ func (s *LootService) ClaimMoonRewardPrepared(ctx context.Context, role database
 		state, e := s.Loot.ApplyMoonRewards(current.State, p)
 		if e != nil {
 			return nil, nil, e
-		}
-		if prepare != nil {
-			next := current
-			next.State, next.WireID = state, role.WireID
-			if err := prepare(next); err != nil {
-				return nil, nil, err
-			}
 		}
 		receipt, _ := json.Marshal(p)
 		return state, receipt, nil
@@ -350,7 +334,6 @@ func (s *LootService) RecoverBlackPurgatoryCards(ctx context.Context, role datab
 	}
 	return role, errors.Join(failures...)
 }
-
 // FreezeMoonSourceReward 与 FreezeMoonReward 同形，只是策略换成**源声明驱动**的
 // loot.MoonSourcePolicy（见 internal/loot/moon_source_rewards.go）。
 //

@@ -39,7 +39,6 @@ type PilotConfig struct {
 	avatarAbilityCases map[int32]map[uint16]string
 }
 type OrdinaryProduct struct {
-	Contracts   *ContractRules       `json:"-"`
 	Section     string               `json:"section"`
 	Row         []pvf.Token          `json:"row"`
 	Item        catalog.ScriptRecord `json:"item"`
@@ -493,29 +492,6 @@ func NewPilot(c PilotConfig, source string, release ...bool) (*Pilot, error) {
 		return nil, fmt.Errorf("商城发布模式参数重复")
 	}
 	c.Entries = append([]OrdinaryProduct(nil), c.Entries...)
-	ownedRules := map[*ContractRules]*ContractRules{}
-	for n := range c.Entries {
-		old := c.Entries[n].Contracts
-		if old == nil {
-			continue
-		}
-		if old.Source != source || !digestValid(old.SHA256) {
-			return nil, fmt.Errorf("contract product source mismatch")
-		}
-		owned := ownedRules[old]
-		if owned == nil {
-			owned = &ContractRules{Source: old.Source, SHA256: old.SHA256, Items: map[uint32]Contract{}, Restricted: map[uint32]bool{}}
-			for id, value := range old.Items {
-				owned.Items[id] = value
-			}
-			for id, value := range old.Restricted {
-				owned.Restricted[id] = value
-			}
-			ownedRules[old] = owned
-		}
-		c.Entries[n].Contracts = owned
-	}
-
 	for n := range c.Entries {
 		c.Entries[n].Row = append([]pvf.Token(nil), c.Entries[n].Row...)
 		c.Entries[n].Item.Cells = append([]pvf.Token(nil), c.Entries[n].Item.Cells...)

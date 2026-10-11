@@ -243,6 +243,7 @@ func (a *AttunementRewards) AdvanceOmen(seed, dungeon, held, misses uint32) (Ome
 	return out, nil
 }
 
+
 // payOmenStages 结算**已激活的每一档**：官方「奖励可以兼得」——
 // 持有 held 个征兆时结算，就对行 1..held 各抽一次 [drop list]，各出一件。
 //

@@ -211,21 +211,6 @@ func (s *Store) commitCharacterEvent(ctx context.Context, account, id int64, ver
 				return role, false, e
 			}
 		}
-
-		for _, observe := range s.characterEventObservers {
-			changed, err := observe(role, key, outcome, &accountProfile)
-			if err != nil {
-				return role, false, err
-			}
-			profileChanged = profileChanged || changed
-		}
-		for _, observe := range s.characterAccountTxObservers {
-			changed, err := observe(ctx, newTx(tx.queries(), account, id), role, key, outcome, &accountProfile)
-			if err != nil {
-				return role, false, err
-			}
-			profileChanged = profileChanged || changed
-		}
 		if profileChanged {
 			if e = saveAdventure(ctx, tx, account, accountProfile); e != nil {
 				return role, false, e

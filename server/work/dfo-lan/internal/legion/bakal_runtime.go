@@ -19,7 +19,7 @@ type bakalSignal struct {
 }
 type bakalTask struct {
 	at time.Time
-	op catalog.NativeBakalScriptInstruction
+	op catalog.BakalScriptInstruction
 }
 type bakalRuntime struct {
 	timers   map[[2]uint32]time.Time
@@ -90,7 +90,7 @@ func (o *BakalOpening) runEvent(signal bakalSignal, now time.Time) ([]BakalFrame
 	*o = *c
 	return o.eventFrames(), nil
 }
-func (o *BakalOpening) matchEvent(rule catalog.NativeBakalScriptEvent, s bakalSignal) bool {
+func (o *BakalOpening) matchEvent(rule catalog.BakalScriptEvent, s bakalSignal) bool {
 	selector := false
 	for _, ins := range rule.Trigger {
 		a := ins.Args
@@ -242,8 +242,8 @@ func drawBakal(n int) (int, error) {
 	}
 	return int(v.Int64()), nil
 }
-func (o *BakalOpening) chooseBuffs(kind string, pool []catalog.NativeBakalWeightedBuff, count int) ([]string, error) {
-	pool = append([]catalog.NativeBakalWeightedBuff(nil), pool...)
+func (o *BakalOpening) chooseBuffs(kind string, pool []catalog.BakalWeightedBuff, count int) ([]string, error) {
+	pool = append([]catalog.BakalWeightedBuff(nil), pool...)
 	var chosen []string
 	excluded := o.runtime.history[o.rules.Monsters[kind].BuffCheck]
 	for count > 0 && len(pool) > 0 {
@@ -343,7 +343,7 @@ func (o *BakalOpening) deleteEventMonster(loc uint32, q *[]bakalSignal) error {
 	o.runtime.frames = append(o.runtime.frames, BakalFrame{"bakal_source_monster_removed", 2286, BakalMonstersFrame([]BakalMonster{BakalDefeatRow(loc)})})
 	return o.eventPresence(kind, q)
 }
-func (o *BakalOpening) executeEvent(ins catalog.NativeBakalScriptInstruction, now time.Time, q *[]bakalSignal) error {
+func (o *BakalOpening) executeEvent(ins catalog.BakalScriptInstruction, now time.Time, q *[]bakalSignal) error {
 	a := ins.Args
 	n := func(i int) uint32 { return uint32(a[i].Value) }
 	switch ins.Op {
@@ -365,7 +365,7 @@ func (o *BakalOpening) executeEvent(ins catalog.NativeBakalScriptInstruction, no
 		if a[0].Value < 0 {
 			return fmt.Errorf("negative source reservation")
 		}
-		o.runtime.tasks = append(o.runtime.tasks, bakalTask{now.Add(time.Duration(a[0].Value) * time.Second), catalog.NativeBakalScriptInstruction{Op: ins.Op + " due", Args: []pvf.Token{a[1]}}})
+		o.runtime.tasks = append(o.runtime.tasks, bakalTask{now.Add(time.Duration(a[0].Value) * time.Second), catalog.BakalScriptInstruction{Op: ins.Op + " due", Args: []pvf.Token{a[1]}}})
 	case "[RESERVE CREATE MONSTER] due":
 		kind := a[0].Text
 		for _, k := range o.placements {
@@ -448,7 +448,7 @@ func (o *BakalOpening) executeEvent(ins catalog.NativeBakalScriptInstruction, no
 		}
 		return o.createEventMonster(n(0), kind, q)
 	case "[AWAKE RANDOM DRAGON]":
-		var choices []catalog.NativeBakalScriptInstruction
+		var choices []catalog.BakalScriptInstruction
 		for _, rule := range o.script.Events {
 			if len(rule.Trigger) < 3 || rule.Trigger[0].Op != "[CHECK TIMER END]" || len(rule.Behavior) != 1 {
 				continue
@@ -466,7 +466,7 @@ func (o *BakalOpening) executeEvent(ins catalog.NativeBakalScriptInstruction, no
 			if o.symbolValues[hp] <= 0 {
 				continue
 			}
-			choices = append(choices, catalog.NativeBakalScriptInstruction{Op: "[SET TIMER]", Args: []pvf.Token{timer.Args[0], timer.Args[1], a[0]}})
+			choices = append(choices, catalog.BakalScriptInstruction{Op: "[SET TIMER]", Args: []pvf.Token{timer.Args[0], timer.Args[1], a[0]}})
 		}
 		if len(choices) > 0 {
 			at, e := drawBakal(len(choices))
@@ -751,7 +751,7 @@ func (o *BakalOpening) UseRaidBuffAt(slot int, now time.Time) ([]BakalFrame, err
 		return nil, fmt.Errorf("commander unavailable outside active run")
 	}
 	name := ""
-	var d catalog.NativeBakalBuffDefinition
+	var d catalog.BakalBuffDefinition
 	for k, def := range o.rules.BuffDefinitions {
 		id, ok := BakalBuffType(k)
 		if ok && int(id) == slot && def.Raid {
@@ -775,7 +775,7 @@ func (o *BakalOpening) UseRaidBuffAt(slot int, now time.Time) ([]BakalFrame, err
 	}
 	if name == "RaidBuffCampTeleport" {
 		q := []bakalSignal{}
-		if e := c.executeEvent(catalog.NativeBakalScriptInstruction{Op: "[KICK OUT DUNGEON NO PENALTY]", Args: []pvf.Token{{Type: 0, Value: int32(c.current)}}}, now, &q); e != nil {
+		if e := c.executeEvent(catalog.BakalScriptInstruction{Op: "[KICK OUT DUNGEON NO PENALTY]", Args: []pvf.Token{{Type: 0, Value: int32(c.current)}}}, now, &q); e != nil {
 			return nil, e
 		}
 		for _, s := range q {

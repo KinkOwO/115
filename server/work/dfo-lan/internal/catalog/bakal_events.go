@@ -5,16 +5,14 @@ import (
 	"fmt"
 )
 
-type NativeBakalScriptInstruction struct {
+type BakalScriptInstruction struct {
 	Op   string
 	Args []pvf.Token
 }
-type NativeBakalScriptEvent struct {
-	Trigger, Behavior []NativeBakalScriptInstruction
-}
+type BakalScriptEvent struct{ Trigger, Behavior []BakalScriptInstruction }
 
 // The schema describes script syntax, never content IDs, values or routes.
-var nativeBakalInstructionSchema = map[string]string{
+var bakalInstructionSchema = map[string]string{
 	"[IF]": "condition", "[ON ENTER DUNGEON]": "n", "[ON GIVEUP DUNGEON]": "n",
 	"[ON CHANGE SYMBOL]": "s", "[ON CHANGE DUNGEON STATE]": "n", "[CHECK DUNGEON STATE]": "nt", "[CHECK TIMER END]": "nn",
 	"[SET]": "assignment", "[SET TIMER]": "nnn", "[CREATE MONSTER]": "nt", "[RESERVE CREATE MONSTER]": "nt", "[RESERVE DELETE MONSTER]": "nt",
@@ -23,16 +21,16 @@ var nativeBakalInstructionSchema = map[string]string{
 	"[SET DUNGEON STATE]": "nt", "[KICK OUT DUNGEON NO PENALTY]": "n", "[MOVE LAST BAKAL DUNGEON]": "", "[CLEAR PHASE]": "", "[FAIL PHASE]": "",
 }
 
-func nativeBakalInstructions(ts []pvf.Token) ([]NativeBakalScriptInstruction, error) {
-	var out []NativeBakalScriptInstruction
+func bakalInstructions(ts []pvf.Token) ([]BakalScriptInstruction, error) {
+	var out []BakalScriptInstruction
 	for i := 0; i < len(ts); {
 		op := ts[i].Text
-		schema, ok := nativeBakalInstructionSchema[op]
+		schema, ok := bakalInstructionSchema[op]
 		if !ok || ts[i].Type != 3 {
 			return nil, fmt.Errorf("unsupported Bakal instruction %q", op)
 		}
 		i++
-		ins := NativeBakalScriptInstruction{Op: op}
+		ins := BakalScriptInstruction{Op: op}
 		if schema == "condition" || schema == "assignment" {
 			if i >= len(ts) || ts[i].Type != 3 {
 				return nil, fmt.Errorf("%s missing symbol", op)

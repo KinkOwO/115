@@ -196,12 +196,3 @@ func levelThreshold(progression catalog.Progression, target byte) (uint64, error
 	}
 	return progression.Thresholds[int(target)-2], nil
 }
-
-// LevelThreshold and ApplyLevel expose the existing PVF-driven administrative
-// operation to the GM dashboard without duplicating level/experience rules.
-func LevelThreshold(progression catalog.Progression, target byte) (uint64, error) {
-	return levelThreshold(progression, target)
-}
-func ApplyLevel(current database.Character, target byte, threshold uint64) (json.RawMessage, json.RawMessage, error) {
-	return applyLevel(current, target, threshold)
-}

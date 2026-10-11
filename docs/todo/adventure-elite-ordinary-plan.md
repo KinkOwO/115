@@ -1,14 +1,6 @@
 # 冒险团精锐助战：普通、剧情与奥德赛接入
 
-最新收口：业主确认“确认APC出现，可以提交了”。v0.3.15/PID21376/runTick11640906，首次三轮换层9次恢复，原生启用全部0→1、传送坐标一致；后续ordinal263三APC持续登记且主人绑定有效。确认范围为本次艾尔文换层APC出现，见analysis/tasks/elite-apc-catchup-confirmed-20261011.json。不同scene剧情重挂、完整战斗/死亡/AI连续性、PID2012崩溃及modkit安装卸载仍待证。以下各轮失败与候选描述是历史过程，不扩大本次验收范围。
-
 状态：普通/剧情与奥德赛首场APC出现、奥德赛单次2062快速进入及目标场APC出现已确认；完整死亡采集、连续直进与其它独立机制仍待证。
-
-接续限定取证已命中：PID15920原生场景更新从145DFFCD5移除APC，virtual328/actor720=0；原生首房登记后145B253BC另有virtual320(actor,1)，补救此前缺此步骤。v0.3.15仅补已核实原生启用调用和槽/字节门禁，当前EXE启用/读取回归和14组机制通过，本次出现已由业主实机确认。详见analysis/tasks/elite-apc-native-removal-trace-20261011.{md,json}。仍接续attempt3/3，不禁清理、不改PVF/Go/存档，不扩异scene迁移。
-
-最新换层结果：v0.3.14仍失败；PID2012的282次原生登记恢复与坐标更新均即时成功，后续登记又消失。业主授权继续追踪原生移除链，静态已定位145DFFF70→virtual296(actor,0)和场景清理的virtual328/actor720判断，尚无实机调用来源。设置日志断点期间客户端自行崩溃，原因未闭环，当前暂停实机追踪。详见analysis/tasks/elite-apc-native-removal-trace-20261011.md；下面候选准备记录不表示新的确认。
-
-APC换层补救：v0.3.13实机失败，PID8232首房锚点world=17AB70080误存加载上下文，采样全局world=04B62B00，持续unanchored-scene，原生恢复尚未调用。按根§0.1停下并报告后，业主明确授权“继续按这个范围修正”；v0.3.14仅统一锚点全局来源、保留所有身份门禁并补不同地址/全局替换回归测试，接续attempt3/3，待新进程手动实机。证据与验证见analysis/tasks/elite-apc-anchor-source-fix-20261011.{md,json}；不标为confirmed，异场景剧情演出仍未闭环。
 
 ## 目标与范围
 
@@ -589,42 +581,3 @@ Type22/发布ID10与PVF [server]、宠物名称/经验重复策略仍沿用既�
 业主已确认“确认多个频道均有效，可以提交了”。本轮按此验收收口，保持DFO_ADVENTURE_ELITE=1与--source-build使用，无需再次操作。052039_400634_next37观察到Type22与Type99、venus_1phase的原N28/N29以及整场五个三名原生登记周期；候选和进程匹配、正常退出已观察。汇总仍有原通用入场/重进关联、日志上限和死亡覆盖缺口，未篡改为全场通过；不推断未说明的逐个频道/副本名单或真人多人兼容。详见analysis/tasks/adventure-elite-special-confirmed-20261010.json。没有改变PVF、SQLite/schema、存档、DLL或发布默认程序。
 
 独立拟提交源码另行完整build/vet/test退出0（4008通过/289跳过，失败及新增失败为空），只叠加本任务Go文件，保留原mods与本机login_ok.bin测试上下文；没有依赖或提交其他未跟踪源码。
-
-## APC 内层换场与服务端传送缺口
-
-艾尔文泪湖换层入口已由业主确认并提交 6d5f84cb；随后报告 APC 留在首层，要求换层/剧情换场后延迟传至玩家附近。只读取同次实机与权威 IDB 的结果见 [服务端传送可行性](../../analysis/tasks/elite-server-teleport-feasibility-20261010.md)。当前 NOTI138/22 经控制器 ID 查询，三名精锐控制器 ID 均为65535，不能替换为独立对象编号0/1/2；连续到第12层没有再触发既有 loader 登记。缺少按精锐寻址并在新场景登记的原生服务端消费契约，暂停新增包/定时器实现，不计 C2S 试包次数。其它剧情节点是否同根因尚无同次证据；此项未实机修复、未更新 confirmed baseline。
-
-业主随后明确授权DLL距离传送，新增v0.3.11候选，见client-patchs/adventure-elite/README.md与analysis/tasks/elite-apc-catchup-candidate-20261010.md。原生玩家坐标getter同线程每250ms检查，当前场景已登记且属于当前玩家的精锐持续超800地图单位3秒后调用原生立即坐标setter；未登记/死亡/绑定异常拒绝，换身份与场景重计时。属于用户指定的补救策略，无新增内容清单或PVF平行表；既有Type22/原频道ID10等策略重复缺口继续按本台账取证，本轮未收敛也未扩写。候选不改变Go、PVF或存档，不计C2S试包；全剧情换场与艾尔文实际效果待业主手动验证。
-
-
-### 原生 A* 补救候选 v0.3.12（attempt 2/3）
-
-v0.3.11 实机仍未跟随，PID17816/runTick2828687 catchup 日志缺失，尚不能认定距离阈值是原因。按业主“用原生寻路检测无法到达”的新取证范围，取消超距条件；共同坐标组件入口覆盖内联调用，在原线程、独立搜索工作区调用本机原生 A*，连续3秒确认 open list 无路后才调用原生位置 setter。500次上限/节点池上限/目标暂阻/地图或导航参数不明按未知跳过，完整字节与归属/绑定/场景门禁保持。实际原EXE离线向量覆盖可达、墙隔无路、通行参数改变、预算未知；采集保留未知与未登记理由，不自动认证实机。细节见 analysis/tasks/elite-apc-native-path-candidate-20261011.md 与补丁README。
-
-查询复用当前地图格子与原生导航 getter，不引入 PVF tile 表、地图ID清单或新的Go内容规则。旧 Type22/发布ID10 等兼容策略仍按原台账暂留，本轮没有收敛或扩写。跨场景未登记的离场/重挂契约、艾尔文/剧情实际效果、modkit安装卸载仍未闭环；候选不改Go、网络包、PVF、SQLite或默认程序，实机仅由用户操作。
-
-## APC x64dbg 换层取证候选 v0.3.13
-
-补救 attempt 3/3，未确认。PID7996在艾尔文下一层证明世界状态3而旧门禁8；同一场景对象195C52B00丢失三名精锐CRef，但管理器仍持有。两处状态门禁修正；本代次原生登记成功锚点一致且丢成员持续3秒后，原生八参数登记+位置setter补救，已有成员仍用原生A*。跨场景对象变化拒绝、剧情演员保护与APC战斗状态连续性待证。取证与回退见analysis/tasks/elite-apc-scene-debug-20261011.md；不写confirmed baseline/CHANGELOG。
-
-## 已解封装备的精锐资料投影候选（服务端0.3.20，待实机）
-
-猛毒雷鸣废墟剧情入场没有 APC 的失败会话为 20261011_040715_688082_next37 / PID11376。events157 的 CMD1811 已获 Type22 普通源准入，但因 bash 穿戴100060157实例的字段60被拒绝，未产生 N1382/N1879；events261/313 两次副本6/map76141入场都发生在该加载失败之后。不是该副本地图或频道被排除，继续扩大准入不能解决资料加载拒绝。
-
-内容来源为当前内层 PVF 4d8c0c82 的 equipment/character/common/jacket/leather/100060157.equ（SHA24fd9a7e、[random option] 1），经 Source.RandomOptions 读取 etc/randomoption 原生规则，UnsealRandomOption/applyRandomOptions 已将属性写入181字节实例。现有存档块014a000010000017000002ff00000000表示一项属性(id74,A16,B23)、type2、special FF。本轮只接入已有随机属性的队友传输，不添加装备ID表、地图例外或第二套随机规则。
-
-权威 IDB 的145962410 flag1→1452C1540→1452C19F0/1451AA420读取 count u8、逐项(id,A,B) u8三元组；非空再读取type与special。1452C2491/267E→1451A5560应用到实际穿戴对象，不依赖临时181字节块的空属性区域。五处调用及读取字节同时与仓库参考 EXE（1d394878）和实际运行 EXE（eb3e04a2）匹配。新 TagEquipment 将存档三列转换为原生列表014a101702ff；零属性保持原包，特殊替换分支及其它未消费的实例数据仍明确拒绝。随机属性投影 attempt1/3；不是重启旧准入/C2S猜包次数。
-
-新增黄金向量检查0/1/2/3属性数量、字节顺序及后续字段游标；临时 SQLite 测试验证低等级队友保存后加载、稳定身份、N1382/N1879与存档不变。另从活动 SQLite 只读导出当前角色1/4/5的快照，用真实 PVF 职业/技能目录分别编码通过（穿戴9/21/9件，资料2471/5575/2438字节）。完整 go build ./...、go vet ./...、go test ./... -count=1 -json 均退出0，4264通过/276跳过；逐名对照既有空失败基线，无新增失败。首次新增测试使用原生频道夹具、没有普通准备对象的测试错误已更正，最终门禁无失败。
-
-仅部署隔离服务端候选95dc56bb（31390720B），补充1811诊断 equipment_projection_version=0.3.20 / random_option_projection_attempt=1/3。DLL0.3.15（8180378b，含原isolatedDllPath）、启动器f7442e67与默认服务端a6f26960保持原哈希；没有修改PVF、SQLite/schema或玩家存档。只读预检通过；旧PID状态不表示新候选运行。部署前的82af37d1服务端及原清单备份在 .tmp/adventure-elite/poison-story-delivery-backup。旧失败会话完整采集到 runtime/adventure-elite-captures/20261011对应会话目录，旧服务端清单哈希不匹配及生命周期/死亡关联七项缺口原样保留。证据为 analysis/tasks/adventure-elite-random-options-candidate-20261011.json。
-
-下一次一场手动会话：保持角色和已保存精锐名单，以 DFO_ADVENTURE_ELITE=1、scripts/启动游戏-SQLite.cmd --source-build 重启，进入猛毒雷鸣废墟剧情图检查 APC 与队伍栏。正常时同场可过门并回城重进一次；首次异常即停止，最后退出后通知采集。不要求重新保存或更换装备。既有原生加载/登记/场景日志与新增1811决策、完整包内容统一采集；本次属性分支实机消费仍待确认，特殊属性替换分支与其他未支持实例字段不算修复。未更新 CHANGELOG/confirmed baseline，未提交候选或运行日志。
-
-### 已解封装备资料加载与剧情 APC 出现确认
-
-业主随后确认“确认APC出现，可以提交”。043715_391804_next37 / PID22488 / runTick15202078 中，events203的CMD1811已接受，名单[4,1,5]不变；N1382资料10476字节包含014a101702ff，原生after完整读尽且readerSuccess=1，N1879之后三名APC引用有效。副本6/map76141首房原生登记和sceneVectorMatches=[1,1,1]成立，解决本次猛毒雷鸣废墟剧情图没有APC的问题。按用户确认收口，记录见 analysis/tasks/adventure-elite-random-options-confirmed-20261011.json。
-
-用户没有确认随机属性伤害收益或完整战斗覆盖；采集仍缺run.json、未观察正常退出，死亡数量关联与全局入场汇总缺口保留。特殊替换属性分支和其它未消费实例数据继续拒绝。DLL、PVF、SQLite/schema、玩家存档及默认程序保持；源码/回归与确认文档收口，运行产物和其他任务文件不提交。
-
-独立拟提交源码build/vet/全量测试均退出0，4155通过/293跳过，失败与新增失败为空；只叠加当前任务五份Go文件，不依赖其他未跟踪源码。保留原mods与本机login_ok.bin测试上下文，临时独立目录和测试日志不入库。

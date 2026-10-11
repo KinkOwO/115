@@ -124,7 +124,7 @@ func (b Bag) addStackable(r BagRules, template, count uint32, stackableType stri
 	b.Items = append([]BagItem(nil), b.Items...)
 	for i, it := range b.Items {
 		occupied[it.Slot] = true
-		if b.OrdinarySlotUnlocked(it.Slot) && it.Template == template && (r.Quick(it.Slot) || it.Slot >= slots[0] && it.Slot <= slots[1]) && it.Amount < limit {
+		if it.Template == template && (r.Quick(it.Slot) || it.Slot >= slots[0] && it.Slot <= slots[1]) && it.Amount < limit {
 			added := min(count, limit-it.Amount)
 			b.Items[i].Amount += added
 			count -= added
@@ -137,7 +137,7 @@ func (b Bag) addStackable(r BagRules, template, count uint32, stackableType stri
 	// 2. Allocate the first unoccupied slot in the category range
 	for n := uint32(slots[0]); n <= uint32(slots[1]); n++ {
 		slot := uint16(n)
-		if b.OrdinarySlotUnlocked(slot) && !occupied[slot] {
+		if !occupied[slot] {
 			b.Items = append(b.Items, BagItem{Slot: slot, Template: template, Amount: count})
 			return b, slot, nil
 		}

@@ -164,7 +164,7 @@ func (b Bag) Disjoint(
 		// 1. 优先堆叠到背包已有堆
 		for i := range b.Items {
 			it := &b.Items[i]
-			if b.OrdinarySlotUnlocked(it.Slot) && it.Template == template {
+			if it.Template == template {
 				if it.Amount < limit {
 					space := limit - it.Amount
 					toAdd := remaining
@@ -192,7 +192,7 @@ func (b Bag) Disjoint(
 				var chosenSlot uint16
 				for n := uint32(materialSlots[0]); n <= uint32(materialSlots[1]); n++ {
 					slot := uint16(n)
-					if b.OrdinarySlotUnlocked(slot) && !occupied[slot] {
+					if !occupied[slot] {
 						chosenSlot = slot
 						occupied[slot] = true
 						break
@@ -223,7 +223,7 @@ func (b Bag) Disjoint(
 				// [unlimited waste]（落消耗品栏 65..120）。
 				for n := uint32(target[0]); n <= uint32(target[1]); n++ {
 					slot := uint16(n)
-					if b.OrdinarySlotUnlocked(slot) && !occupied[slot] {
+					if !occupied[slot] {
 						toAdd := remaining
 						if toAdd > limit {
 							toAdd = limit

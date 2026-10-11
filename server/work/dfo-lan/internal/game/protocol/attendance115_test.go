@@ -8,7 +8,7 @@ import (
 // TestAttendanceDailyStateBytes 钉住 NOTI1379 的固定载荷长度：1 + 4 + 28 = 33。
 // 长度在本机 IDB 的 handler（sub_143869190）里是三次读流写死的，改长度就是改协议。
 func TestAttendanceDailyStateBytes(t *testing.T) {
-	body, err := AttendanceDailyState115(NativeAttendanceDailyStatus115{})
+	body, err := AttendanceDailyState115(AttendanceDailyStatus115{})
 	if err != nil {
 		t.Fatalf("编码失败: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestAttendanceDailyProgressStopsAtSeven(t *testing.T) {
 
 // TestAttendanceDailyStateRejectsOutOfRange 形状校验：day_state 的取值域是 0..2。
 func TestAttendanceDailyStateRejectsOutOfRange(t *testing.T) {
-	var st NativeAttendanceDailyStatus115
+	var st AttendanceDailyStatus115
 	st.DayState[3] = 3
 	if _, err := AttendanceDailyState115(st); err == nil {
 		t.Fatal("越界取值没有被拒")

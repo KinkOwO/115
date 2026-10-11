@@ -11,7 +11,7 @@ import (
 func TestBakalAlivePhaseCinematicLoadsSecondMapOnce(t *testing.T) {
 	c, at := bakalNativeClient(t)
 	w := c.worldState
-	for _, d := range w.nativeBakalRules.Dungeons {
+	for _, d := range w.bakalRules.Dungeons {
 		if d.Type == "sparazzi" || d.Type == "skasa" || d.Type == "hisma" {
 			loc, e := legionLocationForTest(w, d.Index)
 			if e != nil {
@@ -35,7 +35,7 @@ func TestBakalAlivePhaseCinematicLoadsSecondMapOnce(t *testing.T) {
 	if _, _, e := c.bakalLoadingDone(nil); e != nil {
 		t.Fatal(e)
 	}
-	first := w.nativeBakalRules.Monsters["bakal"].Template
+	first := w.bakalRules.Monsters["bakal"].Template
 	for _, actor := range w.activeDungeon.Monsters {
 		if actor.Template == first && w.activeDungeon.Dead[actor.Entity] {
 			t.Fatal("first actor already dead")
@@ -70,7 +70,7 @@ func TestBakalAlivePhaseCinematicLoadsSecondMapOnce(t *testing.T) {
 	for _, p := range loaded {
 		if p.ID == 2194 {
 			n++
-			if binary.LittleEndian.Uint32(p.Payload[7:]) != w.nativeBakalRules.Monsters["bakal"].SecondTemplate {
+			if binary.LittleEndian.Uint32(p.Payload[7:]) != w.bakalRules.Monsters["bakal"].SecondTemplate {
 				t.Fatal("wrong second-stage template")
 			}
 		}
@@ -81,7 +81,7 @@ func TestBakalAlivePhaseCinematicLoadsSecondMapOnce(t *testing.T) {
 }
 
 func legionLocationForTest(w *worldSession, id uint32) (uint32, error) {
-	return legion.BakalLocationOfDungeon(w.nativeBakalRules, id)
+	return legion.BakalLocationOfDungeon(w.bakalRules, id)
 }
 
 func TestBakalNativeSameGridPortalPreservesLivingBoss(t *testing.T) {
@@ -114,7 +114,7 @@ func TestBakalNativeSameGridPortalPreservesLivingBoss(t *testing.T) {
 	if _, _, e := c.bakalLoadingDone(nil); e != nil {
 		t.Fatal(e)
 	}
-	if p, e := w.nativeBakalLoadedBoss(); e != nil || len(p) != 0 {
+	if p, e := w.bakalLoadedBoss(); e != nil || len(p) != 0 {
 		t.Fatal("portal recreated living boss", e)
 	}
 }

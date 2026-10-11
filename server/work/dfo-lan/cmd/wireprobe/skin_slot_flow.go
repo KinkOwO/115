@@ -37,29 +37,16 @@ func (w *worldSession) expandSkinSlot(p []byte, slot uint16) ([]outboundPacket, 
 	if e != nil {
 		return nil, e
 	}
-	_, action, e := protocol.DecodeStackableAction(p)
-	if e != nil || p[2] != 0 {
-		return nil, fmt.Errorf("invalid skin slot action container or fields")
-	}
-	mask := inventory.ExpandAuraSkin
-	if action == protocol.ActionOpenCreatureSkinSlot {
-		mask = inventory.ExpandCreatureSkin
-	} else if action != protocol.ActionOpenAuraSkinSlot {
-		return nil, fmt.Errorf("unsupported skin slot action %d", action)
-	}
-	if before.ExpandEquipFlags&mask != 0 {
-		return w.unlockRefresh(w.role)
-	}
-	var ticketMask byte
+	var mask byte
 	for _, item := range before.Items {
 		if item.Slot == slot {
-			if m, ok := inventory.SkinSlotMaskForTicket(item.Template, w.items.Catalog); ok {
-				ticketMask = m
+			if m, ok := inventory.SkinSlotMaskForTicket(item.Template); ok {
+				mask = m
 			}
 			break
 		}
 	}
-	if ticketMask != mask {
+	if mask == 0 {
 		return nil, fmt.Errorf("slot %d does not hold a skin slot ticket", slot)
 	}
 	return w.unlockSkinSlot(slot, mask, fmt.Sprintf("skin-slot-expand:%d:%x", w.role.ID, sha256.Sum256(p)))
@@ -67,10 +54,10 @@ func (w *worldSession) expandSkinSlot(p []byte, slot uint16) ([]outboundPacket, 
 
 // openSkinSlot 处理 CMD857（ENUM_CMDPACKET_OPEN_AURA_SKIN_SLOT），也就是
 // 「Unlock the Aura Skin slot?」确认框的 OK。它和 CMD507 是两条不同的入口：同一个
-// 动作券可以走 507；原生许可证也可走普通 44；确认框 OK 走 857。三路均事务落地。
+// 窗口「从背包直接使用券」走 507，「点确认框 OK」走 857，两条最终落到同一套落地逻辑。
 //
-// 前四字节是券槽位 u16 与窗口 u16（11 光环、32 宠物）。原生
-// 14589fe00 查询许可证 50006401 并写真实槽位；只有 0xffff 才反查券。
+// 请求体只有前四个字节有意义：第一个 u16 恒为 0xffff（客户端不报券在哪一格），第二个
+// u16 才是窗口类型 —— 11 光环、32 宠物，也就是要开哪一栏。券由模板反查。
 func (w *worldSession) openSkinSlot(p []byte) ([]outboundPacket, error) {
 	if w == nil || w.role.ID == 0 || w.characters == nil || w.store == nil {
 		return nil, fmt.Errorf("skin slot open before character selection")
@@ -99,11 +86,7 @@ func (w *worldSession) openSkinSlot(p []byte) ([]outboundPacket, error) {
 		}
 		return append(refresh, outboundPacket{"open_skin_slot_answered", 1, 857, protocol.OpenSkinSlotReply(req.Window)}), nil
 	}
-	ticketSlot := req.Slot
-	if ticketSlot == 0xffff {
-		ticketSlot = 0
-	}
-	plan, e := w.unlockSkinSlot(ticketSlot, mask, fmt.Sprintf("skin-slot-expand:%d:%x", w.role.ID, sha256.Sum256(p)))
+	plan, e := w.unlockSkinSlot(0, mask, fmt.Sprintf("skin-slot-expand:%d:%x", w.role.ID, sha256.Sum256(p)))
 	if e != nil {
 		return nil, e
 	}
@@ -121,21 +104,18 @@ func (w *worldSession) openSkinSlot(p []byte) ([]outboundPacket, error) {
 func (w *worldSession) unlockSkinSlot(ticketSlot uint16, mask byte, key string) ([]outboundPacket, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	before, e := inventory.ReadBag(w.role.State)
-	if e != nil {
-		return nil, e
-	}
-	if before.ExpandEquipFlags&mask != 0 {
-		return w.unlockRefresh(w.role)
-	}
 	if ticketSlot == 0 {
-		slot, ok := inventory.SkinSlotTicketSlot(before, mask, w.items.Catalog)
+		before, e := inventory.ReadBag(w.role.State)
+		if e != nil {
+			return nil, e
+		}
+		slot, ok := inventory.SkinSlotTicketSlot(before, mask)
 		if !ok {
 			return nil, fmt.Errorf("no ticket for unlock mask %#02x in the main bag", mask)
 		}
 		ticketSlot = slot
 	}
-	saved, applied, e := w.characters.ExpandSkinSlot(ctx, w.role, key, mask, w.items.Catalog, ticketSlot)
+	saved, applied, e := w.characters.ExpandSkinSlot(ctx, w.role, key, mask)
 	if e != nil {
 		return nil, e
 	}

@@ -11,7 +11,7 @@ var questRuntimeTags = map[string]bool{
 	"[visible npc]": true, "[npc visivility not revert]": true,
 	"[difficulty]": true, "[experience increasing point]": true, "[named monster]": true,
 	"[type]": true, "[level]": true, "[job]": true, "[pre required quest]": true, "[collision quest]": true, "[int data]": true, "[tournament dungeon]": true,
-	"[rewardable on force clear]": true, "[grade]": true, "[grow type]": true, "[target character]": true, "[sub type]": true, "[dungeon info]": true, "[monster reward item]": true, "[reward type]": true, "[reward int data]": true, "[reward select int data]": true, "[reward selection int data]": true, "[complete npc index]": true, "[npc]": true, "[NPC]": true, "[ignore level]": true, "[basic level penalty]": true, "[condition]": true, "[npc visibility]": true, "[/npc visibility]": true, "[visibility]": true,
+	"[grade]": true, "[grow type]": true, "[target character]": true, "[sub type]": true, "[dungeon info]": true, "[monster reward item]": true, "[reward type]": true, "[reward int data]": true, "[reward select int data]": true, "[reward selection int data]": true, "[complete npc index]": true, "[npc]": true, "[NPC]": true, "[ignore level]": true, "[basic level penalty]": true, "[condition]": true, "[npc visibility]": true, "[/npc visibility]": true, "[visibility]": true,
 }
 
 func (c *QuestCatalog) EnableRuntimeDetails(a *pvf.Archive) error {

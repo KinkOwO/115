@@ -1,17 +1,15 @@
 package gamedata
 
 import (
-	"dfolan/internal/activity"
 	"dfolan/internal/adventure"
+	"dfolan/internal/aradpass"
 	"dfolan/internal/attendance"
 	"dfolan/internal/boostup"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
-	"dfolan/internal/aradpass"
 	"dfolan/internal/character"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
-	"dfolan/internal/ranking"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -27,7 +25,6 @@ import (
 // verifies complete effective projections; source checks remain mandatory in
 // normal direct mode as well as audit mode.
 type Catalogs struct {
-	Contracts                    *cashshop.ContractRules
 	selected                     map[string]bool
 	prepared                     map[string]bool
 	SourceChecksum               string
@@ -49,7 +46,6 @@ type Catalogs struct {
 	SeasonRules                  *adventure.SeasonRules
 	RecommendedRules             *adventure.RecommendedRules
 	AdventureRules               *adventure.Rules
-	RankingRules                 *ranking.Rules
 	LotteryTables                *catalog.LotteryTables
 	SelectionBoxes               *catalog.SelectionBoxes
 	TerminalScenes               *catalog.TerminalSceneOverlay
@@ -67,40 +63,37 @@ type Catalogs struct {
 	Apocalypse                   *catalog.ApocalypseCatalog
 	BufferRental                 *catalog.BufferRentalRules
 	MaxLevelReward               *catalog.MaxLevelReward
-	NativeBakal                  *catalog.NativeBakalRaidRules
+	Bakal                        *catalog.BakalRaidRules
 	BoostUp                      *boostup.Catalog
 	Attendance                   *attendance.Catalog
-	AradPass                     *aradpass.Catalog
-	MazeRates                    *catalog.MazeChanceOverlay
-	HellMaps                     *catalog.SourceMapOverlay
-	HellRules                    *catalog.HellPartyRules
-	Grief                        *catalog.TowerGriefOverlay
-	Dazzlement                   *catalog.DazzlementOverlay
-	Quests                       *catalog.QuestCatalog
-	Progression                  *catalog.Progression
-	World                        *catalog.WorldCatalog
-	Items                        *catalog.ItemIndex
-	ItemBasics                   *catalog.ItemBasics
-	Equipment                    *inventory.FullEquipmentCatalog
-	AvatarDisjoint               *inventory.AvatarDisjointRules
-	AvatarSockets                *inventory.AvatarSocketRules
-	EmblemInlay                  *inventory.EmblemInlayRules
-	SymbolSockets                *inventory.SymbolSocketLayout
-	AvatarRecast                 *inventory.AvatarRecastRules
-	EmblemCompound               *inventory.EmblemCompoundRules
-	Periods                      []uint32
-	Skins                        map[uint32]catalog.SkinStorageEntry
-	WeaponSkinRecipes            map[uint32]catalog.WeaponSkinRecipe
-	Journal                      *catalog.EquipmentJournalRules
-	CreateCost                   *catalog.EquipmentCreateCost
-	Transform                    *catalog.EquipmentTransformSystem
+	// AradPass 是战令（阿拉德通行证，活动 516/10005）的原生目录；nil = 源读取失败，
+	// 2209/2210 推送与 680 领奖都按「活动未开启」处理。上游 origin/main 新增。
+	AradPass       *aradpass.Catalog
+	RaidEntrances  map[uint32]catalog.RaidEntrance
+	MazeRates      *catalog.MazeChanceOverlay
+	HellMaps       *catalog.SourceMapOverlay
+	HellRules      *catalog.HellPartyRules
+	Grief          *catalog.TowerGriefOverlay
+	Dazzlement     *catalog.DazzlementOverlay
+	Quests         *catalog.QuestCatalog
+	Progression    *catalog.Progression
+	World          *catalog.WorldCatalog
+	Items          *catalog.ItemIndex
+	ItemBasics     *catalog.ItemBasics
+	Equipment      *inventory.FullEquipmentCatalog
+	AvatarDisjoint *inventory.AvatarDisjointRules
+	AvatarSockets  *inventory.AvatarSocketRules
+	EmblemInlay    *inventory.EmblemInlayRules
+	AvatarRecast   *inventory.AvatarRecastRules
+	EmblemCompound *inventory.EmblemCompoundRules
+	Periods        []uint32
+	Skins          map[uint32]catalog.SkinStorageEntry
+	Journal        *catalog.EquipmentJournalRules
+	CreateCost     *catalog.EquipmentCreateCost
+	Transform      *catalog.EquipmentTransformSystem
 	// Points 是逐件「套装积分 / 誓约积分」表（setpointinfo.cos / oathpointinfo.cos），
 	// 与 transform 同域装载；服务端算角色总分、推 NOTI2634 时用。
 	Points                                       *catalog.PointRules
-	Truth                                        *catalog.OathTruthRules
-	RaidEntrances                                map[uint32]catalog.RaidEntrance
-	LegionContents                               catalog.LegionContents
-	QuestSkip                                    *catalog.QuestSkip
 	Learning                                     *character.LearningCatalog
 	Prices                                       *catalog.ShopPrices
 	Materials                                    *catalog.ItemMaterials
@@ -112,23 +105,15 @@ type Catalogs struct {
 	Oath                                         *inventory.OathGradeTable
 	Loot                                         *catalog.LootCatalog
 	Selection                                    *inventory.EquipmentCatalog
-	FlipGearPool                                 []uint32
 	Town                                         *catalog.TownArea
 	Dungeons, TrainingDungeons, TutorialDungeons *catalog.DungeonCatalog
 	Vault                                        *inventory.VaultRules
 	// BoostUp 是活动 662（新手成长胶囊）的原生目录；nil = 该直读域未选中。
-	// AradPass 是战令（活动 516，阿拉德通行证）的原生目录；nil 的语义同上
-	// （见 catalogs_aradpass.go —— 只有"当前赛季那一份脚本"会被装配）。
-	AttendanceLogin      *activity.Login
-	AttendanceWeekly     *activity.RoutineRules
-	AttendanceActivities *activity.Catalog
-	AttendanceOnline     *activity.RoutineRules
-	AttendanceDaily      *activity.RoutineRules
-	Membership           *activity.MembershipRules
+	// Attendance 是活动 331（每日签到）的原生目录；nil = 源读取失败（只降级，不熔断，
+	// 见 catalogs_attendance.go）。
 }
 
 type CatalogInputs struct {
-	StartupHashWarnings                                                                            bool
 	Selection, ArchivePath, ArchiveChecksum                                                        string
 	CharacterPath, QuestPath, ProgressionPath, WorldPath                                           string
 	BaselineDir                                                                                    string
@@ -165,7 +150,7 @@ type CatalogAdapters struct {
 
 func (i CatalogInputs) checksBaselines() bool { return i.VerifyBaselines }
 
-const SupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,transform,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps,layer-revisits,characters,cashshop,boxes,item-shops,bakal-raid,boostup,buffer-rental,attendance-login,attendance-weekly,attendance-activities,attendance-online,attendance-daily,membership"
+const SupportedDomains = "world,quests,progression,items,equipment,periods,skins,journal,create-cost,transform,skills,prices,materials,boosters,tutorial,enhancements,random-options,shields,oath-grades,vault,loot,equipment-selection,town,dungeons,training-dungeons,tutorial-dungeons,dungeon-towers,dungeon-hell,dungeon-maze,apocalypse,attunement,odyssey-growth,odyssey-chapters,odyssey-weapons,odyssey-drop,odyssey-currency,clear-cube,black-purgatory,bleeding-mine,dungeon-terminal,dungeon-tournament,selection-boxes,lottery,adventure,adventure-recommended,season,odyssey-routes,roster-backgrounds,fame,script-warps,layer-revisits,characters,cashshop,boxes,item-shops,bakal-raid,boostup,buffer-rental"
 
 func (c *Catalogs) Selected(domain string) bool { return c != nil && c.selected[domain] }
 func (c *Catalogs) Prepared(domain string) bool { return c != nil && c.prepared[domain] }
@@ -302,7 +287,7 @@ func (c *Catalogs) validateSelectedProjections() error {
 		case "buffer-rental":
 			ready = c.BufferRental != nil
 		case "bakal-raid":
-			ready = c.NativeBakal != nil
+			ready = c.Bakal != nil
 		case "attunement":
 			ready = c.Attunement != nil && c.Items != nil
 		case "odyssey-growth":
@@ -351,18 +336,6 @@ func (c *Catalogs) validateSelectedProjections() error {
 			ready = c.Boxes != nil && c.Items != nil
 		case "item-shops":
 			ready = c.ItemShops != nil && c.Items != nil
-		case "attendance-activities":
-			ready = c.AttendanceActivities != nil && c.Items != nil
-		case "attendance-online":
-			ready = c.AttendanceOnline != nil && c.Items != nil
-		case "attendance-daily":
-			ready = c.AttendanceDaily != nil && c.Items != nil
-		case "membership":
-			ready = c.Membership != nil && c.Items != nil
-		case "attendance-login":
-			ready = c.AttendanceLogin != nil && c.Items != nil
-		case "attendance-weekly":
-			ready = c.AttendanceWeekly != nil && c.Items != nil
 		case "boostup":
 			ready = c.BoostUp != nil && c.Items != nil
 		// Empty slices/maps are valid for these native domains. Their selected
@@ -413,7 +386,7 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		anchorChecksum = characterPolicy.SourceChecksum
 	}
 	started := time.Now()
-	source, err := Open(Options{Mode: PVF, ArchivePath: path, ExpectedChecksum: checksum, StartupHashWarnings: inputs.StartupHashWarnings, DerivedCacheDir: inputs.DerivedCacheDir})
+	source, err := Open(Options{Mode: PVF, ArchivePath: path, ExpectedChecksum: checksum, DerivedCacheDir: inputs.DerivedCacheDir})
 	if err != nil {
 		return &result, err
 	}
@@ -421,12 +394,7 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 	defer source.Close()
 	logPVFMemory("source-open", time.Since(started))
 	if anchorChecksum != "" && source.Snapshot().Checksum != anchorChecksum {
-		if !inputs.StartupHashWarnings {
-			return &result, fmt.Errorf("PVF/character source mismatch: %s versus %s", source.Snapshot().Checksum, anchorChecksum)
-		}
-		log.Printf("WARNING: 角色配置 PVF 哈希值不一致，继续启动：实际=%s，记录=%s；存档身份保持", source.Snapshot().Checksum, anchorChecksum)
-		// Rebind only this in-memory policy copy. Keep every shortcut and save rule.
-		characterPolicy.SourceChecksum = source.Snapshot().Checksum
+		return &result, fmt.Errorf("PVF/character source mismatch: %s versus %s", source.Snapshot().Checksum, anchorChecksum)
 	}
 	result.SourceChecksum = source.Snapshot().Checksum
 	if selected["buffer-rental"] {
@@ -436,10 +404,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		}
 		log.Printf("PVF buffer rental rules prepared: channels=%d jobs=%d source=%s; registration transport pending", len(result.BufferRental.Channels), len(result.BufferRental.Skills), result.SourceChecksum)
 		source.ReleaseReadCaches()
-	}
-	result.RankingRules, err = ranking.Import(source.archive)
-	if err != nil {
-		return &result, fmt.Errorf("PVF ranking: %w", err)
 	}
 	// Bind runtime source identity after verification and before native imports.
 	if adapters.ValidatedSource != nil {
@@ -457,13 +421,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		log.Printf("PVF joint item catalogs prepared in %s: %d source templates, %d original item scan projections; periods/prices/materials/selected skins/boosters/enhancements/fame share one scan", time.Since(basicStarted), len(joint.Basics.Index.Items), joint.Basics.ScriptsRead)
 	}
 
-	if selected["skins"] {
-		var err error
-		result.WeaponSkinRecipes, err = source.WeaponSkinRecipes()
-		if err != nil {
-			return &result, err
-		}
-	}
 	if selected["characters"] {
 		if err := preparePVFCharacters(&result, source, characterPolicy, characterPath, inputs); err != nil {
 			return &result, err
@@ -492,11 +449,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 			return &result, e
 		}
 		result.Quests = &direct
-		skipRules, skipErr := source.QuestSkipRules()
-		if skipErr != nil {
-			return &result, skipErr
-		}
-		result.QuestSkip = &skipRules
 		log.Printf("PVF quests prepared: %d definitions source=%s", len(direct.Quests), direct.Source.Checksum)
 		source.ReleaseReadCaches()
 	}
@@ -527,7 +479,7 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 			return &result, err
 		}
 	}
-	if selected["transform"] || selected["boxes"] || selected["fame"] || selected["roster-backgrounds"] || selected["season"] || selected["adventure"] || selected["lottery"] || selected["selection-boxes"] || selected["bleeding-mine"] || selected["black-purgatory"] || selected["clear-cube"] || selected["odyssey-growth"] || selected["odyssey-weapons"] || selected["odyssey-drop"] || selected["odyssey-currency"] || selected["items"] || selected["equipment"] || selected["prices"] || selected["materials"] || selected["boosters"] || selected["enhancements"] || selected["shields"] || selected["equipment-selection"] {
+	if selected["boxes"] || selected["fame"] || selected["roster-backgrounds"] || selected["season"] || selected["adventure"] || selected["lottery"] || selected["selection-boxes"] || selected["bleeding-mine"] || selected["black-purgatory"] || selected["clear-cube"] || selected["odyssey-growth"] || selected["odyssey-weapons"] || selected["odyssey-drop"] || selected["odyssey-currency"] || selected["items"] || selected["equipment"] || selected["prices"] || selected["materials"] || selected["boosters"] || selected["enhancements"] || selected["shields"] || selected["equipment-selection"] {
 
 		var direct catalog.ItemIndex
 		var e error
@@ -540,19 +492,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 			return &result, e
 		}
 		result.Items = &direct
-		if selected["transform"] {
-			result.Truth, e = source.OathTruth(direct)
-			if e != nil {
-				return &result, fmt.Errorf("PVF oath truth: %w", e)
-			}
-			log.Printf("PVF oath truth prepared: max=%d source=%s raw=%s", result.Truth.MaxLevel, result.Truth.Source, result.Truth.RawSHA256)
-		}
-		if _, present := source.archive.FindFile(cashshop.PremiumListPath); present {
-			result.Contracts, e = cashshop.ImportContractRules(source.archive, &direct)
-			if e != nil {
-				return &result, fmt.Errorf("PVF contracts: %w", e)
-			}
-		}
 		log.Printf("PVF item index prepared: %d templates source=%s", len(direct.Items), direct.Source.Checksum)
 		if selected["items"] {
 			result.MaxLevelReward, e = source.MaxLevelReward(direct)
@@ -579,10 +518,6 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 				return &result, fmt.Errorf("PVF avatar emblem rules: %w", e)
 			}
 			log.Printf("PVF avatar emblem rules prepared: %d templates source=%s", len(result.EmblemInlay.Masks), result.EmblemInlay.Source)
-			result.SymbolSockets, e = source.SymbolSocketLayout()
-			if e != nil {
-				return &result, fmt.Errorf("PVF symbol socket layout: %w", e)
-			}
 			result.AvatarSockets, e = source.AvatarSockets(direct)
 			if e != nil {
 				return &result, fmt.Errorf("PVF avatar sockets: %w", e)
@@ -647,11 +582,7 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		return &result, err
 	}
 	preparePVFAttendance(&result, source)
-	preparePVFAradPass(&result, source)
 	if err := preparePVFBoostUp(&result, source, selected, inputs); err != nil {
-		return &result, err
-	}
-	if err := preparePVFAttendanceActivities(&result, source, selected); err != nil {
 		return &result, err
 	}
 	if err := preparePVFEquipmentAwakening(&result, source); err != nil {

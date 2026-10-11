@@ -34,14 +34,15 @@ func TestDecodeVenusStandbyPartyLiveRequest(t *testing.T) {
 	if len(req) != 48 {
 		t.Fatalf("live request len=%d, want 48", len(req))
 	}
-	decoded, err := protocol.DecodeVenusStandbyParty(req)
+	name, err := protocol.DecodeVenusStandbyParty(req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(decoded.Name) != "1" || decoded.Capacity != 4 {
-		t.Fatalf("decoded request %+v, want name1/capacity4", decoded)
+	if string(name) != "1" {
+		t.Fatalf("decoded name %q, want 1", name)
 	}
-	// 长度不足、伊斯/末世录类型、模式非1、容量越界与NUL仍拒绝。
+	// 长度不足、伊斯类型 0x0b、末世录类型 0x26、模式非 1、容量非 4 与
+	// 队名含 NUL 都必须拒绝——本处理器只认维纳斯 0x22 的 4 人军团队。
 	if _, err := protocol.DecodeVenusStandbyParty(req[:16]); err == nil {
 		t.Fatal("truncated request must be rejected")
 	}
@@ -61,9 +62,9 @@ func TestDecodeVenusStandbyPartyLiveRequest(t *testing.T) {
 		t.Fatal("mode 2 must be rejected")
 	}
 	cap := append([]byte{}, req...)
-	cap[7] = 0
+	cap[7] = 2
 	if _, err := protocol.DecodeVenusStandbyParty(cap); err == nil {
-		t.Fatal("capacity 0 must be rejected")
+		t.Fatal("capacity 2 must be rejected")
 	}
 	nul := append([]byte{}, req...)
 	nul[6] = 0
@@ -75,7 +76,7 @@ func TestDecodeVenusStandbyPartyLiveRequest(t *testing.T) {
 // 应答必须是 2.38.2 原生黑鸦族 NOTI9 语法（107+名长），伊斯/黑鸦已实证
 // 可解析；队伍类型槽写入维纳斯 0x22，其余语义字段同伊斯。
 func TestVenusStandbyPartyReplyNativeGrammar(t *testing.T) {
-	got, err := protocol.VenusStandbyPartyReply([]byte("1"), 7, [2]byte{0x03, 0x56}, 4)
+	got, err := protocol.VenusStandbyPartyReply([]byte("1"), 7, [2]byte{0x03, 0x56})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,19 +127,19 @@ func TestVenusStandbyPartyReplyNativeGrammar(t *testing.T) {
 		}
 	}
 	// 拒绝：空名 / 超长名 / actor 0 / 65535 / 零频道。
-	if _, err := protocol.VenusStandbyPartyReply(nil, 7, [2]byte{3, 86}, 4); err == nil {
+	if _, err := protocol.VenusStandbyPartyReply(nil, 7, [2]byte{3, 86}); err == nil {
 		t.Fatal("empty name must be rejected")
 	}
-	if _, err := protocol.VenusStandbyPartyReply(bytes.Repeat([]byte{0x31}, 64), 7, [2]byte{3, 86}, 4); err == nil {
+	if _, err := protocol.VenusStandbyPartyReply(bytes.Repeat([]byte{0x31}, 64), 7, [2]byte{3, 86}); err == nil {
 		t.Fatal("overlong name must be rejected")
 	}
-	if _, err := protocol.VenusStandbyPartyReply([]byte("1"), 0, [2]byte{3, 86}, 4); err == nil {
+	if _, err := protocol.VenusStandbyPartyReply([]byte("1"), 0, [2]byte{3, 86}); err == nil {
 		t.Fatal("actor 0 must be rejected")
 	}
-	if _, err := protocol.VenusStandbyPartyReply([]byte("1"), 65535, [2]byte{3, 86}, 4); err == nil {
+	if _, err := protocol.VenusStandbyPartyReply([]byte("1"), 65535, [2]byte{3, 86}); err == nil {
 		t.Fatal("actor 65535 must be rejected")
 	}
-	if _, err := protocol.VenusStandbyPartyReply([]byte("1"), 7, [2]byte{}, 4); err == nil {
+	if _, err := protocol.VenusStandbyPartyReply([]byte("1"), 7, [2]byte{}); err == nil {
 		t.Fatal("zero channel context must be rejected")
 	}
 }

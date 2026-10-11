@@ -1,9 +1,8 @@
 // Code generated from the official capture; DO NOT EDIT by hand.
 //
 // 源：D:\115US-001\DFO-115US-zhuabao\official_20261009-223033_live
-//
-//	session_s30_s2c.bin —— 频道 Type 84（Hall of Dimensions / 次元回廊），
-//	solo，队伍类型 0x66，第一轮 22:47:59 → 22:48:07（第 1 关 = 100003195 第1界-神界）。
+//     session_s30_s2c.bin —— 频道 Type 84（Hall of Dimensions / 次元回廊），
+//     solo，队伍类型 0x66，第一轮 22:47:59 → 22:48:07（第 1 关 = 100003195 第1界-神界）。
 //
 // 三组帧按**官服时序**分开存：
 //
@@ -30,9 +29,9 @@ type DimCloisterVector struct {
 func GetDimCloisterWindowVectors() []DimCloisterVector {
 	return []DimCloisterVector{
 		{
-			Name:  "EntryLedger", // N2254 军团入场账本（难度窗口读它）
-			Kind:  0,
-			ID:    2254, // s2c #752 size=288
+			Name: "EntryLedger", // N2254 军团入场账本（难度窗口读它）
+			Kind: 0,
+			ID:   2254, // s2c #752 size=288
 			Frame: 752,
 			Body: []byte{
 				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -55,9 +54,9 @@ func GetDimCloisterWindowVectors() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "WindowState1", // N2314 窗口状态 0x0001
-			Kind:  0,
-			ID:    2314, // s2c #754 size=128
+			Name: "WindowState1", // N2314 窗口状态 0x0001
+			Kind: 0,
+			ID:   2314, // s2c #754 size=128
 			Frame: 754,
 			Body: []byte{
 				0x00, 0x00, 0xff, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x01,
@@ -70,9 +69,9 @@ func GetDimCloisterWindowVectors() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "WindowState2", // N2314 窗口状态 0x0006
-			Kind:  0,
-			ID:    2314, // s2c #758 size=128
+			Name: "WindowState2", // N2314 窗口状态 0x0006
+			Kind: 0,
+			ID:   2314, // s2c #758 size=128
 			Frame: 758,
 			Body: []byte{
 				0x00, 0x00, 0xff, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
@@ -85,9 +84,9 @@ func GetDimCloisterWindowVectors() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "WindowParty", // N9 队伍稳态（窗口期重推）
-			Kind:  0,
-			ID:    9, // s2c #759 size=192
+			Name: "WindowParty", // N9 队伍稳态（窗口期重推）
+			Kind: 0,
+			ID:   9, // s2c #759 size=192
 			Frame: 759,
 			Body: []byte{
 				0x01, 0x00, 0x0f, 0x27, 0x20, 0x00, 0x03, 0x61, 0x1a, 0x01, 0x01, 0x00, 0x01, 0x00, 0x02, 0x00,
@@ -104,9 +103,9 @@ func GetDimCloisterWindowVectors() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "WindowState3", // N2314 窗口状态 0x0002
-			Kind:  0,
-			ID:    2314, // s2c #770 size=128
+			Name: "WindowState3", // N2314 窗口状态 0x0002
+			Kind: 0,
+			ID:   2314, // s2c #770 size=128
 			Frame: 770,
 			Body: []byte{
 				0x00, 0x00, 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
@@ -125,9 +124,9 @@ func GetDimCloisterWindowVectors() []DimCloisterVector {
 func GetDimCloisterSelectVectors() []DimCloisterVector {
 	return []DimCloisterVector{
 		{
-			Name:  "OptionList1", // N2080 难度/关卡候选 1
-			Kind:  1,
-			ID:    2080, // s2c #771 size=48
+			Name: "OptionList1", // N2080 难度/关卡候选 1
+			Kind: 1,
+			ID:   2080, // s2c #771 size=48
 			Frame: 771,
 			Body: []byte{
 				0x01, 0x01, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0xce, 0xfe, 0xc8, 0x6a,
@@ -135,9 +134,9 @@ func GetDimCloisterSelectVectors() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "OptionList2", // N2080 难度/关卡候选 2
-			Kind:  1,
-			ID:    2080, // s2c #773 size=48
+			Name: "OptionList2", // N2080 难度/关卡候选 2
+			Kind: 1,
+			ID:   2080, // s2c #773 size=48
 			Frame: 773,
 			Body: []byte{
 				0x01, 0x02, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -145,18 +144,18 @@ func GetDimCloisterSelectVectors() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "OptionAck", // N1539 选择应答
-			Kind:  0,
-			ID:    1539, // s2c #774 size=32
+			Name: "OptionAck", // N1539 选择应答
+			Kind: 0,
+			ID:   1539, // s2c #774 size=32
 			Frame: 774,
 			Body: []byte{
 				0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x1b, 0x6c, 0x14, 0x6d, 0x45, 0x00, 0x00,
 			},
 		},
 		{
-			Name:  "DungeonArea", // N23 USER_AREA area=0xff（角色进副本区）
-			Kind:  0,
-			ID:    23, // s2c #775 size=48
+			Name: "DungeonArea", // N23 USER_AREA area=0xff（角色进副本区）
+			Kind: 0,
+			ID:   23, // s2c #775 size=48
 			Frame: 775,
 			Body: []byte{
 				0x2e, 0x00, 0xa0, 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0xee, 0x02, 0x64, 0x00, 0x05, 0x21,
@@ -164,9 +163,9 @@ func GetDimCloisterSelectVectors() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "ActorObject", // N2 角色对象快照（zlib）
-			Kind:  0,
-			ID:    2, // s2c #776 size=1024
+			Name: "ActorObject", // N2 角色对象快照（zlib）
+			Kind: 0,
+			ID:   2, // s2c #776 size=1024
 			Frame: 776,
 			Body: []byte{
 				0x78, 0x9c, 0xe5, 0x99, 0x6b, 0x48, 0x14, 0x51, 0x14, 0xc7, 0xcf, 0x99, 0xdd, 0x19, 0x5b, 0xdb,
@@ -241,18 +240,18 @@ func GetDimCloisterSelectVectors() []DimCloisterVector {
 func GetDimCloisterEntryVectors() []DimCloisterVector {
 	return []DimCloisterVector{
 		{
-			Name:  "UDPHost", // N26
-			Kind:  0,
-			ID:    26, // s2c #777 size=32
+			Name: "UDPHost", // N26
+			Kind: 0,
+			ID:   26, // s2c #777 size=32
 			Frame: 777,
 			Body: []byte{
 				0x00, 0x3e, 0x74, 0x5e, 0x7a, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			},
 		},
 		{
-			Name:  "InfiniteDifficultyUser", // N781
-			Kind:  0,
-			ID:    781, // s2c #778 size=288
+			Name: "InfiniteDifficultyUser", // N781
+			Kind: 0,
+			ID:   781, // s2c #778 size=288
 			Frame: 778,
 			Body: []byte{
 				0x04, 0x01, 0x00, 0x00, 0x2e, 0x00, 0x14, 0xb6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb6,
@@ -275,9 +274,9 @@ func GetDimCloisterEntryVectors() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "InfiniteDifficultyCharac", // N782
-			Kind:  0,
-			ID:    782, // s2c #779 size=416
+			Name: "InfiniteDifficultyCharac", // N782
+			Kind: 0,
+			ID:   782, // s2c #779 size=416
 			Frame: 779,
 			Body: []byte{
 				0x84, 0x01, 0x00, 0x00, 0x2e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -308,9 +307,9 @@ func GetDimCloisterEntryVectors() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "DungeonSelection", // N27
-			Kind:  0,
-			ID:    27, // s2c #780 size=64
+			Name: "DungeonSelection", // N27
+			Kind: 0,
+			ID:   27, // s2c #780 size=64
 			Frame: 780,
 			Body: []byte{
 				0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -319,9 +318,9 @@ func GetDimCloisterEntryVectors() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "FatigueAcceleration", // N476
-			Kind:  0,
-			ID:    476, // s2c #782 size=80
+			Name: "FatigueAcceleration", // N476
+			Kind: 0,
+			ID:   476, // s2c #782 size=80
 			Frame: 782,
 			Body: []byte{
 				0x00, 0x00, 0x03, 0x40, 0x42, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00,
@@ -331,18 +330,18 @@ func GetDimCloisterEntryVectors() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "DungeonTimeoutInfo", // N1584
-			Kind:  0,
-			ID:    1584, // s2c #783 size=32
+			Name: "DungeonTimeoutInfo", // N1584
+			Kind: 0,
+			ID:   1584, // s2c #783 size=32
 			Frame: 783,
 			Body: []byte{
 				0x08, 0x00, 0x00, 0x00, 0x0e, 0xe3, 0xe4, 0xaf, 0x3a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			},
 		},
 		{
-			Name:  "DungeonInfo", // N28 DUNGEON_INFO（@0..3 = 副本号）
-			Kind:  0,
-			ID:    28, // s2c #784 size=64
+			Name: "DungeonInfo", // N28 DUNGEON_INFO（@0..3 = 副本号）
+			Kind: 0,
+			ID:   28, // s2c #784 size=64
 			Frame: 784,
 			Body: []byte{
 				0x7b, 0xed, 0xf5, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
@@ -351,18 +350,18 @@ func GetDimCloisterEntryVectors() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "Notice629", // N629（三轮逐字节相同，与本关副本号无关；不是连战）
-			Kind:  0,
-			ID:    629, // s2c #785 size=32
+			Name: "Notice629", // N629（三轮逐字节相同，与本关副本号无关；不是连战）
+			Kind: 0,
+			ID:   629, // s2c #785 size=32
 			Frame: 785,
 			Body: []byte{
 				0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0xa5, 0xd1, 0x84, 0xf7, 0x39, 0x00, 0x00, 0x00,
 			},
 		},
 		{
-			Name:  "DungeonLoad", // N29
-			Kind:  0,
-			ID:    29, // s2c #786 size=88
+			Name: "DungeonLoad", // N29
+			Kind: 0,
+			ID:   29, // s2c #786 size=88
 			Frame: 786,
 			Body: []byte{
 				0x01, 0x00, 0x00, 0x1a, 0x1b, 0xb2, 0x6e, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00,
@@ -373,27 +372,27 @@ func GetDimCloisterEntryVectors() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "MonsterMoveSystem", // N465
-			Kind:  0,
-			ID:    465, // s2c #787 size=32
+			Name: "MonsterMoveSystem", // N465
+			Kind: 0,
+			ID:   465, // s2c #787 size=32
 			Frame: 787,
 			Body: []byte{
 				0x00, 0x3e, 0x74, 0x5e, 0x7a, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			},
 		},
 		{
-			Name:  "ClientHud", // N475
-			Kind:  0,
-			ID:    475, // s2c #788 size=24
+			Name: "ClientHud", // N475
+			Kind: 0,
+			ID:   475, // s2c #788 size=24
 			Frame: 788,
 			Body: []byte{
 				0x00, 0x00, 0xa5, 0x1f, 0x25, 0x7d, 0x3f, 0x00,
 			},
 		},
 		{
-			Name:  "StageAck", // CMD2045 应答（40B）
-			Kind:  1,
-			ID:    2045, // s2c #789 size=40
+			Name: "StageAck", // CMD2045 应答（40B）
+			Kind: 1,
+			ID:   2045, // s2c #789 size=40
 			Frame: 789,
 			Body: []byte{
 				0x01, 0x00, 0x00, 0x00, 0x00, 0x66, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2b, 0x72,
@@ -401,36 +400,36 @@ func GetDimCloisterEntryVectors() []DimCloisterVector {
 			},
 		},
 		{
-			Name:  "ActorState", // N3
-			Kind:  0,
-			ID:    3, // s2c #790 size=32
+			Name: "ActorState", // N3
+			Kind: 0,
+			ID:   3, // s2c #790 size=32
 			Frame: 790,
 			Body: []byte{
 				0x01, 0x2e, 0x00, 0x01, 0x69, 0x9b, 0xa3, 0x5c, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			},
 		},
 		{
-			Name:  "StageNotice", // N390
-			Kind:  1,
-			ID:    390, // s2c #791 size=32
+			Name: "StageNotice", // N390
+			Kind: 1,
+			ID:   390, // s2c #791 size=32
 			Frame: 791,
 			Body: []byte{
 				0x01, 0x01, 0x69, 0xc8, 0x18, 0xdd, 0x3b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			},
 		},
 		{
-			Name:  "LoadDone", // N37
-			Kind:  1,
-			ID:    37, // s2c #792 size=32
+			Name: "LoadDone", // N37
+			Kind: 1,
+			ID:   37, // s2c #792 size=32
 			Frame: 792,
 			Body: []byte{
 				0x01, 0xb2, 0xce, 0x8d, 0x59, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			},
 		},
 		{
-			Name:  "StageTimer", // N1474 副本时限
-			Kind:  0,
-			ID:    1474, // s2c #793 size=32
+			Name: "StageTimer", // N1474 副本时限
+			Kind: 0,
+			ID:   1474, // s2c #793 size=32
 			Frame: 793,
 			Body: []byte{
 				0x10, 0x0e, 0x00, 0x00, 0xbf, 0xfe, 0xc8, 0x6a, 0xb0, 0x85, 0x9f, 0x8b, 0x38, 0x00, 0x00, 0x00,
@@ -438,3 +437,4 @@ func GetDimCloisterEntryVectors() []DimCloisterVector {
 		},
 	}
 }
+

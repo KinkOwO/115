@@ -11,32 +11,6 @@ import (
 )
 
 func (client *gameConnection) dispatchAccountQueries(requestData *clientRequest) dispatchAction {
-	if client.bootstrapped && client.selectedCharacterID != 0 && requestData.frame.ID == 2333 {
-		if !requestData.verified {
-			client.event(map[string]any{"kind": "boost_training_apc_rejected", "reason": "checksum failed"})
-			return dispatchHandled
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		packets, err := client.worldState.requestBoostTrainingAPC(ctx, requestData.plaintext)
-		cancel()
-		if err != nil {
-			client.event(map[string]any{"kind": "boost_training_apc_rejected", "character_id": client.selectedCharacterID, "reason": err.Error()})
-			return dispatchHandled
-		}
-		if client.sendPlan(packets, client.logCharacterResponseBody) != nil {
-			return dispatchClose
-		}
-		return dispatchHandled
-	}
-	if action := client.dispatchSocialProfile(requestData); action != dispatchNext {
-		return action
-	}
-	if action := client.dispatchSocialPreflight(requestData); action != dispatchNext {
-		return action
-	}
-	if action := client.dispatchAdventureIdentity(requestData); action != dispatchNext {
-		return action
-	}
 	if client.bootstrapped && requestData.frame.ID == 1960 {
 		if !requestData.verified {
 			client.event(map[string]any{"kind": "server_time_request_rejected", "reason": "服务器时间请求校验失败"})
@@ -58,13 +32,6 @@ func (client *gameConnection) dispatchAccountQueries(requestData *clientRequest)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		payload, err := client.worldState.handleAdventure(ctx, client.selectedCharacterID, requestData.plaintext)
-		var identityPackets []outboundPacket
-		if err == nil && !client.worldState.adventureIdentitySent {
-			req, decodeErr := protocol.DecodeAdventureRequest(requestData.plaintext)
-			if decodeErr == nil && req.Kind == 0 {
-				identityPackets, err = client.worldState.adventureIdentityPlan(ctx)
-			}
-		}
 		cancel()
 		if err != nil {
 			client.event(map[string]any{"kind": "adventure_request_rejected", "character_id": client.selectedCharacterID, "reason": err.Error()})
@@ -74,22 +41,6 @@ func (client *gameConnection) dispatchAccountQueries(requestData *clientRequest)
 		}
 		if err := client.output.send(1, requestData.frame.ID, payload); err != nil {
 			return dispatchClose
-		}
-		if len(identityPackets) > 0 {
-			if client.sendPlan(identityPackets, client.logCharacterResponseBody) != nil {
-				return dispatchClose
-			}
-			client.worldState.adventureIdentitySent = true
-			for _, packet := range identityPackets {
-				switch packet.ID {
-				case 1754:
-					client.worldState.adventureEliteSnapshot = sha256.Sum256(packet.Payload)
-				case 2799:
-					client.worldState.seasonLevelSnapshot = sha256.Sum256(packet.Payload)
-				case 2858:
-					client.worldState.seasonOathSnapshot = sha256.Sum256(packet.Payload)
-				}
-			}
 		}
 		client.event(map[string]any{"kind": "adventure_info_sent", "character_id": client.selectedCharacterID, "id": requestData.frame.ID, "attempt": "4（CMD217与原生包尾读取链已核实）", "plain_hex": hex.EncodeToString(payload)})
 		return dispatchHandled
@@ -213,7 +164,6 @@ func (client *gameConnection) dispatchAccountQueries(requestData *clientRequest)
 			return dispatchHandled
 		}
 		client.event(map[string]any{"kind": "exit_shutdown_signal", "id": requestData.frame.ID, "character_id": client.selectedCharacterID, "fast": fastExit})
-		client.flushWeeklyClock()
 		client.selectedCharacterID = 0
 		client.selectedBasic, client.selectedAddition = nil, nil
 		if client.worldState != nil {

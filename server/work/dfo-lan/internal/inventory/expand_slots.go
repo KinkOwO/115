@@ -1,7 +1,6 @@
 package inventory
 
 import (
-	"dfolan/internal/catalog"
 	"encoding/json"
 )
 
@@ -58,45 +57,23 @@ const CreatureSkinTicket uint32 = 10309084
 
 // AuraSkinTicket 是光环幻化栏扩展券的模板 id（玩家实际持有的那张）。
 //
-// 2026-10-07 当前源 stackable/10157001/10157209.stk 已包含
-// [action type] [open aura skin slot] 与 [use action packet] 0。
-// 这里保留既有模板兼容映射；源动作发现迁移见本次修复台账。
+// 实机 2026-09-26：同会话 client_trace 把它记成
+// "Skin Slot Unlocker (Aura)(10157209) : SlotIndex(81)"。注意它的物品脚本里**没有**
+// [action type] 段（是纯 [etc] 消耗品），所以按脚本段反查不出动作 —— 这一路只能靠
+// CMD507 的动作号 101 / CMD857 的窗口类型 11 来认，与宠物券（脚本里有
+// [open creature skin slot]）不同。
 const AuraSkinTicket uint32 = 10157209
 
-// AuraSkinLicense 是原生按钮 14589fe00 直接查询的许可证 ID。
-// 源 stackable/dfo/cash/2016/1025/aura_skin_slot.stk 为 [waste]，
-// 没有 [action type]；因此保留该客户端协议绑定并支持普通 CMD44 消耗入口。
+// AuraSkinLicense 是商店里与 AuraSkinTicket 语义相同的许可证
+// （源 stackable/dfo/cash/2016/1025/aura_skin_slot.stk）。两者都只映射 bit3，所以
+// 认错也开不到宠物栏。
 const AuraSkinLicense uint32 = 50006401
 
 // SkinSlotMaskForTicket 把一张幻化栏扩展券模板映射到它开启的那一位。
 // 客户端用同一个 USERINFO1 解锁字节驱动装备栏挂锁与幻化栏
 // （原生 145f02500 读 bit5、145f02550 读 bit3），所以一张券只对应位图里的一个
 // bit，且光环券绝不能落到宠物那一位上（否则会「开错栏 + 白扣一张券」）。
-func SkinSlotMaskForTicket(template uint32, sources ...catalog.LootCatalog) (byte, bool) {
-	// Production callers always supply the current source. The no-source
-	// branch below exists for historical fixtures only, never for new IDs.
-	if len(sources) > 0 {
-		c := sources[0]
-		item, known := c.Items[template]
-		if !known || item.Kind != "stackable" {
-			return 0, false
-		}
-		// The padlock's built-in 50006401 query is a native client contract.
-		if template == AuraSkinLicense {
-			return ExpandAuraSkin, true
-		}
-		script, err := c.ItemScript(template)
-		if err != nil {
-			return 0, false
-		}
-		switch catalog.SkinSlotAction(script) {
-		case "[open aura skin slot]":
-			return ExpandAuraSkin, true
-		case "[open creature skin slot]":
-			return ExpandCreatureSkin, true
-		}
-		return 0, false
-	}
+func SkinSlotMaskForTicket(template uint32) (byte, bool) {
 	switch template {
 	case CreatureSkinTicket:
 		return ExpandCreatureSkin, true
@@ -109,9 +86,9 @@ func SkinSlotMaskForTicket(template uint32, sources ...catalog.LootCatalog) (byt
 // SkinSlotTicketSlot 找出主背包里能开启 mask 那一栏的扩展券所在格子。
 //
 // 客户端不报券在哪一格，所以只能用券的模板反查。
-func SkinSlotTicketSlot(b Bag, mask byte, sources ...catalog.LootCatalog) (uint16, bool) {
+func SkinSlotTicketSlot(b Bag, mask byte) (uint16, bool) {
 	for _, item := range b.Items {
-		if m, ok := SkinSlotMaskForTicket(item.Template, sources...); ok && m == mask && item.Amount > 0 {
+		if m, ok := SkinSlotMaskForTicket(item.Template); ok && m == mask {
 			return item.Slot, true
 		}
 	}
