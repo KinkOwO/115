@@ -32,6 +32,8 @@
 
 `build-game.ps1` 的完整基础测试使用临时的干净 mod 加载器，保留“未安装 mod”的奖励基线；另行用已安装 mod 的加载器及实际启用名单核对声明与注册。两组测试都必须通过。全量 build/vet 和最终候选包含本机已安装 mod，生成物与 overlay 留在 `runtime/build-game/`，不改写或提交 `mods/zz_mods_gen.go`。
 
+mod 发现同时检查包目录中的非测试 Go 源码。仅剩 `.modkit-owner`、没有 `mod.json` 或 Go 源码的目录会明确提示并跳过，保留原目录；仍有 `mod.json` 却缺源码时报告安装不完整并停止构建。回归用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-build-game-mods.ps1`，只操作临时夹具，不启动游戏。
+
 ### 写 `.cmd` 的硬要求（2026-10-05 实机踩坑后定）
 
 1. **执行行保持纯 ASCII**：中文只放进 `rem`，需要中文提示就让带 BOM 的 `.ps1` 打印。
