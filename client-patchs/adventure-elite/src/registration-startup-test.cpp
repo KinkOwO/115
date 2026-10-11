@@ -141,6 +141,20 @@ static void CatchupMode(int mode) {
 }
 static uintptr_t __fastcall CatchupScene(uintptr_t) {return reinterpret_cast<uintptr_t>(entryScene);}
 static unsigned char __fastcall CatchupLand(uintptr_t,int,int,uintptr_t) {return 1;}
+static bool landingSpecial=true,landingBaseAllowed=true;
+static int landingState=5,landingBaseCalls;
+static uintptr_t landingSeenActor,landingSeenContext;
+static int landingSeenX,landingSeenY;
+static unsigned char __fastcall LandingSpecial(uintptr_t,int flag) {return flag==16 && landingSpecial;}
+static int __fastcall LandingState(uintptr_t) {return landingState;}
+static unsigned char __fastcall LandingBaseGate(uintptr_t) {return landingBaseAllowed;}
+static unsigned char __fastcall LandingBasePoint(uintptr_t actor,int x,int y,uintptr_t context) {
+    ++landingBaseCalls;landingSeenActor=actor;landingSeenX=x;landingSeenY=y;landingSeenContext=context;return 1;
+}
+static void LandingJump(unsigned char* site,uintptr_t target) {
+    const unsigned char jump[]={0x48,0xb8,0,0,0,0,0,0,0,0,0xff,0xe0};
+    memcpy(site,jump,sizeof(jump));memcpy(site+2,&target,8);FlushInstructionCache(GetCurrentProcess(),site,sizeof(jump));
+}
 static uintptr_t __fastcall CatchupSet(uintptr_t actor,int x,int y,int z) {
     if(actor!=reinterpret_cast<uintptr_t>(ownedActor) || y!=100 || z!=0)RaiseException(0xE1234568,0,0,nullptr);
     ++catchupMoves;FixtureInt(ownedActor,1100,x);return 0;
@@ -215,6 +229,31 @@ static int CatchupFixture(unsigned char* image) {
     FixturePtr(ownedVtable,8464,reinterpret_cast<uintptr_t>(image+0x5CF6C20));
     FixturePtr(ownedPlayer,0,reinterpret_cast<uintptr_t>(ownedVtable));
     FixturePtr(ownedActor,368,reinterpret_cast<uintptr_t>(catchupPosition));FixturePtr(ownedPlayer,368,reinterpret_cast<uintptr_t>(catchupPlayerPosition));
+    // PID23648 slot0 is alive but has the native derived virtual632 function.
+    // A valid companion must not be dropped for overriding this native slot.
+    FixturePtr(ownedVtable,632,reinterpret_cast<uintptr_t>(image+0x63DE5D0));
+    if(!EliteCatchupActor(reinterpret_cast<uintptr_t>(ownedActor),true))return 28;
+    // Execute the complete derived function and its real common-function fallback
+    // from this EXE. Complex external state/map dependencies are ABI stubs only.
+    FixturePtr(ownedVtable,5432,reinterpret_cast<uintptr_t>(LandingSpecial));
+    FixturePtr(ownedVtable,536,reinterpret_cast<uintptr_t>(LandingState));
+    LandingJump(image+0x5C70E00,reinterpret_cast<uintptr_t>(LandingBaseGate));
+    LandingJump(image+0x5CF6910,reinterpret_cast<uintptr_t>(LandingBasePoint));
+    const auto owned=reinterpret_cast<uintptr_t>(ownedActor);
+    landingBaseAllowed=false;
+    if(!EliteCatchupLanding(owned,37,91,23) || landingBaseCalls)return 29;
+    landingState=6;
+    if(EliteCatchupLanding(owned,37,91,23) || landingBaseCalls)return 30;
+    landingState=5;landingSpecial=false;landingBaseAllowed=true;
+    if(!EliteCatchupLanding(owned,37,91,23) || landingBaseCalls!=1 ||
+        landingSeenActor!=owned || landingSeenX!=37 || landingSeenY!=91 || landingSeenContext!=23)return 31;
+    landingBaseAllowed=false;
+    if(EliteCatchupLanding(owned,37,91,23) || landingBaseCalls!=1)return 32;
+    FixturePtr(ownedVtable,632,reinterpret_cast<uintptr_t>(image+0x63DE5D1));
+    if(EliteCatchupActor(owned,true) || EliteCatchupLanding(owned,37,91,23) || landingBaseCalls!=1)return 33;
+    landingSpecial=true;landingBaseAllowed=true;
+    FixturePtr(ownedVtable,632,reinterpret_cast<uintptr_t>(image+0x5C70EE0));
+    if(!EliteCatchupLanding(owned,42,73,19) || landingBaseCalls!=2 || landingSeenX!=42 || landingSeenY!=73 || landingSeenContext!=19)return 34;
     FixtureInt(ownedActor,1100,2000);FixtureInt(ownedPlayer,1100,100);
     uintptr_t refs[6]={0,reinterpret_cast<uintptr_t>(ownedStrong),reinterpret_cast<uintptr_t>(ownedActor+48),0,reinterpret_cast<uintptr_t>(ownedStrong),reinterpret_cast<uintptr_t>(ownedActor+48)};
     FixturePtr(entryScene,88,reinterpret_cast<uintptr_t>(refs));FixturePtr(entryScene,96,reinterpret_cast<uintptr_t>(refs+3));FixturePtr(entryScene,104,reinterpret_cast<uintptr_t>(refs+6));
@@ -283,6 +322,19 @@ static int CatchupFixture(unsigned char* image) {
     g_catchupAnchors[0].scene--;EliteCatchupReset();
     for(uint64_t tick=140000;tick<=143000;tick+=500)EliteCatchupSample(player,tick);
     if(catchupRegistrations!=2 || catchupMoves!=3 || retained(reinterpret_cast<uintptr_t>(ownedActor))!=1)return 27;
+    // The actual missing-registration path must retain the derived dispatch.
+    FixturePtr(ownedVtable,632,reinterpret_cast<uintptr_t>(image+0x63DE5D0));
+    g_catchupLand=EliteCatchupLanding;FixturePtr(entryScene,96,reinterpret_cast<uintptr_t>(refs));EliteCatchupReset();
+    for(uint64_t tick=150000;tick<=153000;tick+=500)EliteCatchupSample(player,tick);
+    if(catchupRegistrations!=3 || catchupMoves!=4 || retained(owned)!=1)return 35;
+    // Inactive special actor permits the first check, but activation adds its
+    // native state restrictions. Do not bypass a denial after reactivation.
+    enable(owned,0);FixturePtr(ownedActor,28504,1);landingBaseAllowed=false;
+    FixturePtr(entryScene,96,reinterpret_cast<uintptr_t>(refs));EliteCatchupReset();
+    for(uint64_t tick=160000;tick<=163000;tick+=500)EliteCatchupSample(player,tick);
+    if(catchupRegistrations!=4 || catchupMoves!=4 || retained(owned)!=1)return 36;
+    FixturePtr(ownedActor,28504,0);landingBaseAllowed=true;
+    FixturePtr(ownedVtable,632,reinterpret_cast<uintptr_t>(image+0x5C70EE0));g_catchupLand=CatchupLand;
     g_entryRegisterOriginal=registerOriginal;
     g_lifecycleArmed=false;SetLastError(ERROR_ACCESS_DENIED);int calls=catchupCalls;
     if(native(player,0)!=INT64_C(0x1234567800000064) || GetLastError()!=ERROR_ACCESS_DENIED || catchupCalls!=calls+1)return 12;
@@ -307,10 +359,10 @@ static unsigned char* CopySites(const wchar_t* path) {
     if(nt->Signature!=IMAGE_NT_SIGNATURE || nt->FileHeader.Machine!=IMAGE_FILE_MACHINE_AMD64 || nt->OptionalHeader.SizeOfImage<0xEF2CAA0 || nt->OptionalHeader.SizeOfImage>0x30000000 || reinterpret_cast<unsigned char*>(sections+nt->FileHeader.NumberOfSections)>header+sizeof(header)) {CloseHandle(file);return nullptr;}
     auto image=static_cast<unsigned char*>(VirtualAlloc(nullptr,nt->OptionalHeader.SizeOfImage,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE));
     if(!image) {CloseHandle(file);return nullptr;}
-    const DWORD sites[]={0x2E5EDA0,0x2E60CF0,0x2E5A59D,0x2E5AAE5,0x44FD014,0x44FD1CA,0x44FDB42,0x44FAC66,0x6D75AF0,0x2E5AEEB,0x5F0BA60,0x5B22F50,0x5F0C980,0x5B2518C,0x5DE4360,0x5B25298,0x5DD0070,0x5C3E8A0,0x5DC86D0,0x5DD01EC,0x5DC9BCD,0x14CC20,0x2E60CE0,0x6D2A1BB,0x5B8C7D0,0x5B8C890,0x5B8C8C0,0x5B960D0,0x59A9260,0x59A90F0,0x6E920A0,0x5CF6C20,0x5C70EE0,0x5E08940,0x6D64820,0x6D64330,0x6D64B70,0x6D642C0,0x6D64E00,0x6D6491B,0x5D714E0,0x5D70740,0x1854970,0x449C130,0x449BF20,0x5B253B7};
+    const DWORD sites[]={0x2E5EDA0,0x2E60CF0,0x2E5A59D,0x2E5AAE5,0x44FD014,0x44FD1CA,0x44FDB42,0x44FAC66,0x6D75AF0,0x2E5AEEB,0x5F0BA60,0x5B22F50,0x5F0C980,0x5B2518C,0x5DE4360,0x5B25298,0x5DD0070,0x5C3E8A0,0x5DC86D0,0x5DD01EC,0x5DC9BCD,0x14CC20,0x2E60CE0,0x6D2A1BB,0x5B8C7D0,0x5B8C890,0x5B8C8C0,0x5B960D0,0x59A9260,0x59A90F0,0x6E920A0,0x5CF6C20,0x5C70EE0,0x5E08940,0x6D64820,0x6D64330,0x6D64B70,0x6D642C0,0x6D64E00,0x6D6491B,0x5D714E0,0x5D70740,0x1854970,0x449C130,0x449BF20,0x5B253B7,0x63DE5D0,0x5C70E00,0x5CF6910};
     bool ok=true;
     for(DWORD rva:sites) {
-        DWORD byteCount=(rva==0x6D64820 || rva==0x6D64330 || rva==0x6D64B70 || rva==0x6D64E00)?4096:rva==0x59A90F0?256:128;
+        DWORD byteCount=(rva==0x6D64820 || rva==0x6D64330 || rva==0x6D64B70 || rva==0x6D64E00)?4096:rva==0x63DE5D0?512:rva==0x59A90F0?256:128;
         bool found=false;
         for(WORD i=0;i<nt->FileHeader.NumberOfSections;++i) {
             auto& section=sections[i];
@@ -403,5 +455,6 @@ int wmain(int argc,wchar_t** argv) {
     puts("catchup startup: actual EXE byte guards, component getter X/Y/Z ABI/error/SEH, sustained native no-route teleport, reachable/unknown refusal, APC getter interleaving, exhausted log budget, town/dead/missing/duplicate scene/foreign owner/invalid binding/setter refusal passed");
     puts("catchup scene: actual EXE world getter town=1/dungeon=3, distinct loader/global-world anchor, absent/replaced world refusal, missing for 3s then exact native eight-argument registration, one-time restore, foreign scene refusal passed");
     puts("catchup retention: actual EXE virtual320 thunk/leaf and virtual328 getter, only actor720 changes, inactive APC restored then enabled, enabled APC preserved, unsupported retention slots refused; live render/AI pending");
+    puts("catchup derived virtual632: actual EXE special state allowance/denial, common fallback and arguments, unknown-slot refusal, missing registration recovery and post-activation native denial passed; complex dependencies use ABI stubs");
     return 0;
 }

@@ -684,3 +684,4 @@ address	name	description
 0x1402b0770	BufferRental_ApplySupportAppendages	Source-linked skill config,iterates native character slots,creates appendage kind978 and attaches with key30113735+mode via145C01600;static20261008,full formula pending.
 0x1402baba0	BufferRental_SendSupportCastMessage307	Game message307 mode byte and5u32 from rental record;not TCP CMD307;transport/vector pending,static20261008.
 0x1402b34a0	BufferRental_UpdateSupportCastTimersAndAnimations	Manager vtable+224;checks source channels,rental identity,timers/key;emits support cast and completion effects;static20261008.
+0x1463de5d0	Character_CheckPositionPermissionDerived115	PID23648 slot0 vtable14AD105F0+632 live;361 bytes match IDB;virtual328 attachment/state checks,virtual5432(16) and virtual536==5 branch,else145C70EE0 original four-arg fallback;candidate support pending live,20261011.

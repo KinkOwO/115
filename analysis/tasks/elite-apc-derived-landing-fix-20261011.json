@@ -1,0 +1,229 @@
+{
+  "pid": 23648,
+  "runTick": 28766359,
+  "idbSession": "8bcb56cd",
+  "manager": "0x16ACD2080",
+  "world": "0x04A42B00",
+  "scene": "0x11AB3A400",
+  "actors": [
+    {
+      "actor": "0x10A4DEFC0",
+      "vtable": "0x14ad105f0",
+      "position": "0x17cf7e200",
+      "dead": "00",
+      "enable": "0x141854970",
+      "enabled": "0x14449bf20",
+      "setter": "0x145b960d0",
+      "landing": "0x1463de5d0",
+      "deadGetter": "0x145cf6c20"
+    },
+    {
+      "actor": "0x10AE14300",
+      "vtable": "0x1495ad718",
+      "position": "0x17f2b1600",
+      "dead": "00",
+      "enable": "0x141854970",
+      "enabled": "0x14449bf20",
+      "setter": "0x145b960d0",
+      "landing": "0x145c70ee0",
+      "deadGetter": "0x145cf6c20"
+    },
+    {
+      "actor": "0x10AE2E940",
+      "vtable": "0x14a59ddc0",
+      "position": "0x180a5b100",
+      "dead": "00",
+      "enable": "0x141854970",
+      "enabled": "0x14449bf20",
+      "setter": "0x145b960d0",
+      "landing": "0x145c70ee0",
+      "deadGetter": "0x145cf6c20"
+    }
+  ],
+  "landingFunction": "0x00000001463DE5D0",
+  "landingBytes": "48 89 6C 24 18 48 89 74 24 20 57 41 56 41 57 48 83 EC 20 48 8B 01 49 8B E9 45 8B F0 44 8B FA 48 8B F9 40 B6 01 FF 90 48 01 00 00 84 C0 0F 84 E3 00 00 00 48 83 BF 48 6F 00 00 00 4C 89 64 24 48 0F 96 C0 45 33 E4 41 8B CC 0F B6 C0 48 39 8F 58 6F 00 00 0F 46 C8 0F B6 F1 4C 39 A7 68 6F 00 00 0F 86 AB 00 00 00 48 8B 87 60 6F 00 00 48 89 5C 24 40 48 8B 18 48 3B D8 0F 84 8E 00 00 00 66 90 48 8B 4B 20 E8 07 90 B5 FF 48 3B C7 75 20 48 8B 4B 20 4C 8B CD 45 8B C6 41 8B D7 48 8B 01 FF 90 D8 01 00 00 84 C0 40 0F B6 F6 41 0F 44 F4 48 8B 43 10 44 38 60 19 74 22 48 8B 43 08 44 38 60 19 75 13 48 3B 58 10 75 0D 48 8B D8 48 8B 40 08 44 38 60 19 74 ED 48 8B D8 EB 25 48 8B 08 48 8B D8 44 38 61 19 75 19 66 66 0F 1F 84 00 00 00 00 00 48 8B 01 48 8B D9 48 8B C8 44 38 60 19 74 F1 48 3B 9F 60 6F 00 00 0F 85 74 FF FF FF 48 8B 5C 24 40 4C 8B 64 24 48 48 8B 07 BA 10 00 00 00 48 8B CF FF 90 38 15 00 00 84 C0 74 19 40 84 F6 74 14 48 8B 07 48 8B CF FF 90 18 02 00 00 83 F8 05 0F 94 C0 EB 11 4C 8B CD 45 8B C6 41 8B D7 48 8B CF E8 BB 27 89 FF 48 8B 6C 24 50 48 8B 74 24 58 48 83 C4 20 41 5F 41 5E 5F C3",
+  "runtimeMatchesIdb": true,
+  "status": "user-confirmed-closeout",
+  "version": "0.3.16",
+  "previousConfirmedVersion": "0.3.15",
+  "userReport": "进入下一层时三个APC只剩两个，还有一个没传送过来",
+  "scope": "同一场景已锚定APC的原生virtual632派生实现兼容；保留历史attempt3/3，不重置计次",
+  "serverSession": "server/work/dfo-lan/runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261011_223839_809929_next37",
+  "liveLogEvidence": {
+    "catchup": "client-patchs/adventure-elite/dist/adventure-elite-catchup-23648-28766359.jsonl",
+    "firstRefusedSlot0": {
+      "line": 26,
+      "tick": 28942859,
+      "reason": "dead-or-unsupported-actor"
+    },
+    "slot1Teleports": [
+      {
+        "line": 46,
+        "tick": 28954515,
+        "after": [
+          837,
+          282
+        ]
+      },
+      {
+        "line": 130,
+        "tick": 29007406,
+        "after": [
+          216,
+          222
+        ]
+      }
+    ],
+    "slot2Teleports": [
+      {
+        "line": 49,
+        "tick": 28954531,
+        "after": [
+          901,
+          282
+        ]
+      },
+      {
+        "line": 133,
+        "tick": 29007437,
+        "after": [
+          280,
+          222
+        ]
+      }
+    ],
+    "lifecycle": {
+      "ordinal": 118,
+      "tick": 29058890,
+      "sceneAttached": [
+        0,
+        1,
+        1
+      ],
+      "strong": [
+        1,
+        1,
+        1
+      ],
+      "controllerBound": [
+        1,
+        1,
+        1
+      ],
+      "ownerMatchesCurrentPlayer": [
+        1,
+        1,
+        1
+      ]
+    },
+    "captureExitCode": 0,
+    "battleCaptureGaps": 7
+  },
+  "nativeEvidence": {
+    "idb": "client/DFO.exe.i64",
+    "slot632Xref": "0x14AD10868 = slot0 vtable0x14AD105F0 +632",
+    "derived": "0x1463DE5D0",
+    "base": "0x145C70EE0",
+    "derivedBytesMatchIdb": true,
+    "derivedFunctionBytes": 361,
+    "derivedBehavior": "virtual328 enables native attachment/state restrictions; virtual5432(actor,16) and virtual536 state5 branch otherwise falls back to common145C70EE0 with original four arguments; full native function executed, no reimplementation",
+    "baseDependencies": "145C70E00→145CF6910",
+    "idbModified": false
+  },
+  "fix": {
+    "knownLandingFunctionsOnly": [
+      "0x145C70EE0",
+      "0x1463DE5D0"
+    ],
+    "nativeDispatchByActualActorVtable": true,
+    "fullDerivedBytesGuarded": true,
+    "permissionRecheckedAfterActivation": true,
+    "unknownFunctionsStillRefused": true,
+    "identityOwnerDeathSceneDelayGuardsRetained": true,
+    "directActorFieldsOrQueuesWritten": false,
+    "nativeCleanupDisabled": false,
+    "differentSceneRecoveryImplemented": false
+  },
+  "verification": {
+    "oldFixtureCompileExitCode": 0,
+    "oldFixtureExitCode": 33,
+    "oldFixtureFailure": "catchup fixture: 28",
+    "oldRegressionLogs": [
+      ".tmp/adventure-elite/partial-apc-regression-build.log",
+      ".tmp/adventure-elite/partial-apc-regression-run.log"
+    ],
+    "buildPending": false,
+    "captureFixturePending": false,
+    "goSourceChanged": false,
+    "goBuildVetTestRun": true,
+    "manualValidationPending": false,
+    "modkitVerifyPlanInstallUninstallRun": false,
+    "buildExitCode": 0,
+    "mechanismGroupsPassed": 14,
+    "precheckExitCode": 0,
+    "captureFixtureExitCode": 0,
+    "artifactAndResourcePrecheckValid": true,
+    "logs": [
+      ".tmp/adventure-elite/partial-apc-build-0316.log",
+      ".tmp/adventure-elite/partial-apc-capture-test-0316.log",
+      ".tmp/adventure-elite/partial-apc-precheck-0316.json",
+      ".tmp/adventure-elite/partial-apc-promoted-precheck-0316.json"
+    ]
+  },
+  "defaultDllReplaced": true,
+  "clientAutomaticallyLaunchedOrPlayed": false,
+  "confirmedBaselineUpdated": true,
+  "artifact": {
+    "dll": "client-patchs/adventure-elite/dist/landing-candidate-0316/AdventureElite.dll",
+    "bytes": 245248,
+    "sha256": "549aee68f70392a65bb4bd97f296e758279e3a7d88ce262821d813f405107d0c",
+    "package": "client-patchs/adventure-elite/dist/landing-candidate-0316/adventure-elite-eligibility-0.3.16.zip",
+    "packageBytes": 151783,
+    "packageSha256": "66a3d5d45d94d568580d5bd0fbca8d2686e70b08c2f374be250449c31229a4a4",
+    "defaultBeforeReplacementSha256": "8180378b06d0a106a95e75835bd4580a4d07d580d6f378a5629556a5f69244a5"
+  },
+  "replacement": {
+    "userConfirmedClientExited": true,
+    "noDfoProcessVerified": true,
+    "backupDirectory": ".tmp/adventure-elite/derived-landing-backup-0315",
+    "backupOldDllHashVerified": true,
+    "deployedDll": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+    "allThreeCopiedFileHashesMatched": true,
+    "promotedPrecheckExitCode": 0,
+    "retainedLastRunVersion": "0.3.15",
+    "newCandidateRuntimeVerified": true
+  },
+  "confirmation": {
+    "user": "业主",
+    "statement": "确认修复，可以提交",
+    "baseline": "analysis/tasks/elite-apc-derived-landing-confirmed-20261011.json",
+    "processId": 20908,
+    "runTick": 29997781
+  },
+  "commitDisposition": "本记录随本次授权收口提交；提交哈希以Git为准",
+  "postMergeGoGates": {
+    "build": {
+      "command": "go build ./...",
+      "exitCode": 0,
+      "seconds": 127.56,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\derived-landing-close-go-build.log"
+    },
+    "vet": {
+      "command": "go vet ./...",
+      "exitCode": 0,
+      "seconds": 139.78,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\derived-landing-close-go-vet.log"
+    },
+    "test": {
+      "command": "go test ./... -count=1 -json",
+      "exitCode": 0,
+      "seconds": 261.93,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\derived-landing-close-go-test.log",
+      "passed": 4279,
+      "skipped": 278,
+      "failures": [],
+      "baselineFailures": [],
+      "newFailures": []
+    }
+  }
+}

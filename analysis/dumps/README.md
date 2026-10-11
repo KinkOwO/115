@@ -2,6 +2,8 @@
 
 本目录汇总了从当前 115 级客户端（`client/DFO.exe`）、PVF 资源（`Script.inner.pvf`）与本地化数据（`client/dstr.dat`）中提取的核心数据资产，供逆向工程、IDB 分析及服务端协议实现快速查阅与索引。
 
+APC漏一名补充：PID23648槽0virtual632指向1463DE5D0，死亡标志0却被只认通用145C70EE0的补救门禁拒绝。361字节与权威IDB一致，派生函数保留原生状态分支/通用fallback；兼容候选和验证范围见 [记录](../tasks/elite-apc-derived-landing-fix-20261011.md)。
+
 ---
 
 ## 1. 产物总览

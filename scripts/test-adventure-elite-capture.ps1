@@ -521,3 +521,13 @@ Assert ($retentionSummary.apcCatchupRecords -eq 1 -and !$retentionSummary.apcCat
 $copiedRetention=[IO.File]::ReadAllText((Join-Path $odysseyOutput ('session/' + $catchupName))) | ConvertFrom-Json
 Assert ($copiedRetention.retentionBefore -eq 0 -and $copiedRetention.retentionAfter -eq 1) 'retention diagnostic fields lost'
 Write-Host 'DLL0.3.15 native retention schema2 capture passed; live acceptance pending.'
+
+# Derived virtual632 support preserves schema2 and cannot fabricate acceptance.
+$catchupStatus.version='0.3.16';$catchupBuild.version='0.3.16'
+[IO.File]::WriteAllText((Join-Path $fullRosterPatch 'adventure-elite.status.json'),($catchupStatus | ConvertTo-Json -Depth 12),$utf8)
+[IO.File]::WriteAllText((Join-Path $fullRosterPatch 'adventure-elite-build.json'),($catchupBuild | ConvertTo-Json -Depth 12),$utf8)
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector -SessionPath $odysseySession -PatchDirectory $fullRosterPatch -OutputRoot $odysseyOutput | Out-Null
+Assert ($LASTEXITCODE -eq 0) 'DLL0.3.16 derived landing capture failed'
+$derivedSummary=[IO.File]::ReadAllText((Join-Path $odysseyOutput 'session/summary.json')) | ConvertFrom-Json
+Assert ($derivedSummary.apcCatchupRecords -eq 1 -and !$derivedSummary.apcCatchupVerified -and !$derivedSummary.battleVerified -and $derivedSummary.apcCatchupTeleports.Count -eq 0 -and @($derivedSummary.issues | Where-Object {$_ -match 'APC'}).Count -eq 0) 'derived landing capture fabricated acceptance or changed schema'
+Write-Host 'DLL0.3.16 derived landing schema2 capture passed; live acceptance pending.'

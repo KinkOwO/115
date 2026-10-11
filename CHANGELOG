@@ -1,3 +1,11 @@
+## 2026-10-11 APC 换层漏一名修复确认（DLL v0.3.16）
+
+业主确认“确认修复，可以提交”。失败样本PID23648的slot0存活、主人绑定有效，但原生virtual632为1463DE5D0；旧门禁仅认145C70EE0而误拒绝该APC。当前EXE与权威IDB核对完整361字节，修正为已知原生虚表实现分派，并在恢复启用后再检查原生位置许可；未知函数及身份/死亡/场景门禁继续拒绝。
+
+实机225911_434322_next37 / PID20908 / runTick29997781确认三名APC换层均出现：两轮共6次原生启用0→1，6次传送即时坐标与目标相同；ordinal136仍三名登记/主人绑定有效。DLL245248B / SHA256 549aee68f70392a65bb4bd97f296e758279e3a7d88ce262821d813f405107d0c；旧v0.3.15备份在.tmp/adventure-elite/derived-landing-backup-0315。确认与验证门禁见analysis/tasks/elite-apc-derived-landing-confirmed-20261011.json，静态/动态证据见elite-apc-derived-landing-fix-20261011.{md,json}。
+
+候选编译、14组机制、采集兼容与替换后预检通过；旧代码回归fixture28失败，修正通过。提交前已合并实际远端gud/main（892aa5aa），合并后完整Go build/vet/test、DLL机制与采集回归结果记录于确认基线；本机无origin/fork。无Go运行逻辑、PVF、SQLite/schema或玩家存档改动；DLL/包/日志及其他任务文件不入库。确认仅覆盖本次三名APC换层出现，跨scene剧情、完整AI/死亡/结算及modkit安装卸载仍未闭环；保留历史attempt3/3。
+
 ## 2026-10-11 上游回退后的 APC 加载与重进恢复确认
 
 **已修复 / 已完成**：业主确认“确认修复，可以提交”。恢复被7e9b2407回退移除的已确认db707d59精锐改动：队友装备随机属性原生编码、CMD2015艾尔文续进身份检查、DLL0.3.15源码与构建/采集支持。当前已解封装备101020323不再使CMD1811拒绝整队；三名APC首次入场与再次入场均登记成功。现用DLL/启动器及保存名单保持。确认记录见analysis/tasks/adventure-elite-upstream-recovery-confirmed-20261011.json。

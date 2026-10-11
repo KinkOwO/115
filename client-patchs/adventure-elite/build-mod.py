@@ -8,7 +8,7 @@ import zipfile
 HERE = Path(__file__).resolve().parent
 DIST = HERE / "dist"
 DLL = DIST / "AdventureElite.dll"
-VERSION = "0.3.15"
+VERSION = "0.3.16"
 
 
 def main():
