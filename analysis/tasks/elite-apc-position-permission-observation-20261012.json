@@ -1,0 +1,125 @@
+{
+  "stage": "live-collision-rejection-confirmed-specific-branch-pending",
+  "version": "0.3.21",
+  "authorization": "用户持续授权DLL排障和替换；实机仍由用户手动操作",
+  "evidence": {
+    "liveSession": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_014445_086037_next37",
+    "pid": 15144,
+    "runTick": 39925500,
+    "userFeedback": "这次是卡在地图右边出不来",
+    "birthXYZ": [
+      1193,
+      242,
+      0
+    ],
+    "playerXYZ": [
+      1093,
+      242,
+      0
+    ],
+    "cacheSyncs": 3,
+    "positionRows": 137,
+    "nativeRollbackWrites": 128,
+    "rollbackCallRvas": [
+      "0x5C7710F",
+      "0x5C7712F"
+    ],
+    "bounds": [
+      -1,
+      -1,
+      -1,
+      -1
+    ],
+    "capture": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_014445_086037_next37/summary.json",
+    "nativeChain": "145C76FB0 -> virtual5680/145C70E90 ->145C70E00 ->145CF68D0 ->1448F1840/virtual632 ->145C70EE0 或1463DE5D0 ->145CF6910 ->145C232C0 ->145D749A0",
+    "mapGate": "145C70E00: virtual144!=1 或 global14E6839A4非零允许；否则146D64A50(global14E684F00,x/16,y/12)的格类型2拒绝",
+    "boundsGate": "145CF68D0/145CF6910读取actor74372/74376/74380/74384；maxX=-1绕过矩形边界，不绕过原生virtual632",
+    "motionGate": "145C232C0读取actor27859/720、附件28488/28504、效果28512/28520及原生状态虚函数；各分支需live区分",
+    "collision": "145D749A0检查actor400/408场景弱引用和场景/物体碰撞；会临时设置坐标向量后还原，不能额外调用来试探",
+    "database": ".tmp/adventure-elite/apc-path-ida/DFO.exe.i64",
+    "cacheHypothesisResult": "原点回退变为出生点回退；缓存同步没有解决原生位置许可拒绝。"
+  },
+  "implementation": {
+    "source": "client-patchs/adventure-elite/src/position-permission-trace.h",
+    "scope": "只在原生virtual5680实际调用、主人线程、完整当前主人/精锐/控制器身份和唯一场景成员成立时建立TLS；子检查只记录同一根调用，非grid参数必须是同一actor",
+    "guards": [
+      "0x5C70E90",
+      "0x5C70E00",
+      "0x6D64A50",
+      "0x5CF6910",
+      "0x5C232C0",
+      "0x5D749A0",
+      "0x5C70EE0",
+      "0x63DE5D0"
+    ],
+    "guardBytes": 32,
+    "nativeBehavior": "v0.3.20出生缓存同步保留；本版新增观察不调用额外位置许可/碰撞/AI/A*/坐标setter/缓存函数。原生参数、次数、完整返回RAX/AL、LastError、异常保持，原生异常还原TLS后传播。",
+    "log": "自身DLL目录adventure-elite-permission-PID-runTick.jsonl schema1，ordinal关联根请求、子调用参数/返回、XYZ/cache/bounds/flags/attachments/场景引用；每名每场景16次后每2秒一次，总2048条",
+    "collector": "核验当前PID/代次、状态/只读标志、字段形状、RAX低32/AL一致、同根身份与唯一point终结；拒绝缺失证据；不宣布修复",
+    "rollback": ".tmp/adventure-elite/permission-observer-backup-0320"
+  },
+  "validation": {
+    "build": "scripts/build-adventure-elite.ps1 -CandidateDirectory .../permission-observer-0321 -ClientExe F:/wip/dof/115US/DFO.exe exit0；MSVC /W4 /WX /O2 /MT，全部14组机制程序通过；.tmp/adventure-elite/permission-observer-build-final-0321.log",
+    "capture": "scripts/test-adventure-elite-capture.ps1 exit0；78基准及历史扩展通过，新增11个位置许可案例：地图/碰撞拒绝、允许及8种身份/形状/链/只读/日志缺失拒绝；.tmp/adventure-elite/permission-observer-capture-0321.log",
+    "nativeFixture": "current EXE native top/map/bounds/virtual632/effects/motion/collision链在自进程副本执行；外部grid/kind/state依赖使用ABI夹具，不启动DFO.exe",
+    "goBuildVetTest": "未执行，没有Go源码变更",
+    "modkit": "不可用，verify/plan/install/uninstall未执行；只生成schema2包，沿用现有注入路线",
+    "live": "PID23628/runTick41492203：765行/82个完整根调用，三名APC地图/状态放行、原生145D749A0全部返回AL0；161坐标写入中152次回退到出生点；无战斗样本，不是修复验收。",
+    "nativeFixtureResult": "8处当前EXE guard逐处破坏均拒绝；实际原生链区分grid2拒绝、actor27859拒绝、弱场景为空时许可；XYZ及额外A*不变；完整64位RAX、入参/原生LastError、外来主人/日志预算透明、原生异常TLS还原通过。不是完整地图碰撞环境模拟。",
+    "fixtureCorrections": "夹具复制站点的VA改RVA、补复制145CF68D0、函数指针auto分开声明；生产运行行为未因这些夹具修正改变。",
+    "preflight": "scripts/collect-adventure-elite.ps1 -CheckOnly exit0，部署后DLL/服务端/启动器三产物一致；lastRunVersion0.3.20是旧会话，不作为0.3.21运行证据；.tmp/adventure-elite/permission-observer-preflight-0321.log",
+    "sourceChecks": "git diff --check exit0；改动PS1 BOM/CRLF、JSON解析核验；未git add/commit，未更新确认基线。",
+    "ida": "隔离IDB session7523b144已save=false关闭，不修改权威IDB"
+  },
+  "delivery": {
+    "candidateDirectory": "client-patchs/adventure-elite/dist/permission-observer-0321",
+    "status": "部署前无DFO进程，旧DLL/hash及EXE身份核验通过；旧DLL/清单/0.3.20包独立备份；复制后hash一致，未启动游戏",
+    "gameLaunched": false,
+    "dllBytes": 266752,
+    "dllSHA256": "ea2f2036208135ee2fa5956f60a664c612a4bb4eb75c611867534e186ae3d7bd",
+    "packageBytes": 163966,
+    "manifest": "client-patchs/adventure-elite/dist/adventure-elite-build.json",
+    "deployLog": ".tmp/adventure-elite/permission-observer-deploy-0321.log",
+    "exesUnchanged": true
+  },
+  "unclosed": [
+    "原生位置许可动态拒绝具体分支",
+    "缓存0前序写入时点",
+    "实机移动/攻击/过门/重进连续性"
+  ],
+  "untouched": [
+    "DFO.exe/服务端与启动器EXE",
+    "PVF/sk.dat",
+    "SQLite/schema/存档",
+    "CHANGELOG/confirmed baseline",
+    "其它agent工作区文件"
+  ],
+  "nextManual": "原角色/现有名单/原失败地图一次入场，停留10秒后结束，不用通关、改名单或重进；若正常可仅观察第一波攻击。",
+  "liveResult": {
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_021057_005729_next37",
+    "pid": 23628,
+    "runTick": 41492203,
+    "permissionRows": 765,
+    "permissionRoots": 82,
+    "allRejectedAtCollision": true,
+    "perSlotRoots": [
+      27,
+      28,
+      27
+    ],
+    "mapGatePassed": true,
+    "gridValue": "0xFFFFFFFF，当前格查询没有阻断地图门禁",
+    "nativeRollbackWrites": 152,
+    "positionRows": 161,
+    "xyz": [
+      1193,
+      242,
+      0
+    ],
+    "nativeBindingsAndMembership": "172号最终生命周期：3名存活/主人/控制器/场景绑定有效",
+    "combatSamples": 0,
+    "captureIssues": "5项仅为短测未进行战斗；许可/出生/身份证据无缺口",
+    "capture": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_021057_005729_next37/summary.json",
+    "collectorLog": ".tmp/adventure-elite/permission-live-0321-collect-complete.log"
+  }
+}

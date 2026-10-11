@@ -1,0 +1,167 @@
+{
+  "stage": "confirmed-map-stuck-fixed",
+  "version": "0.3.25",
+  "hypothesis": "出生缓存同步独立执行；落点检查从mode2加载期延后至mode3、主人及APC均唯一登记、同一完整出生代次。一次运行假设，无C2S试包。",
+  "evidence": {
+    "previous": "analysis/tasks/elite-apc-birth-landing-candidate-20261012.json",
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_032812_025271_next37",
+    "pid": 20672,
+    "runTick": 46126890,
+    "archive": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_032812_025271_next37",
+    "birthXYZ": [
+      1193,
+      242,
+      0
+    ],
+    "birthMode": 2,
+    "cacheSyncMissing": 3,
+    "nativeRollbackXYZ": [
+      0,
+      0,
+      0
+    ],
+    "loadedOwnerXYZ": [
+      1093,
+      242,
+      0
+    ],
+    "loadedMode": 3,
+    "scene": 7067855616,
+    "anchorWorld": 77409024,
+    "exit": "0x0",
+    "boundary": "主人不可用旧日志合并多个子条件，不能断言某一具体子项；路径查询0，短测战斗缺样本不要求补跑。"
+  },
+  "nativeContract": {
+    "setter": "exact5B25325 return -> virtual408=145B98210，逐字节守卫；相同原生条件setter trampoline，不强制写XYZ。",
+    "cache": "virtual5688=145C6AE80 -> context5408/5412，逐字节守卫，零出生缓存先同步，不受落点分支返回影响。",
+    "seam": "既有5E08940当前主人X getter owner-thread sample，结果/LastError/SEH保持；current world mode3、!entryWorld、当前玩家双来源引用一致及唯一已绑定精锐快照。",
+    "landing": "完整原生virtual632=145C70EE0/1463DE5D0，guarded native AL，不替换许可，不增加A*。"
+  },
+  "implementation": {
+    "capture": "仅精确首房/账户/控制器/唯一登记/成功XYZ/零缓存出生，绑定注册anchor与g_eliteRoomSerial；存储身份值，使用前重新验证当前对象，禁止解引用失效捕获指针。",
+    "defer": "加载中不执行碰撞；同key在正常副本主人线程、当前manager、同场景唯一主人/APC、当前scene弱引用存活、原XYZ/缓存保持且Z0时一次检查；原点合法保留，否则主人点许可 -> 条件setter -> XYZ/最终许可 -> 原生缓存同步。",
+    "failure": "跳跃/未登记主人/manager等待只读并保留；跨key丢弃；原生拒绝消费本代次且不循环尝试；最终许可失败恢复出生原点；缓存失败独立报告，不声明修复。",
+    "diagnostics": "Catchup JSON附roomSerial/anchorScene/anchorObjectId/anchorPlayer/anchorActor；等待条件分开记录。birth-point明确区别virtual5680 point，诊断包装只转发一次virtual632，复用现有许可/碰撞TLS，无额外查询；日志自身DLL目录。",
+    "collector": "同代次唯一deferred -> accepted/corrected，完整身份/地面/正常模式/缓存匹配；失败/跨房/加载期/缺来源/重复记录拒绝；出生许可根及碰撞终结校验，不伪造live acceptance。",
+    "files": [
+      "client-patchs/adventure-elite/src/birth-position-adapter.h",
+      "client-patchs/adventure-elite/src/catchup-adapter.h",
+      "client-patchs/adventure-elite/src/position-permission-trace.h",
+      "client-patchs/adventure-elite/src/registration-startup-test.cpp",
+      "client-patchs/adventure-elite/src/adventure-elite.cpp",
+      "client-patchs/adventure-elite/build-mod.py",
+      "scripts/build-adventure-elite.ps1",
+      "scripts/collect-adventure-elite.ps1",
+      "scripts/test-adventure-elite-capture.ps1",
+      "client-patchs/adventure-elite/README.md",
+      "analysis/tasks/elite-apc-birth-landing-candidate-20261012.json",
+      "analysis/tasks/elite-apc-deferred-birth-landing-20261012.json"
+    ]
+  },
+  "validation": {
+    "build": "pwsh -NoProfile -File scripts/build-adventure-elite.ps1 -ClientExe F:/wip/dof/115US/DFO.exe -CandidateDirectory client-patchs/adventure-elite/dist/birth-landing-0325；exit0，MSVC /W4 /WX /O2 /MT，全部14组机制通过；日志.tmp/adventure-elite/birth-landing-build-release-0325.log。",
+    "mechanism": "实际EXE出生/缓存/越界拒绝；16项延后场景均通过：加载时零落点调用、所有已许可零缓存独立同步；同代次mode3唯一主人/APC许可后修正一次，拒绝后不重复；最终拒绝还原；空scene、替代坐标、context、room/owner变化拒绝；主人跳跃/未登记、manager不符、加载期只等待。透明birth许可包装验证精确4参/AL/一次原调用/入口及原生LastError/异常搜索与TLS还原；原22碰撞ABI矩阵通过。",
+    "capture": "pwsh -NoProfile -File scripts/test-adventure-elite-capture.ps1；exit0，全历史回归及22/23/24/25碰撞/异常、新birth-point有效/缺leaf/缺终结、新延后3项有效/11项拒绝均通过；最终日志.tmp/adventure-elite/birth-landing-capture-release-0325.log。",
+    "goBuildVetTest": "未执行，无Go修改。",
+    "modkit": "工具不可用，verify/plan/install/uninstall未执行。",
+    "live": "业主确认“确认不卡地图了”；仅收口本次出生/地图卡住问题，不将观察扩大为完整攻击/死亡/结算与全部地图回归。",
+    "source": "git diff --check exit0；三个PS脚本UTF8 BOM/CRLF且PowerShell语法解析无错误；新/旧候选JSON解析通过。",
+    "preflight": "部署后scripts/collect-adventure-elite.ps1 -CheckOnly exit0，三个产物与全部资源哈希匹配；lastRunVersion0.3.24/PID20672为旧状态，不冒充新候选已运行；日志.tmp/adventure-elite/birth-landing-preflight-0325.log。直接对隔离候选目录预检因manifest未归一化路径被既有白名单拒绝，未改白名单；部署归一化后通过。",
+    "fixtureCorrection": "首轮新夹具误用对象ID13而当前真实fixture为0，完整代次门禁拒绝；改为正确身份0，并补出生anchor与当前snapshot对象ID一致校验。0是有效原生对象ID，不设置非零门槛。最终构建重跑全部通过。版本列表扩展曾使-eq24误变数组比较，修复为原24独立分支/25新分支与-in版本名单，最终全采集回归重跑通过。",
+    "package": "schema2/版本/包内DLL与op size、SHA256一致；静态包装校验通过，modkit四步仍未执行。",
+    "remote": "git fetch gud exit0；HEAD e487a5fd与gud/main左右0/0，无待合并更新。仅配置gud，无origin/fork，不新增或猜测远端；本轮没有合并或Go代码修改，未重复Go build/vet/test。",
+    "hygiene": "scripts/check-commit-hygiene.ps1 -All exit0；仅准备本任务源码/脚本/分析与确认记录，运行产物、其它写者未跟踪Go/文档不提交。提交前另跑暂存门禁。"
+  },
+  "delivery": {
+    "candidate": "client-patchs/adventure-elite/dist/birth-landing-0325",
+    "backup": ".tmp/adventure-elite/birth-landing-backup-0324",
+    "deployed": true,
+    "gameLaunched": false,
+    "nextManual": "本次地图卡住问题已按业主确认收口；无新增实机请求。其它战斗与长程回归保留未闭环。",
+    "dllBytes": 288256,
+    "dllSHA256": "6ef7ce562b6321a7e7aefdf01c71d08b6d93967c684309a7c3232268798ae4e4",
+    "packageBytes": 175715,
+    "deployment": "客户端已正常退出且无DFO进程；核对活动v24哈希、最终v25哈希及两份Go EXE原哈希，备份DLL/包/manifest后替换，清单归一化；.tmp/adventure-elite/birth-landing-deploy-0325.log exit0。",
+    "oldDLLSHA256": "c017b9f906a039f9f9fc55eea3fa3d250179286a4b630aec4a2fde85445afc32"
+  },
+  "unclosed": [
+    "完整战斗/死亡发送与CMD39覆盖",
+    "其它地图与过门/重进、长期稳定性（本次用户仅确认不卡地图）",
+    "modkit安装卸载"
+  ],
+  "untouched": [
+    "Go/EXE/PVF/sk.dat",
+    "SQLite/schema/存档",
+    "其它写者改动",
+    "DLL/包/日志等运行产物不入库"
+  ],
+  "confirmedLive": {
+    "userConfirmation": "确认不卡地图了",
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_034923_064732_next37",
+    "archive": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_034923_064732_next37",
+    "pid": 14132,
+    "runTick": 47398703,
+    "ownerThread": 22108,
+    "roomSerial": 1,
+    "scene": 6780203520,
+    "anchorWorld": 78588672,
+    "deferredRows": 3,
+    "correctionRows": 3,
+    "slots": [
+      0,
+      1,
+      2
+    ],
+    "objectIds": [
+      0,
+      1,
+      3
+    ],
+    "beforeXYZ": [
+      1193,
+      242,
+      0
+    ],
+    "afterXYZ": [
+      1093,
+      242,
+      0
+    ],
+    "nativeChecks": [
+      0,
+      1,
+      1
+    ],
+    "cacheBefore": [
+      1193,
+      242
+    ],
+    "cacheAfter": [
+      1093,
+      242
+    ],
+    "deferredLines": [
+      23,
+      27,
+      31
+    ],
+    "correctedLines": [
+      32,
+      33,
+      34
+    ],
+    "initialCacheLines": [
+      22,
+      26,
+      30
+    ],
+    "catchupFile": "adventure-elite-catchup-14132-47398703.jsonl",
+    "pathQueries": 0,
+    "firstChanceExceptions": 0,
+    "clientExit": "0x0",
+    "issues": [
+      "原生死亡发送与服务端 CMD39 数量不一致，不能声称覆盖完整。"
+    ],
+    "boundary": "原生死亡发送与服务端CMD39数量不一致，完整战斗覆盖不确认；不要求业主为收口出生卡图补跑。"
+  }
+}

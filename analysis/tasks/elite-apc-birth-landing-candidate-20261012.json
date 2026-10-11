@@ -1,0 +1,118 @@
+{
+  "stage": "live-failed-cache-regression",
+  "version": "0.3.24",
+  "hypothesis": "原生首房偏移落点越界；仅在原生拒绝时尝试同场景地面主人的原生合法点。一次运行假设，无服务端试包。",
+  "liveEvidence": {
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_030512_438671_next37",
+    "archive": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_030512_438671_next37",
+    "pid": 25592,
+    "runTick": 44749578,
+    "clientExit": "0x0",
+    "firstChanceExceptions": 0,
+    "collisionRows": 600,
+    "collisionRoots": 75,
+    "rootsBySlot": {
+      "0": 25,
+      "1": 25,
+      "2": 25
+    },
+    "xyz": [
+      1193,
+      242,
+      0
+    ],
+    "allRootsRejected": true,
+    "width": 1120,
+    "dropped": 0,
+    "permissionRows": 700,
+    "positionRows": 131,
+    "evidenceLines": "collision JSONL lines1-8：map-width line5=1120；coordinate-int-x line6=1193；map-check line7 AL0；root line8 AL0；75根一致。",
+    "issuesBoundary": "仅5项短测缺战斗样本；无碰撞身份/终结/丢弃问题。不要求补跑短测战斗。"
+  },
+  "staticEvidence": {
+    "idb": "当前权威IDB的隔离副本；d351a16c已save=false关闭",
+    "loader": "145B252B6/145B252E3计算玩家出生点；145B252F3取朝向；145B25306向右加100，另一分支减100；145B2531F通过virtual408设置精锐XYZ，未校验落点。",
+    "reject": "144D27A18取宽度；144D27A22/144D27A34对X>=width返回false；本次75根均终止此处，actor348=273。",
+    "landing": "既有逐字节核实的virtual632：145C70EE0或1463DE5D0；完整原生许可，145D749A0临时检查并还原坐标，不伪造许可。"
+  },
+  "implementation": {
+    "scope": "精确5B25325返回地址、已许可首房/当前账户/频道/控制器/唯一精锐/主人/场景/加载代次、XYZ等于原生目标、Z0、零回退缓存，同场景唯一主人。 原生落点校验前要求APC的scene弱控制引用仍存活且指向本次scene，避免原生空scene分支返回1冒充真实碰撞许可。",
+    "action": "原生出生点通过许可则保留；拒绝时检查地面主人当前点对该APC是否合法，通过后调用相同条件setter的原生trampoline，核对XYZ与最终原生许可；失败恢复原出生点，成功调用原生virtual5688同步回退缓存。不强制写XYZ或碰撞标志，不增加A*或循环传送。",
+    "logs": "birth-native-position-ok保留原目标；birth-landing-*记录原/主人/最终检查值、原点/玩家/目标/实际XYZ。日志在DLL自身目录，保留所有原诊断。采集器拒绝错误或缺失证据，不认定实机验收。",
+    "recursion": "观察阶段保护catchupBusy并finally还原；初始原生参数/异常与返回LastError保持。",
+    "files": [
+      "client-patchs/adventure-elite/src/birth-position-adapter.h",
+      "client-patchs/adventure-elite/src/catchup-adapter.h",
+      "client-patchs/adventure-elite/src/registration-startup-test.cpp",
+      "client-patchs/adventure-elite/src/adventure-elite.cpp",
+      "client-patchs/adventure-elite/build-mod.py",
+      "scripts/build-adventure-elite.ps1",
+      "scripts/collect-adventure-elite.ps1",
+      "scripts/test-adventure-elite-capture.ps1",
+      "client-patchs/adventure-elite/README.md",
+      "analysis/tasks/elite-apc-collision-abi-crash-20261012.json",
+      "analysis\\tasks\\elite-apc-birth-landing-candidate-20261012.json"
+    ]
+  },
+  "validation": {
+    "build": "pwsh -NoProfile -File scripts/build-adventure-elite.ps1 -ClientExe F:/wip/dof/115US/DFO.exe -CandidateDirectory client-patchs/adventure-elite/dist/birth-landing-0324；exit0，MSVC /W4 /WX，全部14组机制测试通过，含当前EXE真实越界拒绝和出生回退9场景、碰撞22函数ABI矩阵及异常记录；日志.tmp/adventure-elite/birth-landing-build-release-0324.log。 最终增加有效scene弱引用门禁后全14组重跑exit0。",
+    "capture": "pwsh -NoProfile -File scripts/test-adventure-elite-capture.ps1；exit0，全部历史回归、22/23/24碰撞及异常夹具、新出生落点2项有效/8项拒绝均通过；日志.tmp/adventure-elite/birth-landing-capture-release-0324.log。",
+    "goBuildVetTest": "未执行，无Go改动。",
+    "modkit": "不可用；未执行verify/plan/install/uninstall。",
+    "live": "用户报告卡在左上角；PID20672/runTick46126890，正常退出0；3名APC出生1193/242/0，出生检查拒绝且主人条件尚未满足，提前return遗漏缓存同步；native回退X/Y变0。原主人不可用门禁含多个子条件，具体失败子项未单独记录，不能断言某项。",
+    "fixtureRepair": "首项夹具误用scene弱引用控制指针1，被现有完整身份门禁拒绝。改为真实测试控制对象，未放宽运行门禁；正在重跑。 最终全部构建夹具通过；采集24碰撞夹具复用上一版最后一项坏异常文件，增加各例清理自身异常样本后重跑，未修改运行门禁。 新出生采集夹具补齐当前门禁要求的非零scene，旧基础catchup夹具未含scene；未放宽校验。",
+    "preflight": "部署后collect-adventure-elite.ps1 -CheckOnly exit0；资源/DLL/Go程序哈希匹配；lastRunVersion0.3.23/PID25592是旧状态，不代表新候选已运行；日志.tmp/adventure-elite/birth-landing-preflight-0324.log。",
+    "source": "git diff --check exit0；三个PS脚本UTF8 BOM/CRLF、分析JSON解析通过。"
+  },
+  "delivery": {
+    "candidateDirectory": "client-patchs/adventure-elite/dist/birth-landing-0324",
+    "backup": ".tmp/adventure-elite/birth-landing-backup-0323",
+    "deployed": true,
+    "gameLaunched": false,
+    "dllSize": 283648,
+    "dllSha256": "c017b9f906a039f9f9fc55eea3fa3d250179286a4b630aec4a2fde85445afc32",
+    "packageSize": 172898,
+    "deployment": "客户端不运行时，复核活动0.3.23 DLL哈希和两个Go EXE原哈希；备份DLL/zip/manifest后替换0.3.24并归一化manifest。日志.tmp/adventure-elite/birth-landing-deploy-0324.log。初次临时部署脚本误引用旧21备份目录，被哈希保护拒绝且未替换；修正为独立23备份后exit0，旧备份未动。",
+    "nextManual": "沿用scripts/启动游戏-SQLite.cmd --source-build；原角色/名单进原失败副本，先观察出生/移动；正常则同一会话观察APC攻击、过一次门、回城重进一次再退出；异常立即停止，不重复保存名单。"
+  },
+  "unclosed": [
+    "首房出生、移动/攻击实机",
+    "过门/重进回归、长期稳定性",
+    "modkit安装卸载"
+  ],
+  "untouched": [
+    "Go/EXE/PVF/sk.dat",
+    "SQLite/schema/存档",
+    "其它工作区改动",
+    "CHANGELOG/confirmed baseline/Git暂存提交"
+  ],
+  "failedLive": {
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_032812_025271_next37",
+    "archive": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_032812_025271_next37",
+    "pid": 20672,
+    "runTick": 46126890,
+    "nativeBirth": [
+      1193,
+      242,
+      0
+    ],
+    "birthWorldMode": 2,
+    "ownerUnavailable": 3,
+    "birthCacheRows": 0,
+    "rollback": [
+      0,
+      0,
+      0
+    ],
+    "loadedWorldMode": 3,
+    "loadedPlayer": [
+      1093,
+      242,
+      0
+    ],
+    "anchorAndActualScene": 7067855616,
+    "pathQueries": 0,
+    "normalExit": "0x0",
+    "nextHypothesis": "缓存同步独立于落点分支；出生仅记完整代次，加载完成后在既有主人线程采样检查一次落点。"
+  }
+}

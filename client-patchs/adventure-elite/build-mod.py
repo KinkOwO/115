@@ -8,7 +8,7 @@ import zipfile
 HERE = Path(__file__).resolve().parent
 DIST = HERE / "dist"
 DLL = DIST / "AdventureElite.dll"
-VERSION = "0.3.16"
+VERSION = "0.3.25"
 
 
 def main():
@@ -24,7 +24,7 @@ def main():
         "version": VERSION,
         "name": "精锐角色资格候选",
         "author": "DFO 115us",
-        "description": "取消资格门槛，保留真实属性；普通单人通关已验证；APC原生A*无路或同一场景丢登记持续3秒后原生补救；跨场景及实机待验收。",
+        "description": "取消资格门槛，保留真实属性；普通单人通关已验证；默认关闭额外A*查询与无路传送；保留同一场景丢登记持续3秒的补救；只读记录出生后坐标写入和调用栈；定位与AI回归待实机。",
         "permissions": ["client.file.write"],
         "requires": ["qol.client-host"],
         "layers": {"client": {"ops": [{

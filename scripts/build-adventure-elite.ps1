@@ -118,5 +118,5 @@ foreach ($resourcePath in @('client/DFO.exe', 'client/Script.pvf', 'client/sk.da
         $resourceRows += [ordered]@{ path = $resourcePath; bytes = (Get-Item -LiteralPath $resourceFile).Length; sha256 = (Get-FileHash -LiteralPath $resourceFile -Algorithm SHA256).Hash.ToLowerInvariant() }
     }
 }
-$buildIdentity = [ordered]@{ version = '0.3.16'; changeFrom030 = 'native-path-and-scene-apc-catchup-candidate'; apcCatchupAttempt = '3/3'; apcCatchupScopedCorrection = 'verified-derived-virtual632'; serverCandidateStage = 'ordinary-reentry'; serverCandidateAttempt = '1/3'; registrationReentryAttempt = '2/3'; generatedAt = [DateTime]::UtcNow.ToString('o'); artifacts = $artifactRows; resources = $resourceRows }
+$buildIdentity = [ordered]@{ version = '0.3.25'; changeFrom030 = 'deferred-native-birth-landing'; apcCatchupAttempt = '3/3'; apcCatchupScopedCorrection = 'path-query-default-off'; apcPathQueryDefaultEnabled = $false; serverCandidateStage = 'ordinary-reentry'; serverCandidateAttempt = '1/3'; registrationReentryAttempt = '2/3'; generatedAt = [DateTime]::UtcNow.ToString('o'); artifacts = $artifactRows; resources = $resourceRows }
 [IO.File]::WriteAllText((Join-Path $distDir 'adventure-elite-build.json'), ($buildIdentity | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding($false)))

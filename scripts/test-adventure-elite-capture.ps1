@@ -531,3 +531,342 @@ Assert ($LASTEXITCODE -eq 0) 'DLL0.3.16 derived landing capture failed'
 $derivedSummary=[IO.File]::ReadAllText((Join-Path $odysseyOutput 'session/summary.json')) | ConvertFrom-Json
 Assert ($derivedSummary.apcCatchupRecords -eq 1 -and !$derivedSummary.apcCatchupVerified -and !$derivedSummary.battleVerified -and $derivedSummary.apcCatchupTeleports.Count -eq 0 -and @($derivedSummary.issues | Where-Object {$_ -match 'APC'}).Count -eq 0) 'derived landing capture fabricated acceptance or changed schema'
 Write-Host 'DLL0.3.16 derived landing schema2 capture passed; live acceptance pending.'
+
+# AI regression isolation: evidence must prove no optional native path calls.
+$isolationBase=@{}
+foreach ($property in $catchupStatus.PSObject.Properties) { $isolationBase[$property.Name]=$property.Value }
+$catchupStatus=$isolationBase
+$catchupStatus.version='0.3.17';$catchupBuild.version='0.3.17'
+$catchupStatus.apcPathQueryEnabled=$false;$catchupStatus.nativePathAllocatorHooked=$false
+$catchupStatus.apcCatchupCriterion='registration-loss-only'
+Save-Json (Join-Path $fullRosterPatch 'adventure-elite-build.json') $catchupBuild
+foreach ($isolationCase in @('disabled','missing-flag','hooked','queried','executed-path','enabled')) {
+    $isolationStatus=$catchupStatus.Clone();$isolationRow=$catchupRow.Clone()
+    $isolationRow.pathQueryEnabled=$false;$isolationRow.nativePathQueries=0
+    $isolationRow.criterion='registration-loss-only';$isolationRow.reason='path-query-disabled'
+    switch ($isolationCase) {
+        'missing-flag' { $isolationStatus.Remove('apcPathQueryEnabled') }
+        'hooked' { $isolationStatus.nativePathAllocatorHooked=$true }
+        'queried' { $isolationRow.nativePathQueries=1 }
+        'executed-path' { $isolationRow.reason='path-reachable' }
+        'enabled' {
+            $isolationStatus.apcPathQueryEnabled=$true;$isolationStatus.nativePathAllocatorHooked=$true
+            $isolationStatus.apcCatchupCriterion='native-astar-or-registration-loss'
+            $isolationRow.pathQueryEnabled=$true;$isolationRow.nativePathQueries=1
+            $isolationRow.criterion='native-astar-or-registration-loss';$isolationRow.reason='path-reachable'
+        }
+    }
+    Save-Json (Join-Path $fullRosterPatch 'adventure-elite.status.json') $isolationStatus
+    [IO.File]::WriteAllText((Join-Path $fullRosterPatch $catchupName),($isolationRow | ConvertTo-Json -Compress),$utf8)
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector -SessionPath $odysseySession -PatchDirectory $fullRosterPatch -OutputRoot $odysseyOutput *> $null
+    Assert ($LASTEXITCODE -eq 0) ('DLL0.3.17 isolation capture failed: '+$isolationCase)
+    $isolationSummary=[IO.File]::ReadAllText((Join-Path $odysseyOutput 'session/summary.json')) | ConvertFrom-Json
+    $isolationIssues=@($isolationSummary.issues | Where-Object {$_ -match 'APC寻路'})
+    Assert (($isolationIssues.Count -eq 0) -eq ($isolationCase -in @('disabled','enabled'))) ('DLL0.3.17 invalid isolation evidence accepted: '+$isolationCase)
+    Assert (!$isolationSummary.battleVerified -and !$isolationSummary.apcCatchupVerified) 'DLL0.3.17 fabricated live acceptance'
+}
+Write-Host 'DLL0.3.17 path isolation: disabled/enabled capture and missing switch, allocator hook, nonzero query, path execution refusal passed; live AI pending.'
+
+# Birth completion evidence must retain the native target and all three axes.
+$catchupBuild.version='0.3.18';Save-Json (Join-Path $fullRosterPatch 'adventure-elite-build.json') $catchupBuild
+foreach ($birthCase in @('corrected','native-ok','missing-status','missing-height','wrong-xy','wrong-z','rejected')) {
+    $birthStatus=$catchupStatus.Clone();$birthStatus.version='0.3.18'
+    $birthStatus.apcBirthPositionReady=$true;$birthStatus.birthPositionFailureSite='ready'
+    $birthRow=$catchupRow.Clone();$birthRow.reason='birth-position-corrected';$birthRow.slot=0
+    $birthRow.pathQueryEnabled=$false;$birthRow.nativePathQueries=0;$birthRow.criterion='registration-loss-only'
+    $birthRow.before=@(0,0);$birthRow.target=@(900,100);$birthRow.after=@(900,100)
+    $birthRow.heightKnown=$true;$birthRow.beforeZ=71;$birthRow.afterZ=0
+    switch ($birthCase) {
+        'native-ok' { $birthRow.reason='birth-native-position-ok';$birthRow.before=@(900,100);$birthRow.beforeZ=0 }
+        'missing-status' { $birthStatus.Remove('apcBirthPositionReady') }
+        'missing-height' { $birthRow.Remove('beforeZ') }
+        'wrong-xy' { $birthRow.after=@(0,0) }
+        'wrong-z' { $birthRow.afterZ=71 }
+        'rejected' { $birthRow.reason='birth-position-rejected' }
+    }
+    Save-Json (Join-Path $fullRosterPatch 'adventure-elite.status.json') $birthStatus
+    [IO.File]::WriteAllText((Join-Path $fullRosterPatch $catchupName),($birthRow | ConvertTo-Json -Compress),$utf8)
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector -SessionPath $odysseySession -PatchDirectory $fullRosterPatch -OutputRoot $odysseyOutput *> $null
+    Assert ($LASTEXITCODE -eq 0) ('DLL0.3.18 birth capture failed: '+$birthCase)
+    $birthSummary=[IO.File]::ReadAllText((Join-Path $odysseyOutput 'session/summary.json')) | ConvertFrom-Json
+    $birthIssues=@($birthSummary.issues | Where-Object {$_ -match 'APC出生'})
+    Assert (($birthIssues.Count -eq 0) -eq ($birthCase -in @('corrected','native-ok'))) ('DLL0.3.18 invalid birth evidence accepted: '+$birthCase)
+    Assert (!$birthSummary.battleVerified -and !$birthSummary.apcBirthPositionVerified) 'DLL0.3.18 fabricated live acceptance'
+}
+Write-Host 'DLL0.3.18 birth capture: corrected/native success, missing status/height, wrong XY/Z, rejection passed; live acceptance pending.'
+
+
+$catchupBuild.version='0.3.19';Save-Json (Join-Path $fullRosterPatch 'adventure-elite-build.json') $catchupBuild
+foreach ($positionCase in @('zero-reset','rejected-write','missing-status','missing-log','wrong-pid','missing-stack','wrong-zero','not-readonly')) {
+    $positionStatus=$birthStatus.Clone();$positionStatus.version='0.3.19'
+    $positionStatus.apcBirthPositionReady=$true;$positionStatus.birthPositionFailureSite='ready'
+    $positionStatus.apcBirthCorrectionEnabled=$false;$positionStatus.positionWriteReadOnly=$true
+    $positionStatus.positionWriteTraceReady=$true;$positionStatus.positionWriteFailureSite='ready'
+    $positionStatus.positionWriteTraceFile='adventure-elite-position-66600001-8000.jsonl'
+    $birthRow.reason='birth-native-position-ok';$birthRow.before=@(900,100);$birthRow.target=@(900,100);$birthRow.after=@(900,100)
+    $birthRow.beforeZ=0;$birthRow.afterZ=0;$birthRow.heightKnown=$true
+    [IO.File]::WriteAllText((Join-Path $fullRosterPatch $catchupName),($birthRow | ConvertTo-Json -Compress),$utf8)
+    $positionRow=@{ traceVersion=1;processId=66600001;runTick=8000;tick=45;thread=1;setter='unconditional';slot=0;
+        actor=10000;component=11000;scene=12000;axis=0;argument=0;before=@(900,100,0);after=@(0,100,0);
+        membershipBefore=1;membershipAfter=1;callerRva=97345832;stackRvas=@(97345832,95310623);zeroTransition=$true;readOnly=$true }
+    switch ($positionCase) {
+        'rejected-write' { $positionRow.setter='conditional';$positionRow.after=@(900,100,0);$positionRow.zeroTransition=$false }
+        'missing-status' { $positionStatus.Remove('positionWriteTraceReady') }
+        'missing-log' { $positionStatus.positionWriteTraceFile='adventure-elite-position-66600001-8001.jsonl' }
+        'wrong-pid' { $positionRow.processId=66600002 }
+        'missing-stack' { $positionRow.Remove('stackRvas') }
+        'wrong-zero' { $positionRow.zeroTransition=$false }
+        'not-readonly' { $positionRow.readOnly=$false }
+    }
+    Save-Json (Join-Path $fullRosterPatch 'adventure-elite.status.json') $positionStatus
+    [IO.File]::WriteAllText((Join-Path $fullRosterPatch 'adventure-elite-position-66600001-8000.jsonl'),($positionRow | ConvertTo-Json -Compress -Depth 8),$utf8)
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector -SessionPath $odysseySession -PatchDirectory $fullRosterPatch -OutputRoot $odysseyOutput *> $null
+    Assert ($LASTEXITCODE -eq 0) ('DLL0.3.19 position capture failed: '+$positionCase)
+    $positionSummary=[IO.File]::ReadAllText((Join-Path $odysseyOutput 'session/summary.json')) | ConvertFrom-Json
+    $positionIssues=@($positionSummary.issues | Where-Object {$_ -match 'APC坐标'})
+    Assert (($positionIssues.Count -eq 0) -eq ($positionCase -in @('zero-reset','rejected-write'))) ('DLL0.3.19 invalid position evidence accepted: '+$positionCase)
+    if ($positionCase -eq 'zero-reset') { Assert ($positionSummary.apcPositionZeroTransitions.Count -eq 1) 'zero reset missing from summary' }
+    if ($positionCase -eq 'rejected-write') { Assert ($positionSummary.apcPositionZeroTransitions.Count -eq 0) 'rejected write fabricated zero reset' }
+    Assert (!$positionSummary.battleVerified -and !$positionSummary.apcPositionResetVerified) 'DLL0.3.19 fabricated live acceptance'
+}
+Write-Host 'DLL0.3.19 position capture: zero reset/native rejection, missing status/log/stack, stale PID, wrong transition and readonly refusal passed; live cause pending.'
+
+# Successful birth cache synchronization is a candidate, never live acceptance.
+$catchupBuild.version='0.3.20';Save-Json (Join-Path $fullRosterPatch 'adventure-elite-build.json') $catchupBuild
+foreach ($cacheCase in @('synced','preserved','sentinel','missing-status','missing-context','wrong-cache','moved-actor','failed','missing-bounds')) {
+    $cacheStatus=$positionStatus.Clone();$cacheStatus.version='0.3.20'
+    $cacheStatus.apcBirthCacheSyncEnabled=$true;$cacheStatus.positionWriteReadOnly=$true
+    $cacheRow=$birthRow.Clone();$cacheRow.reason='birth-cache-synchronized';$cacheRow.cacheKnown=$true
+    $cacheRow.cacheContext=15000;$cacheRow.cacheBefore=@(0,0);$cacheRow.cacheAfter=@(900,100)
+    $cachePosition=$positionRow.Clone();$cachePosition.readOnly=$true
+    $cachePosition.cacheKnown=$true;$cachePosition.cacheContext=15000
+    $cachePosition.cacheBefore=@(900,100);$cachePosition.cacheAfter=@(900,100);$cachePosition.bounds=@(-1,-1,-1,-1)
+    switch ($cacheCase) {
+        'preserved' { $cacheRow.reason='birth-cache-preserved';$cacheRow.cacheBefore=@(800,80);$cacheRow.cacheAfter=@(800,80) }
+        'sentinel' { $cacheRow.reason='birth-cache-preserved';$cacheRow.cacheBefore=@(-1,-1);$cacheRow.cacheAfter=@(-1,-1) }
+        'missing-status' { $cacheStatus.Remove('apcBirthCacheSyncEnabled') }
+        'missing-context' { $cacheRow.Remove('cacheContext') }
+        'wrong-cache' { $cacheRow.cacheAfter=@(0,0) }
+        'moved-actor' { $cacheRow.after=@(0,0) }
+        'failed' { $cacheRow.reason='birth-cache-sync-failed' }
+        'missing-bounds' { $cachePosition.Remove('bounds') }
+    }
+    Save-Json (Join-Path $fullRosterPatch 'adventure-elite.status.json') $cacheStatus
+    [IO.File]::WriteAllText((Join-Path $fullRosterPatch $catchupName),($cacheRow | ConvertTo-Json -Compress -Depth 8),$utf8)
+    [IO.File]::WriteAllText((Join-Path $fullRosterPatch 'adventure-elite-position-66600001-8000.jsonl'),($cachePosition | ConvertTo-Json -Compress -Depth 8),$utf8)
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector -SessionPath $odysseySession -PatchDirectory $fullRosterPatch -OutputRoot $odysseyOutput *> $null
+    Assert ($LASTEXITCODE -eq 0) ('DLL0.3.20 cache capture failed: '+$cacheCase)
+    $cacheSummary=[IO.File]::ReadAllText((Join-Path $odysseyOutput 'session/summary.json')) | ConvertFrom-Json
+    $cacheIssues=@($cacheSummary.issues | Where-Object {$_ -match 'APC回退缓存'})
+    Assert (($cacheIssues.Count -eq 0) -eq ($cacheCase -in @('synced','preserved','sentinel'))) ('DLL0.3.20 invalid cache evidence accepted: '+$cacheCase)
+    Assert (!$cacheSummary.battleVerified -and !$cacheSummary.apcBirthCacheVerified) 'DLL0.3.20 fabricated live acceptance'
+}
+Write-Host 'DLL0.3.20 rollback cache capture: sync/preserve/sentinel and six invalid evidence refusals passed; live positioning/AI pending.'
+
+
+# Native permission observation cannot fabricate a movement fix.
+$catchupBuild.version='0.3.21';Save-Json (Join-Path $fullRosterPatch 'adventure-elite-build.json') $catchupBuild
+foreach ($permissionCase in @('map-reject','collision-reject','allowed','missing-status','missing-log','wrong-pid','bad-result','not-readonly','wrong-root','missing-point','missing-shape')) {
+    $permissionStatus=$cacheStatus.Clone();$permissionStatus.version='0.3.21';$permissionStatus.apcBirthCacheSyncEnabled=$true
+    $permissionStatus.permissionTraceReady=$true;$permissionStatus.permissionFailureSite='ready';$permissionStatus.permissionReadOnly=$true
+    $permissionStatus.permissionTraceFile='adventure-elite-permission-66600001-8000.jsonl'
+    $cacheRow.reason='birth-cache-synchronized';$cacheRow.cacheContext=15000;$cacheRow.cacheAfter=@(900,100);$cacheRow.after=@(900,100)
+    $cachePosition.bounds=@(-1,-1,-1,-1)
+    [IO.File]::WriteAllText((Join-Path $fullRosterPatch $catchupName),($cacheRow | ConvertTo-Json -Compress -Depth 8),$utf8)
+    [IO.File]::WriteAllText((Join-Path $fullRosterPatch 'adventure-elite-position-66600001-8000.jsonl'),($cachePosition | ConvertTo-Json -Compress -Depth 8),$utf8)
+    $permissionPoint=@{traceVersion=1;processId=66600001;runTick=8000;tick=45;thread=1;ordinal=1;phase='point';slot=0;
+        actor=10000;scene=12000;argumentObject=10000;requested=@(900,100);pointRequested=@(900,100);auxiliary=0;
+        result=0;resultLow32=0;resultByte=0;callerRva=97351439;before=@(900,100,0);cacheContext=15000;cacheKnown=$true;
+        cache=@(900,100);bounds=@(-1,-1,-1,-1);flagsKnown=$true;blocked27859=0;enabled720=1;mapOverride=0;
+        attachments=@(0,0,0);actorSceneRef=@(16000,17000);readOnly=$true}
+    $permissionGate=$permissionPoint.Clone();$permissionGate.phase='map-gate'
+    $permissionGrid=$permissionPoint.Clone();$permissionGrid.phase='grid';$permissionGrid.argumentObject=18000;$permissionGrid.requested=@(56,8)
+    $permissionGrid.result=2;$permissionGrid.resultLow32=2;$permissionGrid.resultByte=2
+    $permissionList=@($permissionGrid,$permissionGate,$permissionPoint)
+    if ($permissionCase -in @('collision-reject','allowed')) {
+        $permissionGrid.result=0;$permissionGrid.resultLow32=0;$permissionGrid.resultByte=0
+        $permissionGate.result=1;$permissionGate.resultLow32=1;$permissionGate.resultByte=1
+        $permissionCollision=$permissionPoint.Clone();$permissionCollision.phase='collision'
+        if ($permissionCase -eq 'allowed') {
+            $permissionPoint.result=1;$permissionPoint.resultLow32=1;$permissionPoint.resultByte=1
+            $permissionCollision.result=1;$permissionCollision.resultLow32=1;$permissionCollision.resultByte=1
+        }
+        $permissionList=@($permissionGrid,$permissionGate,$permissionCollision,$permissionPoint)
+    }
+    switch ($permissionCase) {
+        'missing-status' {$permissionStatus.Remove('permissionTraceReady')}
+        'missing-log' {$permissionStatus.permissionTraceFile='adventure-elite-permission-66600001-8001.jsonl'}
+        'wrong-pid' {$permissionPoint.processId=66600002}
+        'bad-result' {$permissionPoint.resultByte=1}
+        'not-readonly' {$permissionPoint.readOnly=$false}
+        'wrong-root' {$permissionGate.pointRequested=@(0,0)}
+        'missing-point' {$permissionList=@($permissionGrid,$permissionGate)}
+        'missing-shape' {$permissionPoint.Remove('before')}
+    }
+    Save-Json (Join-Path $fullRosterPatch 'adventure-elite.status.json') $permissionStatus
+    [IO.File]::WriteAllText((Join-Path $fullRosterPatch 'adventure-elite-permission-66600001-8000.jsonl'),(($permissionList | ForEach-Object {$_ | ConvertTo-Json -Compress -Depth 8}) -join [Environment]::NewLine),$utf8)
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector -SessionPath $odysseySession -PatchDirectory $fullRosterPatch -OutputRoot $odysseyOutput *> $null
+    Assert ($LASTEXITCODE -eq 0) ('DLL0.3.21 permission capture failed: '+$permissionCase)
+    $permissionSummary=[IO.File]::ReadAllText((Join-Path $odysseyOutput 'session/summary.json')) | ConvertFrom-Json
+    $permissionIssues=@($permissionSummary.issues | Where-Object {$_ -match 'APC位置许可'})
+    Assert (($permissionIssues.Count -eq 0) -eq ($permissionCase -in @('map-reject','collision-reject','allowed'))) ('DLL0.3.21 invalid permission evidence accepted: '+$permissionCase)
+    Assert (!$permissionSummary.battleVerified -and !$permissionSummary.apcPermissionVerified) 'DLL0.3.21 fabricated live acceptance'
+    if ($permissionCase -eq 'map-reject') {Assert ($permissionSummary.apcPermissionRejected.Count -eq 1) 'map rejection missing'}
+    if ($permissionCase -eq 'allowed') {Assert ($permissionSummary.apcPermissionRejected.Count -eq 0) 'allowed point fabricated rejection'}
+}
+Write-Host 'DLL0.3.21 permission capture: native map/collision rejection, allowed point and eight invalid evidence refusals passed; live root cause pending.'
+
+
+foreach ($collisionVersion in @('0.3.22','0.3.23','0.3.24','0.3.25')) {
+$catchupBuild.version=$collisionVersion;Save-Json (Join-Path $fullRosterPatch 'adventure-elite-build.json') $catchupBuild
+$collisionCases=@('map-reject','object-reject','allowed','missing-status','missing-log','wrong-pid','wrong-result','not-readonly','missing-root','truncated','missing-map','missing-object','missing-rectangle')
+if ($collisionVersion -in @('0.3.23','0.3.24','0.3.25')) {$collisionCases += @('exception-sample','exception-missing-status','exception-wrong-pid','exception-no-search','exception-shape')}
+if ($collisionVersion -eq '0.3.25') {$collisionCases += @('birth-root','birth-root-missing-leaf','birth-root-missing-terminal')}
+foreach ($collisionCase in $collisionCases) {
+    $fixtureExceptionPath=Join-Path $fullRosterPatch 'adventure-elite-exception-66600001-8000.jsonl'
+    if (Test-Path -LiteralPath $fixtureExceptionPath) {Remove-Item -LiteralPath $fixtureExceptionPath}
+    $collisionStatus=$permissionStatus.Clone();$collisionStatus.version=$collisionVersion;$collisionStatus.permissionTraceFile='adventure-elite-permission-66600001-8000.jsonl'
+    $collisionStatus.collisionTraceReady=$true;$collisionStatus.collisionFailureSite='ready';$collisionStatus.collisionReadOnly=$true
+    $collisionStatus.collisionTraceFile='adventure-elite-collision-66600001-8000.jsonl'
+    if ($collisionVersion -in @('0.3.23','0.3.24','0.3.25')) {$collisionStatus.firstChanceTraceReady=$true;$collisionStatus.firstChanceOnly=$true;$collisionStatus.firstChanceTraceFile='adventure-elite-exception-66600001-8000.jsonl'}
+    $permissionPoint.before=@(900,100,0);$permissionPoint.readOnly=$true;$permissionPoint.processId=66600001
+    $permissionPoint.result=0;$permissionPoint.resultLow32=0;$permissionPoint.resultByte=0
+    $permissionGate.pointRequested=@(900,100);$permissionGate.result=1;$permissionGate.resultLow32=1;$permissionGate.resultByte=1
+    $permissionCollision=$permissionPoint.Clone();$permissionCollision.phase='collision'
+    $permissionList=@($permissionGrid,$permissionGate,$permissionCollision,$permissionPoint)
+    $collisionRoot=@{traceVersion=1;processId=66600001;runTick=8000;tick=45;thread=1;ordinal=1;slot=0;actor=10000;scene=12000;
+        phase='collision-root';arguments=@(10000,900,100);result=0;resultLow32=0;resultByte=0;callerRva=97351430;xyz=@(900,100,0);
+        actorKnown=$true;actorBody=@(33,24,12,0);pass4460=0;mapKnown=$false;mapFields=@(0)*18;fenceKnown=$false;fenceFields=@(0)*4;
+        variantKnown=$false;variantFields=@(0)*6;target=0;targetKnown=$false;targetBody=@(0)*4;targetPass4460=0;
+        rectangleKnown=$false;rectangle=@(0)*4;leafRecords=1;dropped=0;readOnly=$true}
+    $collisionMap=$collisionRoot.Clone();$collisionMap.phase='map-check';$collisionMap.arguments=@(20000,10000,1);$collisionMap.mapKnown=$true;$collisionMap.leafRecords=0
+    $collisionList=@($collisionMap,$collisionRoot)
+    if ($collisionCase -eq 'object-reject') {
+        $collisionMap.result=1;$collisionMap.resultLow32=1;$collisionMap.resultByte=1
+        $objectRow=$collisionRoot.Clone();$objectRow.phase='object-check';$objectRow.arguments=@(12000,10000,0)
+        $objectRow.result=30000;$objectRow.resultLow32=30000;$objectRow.resultByte=48;$objectRow.target=30000;$objectRow.targetKnown=$true
+        $collisionRoot.leafRecords=2;$collisionList=@($collisionMap,$objectRow,$collisionRoot)
+    }
+    if ($collisionCase -eq 'allowed') {
+        foreach ($row in @($permissionPoint,$permissionCollision,$collisionMap,$collisionRoot)) {$row.result=1;$row.resultLow32=1;$row.resultByte=1}
+    }
+    if ($collisionCase -like 'birth-root*') {
+        $birthPoint=$permissionPoint.Clone();$birthPoint.phase='birth-point'
+        $birthLeaf=$permissionCollision.Clone();$birthLeaf.phase='landing'
+        $permissionList=@($permissionGrid,$permissionGate,$permissionCollision,$birthLeaf,$birthPoint)
+        if ($collisionCase -eq 'birth-root-missing-leaf') {$permissionList=@($permissionGrid,$permissionGate,$permissionCollision,$birthPoint)}
+        if ($collisionCase -eq 'birth-root-missing-terminal') {$permissionList=@($permissionGrid,$permissionGate,$permissionCollision,$birthLeaf)}
+    }
+    $coordinateRows=@()
+    foreach ($phase in @('coordinate-int-x','coordinate-int-y','coordinate-box-x','coordinate-box-y')) {
+        $coordinate=$collisionRoot.Clone();$coordinate.phase=$phase;$coordinate.arguments=@(10000,0,0)
+        $coordinate.result=4294967295L;$coordinate.resultLow32=4294967295L;$coordinate.resultByte=255
+        $coordinate.leafRecords=$coordinateRows.Count;$coordinateRows += $coordinate
+    }
+    $collisionList=@($coordinateRows)+@($collisionList)
+    $collisionRoot.leafRecords=$collisionList.Count-1
+    switch ($collisionCase) {
+        'missing-status' {$collisionStatus.Remove('collisionTraceReady')}
+        'missing-log' {$collisionStatus.collisionTraceFile='adventure-elite-collision-66600001-8001.jsonl'}
+        'wrong-pid' {$collisionRoot.processId=66600002}
+        'wrong-result' {$collisionRoot.resultByte=1}
+        'not-readonly' {$collisionRoot.readOnly=$false}
+        'missing-root' {$collisionList=@($collisionMap)}
+        'truncated' {$collisionRoot.dropped=1}
+        'missing-map' {$collisionMap.mapKnown=$false}
+        'missing-object' {$collisionMap.phase='object-check';$collisionMap.result=30000;$collisionMap.resultLow32=30000;$collisionMap.resultByte=48}
+        'missing-rectangle' {$collisionMap.phase='walk-rectangle'}
+    }
+    if ($collisionCase -like 'exception-*') {
+        $exceptionRow=@{traceVersion=1;processId=66600001;runTick=8000;tick=50;thread=1;exceptionCode=3221225477L;
+            operation=0;faultAddress=33;imageBase=5368709120;dllBase=6442450944;registers=@(5384355840)*17;eflags=514;
+            stackKnown=$true;stackWords=@(0)*16;permissionArmed=$false;collisionArmed=$false;actor=0;
+            firstChanceOnly=$true;continueSearch=$true;readOnly=$true}
+        switch ($collisionCase) {
+            'exception-missing-status' {$collisionStatus.Remove('firstChanceTraceReady')}
+            'exception-wrong-pid' {$exceptionRow.processId=66600002}
+            'exception-no-search' {$exceptionRow.continueSearch=$false}
+            'exception-shape' {$exceptionRow.registers=@(1,2)}
+        }
+        [IO.File]::WriteAllText((Join-Path $fullRosterPatch 'adventure-elite-exception-66600001-8000.jsonl'),($exceptionRow | ConvertTo-Json -Compress -Depth 8),$utf8)
+    }
+    if ($collisionVersion -in @('0.3.24','0.3.25')) {$collisionStatus.apcBirthLandingFallbackEnabled=$true}
+    if ($collisionVersion -eq '0.3.25') {$collisionStatus.apcBirthLandingDeferred=$true}
+    Save-Json (Join-Path $fullRosterPatch 'adventure-elite.status.json') $collisionStatus
+    [IO.File]::WriteAllText((Join-Path $fullRosterPatch 'adventure-elite-permission-66600001-8000.jsonl'),(($permissionList | ForEach-Object {$_ | ConvertTo-Json -Compress -Depth 8}) -join [Environment]::NewLine),$utf8)
+    [IO.File]::WriteAllText((Join-Path $fullRosterPatch 'adventure-elite-collision-66600001-8000.jsonl'),(($collisionList | ForEach-Object {$_ | ConvertTo-Json -Compress -Depth 8}) -join [Environment]::NewLine),$utf8)
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector -SessionPath $odysseySession -PatchDirectory $fullRosterPatch -OutputRoot $odysseyOutput *> $null
+    Assert ($LASTEXITCODE -eq 0) ('DLL0.3.22 collision capture failed: '+$collisionCase)
+    $collisionSummary=[IO.File]::ReadAllText((Join-Path $odysseyOutput 'session/summary.json')) | ConvertFrom-Json
+    $collisionIssues=@($collisionSummary.issues | Where-Object {$_ -match 'APC碰撞分支|精锐异常诊断|APC位置许可'})
+    Assert (($collisionIssues.Count -eq 0) -eq ($collisionCase -in @('map-reject','object-reject','allowed','exception-sample','birth-root'))) ('DLL0.3.22 invalid collision evidence accepted: '+$collisionCase)
+    Assert (!$collisionSummary.battleVerified -and !$collisionSummary.apcCollisionVerified) 'DLL0.3.22 fabricated live acceptance'
+    if ($collisionCase -like 'exception-*') {Assert ($collisionSummary.firstChanceExceptions.Count -eq 1 -and $collisionSummary.exceptionRecordsAreFirstChanceOnly) 'First-chance sample not preserved or fabricated crash acceptance'}
+}
+Write-Host ($collisionVersion+' collision capture: map/object rejection, allowed result and ten invalid evidence refusals passed; live specific branch pending.')
+
+}
+
+# The birth fallback evidence remains diagnostic; reject invented gate success.
+foreach ($landingCase in @('native','corrected','missing-status','missing-checks','native-rejected','owner-rejected','final-rejected','wrong-target','wrong-height','failed')) {
+    $landingStatus=$collisionStatus.Clone();$landingStatus.version='0.3.24';$landingStatus.apcBirthLandingFallbackEnabled=$true
+    $landingRow=$birthRow.Clone();$landingRow.scene=15000;$landingRow.reason='birth-landing-owner-corrected';$landingRow.birthLandingChecks=@(0,1,1)
+    $landingRow.player=@(900,100);$landingRow.playerZ=0;$landingRow.before=@(1193,242);$landingRow.target=@(900,100);$landingRow.after=@(900,100)
+    $landingRow.beforeZ=0;$landingRow.afterZ=0;$landingRow.heightKnown=$true
+    switch ($landingCase) {
+        'native' {$landingRow.reason='birth-landing-native-accepted';$landingRow.birthLandingChecks=@(1,-1,1);$landingRow.before=@(900,100)}
+        'missing-status' {$landingStatus.Remove('apcBirthLandingFallbackEnabled')}
+        'missing-checks' {$landingRow.Remove('birthLandingChecks')}
+        'native-rejected' {$landingRow.birthLandingChecks=@(1,1,1)}
+        'owner-rejected' {$landingRow.birthLandingChecks=@(0,0,1)}
+        'final-rejected' {$landingRow.birthLandingChecks=@(0,1,0)}
+        'wrong-target' {$landingRow.target=@(0,0)}
+        'wrong-height' {$landingRow.afterZ=17}
+        'failed' {$landingRow.reason='birth-landing-correction-failed'}
+    }
+    Save-Json (Join-Path $fullRosterPatch 'adventure-elite.status.json') $landingStatus
+    [IO.File]::WriteAllText((Join-Path $fullRosterPatch $catchupName),($landingRow | ConvertTo-Json -Compress -Depth 8),$utf8)
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector -SessionPath $odysseySession -PatchDirectory $fullRosterPatch -OutputRoot $odysseyOutput *> $null
+    Assert ($LASTEXITCODE -eq 0) ('DLL0.3.24 birth landing capture failed: '+$landingCase)
+    $landingSummary=[IO.File]::ReadAllText((Join-Path $odysseyOutput 'session/summary.json')) | ConvertFrom-Json
+    $landingIssues=@($landingSummary.issues | Where-Object {$_ -match 'APC出生落点'})
+    Assert (($landingIssues.Count -eq 0) -eq ($landingCase -in @('native','corrected'))) ('Invalid birth landing evidence accepted: '+$landingCase)
+    Assert (!$landingSummary.apcBirthLandingVerified -and !$landingSummary.battleVerified) 'Birth landing fabricated live acceptance'
+}
+Write-Host 'DLL0.3.24 birth landing capture: native/corrected samples and eight invalid refusals passed; live acceptance pending.'
+
+# A deferred birth must finish once with the same native scene/owner/actor generation.
+foreach ($landingCase in @('corrected','native','wait-valid','missing-status','no-source','no-terminal','duplicate-terminal','wrong-room','wrong-scene','wrong-anchor','loading-terminal','cache-failed','gate-rejected','failed')) {
+    $landingStatus=$collisionStatus.Clone();$landingStatus.version='0.3.25';$landingStatus.apcBirthLandingFallbackEnabled=$true;$landingStatus.apcBirthLandingDeferred=$true
+    $deferred=$birthRow.Clone();$deferred.scene=15000;$deferred.reason='birth-landing-deferred';$deferred.birthLandingChecks=@(-1,-1,-1)
+    $deferred.before=@(1193,242);$deferred.target=@(1193,242);$deferred.after=@(1193,242);$deferred.beforeZ=0;$deferred.afterZ=0;$deferred.heightKnown=$true
+    $deferred.world=100;$deferred.anchorWorld=100;$deferred.anchorScene=15000;$deferred.anchorObjectId=0;$deferred.anchorActor=@(200,248);$deferred.anchorPlayer=@(300,348)
+    $deferred.thread=77;$deferred.roomSerial=42;$deferred.worldMode=2;$deferred.loaderContext=123;$deferred.cacheKnown=$true;$deferred.cacheContext=500;$deferred.cacheBefore=@(0,0);$deferred.cacheAfter=@(1193,242);$deferred.tick=10000
+    $terminal=$deferred.Clone();$terminal.reason='birth-landing-owner-corrected';$terminal.birthLandingChecks=@(0,1,1);$terminal.player=@(1093,242);$terminal.playerZ=0
+    $terminal.target=@(1093,242);$terminal.after=@(1093,242);$terminal.worldMode=3;$terminal.loaderContext=0;$terminal.cacheBefore=@(1193,242);$terminal.cacheAfter=@(1093,242);$terminal.tick=10001
+    $rows=@($deferred,$terminal)
+    switch ($landingCase) {
+        'native' {$terminal.reason='birth-landing-native-accepted';$terminal.birthLandingChecks=@(1,-1,1);$terminal.target=@(1193,242);$terminal.after=@(1193,242);$terminal.cacheAfter=@(1193,242)}
+        'wait-valid' {$wait=$deferred.Clone();$wait.reason='birth-landing-ground-wait';$wait.playerZ=17;$rows=@($deferred,$wait,$terminal)}
+        'missing-status' {$landingStatus.Remove('apcBirthLandingDeferred')}
+        'no-source' {$rows=@($terminal)}
+        'no-terminal' {$rows=@($deferred)}
+        'duplicate-terminal' {$rows=@($deferred,$terminal,$terminal)}
+        'wrong-room' {$terminal.roomSerial=43}
+        'wrong-scene' {$terminal.scene=15001}
+        'wrong-anchor' {$terminal.anchorActor=@(400,448)}
+        'loading-terminal' {$terminal.worldMode=2;$terminal.loaderContext=123}
+        'cache-failed' {$terminal.cacheAfter=@(0,0)}
+        'gate-rejected' {$terminal.birthLandingChecks=@(0,0,1)}
+        'failed' {$terminal.reason='birth-landing-correction-failed'}
+    }
+    Save-Json (Join-Path $fullRosterPatch 'adventure-elite.status.json') $landingStatus
+    [IO.File]::WriteAllText((Join-Path $fullRosterPatch $catchupName),(($rows | ForEach-Object {$_ | ConvertTo-Json -Compress -Depth 8}) -join [Environment]::NewLine),$utf8)
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector -SessionPath $odysseySession -PatchDirectory $fullRosterPatch -OutputRoot $odysseyOutput *> $null
+    Assert ($LASTEXITCODE -eq 0) ('DLL0.3.25 deferred capture failed: '+$landingCase)
+    $landingSummary=[IO.File]::ReadAllText((Join-Path $odysseyOutput 'session/summary.json')) | ConvertFrom-Json
+    $landingIssues=@($landingSummary.issues | Where-Object {$_ -match 'APC出生落点'})
+    Assert (($landingIssues.Count -eq 0) -eq ($landingCase -in @('corrected','native','wait-valid'))) ('Invalid deferred birth accepted: '+$landingCase)
+    Assert (!$landingSummary.apcBirthLandingVerified -and !$landingSummary.battleVerified) 'Deferred birth fabricated acceptance'
+}
+Write-Host 'DLL0.3.25 deferred capture: three valid sequences and eleven invalid refusals passed; live pending.'

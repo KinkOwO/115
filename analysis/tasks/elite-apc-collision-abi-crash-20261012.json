@@ -1,0 +1,95 @@
+{
+  "stage": "live-startup-normal-collision-width-rejection",
+  "version": "0.3.23",
+  "authorization": "持续授权DLL修复；用户报告游戏崩溃，要求尽量收齐诊断减少人工操作。",
+  "liveCrash": {
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_024354_474658_next37",
+    "pid": 6612,
+    "runTick": 43469968,
+    "dllVersion": "0.3.22",
+    "dllSha256": "8a7c9d993fa733096f0f2e39640c794508856fbc3dca622e315ea93f3da2c86b",
+    "exitCode": "0xC0000005",
+    "clientLog": "client.log: NORMAL_BEFORE_CLEANUP/SUMMARY exit=0xC0000005，约46.8秒退出。",
+    "observedBoundary": "副本前；DLL初始化ready，但只有owner-not-armed的catchup行，没有本代native/entry/lifecycle/position/permission/collision文件。",
+    "missingEvidence": "原生日志没有异常RIP/调用栈；Application日志和Local CrashDumps未发现本次DFO异常样本，不宣称已经拿到实机崩溃栈。",
+    "resourceCheck": "collect-adventure-elite.ps1 -CheckOnly exit0；构建资源与DLL哈希匹配；EXE/PVF/sk.dat未改。",
+    "archive": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_024354_474658_next37",
+    "archiveLog": ".tmp/adventure-elite/collision-crash-0322-collect.log"
+  },
+  "confirmedDefect": {
+    "rva": "0xEEB380",
+    "phase": "viewport-left",
+    "actualSignature": "140EEB380(this,unsigned32,objectPointer64) -> integer64",
+    "nativeConsumption": "140EEB3A2将R8存入R14；140EEB3F8将R14放R9传给140EEB800。后者非零指针分支调用1406FE620、140E0D510、virtual152等。碰撞调用144D27B41明确xor r8d,r8d，不能省略该参数。",
+    "oldObserver": "EliteCollisionObserve12仅接收2参，EliteCollisionForward2调用原生时丢失实际R8；该钩子在非APC路径也存在。",
+    "offlineReproduction": ".tmp/adventure-elite/collision-crash-0322-regression-run.log：index12/viewport-left/scoped0的第三参实际7ff7195f37f0，预期123456789abcde；collision fixture7拒绝。离线夹具调用真实EXE入口hook，原始函数用ABI替身记录实参，未启动客户端。",
+    "causeBoundary": "参数转发缺陷已证实且能解释进本前访问异常；缺少live异常RIP，完整崩溃归因与新版本稳定性待用户实机。"
+  },
+  "implementation": {
+    "scope": "仅修正诊断钩子ABI，不改变碰撞/位置许可/AI/寻路/传送规则。",
+    "thirdArgument": "Observe12改为三参，原样转发空/非空第三指针；日志arguments[2]记录实际指针。",
+    "zeroArguments": "145494680/144D26D70/144D26DE0/140E0CEC0按原生0参签名转发。",
+    "audit": "22处当前IDB函数入口全部复查；.tmp/adventure-elite/collision-crash-abi-audit-0322.json；隔离IDA dae7d12e已save=false关闭。",
+    "fixture": "22个真实hook入口 × 有/无碰撞TLS：校验每个原生参数、完整RAX、入场/返回LastError、原生恰好1次；viewport另测null和64位第三指针及原生异常传播，不伪造结果日志。",
+    "logs": "保留v0.3.22完整出生/回退/许可/碰撞/坐标/对象/生命周期/战斗/服务端会话采集；DLL日志只在自身目录。",
+    "firstChance": "新增自身DLL目录adventure-elite-exception-PID-runTick.jsonl；最多64条AV/in-page first-chance证据：异常地址/操作、image/dll base、17个寄存器、EFLAGS、16个原始栈字、许可/碰撞TLS状态。只返回CONTINUE_SEARCH，保留LastError；递归/并发门防护，卸载移除handler。不把栈字当验证的调用栈、不把first-chance当未处理崩溃。",
+    "exceptionFixture": "离线合成AV仍由测试SEH捕获，异常记录包含faultAddress/寄存器且CONTINUE_SEARCH；64条预算/递归/其它异常/handler移除均验证。采集器对PID/shape/continue-search字段拒绝无效样本，无异常文件的正常短测不要求重跑。"
+  },
+  "validation": {
+    "build": "pwsh -NoProfile -File scripts/build-adventure-elite.ps1 -ClientExe F:/wip/dof/115US/DFO.exe -CandidateDirectory client-patchs/adventure-elite/dist/collision-abi-0323；exit0，MSVC /W4 /WX与全14机制测试通过，包含22钩子ABI矩阵和first-chance记录/预算/递归/LastError/异常搜索/handler清理。日志.tmp/adventure-elite/collision-abi-build-release-0323.log。",
+    "capture": "pwsh -NoProfile -File scripts/test-adventure-elite-capture.ps1；exit0，全历史采集回归、22/23碰撞分支13个夹具及23新增first-chance1个有效样本/4项拒绝通过。日志.tmp/adventure-elite/collision-abi-capture-exception-0323.log。",
+    "preflight": "部署后主dist路径collect-adventure-elite.ps1 -CheckOnly exit0；记录.tmp/adventure-elite/collision-abi-preflight-0323.log。上次PID6612/version22不表示新候选已运行。",
+    "goBuildVetTest": "未执行：没有Go修改。",
+    "modkit": "不可用，verify/plan/install/uninstall未执行，生成schema2包，沿用已授权的现有注入链。",
+    "live": {
+      "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_030512_438671_next37",
+      "archive": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_030512_438671_next37",
+      "pid": 25592,
+      "runTick": 44749578,
+      "clientExit": "0x0",
+      "firstChanceExceptions": 0,
+      "collisionRows": 600,
+      "collisionRoots": 75,
+      "rootsBySlot": {
+        "0": 25,
+        "1": 25,
+        "2": 25
+      },
+      "xyz": [
+        1193,
+        242,
+        0
+      ],
+      "allRootsRejected": true,
+      "width": 1120,
+      "dropped": 0,
+      "permissionRows": 700,
+      "positionRows": 131,
+      "evidenceLines": "collision JSONL lines1-8：map-width line5=1120；coordinate-int-x line6=1193；map-check line7 AL0；root line8 AL0；75根一致。",
+      "issuesBoundary": "仅5项短测缺战斗样本；无碰撞身份/终结/丢弃问题。不要求补跑短测战斗。"
+    },
+    "captureRepair": "增加23版本列表时批量替换误生成嵌套数组比较，已有missing-status回归拒绝；修正为单一-in列表后重跑，未部署失败采集版。候选清单指向隔离dist时被现有路径白名单拒绝，最终预检沿用部署后主dist路径；没有放宽白名单。",
+    "source": "git diff --check通过；PS UTF8 BOM/CRLF及JSON解析通过。未修改Go，未运行Go build/vet/test。"
+  },
+  "delivery": {
+    "candidateDirectory": "client-patchs/adventure-elite/dist/collision-abi-0323",
+    "rollback": "已恢复v0.3.21；日志.tmp/adventure-elite/collision-crash-0322-rollback.log。",
+    "stableBackup": ".tmp/adventure-elite/collision-observer-backup-0321",
+    "crashDllBackup": ".tmp/adventure-elite/collision-observer-crash-0322",
+    "deployment": "客户端不运行时，将0.3.23 DLL/包/归一化manifest复制到主dist现有注入路径；复核DLL哈希及原EXE哈希。日志.tmp/adventure-elite/collision-abi-deploy-0323.log；未启动游戏。",
+    "gameLaunched": false,
+    "dllSize": 280064,
+    "dllSha256": "dc6dd7b0c473adff3d270155a82b2c7bc319d9dcb40085555417cfd211edfdad",
+    "nextManual": "按原SQLite --source-build入口启动；如正常进入，原角色/名单进原失败地图，移动几步停留10秒后退出；无需通关或改名单。若再次异常不用反复启动，自动读取异常/会话日志。"
+  },
+  "unclosed": [
+    "v0.3.22实际崩溃RIP仍缺；0.3.23本次启动退出正常，不外推长期稳定性",
+    "出生越界修正与移动/攻击/过门/重进"
+  ],
+  "untouched": [
+    "Go/EXE/PVF/sk.dat",
+    "SQLite/schema/存档",
+    "其它工作区改动",
+    "CHANGELOG/confirmed baseline/Git暂存提交"
+  ]
+}

@@ -3,6 +3,7 @@
 #include "registration-adapter.h"
 #include "catchup-policy.h"
 #include "native-path.h"
+#include <limits.h>
 
 using EliteCatchupGet=int (__fastcall *)(uintptr_t);
 using EliteCatchupScene=uintptr_t (__fastcall *)(uintptr_t);
@@ -17,6 +18,13 @@ static EliteCatchupScene g_catchupScene;
 static EliteCatchupSet g_catchupSet;
 static EliteCatchupLand g_catchupLand;
 static bool g_catchupReady,g_catchupFault;
+// Optional diagnostic only. Ordinary APC support must not invoke A* from a
+// position getter while the native AI may already be using scene/actor state.
+static bool g_catchupPathEnabled;
+static uint64_t g_catchupPathQueries;
+static const char* EliteCatchupCriterion() {
+    return g_catchupPathEnabled?"native-astar-or-registration-loss":"registration-loss-only";
+}
 static const char* g_catchupFailure="not-started";
 static wchar_t g_catchupPath[32768];
 static LONG g_catchupRecords;
@@ -27,6 +35,9 @@ static uint64_t g_catchupRejectedLog;
 static EliteCatchupState g_catchupStates[3];
 static EliteCatchupState g_catchupMissing[3];
 static EliteCatchupKey g_catchupAnchors[3];
+// Optional birth completion on the existing native owner-thread sampling seam.
+// The callee validates its captured birth generation before any native call.
+static bool (*g_catchupBirthSample)(int,const EliteCatchupKey&,int,int,int);
 static int g_catchupWorldMode=-1;
 // 1459A90F0 / 146E920A0 and PID7996: town=1, dungeon=3.
 static constexpr int kEliteCatchupDungeonMode=3;
@@ -94,15 +105,16 @@ static constexpr EliteCatchupGuard kEliteCatchupGuards[]={
 };
 
 static void EliteCatchupReset() {for(auto& state:g_catchupStates)state={};for(auto& state:g_catchupMissing)state={};}
-static void EliteCatchupRecord(const char* reason,int slot,uintptr_t scene,int px,int py,int ax,int ay,int tx=0,int ty=0,int afterX=0,int afterY=0,uintptr_t world=0,uintptr_t loaderContext=0,int retentionBefore=-1,int retentionAfter=-1) {
+static void EliteCatchupRecord(const char* reason,int slot,uintptr_t scene,int px,int py,int ax,int ay,int tx=0,int ty=0,int afterX=0,int afterY=0,uintptr_t world=0,uintptr_t loaderContext=0,int retentionBefore=-1,int retentionAfter=-1,int playerZ=INT_MIN,int beforeZ=INT_MIN,int afterZ=INT_MIN,uintptr_t cacheContext=0,int cacheBeforeX=INT_MIN,int cacheBeforeY=INT_MIN,int cacheAfterX=INT_MIN,int cacheAfterY=INT_MIN,int birthNativeAllowed=-1,int birthOwnerAllowed=-1,int birthFinalAllowed=-1) {
     if(!TryAcquireSRWLockExclusive(&g_catchupRecordLock))return;
     if(g_catchupRecords>=1024) {ReleaseSRWLockExclusive(&g_catchupRecordLock);return;}
     ++g_catchupRecords;
-    char line[1024]={};
+    char line[2100]={};
+    const EliteCatchupKey anchor=GetCurrentThreadId()==g_lifecycleThread && slot>=0 && slot<3?g_catchupAnchors[slot]:EliteCatchupKey{};
     const bool pathRecord=!strncmp(reason,"path-",5) || !strcmp(reason,"teleport");
-    int length=sprintf_s(line,"{\"traceVersion\":2,\"processId\":%lu,\"runTick\":%llu,\"tick\":%llu,\"thread\":%lu,\"reason\":\"%s\",\"slot\":%d,\"scene\":%llu,\"player\":[%d,%d],\"before\":[%d,%d],\"target\":[%d,%d],\"after\":[%d,%d],\"criterion\":\"native-astar-or-registration-loss\",\"delayMs\":3000,\"worldMode\":%d,\"pathDetail\":\"%s\",\"grid\":[%d,%d],\"world\":%llu,\"anchorWorld\":%llu,\"loaderContext\":%llu,\"retentionBefore\":%d,\"retentionAfter\":%d}\r\n",
-        GetCurrentProcessId(),g_eliteTraceRunTick,GetTickCount64(),GetCurrentThreadId(),reason,slot,static_cast<unsigned long long>(scene),px,py,ax,ay,tx,ty,afterX,afterY,GetCurrentThreadId()==g_lifecycleThread?g_catchupWorldMode:-1,pathRecord?g_nativePathReason:"not-queried",pathRecord?g_nativePathWidth:0,pathRecord?g_nativePathHeight:0,
-        static_cast<unsigned long long>(world),static_cast<unsigned long long>(GetCurrentThreadId()==g_lifecycleThread && slot>=0 && slot<3?g_catchupAnchors[slot].world:0),static_cast<unsigned long long>(loaderContext),retentionBefore,retentionAfter);
+    int length=sprintf_s(line,"{\"traceVersion\":2,\"processId\":%lu,\"runTick\":%llu,\"tick\":%llu,\"thread\":%lu,\"reason\":\"%s\",\"slot\":%d,\"scene\":%llu,\"player\":[%d,%d],\"before\":[%d,%d],\"target\":[%d,%d],\"after\":[%d,%d],\"criterion\":\"%s\",\"pathQueryEnabled\":%s,\"nativePathQueries\":%llu,\"delayMs\":3000,\"worldMode\":%d,\"pathDetail\":\"%s\",\"grid\":[%d,%d],\"world\":%llu,\"anchorWorld\":%llu,\"loaderContext\":%llu,\"retentionBefore\":%d,\"retentionAfter\":%d,\"playerZ\":%d,\"beforeZ\":%d,\"afterZ\":%d,\"heightKnown\":%s,\"cacheContext\":%llu,\"cacheBefore\":[%d,%d],\"cacheAfter\":[%d,%d],\"cacheKnown\":%s,\"birthLandingChecks\":[%d,%d,%d],\"roomSerial\":%lu,\"anchorScene\":%llu,\"anchorObjectId\":%u,\"anchorPlayer\":[%llu,%llu],\"anchorActor\":[%llu,%llu]}\r\n",
+        GetCurrentProcessId(),g_eliteTraceRunTick,GetTickCount64(),GetCurrentThreadId(),reason,slot,static_cast<unsigned long long>(scene),px,py,ax,ay,tx,ty,afterX,afterY,EliteCatchupCriterion(),g_catchupPathEnabled?"true":"false",g_catchupPathQueries,GetCurrentThreadId()==g_lifecycleThread?g_catchupWorldMode:-1,pathRecord?g_nativePathReason:"not-queried",pathRecord?g_nativePathWidth:0,pathRecord?g_nativePathHeight:0,
+        static_cast<unsigned long long>(world),static_cast<unsigned long long>(GetCurrentThreadId()==g_lifecycleThread && slot>=0 && slot<3?g_catchupAnchors[slot].world:0),static_cast<unsigned long long>(loaderContext),retentionBefore,retentionAfter,playerZ,beforeZ,afterZ,beforeZ!=INT_MIN?"true":"false",static_cast<unsigned long long>(cacheContext),cacheBeforeX,cacheBeforeY,cacheAfterX,cacheAfterY,cacheContext?"true":"false",birthNativeAllowed,birthOwnerAllowed,birthFinalAllowed,static_cast<unsigned long>(g_eliteRoomSerial),static_cast<unsigned long long>(anchor.scene),anchor.objectId,static_cast<unsigned long long>(anchor.playerControl),static_cast<unsigned long long>(anchor.playerAlias),static_cast<unsigned long long>(anchor.control),static_cast<unsigned long long>(anchor.alias));
     HANDLE file=length>0?CreateFileW(g_catchupPath,FILE_APPEND_DATA,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr):INVALID_HANDLE_VALUE;
     DWORD written=0;if(file!=INVALID_HANDLE_VALUE) {WriteFile(file,line,static_cast<DWORD>(length),&written,nullptr);CloseHandle(file);}
     ReleaseSRWLockExclusive(&g_catchupRecordLock);
@@ -235,6 +247,7 @@ static void EliteCatchupSample(uintptr_t callerPosition,uint64_t now) {
         EliteCatchupKey key={world,scene,player[0],player[1],weak[0],weak[1],static_cast<uint32_t>(snapshot.objectId[i]),static_cast<uint32_t>(g_eliteRoomSerial)};
         auto anchorKey=key;anchorKey.room=0;
         const bool missing=membership==0 && EliteCatchupSame(g_catchupAnchors[i],anchorKey);
+        if(g_catchupBirthSample && g_catchupBirthSample(static_cast<int>(i),key,px,py,pz))continue;
         if(membership!=1 && !missing) {
             g_catchupStates[i]={};g_catchupMissing[i]={};
             if(log)EliteCatchupRecord(membership==0?"unanchored-scene":"ambiguous-scene",static_cast<int>(i),scene,px,py,ax,ay,0,0,0,0,world);
@@ -246,10 +259,16 @@ static void EliteCatchupSample(uintptr_t callerPosition,uint64_t now) {
             // Loss of registration is a separate observation, not an A* result.
             g_nativePathReason="registration-loss";g_nativePathWidth=0;g_nativePathHeight=0;
             g_catchupStates[i]={};
-            if(log)EliteCatchupRecord("registration-missing",static_cast<int>(i),scene,px,py,ax,ay);
+            if(log)EliteCatchupRecord("registration-missing",static_cast<int>(i),scene,px,py,ax,ay,0,0,0,0,world,0,-1,-1,pz,az);
             due=EliteCatchupDue(g_catchupMissing[i],key,now,pz==0 && az==0,ElitePathResult::Unreachable,px,py,ax,ay);
         } else {
             g_catchupMissing[i]={};
+            if(!g_catchupPathEnabled) {
+                g_catchupStates[i]={};g_nativePathReason="disabled";g_nativePathWidth=0;g_nativePathHeight=0;
+                if(log)EliteCatchupRecord("path-query-disabled",static_cast<int>(i),scene,px,py,ax,ay,0,0,0,0,world,0,-1,-1,pz,az);
+                continue;
+            }
+            if(pz==0 && az==0)++g_catchupPathQueries;
             auto path=pz==0 && az==0?g_catchupQuery(actor,px,py,ax,ay):ElitePathResult::Unknown;
             if(log)EliteCatchupRecord(path==ElitePathResult::Reachable?"path-reachable":path==ElitePathResult::Unreachable?"path-unreachable":"path-unknown",static_cast<int>(i),scene,px,py,ax,ay);
             due=EliteCatchupDue(g_catchupStates[i],key,now,pz==0 && az==0,path,px,py,ax,ay);
@@ -293,12 +312,12 @@ static void EliteCatchupSample(uintptr_t callerPosition,uint64_t now) {
             tx=px;if(!g_catchupLand(actor,tx,ty,0)) {EliteCatchupRecord("landing-rejected",static_cast<int>(i),scene,px,py,ax,ay);continue;}
         }
         g_catchupSet(actor,tx,ty,0);
-        EliteCatchupRecord("teleport",static_cast<int>(i),scene,px,py,ax,ay,tx,ty,g_catchupX(actor),g_catchupY(actor));
+        EliteCatchupRecord("teleport",static_cast<int>(i),scene,px,py,ax,ay,tx,ty,g_catchupX(actor),g_catchupY(actor),world,0,-1,-1,pz,az,g_catchupZ(actor));
     }
 }
 static __declspec(noinline) int64_t __fastcall EliteCatchupObserve(uintptr_t position,int axis) {
     // Native result/error/SEH are preserved. All game calls stay on the native
-    // owner thread; there is no worker thread or retained actor/scene pointer.
+    // owner thread; captured weak identities are revalidated before use.
     int64_t result=g_catchupOriginal(position,axis);DWORD nativeError=GetLastError();
     if(g_catchupReady && !g_catchupBusy && axis==0 && g_catchupHits<16 && InterlockedIncrement(&g_catchupHits)<=16)
         EliteCatchupRecord(!g_lifecycleArmed?"owner-not-armed":GetCurrentThreadId()!=g_lifecycleThread?"wrong-thread":"native-getter-hit",-1,0,0,0,0,0);
@@ -313,22 +332,26 @@ static __declspec(noinline) int64_t __fastcall EliteCatchupObserve(uintptr_t pos
     }
     SetLastError(nativeError);return result;
 }
-static bool EliteStartCatchup(unsigned char* image,const wchar_t* path) {
+static bool EliteStartCatchup(unsigned char* image,const wchar_t* path,bool pathEnabled=false) {
     if(!g_registrationReady || image!=g_prepareImage) {g_catchupFailure="registration-dependency";return false;}
     for(auto& guard:kEliteCatchupGuards)if(!EliteReadable(image+guard.rva,guard.size) || memcmp(image+guard.rva,guard.bytes,guard.size)) {
         g_catchupFailure="catchup-bytes-mismatch";return false;
     }
     if(wcscpy_s(g_catchupPath,path)) {g_catchupFailure="path";return false;}
-    if(!EliteStartNativePath(image)) {g_catchupFailure="native-path-guard-or-hook";return false;}
+    if(pathEnabled && !EliteStartNativePath(image)) {g_catchupFailure="native-path-guard-or-hook";return false;}
     g_catchupX=reinterpret_cast<EliteCatchupGet>(image+0x5B8C7D0);
     g_catchupY=reinterpret_cast<EliteCatchupGet>(image+0x5B8C890);g_catchupZ=reinterpret_cast<EliteCatchupGet>(image+0x5B8C8C0);
     g_catchupMode=reinterpret_cast<EliteCatchupGet>(image+0x59A90F0);g_catchupScene=reinterpret_cast<EliteCatchupScene>(image+0x59A9260);
     g_catchupSet=reinterpret_cast<EliteCatchupSet>(image+0x5B960D0);g_catchupLand=EliteCatchupLanding;
     if(MH_CreateHook(image+0x5E08940,reinterpret_cast<void*>(EliteCatchupObserve),reinterpret_cast<void**>(&g_catchupOriginal))!=MH_OK) {
-        MH_DisableHook(image+0x6D642C0);MH_RemoveHook(image+0x6D642C0);g_catchupFailure="hook-create";return false;
+        if(pathEnabled) {MH_DisableHook(image+0x6D642C0);MH_RemoveHook(image+0x6D642C0);}
+        g_catchupFailure="hook-create";return false;
     }
     if(MH_EnableHook(image+0x5E08940)!=MH_OK) {
-        MH_RemoveHook(image+0x5E08940);MH_DisableHook(image+0x6D642C0);MH_RemoveHook(image+0x6D642C0);g_catchupFailure="hook-enable";return false;
+        MH_RemoveHook(image+0x5E08940);
+        if(pathEnabled) {MH_DisableHook(image+0x6D642C0);MH_RemoveHook(image+0x6D642C0);}
+        g_catchupFailure="hook-enable";return false;
     }
+    g_catchupPathEnabled=pathEnabled;g_catchupPathQueries=0;
     g_catchupReady=true;g_entryRegistrationDone=EliteCatchupRegistered;g_catchupFailure="ready";EliteCatchupRecord("started",-1,0,0,0,0,0);return true;
 }
