@@ -5,6 +5,8 @@ import (
 	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/inventory"
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -109,14 +111,14 @@ func (w *worldSession) blackPurgatoryHandle(ctx context.Context, id uint16, p []
 		if err != nil {
 			return fail(err)
 		}
+		plan, err := blackPurgatoryPartyPlan(basic, detail, party, w.role.State, w.characters.Equipment)
+		if err != nil {
+			return fail(err)
+		}
 		w.blackPurgatory = blackPurgatoryState{created: true}
 		w.soloPartyReady = true
 		// NOTI9恢复真正的队伍，后续仍走原生85/1→85/2区域请求。
-		return true, []outboundPacket{
-			{"黑鸦队长资料", 0, 2, basic}, {"黑鸦队长详细资料", 0, 2, detail},
-			{"黑鸦小队创建（attempt 1/3）", 0, 9, party},
-			{"黑鸦准备状态", 0, 1994, protocol.BlackPurgatoryEntryInfo(0, 0)},
-		}, nil
+		return true, plan, nil
 	case 13:
 		if len(p) > 8 {
 			return fail(fmt.Errorf("黑鸦离队请求长度无效"))
@@ -137,6 +139,22 @@ func (w *worldSession) blackPurgatoryHandle(ctx context.Context, id uint16, p []
 		}, nil
 	}
 	return false, nil, nil
+}
+
+// The mode0 captain rebuild clears local equipment containers just as an
+// appearance rebuild does. Restore the saved instances before publishing the
+// party, including the worn oath core; do not reconstruct items from templates.
+func blackPurgatoryPartyPlan(basic, detail, party []byte, state json.RawMessage, eq *inventory.EquipmentCatalog) ([]outboundPacket, error) {
+	restore, err := appearanceInventory(state, eq)
+	if err != nil {
+		return nil, err
+	}
+	plan := []outboundPacket{{"黑鸦队长资料", 0, 2, basic}, {"黑鸦队长详细资料", 0, 2, detail}}
+	plan = append(plan, restore...)
+	return append(plan,
+		outboundPacket{"黑鸦小队创建（attempt 2/3；恢复队长装备容器）", 0, 9, party},
+		outboundPacket{"黑鸦准备状态", 0, 1994, protocol.BlackPurgatoryEntryInfo(0, 0)},
+	), nil
 }
 
 // 开场只初始化黑鸦管理器，不会自动调用选图发送器142A29390。
@@ -187,7 +205,7 @@ func (w *worldSession) startBlackPurgatory(ctx context.Context, p []byte) (*dung
 		return nil, nil, fmt.Errorf("黑鸦小队地图无法加载：%w", err)
 	}
 	// 开场前读取当前账号精锐的真实装备和技能，不能把矿区轮换队伍塞入小队。
-	elite, err := w.loadAdventureElite(ctx, []byte{2, 0, 0, 0, 0, 0, 0, 0})
+	elite, err := w.adventureEliteForDungeon(ctx, blackPurgatorySquadDungeon)
 	if err != nil {
 		return nil, nil, err
 	}

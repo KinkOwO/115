@@ -50,11 +50,24 @@ func DecodeSortItem(p []byte) (SortItemRequest, error) {
 	return r, nil
 }
 
-// SortItemSuccess is the acceptance body.
-//
-// EVIDENCE GAP: no capture shows the reply this client expects for CMD20 (the
-// server never answered it), so this is the minimal "accepted" body and the
-// authoritative arrangement follows in the NOTI13 inventory restore. If the
-// client keeps its inventory busy after this, the reply shape is wrong and has
-// to be recovered from the client's reader.
-func SortItemSuccess() []byte { return []byte{1} }
+// SortItemSuccess acknowledges the requested container, not the protobuf
+// default (ordinary inventory 0). Current PE 515fefa1: CMD20 at 1452982C0 reads
+// u32 length + RETURN; 140196D40 reads field 1 into the container used to select
+// the pending-operation manager. See docs/protocol/sort-ack-20261010.md.
+func SortItemSuccess(list byte) []byte {
+	return sortItemReply([]byte{1}, list)
+}
+
+// SortItemRefusal keeps the existing outer refusal code 4. The generic command
+// dispatcher consumes that u16 before CMD20 reads its length-prefixed RETURN.
+// Only field 1 is supplied: no unsupported mapping to CMD20-specific field 2
+// errors is invented. Its protobuf default 0 takes the native default failure
+// branch, which releases the requested container's pending operation.
+func SortItemRefusal(list byte) []byte {
+	return sortItemReply(Refusal(4), list)
+}
+
+func sortItemReply(header []byte, list byte) []byte {
+	body := binary.AppendUvarint([]byte{8}, uint64(list))
+	return append(add32(header, uint32(len(body))), body...)
+}

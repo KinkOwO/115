@@ -1,13 +1,36 @@
 package main
 
 import (
+	"dfolan/internal/game/wire"
 	"encoding/binary"
+	"reflect"
 
 	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/legion"
 	"testing"
 )
+
+func TestVenusUnsupportedRequestsRemainObservableAfterRetries(t *testing.T) {
+	var notes []map[string]any
+	w := townSession(1)
+	w.channelType = 99
+	c := &gameConnection{worldState: w, bootstrapped: true, event: func(note map[string]any) { notes = append(notes, note) }}
+	for _, id := range []uint16{legion.CmdVenusOperationSelect, legion.CmdVenusEndAtPhase4} {
+		seen := map[uint16]int{}
+		for i := 0; i < BodySampleLimit+2; i++ {
+			if !retainRequestBody(id, seen) {
+				t.Fatal("Venus retry lost its evidence body")
+			}
+			if got := c.dispatchLegion(&clientRequest{frame: wire.Frame{Type: 1, ID: id}, verified: true, plaintext: []byte{1, 2, 3}}); got != dispatchHandled {
+				t.Fatal("unsupported operation disappeared")
+			}
+		}
+	}
+	if len(notes) != 2*(BodySampleLimit+2) || notes[0]["channel_type"] != uint32(99) || notes[0]["request_hex"] != "010203" || w.activeDungeon != nil {
+		t.Fatalf("unsupported audit: %v", notes)
+	}
+}
 
 // townSession is a connection with a selected character and no dungeon.
 func townSession(characterID int64) *worldSession {
@@ -67,99 +90,43 @@ func TestLegionEndOfRunRefusedBeforeEntry(t *testing.T) {
 	}
 }
 
-// The ack length is the whole contract: the client's handler reads a fixed
-// number of bytes off the packet and dies on a short read (next65 §2.2).
-func TestLegionFailAckMeetsClientReadSize(t *testing.T) {
-	s := &legionSession{}
-	w := townSession(7)
-	if _, err := s.handle(w, startPayload(1), legion.CmdStart); err != nil {
-		t.Fatalf("CMD2043: %v", err)
-	}
-
-	result, err := s.handle(w, failPayload(0x2A), legion.CmdFail)
-	if err != nil {
-		t.Fatalf("CMD2044: %v", err)
-	}
-	if len(result.Packets) != 1 {
-		t.Fatalf("packets %d, want 1", len(result.Packets))
-	}
-	p := result.Packets[0]
-	if p.ID != legion.CmdFail || len(p.Payload) < legion.FailAckSize {
-		t.Fatalf("ack id=%d len=%d, want id=%d len>=%d", p.ID, len(p.Payload), legion.CmdFail, legion.FailAckSize)
-	}
-	if !s.session.Failed {
-		t.Fatal("session not marked failed")
-	}
-	// The run keeps its operation: teardown is CMD2046's job, so the log can
-	// still show which of the two the client chose.
-	if len(result.Events) != 1 || result.Events[0]["kind"] != "legion_run_failed" {
-		t.Fatalf("events %v, want one legion_run_failed", result.Events)
-	}
-	if result.Events[0]["arriving_side"] != "town" {
-		t.Fatalf("arriving_side %v, want town", result.Events[0]["arriving_side"])
-	}
-}
-
-func TestLegionRewardEndAckMeetsClientReadSize(t *testing.T) {
-	s := &legionSession{}
-	w := townSession(7)
-	if _, err := s.handle(w, startPayload(1), legion.CmdStart); err != nil {
-		t.Fatalf("CMD2043: %v", err)
-	}
-
-	result, err := s.handle(w, rewardEndPayload(11, 22, 3), legion.CmdRewardEnd)
-	if err != nil {
-		t.Fatalf("CMD2046: %v", err)
-	}
-	if len(result.Packets) != 1 {
-		t.Fatalf("packets %d, want 1", len(result.Packets))
-	}
-	p := result.Packets[0]
-	if p.ID != legion.CmdRewardEnd || len(p.Payload) < legion.RewardEndAckSize {
-		t.Fatalf("ack id=%d len=%d, want id=%d len>=%d", p.ID, len(p.Payload), legion.CmdRewardEnd, legion.RewardEndAckSize)
-	}
-	// The reward screen being done ends the run.
-	if s.session.Entered {
-		t.Fatal("session still marked entered after CMD2046")
-	}
-	if len(result.Events) != 1 || result.Events[0]["kind"] != "legion_run_reward_end" {
-		t.Fatalf("events %v, want one legion_run_reward_end", result.Events)
-	}
-	note := result.Events[0]
-	if note["first"] != uint32(11) || note["second"] != uint32(22) || note["flag"] != byte(3) {
-		t.Fatalf("decoded fields %v/%v/%v, want 11/22/3", note["first"], note["second"], note["flag"])
-	}
-	// No catalog was loaded, so the table columns must read as absent rather
-	// than as an empty reward, which would look like a real answer.
-	if note["table_reward_values"] != nil {
-		t.Fatalf("table_reward_values %v, want nil without a catalog", note["table_reward_values"])
-	}
-}
-
-// The side of CMD2044/CMD2046 is unestablished, so both sides have to work —
-// otherwise the guard would silently decide the question. CMD2043 is town-side
-// (the entry gate requires world state 1), so the dungeon case opens the run in
-// town and then walks the player into the instance, which is the real order.
-func TestLegionEndOfRunAcceptedOnEitherSide(t *testing.T) {
+// A source-confirmed choice still has no real run. End requests must preserve
+// that choice and every tracker field, without publishing successful packets
+// or completion events. An unrelated ordinary dungeon is not an owner either.
+func TestLegionEndOfRunRefusesUnownedSessionWithoutMutation(t *testing.T) {
 	for _, inDungeon := range []bool{false, true} {
-		s := &legionSession{}
-		w := townSession(7)
-		if _, err := s.handle(w, startPayload(1), legion.CmdStart); err != nil {
-			t.Fatalf("CMD2043: %v", err)
-		}
-		if inDungeon {
-			w.activeDungeon = &dungeon.Session{}
-		}
-		result, err := s.handle(w, failPayload(0), legion.CmdFail)
-		if err != nil {
-			t.Fatalf("CMD2044 refused (inDungeon=%v): %v", inDungeon, err)
-		}
-		want := "town"
-		if inDungeon {
-			want = "dungeon"
-		}
-		if result.Events[0]["arriving_side"] != want {
-			t.Fatalf("arriving_side %v, want %s", result.Events[0]["arriving_side"], want)
+		for _, currentCharacter := range []int64{9, 10} {
+			for _, reset := range []bool{false, true} {
+				for _, request := range []struct {
+					id   uint16
+					body []byte
+				}{
+					{legion.CmdFail, failPayload(107)},
+					{legion.CmdRewardEnd, rewardEndPayload(107, 22, 3)},
+				} {
+					s, w := apocalypseSelectionSession(t)
+					if _, err := s.handle(w, apocalypseOperationBody(2, 0), legion.CmdOperationSelect); err != nil {
+						t.Fatal(err)
+					}
+					if reset {
+						s.session.Reset()
+					}
+					if inDungeon {
+						w.activeDungeon = &dungeon.Session{}
+					}
+					w.role.ID = currentCharacter
+					before, plan, active := *s.session, s.plan, w.activeDungeon
+					for retry := 0; retry < 2; retry++ {
+						result, err := s.handle(w, request.body, request.id)
+						if err == nil || len(result.Packets) != 0 || len(result.Events) != 0 {
+							t.Fatalf("unowned completion accepted: %d %v %v", request.id, result, err)
+						}
+						if !reflect.DeepEqual(before, *s.session) || s.plan != plan || w.activeDungeon != active {
+							t.Fatal("refusal changed source choice or dungeon")
+						}
+					}
+				}
+			}
 		}
 	}
 }
@@ -183,7 +150,7 @@ func TestLegionAbandonOnLeave(t *testing.T) {
 	if _, closed := s.abandonOnLeave("never entered", 7); closed {
 		t.Fatal("abandon reported a run that never started")
 	}
-	if _, err := s.handle(townSession(7), startPayload(1), legion.CmdStart); err != nil {
+	if _, err := s.handle(townSession(7), startPayload(uint32(legion.ApocalypseContent)), legion.CmdStart); err != nil {
 		t.Fatalf("CMD2043: %v", err)
 	}
 	note, closed := s.abandonOnLeave("CMD42 dungeon leave", 7)
@@ -244,7 +211,7 @@ func putU32(p []byte, at int, v uint32) {
 func TestLegionStartAnswersWithAckThenInfo(t *testing.T) {
 	s := &legionSession{channelType: 119}
 	w := townSession(7)
-	result, err := s.handle(w, startPayload(1), legion.CmdStart)
+	result, err := s.handle(w, startPayload(uint32(legion.ApocalypseContent)), legion.CmdStart)
 	if err != nil {
 		t.Fatalf("CMD2043: %v", err)
 	}

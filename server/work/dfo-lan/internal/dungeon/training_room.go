@@ -20,7 +20,7 @@ func IsTrainingRoom(c catalog.DungeonCatalog, id uint32) bool {
 	return strings.Contains(path, "/poongjintrainingroom/")
 }
 
-func SelectTrainingRoom(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte) (*Session, error) {
+func SelectTrainingRoom(c catalog.DungeonCatalog, r protocol.DungeonSelection, level byte, localAuthority ...bool) (*Session, error) {
 	if !IsTrainingRoom(c, r.ID) {
 		return nil, fmt.Errorf("dungeon is not a source training room")
 	}
@@ -37,7 +37,7 @@ func SelectTrainingRoom(c catalog.DungeonCatalog, r protocol.DungeonSelection, l
 		return nil, fmt.Errorf("training room has no resolved single source maze")
 	}
 	d.NoFatigue = true
-	s, err := newSession(c, d, d.Mazes[0])
+	s, err := newSession(c, d, d.Mazes[0], localAuthority...)
 	if err != nil {
 		return nil, err
 	}

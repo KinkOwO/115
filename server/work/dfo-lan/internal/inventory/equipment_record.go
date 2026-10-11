@@ -150,7 +150,13 @@ func EquipmentPayloadWithSockets(space byte, items []BagEquipment, restore bool,
 			binary.LittleEndian.PutUint32(row[56:], protocol.ItemPeriodForWire(i.Template, expiry))
 		}
 		p = append(p, row[:]...)
-		avatar := space == 1 || (space == 3 && i.Slot <= 11 && i.Template != 0)
+		// NOTI14's native 145A83FA0 lookup cannot resolve either empty
+		// template (0 / FFFFFFFF). List 1 still consumes its two blocks via
+		// 1459A01E0/1459A0220, but 1452E9B8E..1452E9BA7 does not consume
+		// a period. List 3 consumes neither blocks nor period for an empty
+		// slot. An extra field here shifts the following row in a bag move.
+		present := i.Template != 0 && i.Template != 0xFFFFFFFF
+		avatar := space == 1 || (space == 3 && i.Slot <= 11 && present)
 		if avatar {
 			if len(i.AvatarOptions) == 0 && defaultSockets != nil {
 				i.AvatarOptions = defaultSockets(i.Template)
@@ -160,7 +166,7 @@ func EquipmentPayloadWithSockets(space byte, items []BagEquipment, restore bool,
 			u32(uint32(len(i.AvatarSockets)))
 			p = append(p, i.AvatarSockets...)
 		}
-		if (restore && (space == 1 || space == 3)) || (!restore && avatar && i.Template != 0) {
+		if (restore && (space == 1 || space == 3)) || (!restore && avatar && present) {
 			u32(protocol.ItemPeriodForWire(i.Template, i.Period))
 		}
 	}

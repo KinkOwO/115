@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $next79Root = Split-Path -Parent $PSScriptRoot
 $next79Backup = Join-Path $next79Root 'runtime/baselines/next79-baseline1-unlimited/wireprobe-pvf.exe'
 $next79Expected = '854cbe1d8c1738f6ff46f6ad1a356d614fa44900e77f5d284589a5a23c8720c9'

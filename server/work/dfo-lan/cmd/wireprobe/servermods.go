@@ -1,9 +1,14 @@
 package main
 
 import (
+	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
+
+	"dfolan/internal/servermod"
 )
 
 // 本文件是服务端层 mod（四层架构的 server 层）在主程序侧的接线点。
@@ -18,6 +23,69 @@ var serverBuildVersion = "dev"
 
 // versionString 返回给 mod 看服务端版本串。
 func versionString() string { return serverBuildVersion }
+
+// ModTickIntervalEnvVar 是操作者用来改周期调度的环境变量（单位毫秒）。
+const ModTickIntervalEnvVar = "DFO_MOD_TICK_MS"
+
+// defaultModTickInterval 是没配置时的周期。
+//
+// 1 秒的依据：假人是"走动"这种肉眼观察的东西，比这快没人看得出区别，
+// 比这慢走起来会一顿一顿。需要更细节奏的 mod 自己在回调里按 ctx.Seq 分流，
+// 而不是把全局周期调小 —— 周期是**所有 mod 共用**的。
+const defaultModTickInterval = time.Second
+
+// modTickInterval 读周期配置。写错（非数字、0、负数）时退回默认并记一行日志：
+// 一个写坏的环境变量不该让服务端起不来。
+func modTickInterval() time.Duration {
+	raw := strings.TrimSpace(os.Getenv(ModTickIntervalEnvVar))
+	if raw == "" {
+		return defaultModTickInterval
+	}
+	ms, err := strconv.Atoi(raw)
+	if err != nil || ms <= 0 {
+		log.Printf("servermod: %s=%q 不是正整数毫秒，退回默认 %v", ModTickIntervalEnvVar, raw, defaultModTickInterval)
+		return defaultModTickInterval
+	}
+	return time.Duration(ms) * time.Millisecond
+}
+
+// startModTicks 起周期调度 goroutine，返回停止函数。
+//
+// 一个 tick 钩子都没有时不 goroutine 白跑（HasTickHooks 为假直接返回空操作）——
+// 绝大多数服根本不装这类 mod，不该为它常驻一个 timer。
+//
+// 周期漂移用 Ticker 而不是"睡固定时长"：回调本身要花时间，睡固定时长会让
+// 周期越跑越长，而 TickContext.SinceLast 会把这个漂移如实交给 mod。
+func startModTicks() func() {
+	if !servermod.HasTickHooks() {
+		return func() {}
+	}
+	interval := modTickInterval()
+	log.Printf("servermod: 周期调度已启动（%s 钩子，周期 %v）", servermod.HookServerTick, interval)
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		var seq uint64
+		last := time.Now()
+		for {
+			select {
+			case <-stop:
+				return
+			case now := <-ticker.C:
+				seq++
+				servermod.Tick(servermod.TickContext{Seq: seq, Now: now, SinceLast: now.Sub(last)})
+				last = now
+			}
+		}
+	}()
+	return func() {
+		close(stop)
+		<-done
+	}
+}
 
 // serverModuleDir 返回服务端 Go 模块根（有 go.mod 且 module dfolan 的那个目录）。
 //

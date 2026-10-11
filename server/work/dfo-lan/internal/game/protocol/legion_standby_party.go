@@ -19,30 +19,58 @@ import (
 // 队伍类型字节。容量只接受 4 人——目前各内容的实机样本都是 4 人
 // （军团普通队伍默认容量），其它取值等有实机向量再放开。
 func decodeLegionStandbyParty(p []byte, partyType byte) ([]byte, error) {
+	r, err := decodeLegionStandbyPartyRequest(p, partyType)
+	if err != nil {
+		return nil, err
+	}
+	if r.Capacity != 4 {
+		return nil, fmt.Errorf("军团待机区只支持4人队伍")
+	}
+	return r.Name, nil
+}
+
+// LegionStandbyPartyRequest keeps the requested maximum separate from the
+// number of members actually present in the reply. Venus live CMD12 on
+// 2026-10-05 requests capacity1; the earlier capacity4 vector remains valid.
+type LegionStandbyPartyRequest struct {
+	Name     []byte
+	Capacity byte
+}
+
+func decodeLegionStandbyPartyRequest(p []byte, partyType byte) (r LegionStandbyPartyRequest, err error) {
 	if len(p) < 36 {
-		return nil, fmt.Errorf("军团待机区建队请求不完整")
+		return r, fmt.Errorf("军团待机区建队请求不完整")
 	}
 	n := int(binary.LittleEndian.Uint32(p[2:]))
 	if n < 1 || n > 63 || n > len(p)-36 {
-		return nil, fmt.Errorf("队伍名称长度无效")
+		return r, fmt.Errorf("队伍名称长度无效")
 	}
 	at := 6 + n
-	if binary.LittleEndian.Uint32(p[at:]) != 4 {
-		return nil, fmt.Errorf("军团待机区只支持4人队伍")
+	capacity := binary.LittleEndian.Uint32(p[at:])
+	if capacity < 1 || capacity > 4 {
+		return r, fmt.Errorf("军团队伍人数必须为1至4人")
 	}
 	if p[at+9] != partyType || binary.LittleEndian.Uint16(p[at+10:]) != 1 {
-		return nil, fmt.Errorf("仅支持创建该内容的军团普通队伍")
+		return r, fmt.Errorf("仅支持创建该内容的军团普通队伍")
 	}
 	name := p[6:at]
 	if bytes.IndexByte(name, 0) >= 0 {
-		return nil, fmt.Errorf("队伍名称含无效字符")
+		return r, fmt.Errorf("队伍名称含无效字符")
 	}
-	return bytes.Clone(name), nil
+	r.Name, r.Capacity = bytes.Clone(name), byte(capacity)
+	return r, nil
 }
 
 // legionStandbyPartyReply 按 2.38.2 客户端原生 NOTI9 语法构造建队应答，
 // 队伍类型/模式等语义字段由调用内容给定。
 func legionStandbyPartyReply(name []byte, actor uint16, channel [2]byte, partyType byte) ([]byte, error) {
+	return legionStandbyPartyReplyCapacity(name, actor, channel, partyType, 4)
+}
+
+func legionStandbyPartyReplyCapacity(name []byte, actor uint16, channel [2]byte, partyType, capacity byte) ([]byte, error) {
+	if capacity < 1 || capacity > 4 {
+		return nil, fmt.Errorf("军团队伍人数必须为1至4人")
+	}
 	if len(name) < 1 || len(name) > 63 {
 		return nil, fmt.Errorf("队伍名称无效")
 	}
@@ -62,7 +90,7 @@ func legionStandbyPartyReply(name []byte, actor uint16, channel [2]byte, partyTy
 	binary.LittleEndian.PutUint32(p[14:], uint32(len(name)))
 	copy(p[18:], name)
 	q := p[len(name):]
-	q[20] = 4                                // 容量：4 人军团队
+	q[20] = capacity                         // Requested limit; member count remains1.
 	q[25] = 5                                // 普通难度，同黑鸦原生建队发送器
 	q[29], q[95] = partyType, partyType      // 队伍类型（各内容自带）
 	binary.LittleEndian.PutUint16(q[30:], 1) // 模式 1，同 CMD12 请求

@@ -18,6 +18,9 @@ func growthEffectFlags(options map[uint16]uint16) byte {
 }
 
 func (s *Service) roleGrowthEffectFlags(role Character) (byte, error) {
+	if s.entrySnapshot != nil {
+		return s.entrySnapshot.growth, s.entrySnapshot.check(role)
+	}
 	if s.Store == nil {
 		return 0, nil
 	}

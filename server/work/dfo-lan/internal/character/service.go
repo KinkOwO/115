@@ -37,10 +37,10 @@ type State struct {
 	// 与漏赋值都保持锁定），1 = 技能类型 1（第一页），2 = 技能类型 2（第二页）。
 	// 由商城"技能类型扩展券"（PVF item 821 / product 3000150，购买即生效）解锁：
 	// 购买把 0 置为 1。下发映射见 protocol.EntryAdditionProbe.SkillTreeType。
-	SkillTreeType byte `json:"skill_tree_type,omitempty"`
-	CurrencySlot2             uint32                `json:"currency_slot2,omitempty"`
-	Advancement               byte                  `json:"advancement"`
-	Awakening                 byte                  `json:"awakening,omitempty"`
+	SkillTreeType byte   `json:"skill_tree_type,omitempty"`
+	CurrencySlot2 uint32 `json:"currency_slot2,omitempty"`
+	Advancement   byte   `json:"advancement"`
+	Awakening     byte   `json:"awakening,omitempty"`
 	// No omitempty: an unallocated VP block still has to serialize, otherwise
 	// the client decodes an empty variation section and the panel reads blank
 	// until the next character switch.
@@ -80,8 +80,11 @@ type Service struct {
 	// Equipment 与 WearRules 是创建期的可选依赖：两者都带上、且与 Catalog 同一份
 	// 源快照时，Create 会按源 [create equipment list] 给新角色穿上其转职槽的初始
 	// 装备。缺任一项或不匹配都只是不投影，不构成拒绝创建的理由。
-	Equipment *inventory.EquipmentCatalog
-	WearRules inventory.WearRules
+	WeaponSkinRecipes  map[uint32]catalog.WeaponSkinRecipe
+	WeaponSkinBagRules inventory.BagRules
+	Equipment          *inventory.EquipmentCatalog
+	SymbolSockets      *inventory.SymbolSocketLayout
+	WearRules          inventory.WearRules
 	// Boost 是活动 662「成长胶囊教学」的源目录，由装配层在 PVF 直读成功后注入。
 	// 为 nil 时活动钩子（第三关技能进化点）整条不生效，不影响技能保存本身。
 	Boost *boostup.Catalog
@@ -89,6 +92,11 @@ type Service struct {
 	// it once after a fresh character is committed; nil disables the feature.
 	// It mirrors ProgressionService.Rewards and is never read as rule data.
 	Rewards reward.Notifier
+	// ProfileFrames reads the existing persisted skin selections. Every actor
+	// projection must use it, including entry, party creation and equipment
+	// refresh; keeping this outside State avoids a second saved selection.
+	ProfileFrames func(context.Context, Character) ([2]uint32, error)
+	entrySnapshot *entryProjectionSnapshot
 }
 
 func New(s Store, c catalog.Characters, r Rules) (*Service, error) {
@@ -216,7 +224,7 @@ func (s *Service) slotCapacity(ctx context.Context, account int64) (int, error) 
 	return s.Rules.MaxCharacters + int(bonus), nil
 }
 
-var specialChannelPrerequisites = []uint16{12167, 12312, 12392, 12422, 13763}
+var specialChannelPrerequisites = []uint16{12167, 12312, 12392, 12422, 13763, 21019}
 
 // 列表、进城及外观刷新使用同一份任务到频道资格映射。
 func contentClearFlagsForQuests(ids []uint16) (flags [28]byte) {
@@ -233,12 +241,18 @@ func contentClearFlagsForQuests(ids []uint16) (flags [28]byte) {
 		case 13763:
 			// Local Ispins gate1424e673a reads row+643 = block638 byte11.
 			flags[11] = 1
+		case 21019:
+			// Native Bakal entry consumes the completed Small Cogwheel quest at byte12.
+			flags[12] = 1
 		}
 	}
 	return flags
 }
 
 func (s *Service) roleContentClearFlags(role Character) ([28]byte, error) {
+	if s.entrySnapshot != nil {
+		return s.entrySnapshot.content, s.entrySnapshot.check(role)
+	}
 	// 无存储的离线投影不推断任务完成状态。
 	if s.Store == nil {
 		return [28]byte{}, nil
@@ -257,7 +271,7 @@ func (s *Service) ListWithFatigue(ctx context.Context, account int64, fatigue *F
 	if err != nil {
 		return nil, err
 	}
-	capacity, err := s.slotCapacity(ctx, account)
+	capacity, err := s.Capacity(ctx, account)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +292,7 @@ func (s *Service) AllServerRoster(ctx context.Context, account int64, fatigue *F
 	for i, c := range chars {
 		ids[i] = c.ID
 	}
-	capacity, err := s.slotCapacity(ctx, account)
+	capacity, err := s.Capacity(ctx, account)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -329,6 +343,7 @@ func (s *Service) rosterRowsWithFatigue(ctx context.Context, account int64, char
 		if e != nil {
 			return nil, e
 		}
+		row.WeaponSkinID = weaponSkinForAppearance(c.State)
 		row.Odyssey, e = s.IsOdyssey(c)
 		if e != nil {
 			return nil, e
@@ -438,7 +453,13 @@ func (s *Service) EntryBasicProbe(role Character, channelContext [2]byte) ([]byt
 	if err != nil {
 		return nil, err
 	}
+	frames, err := s.profileFrames(role)
+	if err != nil {
+		return nil, err
+	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
+		PartyFrameID: frames[0], RequestFrameID: frames[1],
+		WeaponSkinID:  weaponSkinForAppearance(role.State),
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		BasePercent:   entryBasePercent,
@@ -517,7 +538,13 @@ func (s *Service) AppearanceProbe(role Character, channelContext [2]byte) ([]byt
 	if err != nil {
 		return nil, err
 	}
+	frames, err := s.profileFrames(role)
+	if err != nil {
+		return nil, err
+	}
 	return protocol.UserInfoBasicProbe(protocol.EntryBasicProbe{
+		PartyFrameID: frames[0], RequestFrameID: frames[1],
+		WeaponSkinID:  weaponSkinForAppearance(role.State),
 		Fame:          fame,
 		SeasonLevel:   seasonLevel(state.SeasonLevel),
 		BasePercent:   entryBasePercent,
@@ -526,6 +553,18 @@ func (s *Service) AppearanceProbe(role Character, channelContext [2]byte) ([]byt
 		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags, GrowthEffectFlags: effectFlags},
 		Appearance: rows,
 	})
+}
+
+func (s *Service) profileFrames(role Character) ([2]uint32, error) {
+	if s.entrySnapshot != nil {
+		return s.entrySnapshot.frames, s.entrySnapshot.check(role)
+	}
+	if s.ProfileFrames == nil {
+		return [2]uint32{}, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return s.ProfileFrames(ctx, role)
 }
 
 // wornAppearance projects the character's worn equipment onto the native
@@ -584,6 +623,9 @@ func (s *Service) wornAppearance(state json.RawMessage) ([]protocol.EquippedAppe
 		if _, worn := bySlot[inventory.WeaponSlot]; worn {
 			bySlot[inventory.WeaponSlot] = bag.WeaponSkin
 		}
+	}
+	if bag.TitleSkin != 0 && bySlot[13] != 0 {
+		bySlot[13] = bag.TitleSkin
 	}
 	// 强化/增幅等级投影（强化特效逻辑说明.md §4）：从穿戴装备实例的 record[10]
 	// 低 5 位读取等级，写进每个外观行的 Flags。客户端 reader 145639840 把该字节

@@ -13,7 +13,7 @@ import (
 // of the verified client flow — the user confirmed the raid is created in
 // the left hall and the formation is edited in the right camp before
 // starting — so both raid-town rooms accept CMD656.
-func bindBakalWaitingRoom(a *pvf.Archive, r *BakalRaidRules) error {
+func bindBakalWaitingRoom(a *pvf.Archive, r *NativeBakalRaidRules) error {
 	bound, err := ImportTownArea(a, uint32(r.WaitingRoomTown), uint32(r.WaitingRoomArea))
 	if err != nil {
 		return err
@@ -22,7 +22,7 @@ func bindBakalWaitingRoom(a *pvf.Archive, r *BakalRaidRules) error {
 	return nil
 }
 
-func (r *BakalRaidRules) OwnsWaitingRoom(town, area uint32) bool {
+func (r *NativeBakalRaidRules) OwnsWaitingRoom(town, area uint32) bool {
 	if r == nil || r.WaitingRoom == nil || r.WaitingRoom.TownID != town {
 		return false
 	}

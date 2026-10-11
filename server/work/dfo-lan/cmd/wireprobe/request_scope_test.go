@@ -37,3 +37,15 @@ func TestDungeonRequestsReachVerifiedHandlers(t *testing.T) {
 		t.Fatal("pickup decoder refuses actual cipher padding", len(decoded), e)
 	}
 }
+
+func TestBakalAuctionRequestsRemainDecodedBeyondSamplingLimit(t *testing.T) {
+	seen := map[uint16]int{1902: BodySampleLimit}
+	for i := 0; i < 32; i++ {
+		if !observedGameRequest(1902) || !retainRequestBody(1902, seen) {
+			t.Fatalf("auction bid occurrence %d cannot reach verified handler", i+BodySampleLimit+1)
+		}
+	}
+	if retainRequestBody(2127, map[uint16]int{2127: BodySampleLimit}) {
+		t.Fatal("unimplemented telemetry sampling cap changed")
+	}
+}

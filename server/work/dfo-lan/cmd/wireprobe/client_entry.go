@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -174,6 +175,35 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "odyssey_honor_mail_committed", "character_id": role.ID})
 			}
 		}
+		// Reconcile old Starter Boost graduates before building active/completed
+		// quest snapshots, so the introductory story cannot restart on entry.
+		if client.questService != nil && client.worldState != nil && client.worldState.boostup != nil {
+			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+			result, skipErr := (&workflow.QuestService{Store: client.gameStore, Quest: client.questService}).ReconcileBoostMainline(ctx, role, client.worldState.boostup)
+			cancel()
+			if skipErr != nil {
+				client.event(map[string]any{"kind": "boost_mainline_pending", "character_id": role.ID, "reason": skipErr.Error()})
+			} else {
+				role = result.Role
+				if len(result.Settled) > 0 || len(result.KeyItems) > 0 {
+					client.event(map[string]any{"kind": "boost_mainline_reconciled", "character_id": role.ID, "count": len(result.Settled), "key_items": result.KeyItems, "blocked": result.Blocked})
+				}
+			}
+		}
+		// 源 `etc/titlebook.etc` `[maxlevel reward]`：满级礼盒属于任何模式的满级角色，
+		// 不在奥德赛分支内。收据是事件键，所以已到 115 的老角色在这里补发一次，
+		// 之后每次登录都是 no-op。
+		if client.progressionService != nil && client.progressionService.MaxLevelReward != nil {
+			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+			updated, rewardApplied, rewardErr := client.progressionService.MaxLevelRewardMail(ctx, role)
+			cancel()
+			role = updated
+			if rewardErr != nil {
+				client.event(map[string]any{"kind": "max_level_reward_pending", "character_id": role.ID, "reason": rewardErr.Error()})
+			} else if rewardApplied {
+				client.event(map[string]any{"kind": "max_level_reward_mail_committed", "character_id": role.ID, "template": client.progressionService.MaxLevelReward.Template})
+			}
+		}
 		profile := *client.selectProbe
 		if client.itemService != nil && client.itemService.Boxes != nil {
 			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
@@ -323,6 +353,10 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				spawn = database.WorldPosition{Town: t.TownID, Area: t.AreaID, X: x, Y: y}
 				client.event(map[string]any{"kind": "channel_town_spawn", "channel": client.channel, "channel_type": client.channelTypes[client.channel], "town": t.TownID, "area": t.AreaID, "x": x, "y": y, "spawn_rects": len(t.Walkable)})
 			}
+			client.releaseOwnedRaid()
+			client.flushWeeklyClock()
+			client.worldState.weeklyClock = time.Time{}
+			client.worldState.weeklyRole = 0
 			e = client.worldState.enter(role, spawn)
 			if e != nil {
 				client.event(map[string]any{"kind": "world_entry_error", "error": e.Error()})
@@ -414,9 +448,74 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			}
 		}
 		plan := entryPayloads{Select: payload, Basic: basic, Addition: addition, Vault: vaultPayload, UserArea: userArea, Area: areaPayload, Fatigue: fatiguePayload, AccountOptions: accountOptions}
-		// NOTI108: 上游 19 条官方门禁记录静态表（event_info_generated.go）随登录
-		// 下发,开启所有 raid 页签门禁位。静态表恒定,不再走运行时动态组装。
-		plan.ChannelEventInfo = eventInfoTable
+		// Selection and entry must carry the same owned snapshot, including
+		// the runtime challenge row, so entry does not clear an active event.
+
+		plan.ChannelEventInfo = eventInfoSnapshot(client.gatewayRuntime)
+		if client.worldState != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			clock := client.worldState.attendanceClock()
+			now := time.Now()
+			if clock != nil {
+				now = now.In(clock.Location)
+				if client.worldState.attendance != nil {
+					if err := client.worldState.attendance.RestoreMissingProgress(ctx, role, now, clock.Day(now)); err != nil {
+						cancel()
+						client.event(map[string]any{"kind": "attendance_recovery_error", "reason": err.Error()})
+						return dispatchClose
+					}
+				}
+				if client.worldState.weekly != nil {
+					if err := client.worldState.weekly.RestoreMissingWeeklyProgress(ctx, role, now, clock.Rules.ResetHour); err != nil {
+						cancel()
+						client.event(map[string]any{"kind": "weekly_recovery_error", "reason": err.Error()})
+						return dispatchClose
+					}
+				}
+			}
+			status, err := client.worldState.attendanceStatus(ctx, now)
+			if err != nil {
+				client.event(map[string]any{"kind": "attendance_restore_error", "reason": err.Error()})
+			} else {
+				plan.Attendance = status
+			}
+			status, err = client.worldState.weeklyStatus(ctx, time.Now(), "", 0)
+			cancel()
+			if err != nil {
+				client.event(map[string]any{"kind": "weekly_restore_error", "reason": err.Error()})
+			} else {
+				plan.Weekly = status
+			}
+		}
+		client.observeOnline(time.Now())
+		// Retain the existing diagnostic route; it uses the same snapshot.
+		if os.Getenv("DFO_RAID_OPEN_EVENTS_PROBE") == "1" && (client.gatewayRuntime == nil || client.boostEventInfo == nil) {
+			plan.ChannelEventInfo = raidChannelEventInfo(client.channelTypes, client.channelDirectory)
+		}
+		// NOTI1076 AVATAR_CLOSET_INFO：官方每次登录都下发一帧（16B）。缺它时客户端
+		// 衣柜 UI 衣架全锁、且不发任何衣柜命令。首字节 = 衣柜槽数（基础 1 槽，
+		// 买 Tier1/2/3 各 +1，上限 4），取自存档 ClosetExpansion（已购档位数）。
+		closetExpansion := byte(0)
+		if bag, bagErr := inventory.ReadBag(role.State); bagErr == nil {
+			closetExpansion = bag.ClosetExpansion
+		}
+		if info, infoErr := protocol.AvatarClosetInfo(protocol.AvatarClosetSlots(closetExpansion)); infoErr == nil {
+			plan.AvatarClosetInfo = info
+		}
+		// NOTI1077 衣柜内容（当前为空列表；客户端 reader 见 protocol.AvatarClosetSet）。
+		plan.AvatarClosetSet = protocol.AvatarClosetSet()
+		// NOTI1585 装扮预设列表：官方每次登录都下发一帧。布局由反汇编客户端
+		// handler（0x14335A230）得到，编码器与官方帧逐字节对齐；栏位数取存档
+		// AvatarPresetPages（已解锁页数），未写过时用官方默认 1 页。
+		presetPages := protocol.DefaultAvatarPresetPages()
+		if bag, bagErr := inventory.ReadBag(role.State); bagErr == nil && bag.AvatarPresetPages > 0 {
+			presetPages += bag.AvatarPresetPages
+		}
+		if list, listErr := protocol.AvatarPresetList(presetPages); listErr == nil {
+			plan.AvatarPresetList = list
+		} else {
+			client.event(map[string]any{"kind": "avatar_preset_list_build_error", "character_id": role.ID, "error": listErr.Error()})
+		}
 		// Starter Boost 662 进城恢复：可领礼物集合（2265）与训练进度（2638）都按
 		// 本角色状态现算。读失败只丢这一帧并记事件——进城不该被活动状态卡住。
 		if client.worldState != nil && client.worldState.boostup != nil {
@@ -506,7 +605,12 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.event(map[string]any{"kind": "oath_selection_restore_error", "character_id": role.ID, "reason": oathErr.Error()})
 				return dispatchHandled
 			}
-			plan.OathSystemInfo, oathErr = protocol.OathSystemInfo(selection.Level, selection.Option)
+			truth, truthErr := client.gameStore.OathTruth(context.Background(), client.developmentAccount, role.ID)
+			if truthErr != nil {
+				client.event(map[string]any{"kind": "oath_truth_restore_error", "reason": truthErr.Error()})
+				return dispatchHandled
+			}
+			plan.OathSystemInfo, oathErr = protocol.OathSystemInfoWithTruth(selection.Level, selection.Option, truth.Level, truth.Options)
 			if oathErr != nil {
 				client.event(map[string]any{"kind": "oath_selection_restore_error", "character_id": role.ID, "reason": oathErr.Error()})
 				return dispatchHandled
@@ -517,7 +621,7 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			// ⚠️ 装备库→誓约 页签的「已添加的 誓约积分」/`?/750次` **不由这一对值驱动**：
 			// 实机两种字段顺序下它都仍为 0，该页统计的是"登记进装备库的誓约装备"
 			// （客户端文案 101039328 `… registered in the Armory`）；见
-			// docs/protocol/oath-set-points-20261004.md §7.6。
+			// docs/protocol/upstream/oath-set-points-20261004.md §7.6。
 			plan.OathPartSetPoints = append(plan.OathPartSetPoints,
 				client.worldState.oathPointPackets()...)
 		}
@@ -638,6 +742,12 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		if e != nil {
 			client.event(map[string]any{"kind": "skin_selection_restore_error", "error": e.Error()})
 			plan.SkinSelection = nil
+			e = nil
+		}
+		plan.WeaponSkinActor, e = weaponSkinActorRestore(role.State)
+		if e != nil {
+			client.event(map[string]any{"kind": "weapon_skin_actor_restore_error", "error": e.Error()})
+			plan.WeaponSkinActor = nil
 			e = nil
 		}
 		// 「最近获得」那五行格只由 NOTI1547 喂，而这帧是整表重建，所以入场必须
@@ -904,6 +1014,16 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				plan.CreatureList, _ = inventory.CreatureListPayload(role.State)
 				plan.CreatureGrowth, _ = inventory.CreatureGrowthPayload(role.State)
 			}
+			if e == nil {
+				plan.TitleBooks, e = titleBookRestore(role.State)
+			}
+			if e == nil {
+				var titleBag inventory.Bag
+				titleBag, e = inventory.ReadBag(role.State)
+				if e == nil {
+					plan.TitleAppearance = protocol.TitleAppearanceSuccess(titleBag.TitleSkin)
+				}
+			}
 			if e != nil {
 				client.event(map[string]any{"kind": "entry_worn_error", "error": e.Error()})
 				return dispatchHandled
@@ -911,16 +1031,29 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		}
 		if client.lootService != nil {
 			rewardCtx, rewardCancel := context.WithTimeout(context.Background(), 5*time.Second)
-			var raidRecovered database.Character
-			var raidErr error
-			if client.bakalRewardService != nil {
-				raidRecovered, raidErr = client.bakalRewardService.Recover(rewardCtx, role, time.Now())
+			legionRewards := &workflow.LegionRewardService{Store: client.gameStore, Awarder: &inventory.Awarder{Catalog: client.lootService.Catalog, Rules: client.lootService.BagRules, Equipment: client.lootService.Equipment}}
+			legionRecovered, legionErr := legionRewards.Recover(rewardCtx, role)
+			if legionRecovered.ID != 0 {
+				role = legionRecovered
 			}
+			if legionErr != nil {
+				client.event(map[string]any{"kind": "legion_reward_recovery_pending", "character_id": role.ID, "reason": legionErr.Error()})
+			}
+			raidRewards := &workflow.BakalRewardService{Store: client.gameStore, Awarder: &inventory.Awarder{Catalog: client.lootService.Catalog, Rules: client.lootService.BagRules, Equipment: client.lootService.Equipment}}
+			raidRecovered, raidErr := raidRewards.Recover(rewardCtx, role)
 			if raidRecovered.ID != 0 {
 				role = raidRecovered
 			}
 			if raidErr != nil {
 				client.event(map[string]any{"kind": "bakal_reward_recovery_pending", "character_id": role.ID, "reason": raidErr.Error()})
+			}
+			auction := &workflow.BakalAuctionService{Store: client.gameStore, Awarder: &inventory.Awarder{Catalog: client.lootService.Catalog, Rules: client.lootService.BagRules, Equipment: client.lootService.Equipment}, Boxes: client.lootService.RewardBoxes}
+			auctionRole, auctionErr := auction.Recover(rewardCtx, role, time.Now())
+			if auctionRole.ID != 0 {
+				role = auctionRole
+			}
+			if auctionErr != nil {
+				client.event(map[string]any{"kind": "bakal_auction_recovery_pending", "character_id": role.ID, "reason": auctionErr.Error()})
 			}
 			recovered, rewardErr := (&workflow.LootService{Store: client.gameStore, Loot: client.lootService}).RecoverBlackPurgatoryCards(rewardCtx, role)
 			rewardCancel()
@@ -1053,7 +1186,11 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			return dispatchClose
 		}
 		client.comboState.lastNotify = nil
+		client.legionState.clearCharacter()
 		client.selectedCharacterID = role.ID
+		if client.restoreSocialIdentity() != nil {
+			return dispatchClose
+		}
 		if client.worldState != nil {
 			client.worldState.fameInitialized = false
 			if client.sendPlan(client.worldState.appendFameUpdate(nil, client.event), nil) != nil {

@@ -69,7 +69,7 @@ func TestWFPConstantsMatchSDK(t *testing.T) {
 		{"FWP_UINT8", DataTypeUint8, 1},
 		{"FWP_UINT16", DataTypeUint16, 2},
 		{"FWP_UINT32", DataTypeUint32, 3},
-		{"FWP_BYTE_BLOB_TYPE", DataTypeByteBlob, 13},
+		{"FWP_BYTE_BLOB_TYPE", DataTypeByteBlob, 12},
 		{"FWP_MATCH_EQUAL", MatchEqual, 0},
 		{"FWP_MATCH_FLAGS_NONE_SET", MatchFlagsNoneSet, 8},
 		// FWP_ACTION_BLOCK = FWP_ACTION_FLAG_TERMINATING(0x1000) | 1

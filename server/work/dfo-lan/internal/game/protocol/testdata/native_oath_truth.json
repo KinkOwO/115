@@ -1,0 +1,231 @@
+{
+  "client_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+  "native_code_sha256": {
+    "0x1421a15e0": "42545e46dff7b7f07344d6c0c10c10b6cf4eec35390a8094d8839a0e72972e59",
+    "0x1421a1630": "f643c34d6c46dc0966e68c4ca6d9f5fa9dcec20f8d4cc33d4ff61bd3bd2e5d96",
+    "0x1474a5170": "bd86a7548cb163fba5599d46655caca906e6ca465e6d5a4a447511ef66f34901",
+    "0x1474afdc0": "ba6ca033041b03026d8d60b81c2370e51440f1195be308fc87927839a5577267",
+    "0x145d392a0": "599939d543658e3491a7666e150f14706d729588ce6ba864dc5266f3428a19fc",
+    "0x145ce5210": "d01796c51e225c2ddf2369725d79ed894c71d3d9f1809afc74248585a33423cc",
+    "0x145ce5220": "13f0a7d50789726d94cbe4b387ca8ef6194f71100f4085ff894421f875602295",
+    "0x1421a0490": "6577c055b3d5b720f9f2518d7f16599ca114bc3fa058a9497c7bcb0d954c4ec6",
+    "0x14219fa10": "00ff911c70bbd6c02c429ca032a967a514302d32d74fc1bd0de607e9ff152cce",
+    "0x14219fac0": "000c396474d82307f75211650c36084afc4d2d089b5dae3c4af7aac37b51b484"
+  },
+  "constants": {
+    "0x1491ac5f8": 1.0,
+    "0x1491be9b0": 0.009999999776482582,
+    "0x1491be9c8": 100.0
+  },
+  "request_writer_vectors": [
+    {
+      "opcode": 2420,
+      "body_hex": "0100000000",
+      "bytes": 5
+    },
+    {
+      "opcode": 2420,
+      "body_hex": "0101000000",
+      "bytes": 5
+    },
+    {
+      "opcode": 2420,
+      "body_hex": "0200000000",
+      "bytes": 5
+    },
+    {
+      "opcode": 2420,
+      "body_hex": "0201000000",
+      "bytes": 5
+    },
+    {
+      "opcode": 2420,
+      "body_hex": "0300000000",
+      "bytes": 5
+    },
+    {
+      "opcode": 2420,
+      "body_hex": "0301000000",
+      "bytes": 5
+    },
+    {
+      "opcode": 2420,
+      "body_hex": "0400000000",
+      "bytes": 5
+    },
+    {
+      "opcode": 2420,
+      "body_hex": "0401000000",
+      "bytes": 5
+    },
+    {
+      "opcode": 2421,
+      "body_hex": "0100",
+      "bytes": 2
+    },
+    {
+      "opcode": 2421,
+      "body_hex": "0101",
+      "bytes": 2
+    },
+    {
+      "opcode": 2421,
+      "body_hex": "0200",
+      "bytes": 2
+    },
+    {
+      "opcode": 2421,
+      "body_hex": "0201",
+      "bytes": 2
+    },
+    {
+      "opcode": 2421,
+      "body_hex": "0300",
+      "bytes": 2
+    },
+    {
+      "opcode": 2421,
+      "body_hex": "0301",
+      "bytes": 2
+    },
+    {
+      "opcode": 2421,
+      "body_hex": "0400",
+      "bytes": 2
+    },
+    {
+      "opcode": 2421,
+      "body_hex": "0401",
+      "bytes": 2
+    }
+  ],
+  "state_and_attribute_vectors": [
+    {
+      "level": 0,
+      "option": 0,
+      "noti2839_hex": "020000000000000000000000000000000000000000000000",
+      "damage_percent": 0.0,
+      "cooldown_reduction_percent": 0.0,
+      "buff": 0.0,
+      "combat_rate": 0.0,
+      "source_stage_option_lookups": []
+    },
+    {
+      "level": 1,
+      "option": 0,
+      "noti2839_hex": "020000000100000000000000000000000000000000000000",
+      "damage_percent": 3.9999961853027344,
+      "cooldown_reduction_percent": 0.0,
+      "buff": 800.0,
+      "combat_rate": 4.0,
+      "source_stage_option_lookups": [
+        [
+          1,
+          0
+        ]
+      ]
+    },
+    {
+      "level": 1,
+      "option": 1,
+      "noti2839_hex": "020000000100010000000000000000000000000000000000",
+      "damage_percent": 0.0,
+      "cooldown_reduction_percent": 7.999998092651367,
+      "buff": 800.0,
+      "combat_rate": 4.0,
+      "source_stage_option_lookups": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "level": 4,
+      "option": 0,
+      "noti2839_hex": "020000000400000000000000000000000000000000000000",
+      "damage_percent": 16.9858341217041,
+      "cooldown_reduction_percent": 0.0,
+      "buff": 3200.0,
+      "combat_rate": 16.0,
+      "source_stage_option_lookups": [
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          3,
+          0
+        ],
+        [
+          4,
+          0
+        ]
+      ]
+    },
+    {
+      "level": 4,
+      "option": 1,
+      "noti2839_hex": "020000000400010101010000000000000000000000000000",
+      "damage_percent": 0.0,
+      "cooldown_reduction_percent": 28.360700607299805,
+      "buff": 3200.0,
+      "combat_rate": 16.0,
+      "source_stage_option_lookups": [
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          3,
+          1
+        ],
+        [
+          4,
+          1
+        ]
+      ]
+    }
+  ],
+  "success_reader_bytes": [
+    9,
+    6,
+    9,
+    6
+  ],
+  "success_reader_callbacks": [
+    {
+      "mode": 0,
+      "stage": 1
+    },
+    {
+      "mode": 1,
+      "stage": 1
+    },
+    {
+      "mode": 0,
+      "stage": 4
+    },
+    {
+      "mode": 1,
+      "stage": 4
+    }
+  ],
+  "substitutes": [
+    "socket singleton/start/copy/flush",
+    "PVF option lookup backed by source-extracted fixture rows",
+    "packet byte reader",
+    "request callback manager",
+    "current actor lookup returns null"
+  ],
+  "full_scene_renderer_executed": false,
+  "game_process_accessed": false
+}

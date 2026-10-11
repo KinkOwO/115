@@ -636,7 +636,7 @@ address	name	description
 0x147799f00	PassiveSource_ConstructScriptDefaults115	366 wholePE/IDB instructions; initializes embedded isometric info2088 via147C11500 and native defaults via1477B2840; actual OBJ source constructor, distinct from1476B19F0; static20261005.
 0x147c11500	IsometricCellMapInfo_ConstructDefaults115	28byte/8-instruction wholeleaf PE/IDB match; qword0=2, dword8/qword16/24/32=0; actual passive info2088 lower dword2 bypasses factory scene branch; no scene enum naming guessed; static20261005.
 0x141b64330	SourceManager_SelectSceneVariantPartial115	296 wholePE/IDB instructions; flags/cache kind1or2; obtains current scene path and selector then exact/-1 associated key lookup; kind2 default source or node+72 object, copies source24/552; factory passes BOTH byte flags1; static20261005.
-0x1459a90f0	Scene_GetEffectiveModePartial115	38 wholePE/IDB instructions; override14E6839F0 virtual96 if !=-1, otherwise protected scene260; native value1 only used as branch comparator, no ordinary/PvP enum inferred; static20261005.
+0x1459a90f0	Scene_GetEffectiveModePartial115	38 wholePE/IDB instructions; override14E6839F0 virtual96 if !=-1, otherwise protected world260; PID7996/8232 live town1 and Elven dungeon3 confirmed; loader145B22F50 first argument is a distinct context, not global14E66C090; elite-apc-anchor-source-fix-20261011.
 0x143f057a0	IsometricRegistry_ContainsPassiveTemplate115	80byte wholeleaf PE/IDB match and complete IDA listing; lower-bound tree2232 exact int32 template key, optional byte32 output; factory with null output only uses membership; registry content source pending; static20261005.
 0x145b9b010	Passive_ConstructSourceBackedBasePartial115	232 wholePE/IDB instructions; actor base145D52360 then145B9EE70 reset;template10664=input2,index14F3707E0 lookup then145B9F870 withinput3/context;notcompleteowner/world/wire lifecycle;static20261005.
 0x145b9ee70	Passive_ResetBaseFieldsPartial115	307 wholePE/IDB instructions;resets10664/10668,strings andcollections,localtime10576,embeddedinfo11040 via147C115F0;notcontentdefinitionorserverdefaults;static20261005.
@@ -684,3 +684,25 @@ address	name	description
 0x1402b0770	BufferRental_ApplySupportAppendages	Source-linked skill config,iterates native character slots,creates appendage kind978 and attaches with key30113735+mode via145C01600;static20261008,full formula pending.
 0x1402baba0	BufferRental_SendSupportCastMessage307	Game message307 mode byte and5u32 from rental record;not TCP CMD307;transport/vector pending,static20261008.
 0x1402b34a0	BufferRental_UpdateSupportCastTimersAndAnimations	Manager vtable+224;checks source channels,rental identity,timers/key;emits support cast and completion effects;static20261008.
+0x145e08940	ActorPosition_ReadCoordinate	Position component RCX, axis EDX; native bound/float position branch; elite-apc-native-path-candidate-20261011.
+0x145dce4d0	ActorAI_GetAStarNextCell	Uses native target virtual4872 and actor nav/pass getters; updates actor cached cells; no boolean reachability return.
+0x146d64330	AStar_IsCellPassable	Native current map tile/actor navigation/pass checks; not complete route test.
+0x146d64820	AStar_SearchTerminalNode	Eight-arg native search, max500 expansions; null may mean empty open list or budget; verify goal terminal.
+0x146d64950	AStar_GetNextCell	Wraps search/reset; null search returns0, successful terminal follows parent to next point; native upper wrapper loses failure reason.
+0x146d642c0	AStar_AllocateArenaNode	104B node pool in context+8424, 1024 entries; native allocator wraps at1024.
+0x146d64b70	AStar_ExpandNeighbors	Native eight-neighbor expansion uses IsCellPassable and candidate insertion.
+0x146d64e00	AStar_InsertOrUpdateCandidate	Native open/closed list update; all path work pointers inside provided context.
+0x145b8b120	Actor_GetSceneWeak115	actor+400 control strong8, +408 scene alias; zero does not replace scene vector membership oracle; native virtual304 APC thunk145CE24B0.
+0x1459a9260	World_GetCurrentScene115	1459A9180 selects context then145E930B0 returns live scene CRef alias; called with global14E66C090 by catchup; PID8232 current scene17E554F00.
+0x1459a9180	World_GetActiveSceneContext115	142E0A3E0 and146D33E70 select override context, virtual216; fallback world296; global14E6839F0; distinct from dungeon room loader argument.
+0x145e930b0	SceneContext_GetLiveSceneAlias115	Reads CRef control264, strong+8 and alias272; PID8232 context155683040 yields scene17E554F00.
+0x145b22f50	Dungeon_LoadRoomAndRegisterElitePartial115	First argument is dungeon loading context; uses context6792 and scene CRef list, independently reads global14E66C090 for1459A90F0; native kind5 registration eight args at145B25298; world identity must not use first argument.
+0x146d29700	DungeonEntry_LoadContextAndFirstRoomPartial115	Case1:14520CFB0(v1[328]) returns contextv79;146D2A1E2 calls145B22F50(v79,x,y,0,1,0,0,1); partial branch only, IDB20261011.
+0x142528b50	SceneContext_GetPointer176115	Leaf returns context+176, used by1459A9240 after1459A9180; field identity beyond this chain not inferred.
+0x145b97400	Actor_SetSceneWeakRef115	Copies native 24B scene CRef into actor+392; virtual296; removal calls with0 at145E00ECB.
+0x145dfff70	Scene_RemoveActorAndClearScene115	Cleans scene refs/indexes then virtual296(actor,0); PID15920 hardware hit APC117BAA480 scene17C0AD600 return145DFFCDA.
+0x145dff4d0	Scene_ProcessPendingAndInactiveActorRemoval115	Scene544 queue and scene88 refs; virtual328==0 collects actor; PID15920 class111/virtual176 zero branch calls removal145DFFCD5, return145DFFCDA.
+0x145e00f10	Scene_RemoveActorsMatchingFlags115	Iterates scene88 CRefs and calls145DFFF70 when actor348 matches caller mask.
+0x14449bf20	Actor_GetSceneRetentionFlag720115	APC virtual328 reads actor720; PID15920 failed room all3 APC0 vs player1; native scene cleanup collects zero-return actors.
+0x14449c130	Actor_SetSceneRetentionFlag720115	Leaf writes actor720 from argument2; APC virtual320 thunk141854970; loader145B253BC calls1 after registration; EXE leaf/thunk/getter executed in offline fixture.
+0x141854970	Actor_SetSceneRetentionFlag720Thunk115	Jumps14449C130; all3 PID15920 APC virtual320 point here; native loader145B253B7..BC enables actor after registration.

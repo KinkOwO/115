@@ -4,12 +4,9 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"fmt"
+	"math"
 	"time"
 )
-
-// navigation_room.map's source role/gathering gate actor, not Ica or a
-// reward boss. gate_open.act enters its last action after the party gathers.
-const ApocalypseNavigationGate uint32 = 109019067
 
 // EntryPlan binds the imported legion content to the actual dungeon catalog.
 // It is not a second copy of the phase map table, nor permission to treat every
@@ -38,7 +35,9 @@ func BuildEntryPlan(contents catalog.LegionContents, operations *catalog.Apocaly
 	if !ok || !c.Complete || contents.Source.Checksum == "" || contents.Source.Checksum != dungeons.Source.Checksum || operations == nil || validate == nil {
 		return out, fmt.Errorf("apocalypse source content/dungeon generation unavailable")
 	}
-	if c.LimitLevel != 115 || c.LastPhase != 5 || len(c.Dungeons) != 6 || c.Waiting.Town != 239 || c.Waiting.Area != 2 || c.Recruiting.Town != 239 || c.Recruiting.Area != 1 || c.SelectLimit <= 0 || c.SelectLimit > 300 {
+	// Six records are a verified wire capacity. Levels, towns, areas and
+	// selection time are source rules, not equality checks against this release.
+	if c.LimitLevel <= 0 || c.LimitLevel > math.MaxUint8 || c.LastPhase != int64(len(out.Destinations)-1) || len(c.Dungeons) != len(out.Destinations) || c.Waiting.Town == 0 || c.Waiting.Area == 0 || c.Recruiting.Town == 0 || c.Recruiting.Area == 0 || c.SelectLimit <= 0 || c.SelectLimit > math.MaxInt64/int64(time.Second) {
 		return out, fmt.Errorf("unsupported apocalypse content shape")
 	}
 	out.Source = contents.Source.Checksum
@@ -59,7 +58,7 @@ func BuildEntryPlan(contents catalog.LegionContents, operations *catalog.Apocaly
 		return EntryPlan{}, fmt.Errorf("apocalypse source clock missing")
 	}
 	for i, v := range operations.PhaseClock {
-		if v.Phase != int64(i) || v.Seconds <= 0 || v.Seconds > 3600 {
+		if v.Phase != int64(i) || math.IsNaN(v.Seconds) || math.IsInf(v.Seconds, 0) || v.Seconds <= 0 || v.Seconds >= float64(math.MaxInt64)/float64(time.Second) {
 			return EntryPlan{}, fmt.Errorf("apocalypse phase clock invalid")
 		}
 		out.PhaseSeconds[i] = time.Duration(v.Seconds * float64(time.Second))
@@ -67,7 +66,7 @@ func BuildEntryPlan(contents catalog.LegionContents, operations *catalog.Apocaly
 	return out, nil
 }
 
-// Current14069BCC0 reads the stage record's first byte, then passes that
+// Current14069B5A0 reads the stage record's first byte, then passes that
 // destination index to the source virtual+96 lookup. Stage and destination
 // must never be collapsed into the same index. This function resolves only;
 // the shared owner must separately authorize the current stage/room/portal.
@@ -82,7 +81,7 @@ func (p EntryPlan) ResolveStageDestination(stage uint32, targets [6]byte) (uint3
 	return p.Destinations[index], nil
 }
 
-// Current native difficulty-name reader140699750 looks up wireChoice+1.
+// Current native difficulty-name reader1406996E0 looks up wireChoice+1.
 // Thus the CTP indices1/2/3/5 are NOT the 2045 entry-stage field.
 func PlanForChoice(cat *catalog.ApocalypseCatalog, clock *ApocalypseClock, choice byte) (*RunPlan, error) {
 	if choice == 255 {

@@ -67,6 +67,7 @@ type PremiumStore interface {
 type WearService struct {
 	PremiumStore     PremiumStore
 	Catalog          *EquipmentCatalog
+	Journal          *catalog.EquipmentJournalRules
 	Professions      catalog.Characters
 	BagRules         BagRules
 	Rules            WearRules
@@ -329,6 +330,10 @@ func (s *WearService) MoveOrdinary(role Role, r protocol.ItemMoveRequest) (json.
 	z, e := find(r.DestinationList, r.DestinationSlot, dstGroup)
 	if e != nil {
 		return nil, e
+	}
+	if (a != nil && r.DestinationList == 0 && !b.OrdinarySlotUnlocked(r.DestinationSlot)) ||
+		(z != nil && r.SourceList == 0 && !b.OrdinarySlotUnlocked(r.SourceSlot)) {
+		return nil, fmt.Errorf("destination outside ordinary inventory capacity")
 	}
 	if a == nil && z == nil {
 		return nil, fmt.Errorf("both equipment locations are empty")

@@ -11,7 +11,7 @@ func TestBakalLoadRestoresCurrentCommanderStockOnce(t *testing.T) {
 	w.bakal.GrantBuffs(0, 0, 2, 4)
 	expected := w.bakal.BuffInventorySnapshot().Body
 	grid := bakalNativeBossGrid(t, w, "bakal")
-	if _, err := w.bakalDungeonEntry(uint32(w.bakalRules.NormalPhase.EnterBakalDungeon), 0, &grid, at, false); err != nil {
+	if _, err := w.bakalDungeonEntry(uint32(w.nativeBakalRules.NormalPhase.EnterBakalDungeon), 0, &grid, at, false); err != nil {
 		t.Fatal(err)
 	}
 	_, plan, err := c.bakalLoadingDone(nil)

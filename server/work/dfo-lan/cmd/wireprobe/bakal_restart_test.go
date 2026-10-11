@@ -12,12 +12,12 @@ import (
 func TestBakalFailedRestartCreatesPreviouslyDefeatedGatekeeper(t *testing.T) {
 	c, at := bakalNativeClient(t)
 	w := c.worldState
-	w.bakalRecruitment = &protocol.RaidRecruitment{ID: 1, Create: protocol.RaidCreateRequest{Kind: 8, Title: "retry"}, Leader: w.role.WireID, LeaderName: w.role.Name, MemberCount: 1, MemberMax: 12, MemberPosition: 1, MemberArea: 2}
+	w.bakalRecruitment = &protocol.NativeRaidRecruitment{ID: 1, Create: protocol.NativeRaidCreateRequest{Kind: 8, Title: "retry"}, Leader: w.role.WireID, LeaderName: w.role.Name, MemberCount: 1, MemberMax: 12, MemberPosition: 1, MemberArea: 2}
 	w.bakalName = w.role.Name
 	var id uint32
 	for _, spawn := range w.bakal.MonsterPlacements() {
 		if spawn.Name == "gerda" {
-			for _, loc := range w.bakalRules.Locations {
+			for _, loc := range w.nativeBakalRules.Locations {
 				if loc.Index == spawn.Location {
 					id = loc.Dungeon
 				}
@@ -32,17 +32,17 @@ func TestBakalFailedRestartCreatesPreviouslyDefeatedGatekeeper(t *testing.T) {
 		t.Fatal(e)
 	}
 	for _, actor := range w.activeDungeon.Monsters {
-		if actor.Template == w.bakalRules.Monsters["gerda"].Template {
+		if actor.Template == w.nativeBakalRules.Monsters["gerda"].Template {
 			w.activeDungeon.Dead[actor.Entity] = true
 		}
 	}
-	if _, e := w.bakalConfirmDefeats(at); e != nil {
+	if _, e := w.nativeBakalConfirmDefeats(at); e != nil {
 		t.Fatal(e)
 	}
 	if !w.bakal.IsLocationDefeated(w.bakalLocation) {
 		t.Fatal("test did not remember first-run defeat")
 	}
-	w.bakal.Tick(at.Add(time.Duration(w.bakalRules.PhaseTimeOverSecs+1) * time.Second))
+	w.bakal.Tick(at.Add(time.Duration(w.nativeBakalRules.PhaseTimeOverSecs+1) * time.Second))
 	if w.bakal.Stage() != legion.BakalOpeningFailed {
 		t.Fatal("source did not fail")
 	}
@@ -53,7 +53,7 @@ func TestBakalFailedRestartCreatesPreviouslyDefeatedGatekeeper(t *testing.T) {
 	if _, _, e := c.bakalStartRaid(start, at); e != nil {
 		t.Fatal(e)
 	}
-	at = at.Add(time.Duration(w.bakalRules.StartDelaySecs) * time.Second)
+	at = at.Add(time.Duration(w.nativeBakalRules.StartDelaySecs) * time.Second)
 	w.bakal.Tick(at)
 	if _, e := w.bakalDungeonEntry(id, 0, &grid, at, false); e != nil {
 		t.Fatal(e)
@@ -64,14 +64,14 @@ func TestBakalFailedRestartCreatesPreviouslyDefeatedGatekeeper(t *testing.T) {
 	}
 	n := 0
 	for _, p := range plan {
-		if p.ID == 2194 && binary.LittleEndian.Uint32(p.Payload[7:]) == w.bakalRules.Monsters["gerda"].Template {
+		if p.ID == 2194 && binary.LittleEndian.Uint32(p.Payload[7:]) == w.nativeBakalRules.Monsters["gerda"].Template {
 			n++
 		}
 	}
 	if n != 1 || w.bakal.IsLocationDefeated(w.bakalLocation) {
 		t.Fatal("new run suppressed old defeated gatekeeper")
 	}
-	if p, e := w.bakalLoadedBoss(); e != nil || len(p) != 0 {
+	if p, e := w.nativeBakalLoadedBoss(); e != nil || len(p) != 0 {
 		t.Fatal("new run spawned duplicate gatekeeper", e)
 	}
 }
@@ -79,7 +79,7 @@ func TestBakalFailedRestartCreatesPreviouslyDefeatedGatekeeper(t *testing.T) {
 func TestBakalLifecyclePublishesNativeActiveDescriptorAndEnds(t *testing.T) {
 	c, at := bakalNativeClient(t)
 	w := c.worldState
-	w.bakalRecruitment = &protocol.RaidRecruitment{ID: 1, Create: protocol.RaidCreateRequest{Kind: 8, Title: "raid"}, Leader: w.role.WireID, LeaderName: w.role.Name, MemberCount: 1, MemberMax: 12, MemberPosition: 1, MemberArea: 2}
+	w.bakalRecruitment = &protocol.NativeRaidRecruitment{ID: 1, Create: protocol.NativeRaidCreateRequest{Kind: 8, Title: "raid"}, Leader: w.role.WireID, LeaderName: w.role.Name, MemberCount: 1, MemberMax: 12, MemberPosition: 1, MemberArea: 2}
 	plan, e := w.bakalLifecyclePlan()
 	if e != nil || len(plan) != 1 {
 		t.Fatal(e)
@@ -92,7 +92,7 @@ func TestBakalLifecyclePublishesNativeActiveDescriptorAndEnds(t *testing.T) {
 	if p, e := w.bakalLifecyclePlan(); e != nil || len(p) != 0 {
 		t.Fatal("unchanged lifecycle repeated")
 	}
-	w.bakal.Tick(at.Add(time.Duration(w.bakalRules.PhaseTimeOverSecs+1) * time.Second))
+	w.bakal.Tick(at.Add(time.Duration(w.nativeBakalRules.PhaseTimeOverSecs+1) * time.Second))
 	plan, e = w.bakalLifecyclePlan()
 	if e != nil || len(plan) != 1 {
 		t.Fatal(e)
@@ -117,11 +117,11 @@ func TestBakalCapturedDefeatedBlonaArenaEntersNormalRoute(t *testing.T) {
 		t.Fatal(e)
 	}
 	for _, actor := range w.activeDungeon.Monsters {
-		if actor.Template == w.bakalRules.Monsters["blona"].Template {
+		if actor.Template == w.nativeBakalRules.Monsters["blona"].Template {
 			w.activeDungeon.Dead[actor.Entity] = true
 		}
 	}
-	if _, e := w.bakalConfirmDefeats(at); e != nil {
+	if _, e := w.nativeBakalConfirmDefeats(at); e != nil {
 		t.Fatal(e)
 	}
 	body := make([]byte, 48)
@@ -137,7 +137,7 @@ func TestBakalCapturedDefeatedBlonaArenaEntersNormalRoute(t *testing.T) {
 		t.Fatal(e)
 	} else {
 		for _, row := range p {
-			if row.ID == 2194 && binary.LittleEndian.Uint32(row.Payload[7:]) == w.bakalRules.Monsters["blona"].Template {
+			if row.ID == 2194 && binary.LittleEndian.Uint32(row.Payload[7:]) == w.nativeBakalRules.Monsters["blona"].Template {
 				t.Fatal("cleared arena fabricated respawn")
 			}
 		}

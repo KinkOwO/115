@@ -1,0 +1,3 @@
+#pragma once
+static const uintptr_t kGraphicsFailureRVA=0x87f64a1;
+static const unsigned char kGraphicsFailureHead[]={0x48,0x8d,0x15,0x68,0xae,0xe9,0x2};

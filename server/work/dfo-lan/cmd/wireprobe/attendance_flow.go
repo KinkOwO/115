@@ -1,30 +1,13 @@
 package main
 
-// 每日签到（活动 331「7-Day Journey for Sky of a Thousand Seas」）的服务端状态帧与领取。
-//
-// 活动内容全部来自 PVF：
-//
-//	脚本   live/event/kor/2026/0326_attendancedailyevent/attendancedailyevent.evt
-//	       `[event period] 2026-07-06 09:00:00 → 2026-10-06 09:00:00`
-//	       `[allow accumulate attendance] 1` / 7 个 `[reward info]`（day 0..6）
-//	       `[reward mail title] event_331_mail_title` / `[reward mail message] event_331_mail_msg`
-//	登记   list/event.lst 的 `331`
-//	开关   NOTI108 里必须有 331 那一行（见 event_info_activity.go）
-//
-// 协议帧是 **NOTI1379**（33 字节，layout 由本机 IDB 的 handler `sub_143869190` 确认，
-// 见 internal/game/protocol/attendance115.go）与 **CMD680**（领奖，见 attendance_claim115.go）。
-//
-// ## 状态存放
-//
-// 进度存在**角色**存档的 state JSON 里（键 `event_attendance115`，见 internal/attendance）。
-// 源脚本里没有 `[attach type]`，参考文档的「账号级」是它对自己客户端的推测；本仓既有的
-// 活动存档（boostup）也都在角色 state 里，且领取幂等靠 `CommitCharacterEvent` 的事件键
-// ——那套机制是角色维度的。换账号级要新开表 + 迁移小节 + 5 处 sqlc 镜像，换来的只是
-// 「小号不能再领一次」，而源里没有依据。口径记进 next193。
 import (
+	"context"
 	"dfolan/internal/attendance"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/workflow"
+	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -165,4 +148,99 @@ func (client *gameConnection) logAttendanceDailyState(roleID int64, body []byte)
 		"forced":       strings.TrimSpace(os.Getenv("DFO_ATTENDANCE_FORCE")),
 		"plain_hex":    hex.EncodeToString(body),
 	})
+}
+
+func (w *worldSession) attendanceStatus(ctx context.Context, now time.Time) ([]byte, error) {
+	if w == nil || w.attendance == nil {
+		return nil, nil
+	}
+	if w.attendanceClock() == nil || w.attendanceClock().Location == nil || w.role.AccountID != w.account {
+		return nil, fmt.Errorf("attendance requires owned role and game calendar")
+	}
+	day := w.attendanceClock().Day(now)
+	r, err := w.attendance.Observe(ctx, w.role, now.In(w.attendanceClock().Location), day)
+	if errors.Is(err, workflow.ErrAttendanceInactive) {
+		w.attendanceDay = day
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	states, err := w.attendance.Rules.DayStates(r.Progress)
+	if err != nil {
+		return nil, err
+	}
+	p, err := protocol.AttendanceDailyStatus115(0, r.Progress.Visits, states)
+	if err == nil {
+		w.attendanceDay = day
+	}
+	return p, err
+}
+
+func (w *worldSession) claimAttendance(ctx context.Context, body []byte, now time.Time) ([]outboundPacket, error) {
+	day, err := protocol.DecodeAttendanceDailyClaim115(body)
+	refuse := func(err error) ([]outboundPacket, error) {
+		// Existing local execution uses 23 for a refused operation. This is
+		// a compatibility error, not an invented official attendance mapping.
+		return []outboundPacket{{"attendance_claim_refused", 1, 680, protocol.AttendanceDailyRefusal115(23)}}, err
+	}
+	if err != nil {
+		return refuse(err)
+	}
+	if w == nil || w.attendance == nil || w.attendanceClock() == nil || w.attendanceClock().Location == nil || w.role.AccountID != w.account {
+		return refuse(fmt.Errorf("attendance is unavailable"))
+	}
+	r, err := w.attendance.Claim(ctx, w.role, now.In(w.attendanceClock().Location), w.attendanceClock().Day(now), day)
+	if err != nil {
+		return refuse(err)
+	}
+	states, err := w.attendance.Rules.DayStates(r.Progress)
+	if err != nil {
+		return nil, err
+	}
+	status, err := protocol.AttendanceDailyStatus115(0, r.Progress.Visits, states)
+	if err != nil {
+		return nil, err
+	}
+	// Match the captured 331 order: absolute progress, successful CMD680,
+	// then the existing mailbox notifier. A retry never generates new mail.
+	plan := []outboundPacket{{"attendance_claim_status", 0, 1379, status}, {"attendance_claim_ack", 1, 680, protocol.EventReply115(protocol.AttendanceDailyEvent115, [10]uint32{})}}
+	if r.CreatedMail && w.notifyBoostMail != nil {
+		w.notifyBoostMail(w.role.ID)
+	}
+	return plan, nil
+}
+
+func (client *gameConnection) dispatchAttendance(request *clientRequest) dispatchAction {
+	if request.frame.Type != 1 || request.frame.ID != 680 || !request.verified || !client.bootstrapped || len(request.plaintext) < 4 || binary.LittleEndian.Uint32(request.plaintext) != protocol.AttendanceDailyEvent115 {
+		return dispatchNext
+	}
+	if client.worldState == nil || client.worldState.attendance == nil {
+		return dispatchNext
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	plan, err := client.worldState.claimAttendance(ctx, request.plaintext, time.Now())
+	if err != nil {
+		client.event(map[string]any{"kind": "attendance_claim_error", "character_id": client.selectedCharacterID, "reason": err.Error()})
+	}
+	if client.sendPlan(plan, client.logWorldResponseBody) != nil {
+		return dispatchClose
+	}
+	return dispatchHandled
+}
+
+func attendanceOpening(s *workflow.AttendanceService, base []byte, location *time.Location) ([]byte, error) {
+	if s == nil || location == nil || s.Rules.MinimumLevel != 0 {
+		return nil, fmt.Errorf("attendance native level-gate branch is not supported")
+	}
+	start, err := time.ParseInLocation("2006-01-02 15:04:05", s.Rules.Dates.Start, location)
+	if err != nil {
+		return nil, err
+	}
+	end, err := time.ParseInLocation("2006-01-02 15:04:05", s.Rules.Dates.End, location)
+	if err != nil || start.Unix() < 0 || end.Unix() > 4294967295 {
+		return nil, fmt.Errorf("attendance calendar exceeds native timestamp")
+	}
+	return protocol.AppendAttendanceOpening115(base, s.Rules.MailTextTitle, s.Rules.CalendarUI, uint32(start.Unix()), uint32(end.Unix()))
 }

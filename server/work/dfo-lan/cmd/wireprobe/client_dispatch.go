@@ -38,6 +38,10 @@ var beforeClientTypeDispatch = [...]clientDispatchStage{
 	// dispatchForest 再随后：苏醒之森（Type 96）待机区 CMD12/13，同理由
 	// （各内容自带的队伍类型字节互不相认）。
 	(*gameConnection).dispatchForest,
+	// dispatchEvildom 再随后：次元回廊（Type 50）待机区 CMD12/13 与开战
+	// CMD2043（内容 0x0d）。该内容的队伍类型字节是 0x0d，同样互不相认；
+	// 而且 legion.Requests 不含 CMD12，不在这里接管就会被通用队伍链丢掉。
+	(*gameConnection).dispatchEvildom,
 	(*gameConnection).dispatchSpecialContent,
 	(*gameConnection).dispatchCashshopAndBoxes,
 	(*gameConnection).dispatchStoryAndAdvancement,
@@ -48,6 +52,11 @@ var beforeClientTypeDispatch = [...]clientDispatchStage{
 }
 
 var commandDispatch = [...]clientDispatchStage{
+	(*gameConnection).dispatchTitleActorReady,
+	(*gameConnection).dispatchTownRobotContext,
+	(*gameConnection).dispatchTownRobotInspect,
+	(*gameConnection).dispatchTownRobotParty,
+	(*gameConnection).dispatchRaidEntrance,
 	(*gameConnection).dispatchAccountQueries,
 	(*gameConnection).dispatchUnifiedOptions,
 	(*gameConnection).dispatchSessionTransitions,
@@ -63,6 +72,8 @@ var commandDispatch = [...]clientDispatchStage{
 	(*gameConnection).dispatchWorldAndQuests,
 	(*gameConnection).dispatchCharacterEntry,
 	(*gameConnection).dispatchRoster,
+	(*gameConnection).dispatchAttendance,
+	(*gameConnection).dispatchWeekly,
 	// dispatchAttendanceClaim 排在 dispatchBoostEvent 之前：两者都处理 CMD680，
 	// 签到那一站只在载荷里的活动号 == 331 时接管，其余原样放行（见 attendance_claim.go）。
 	(*gameConnection).dispatchAttendanceClaim,
@@ -70,6 +81,8 @@ var commandDispatch = [...]clientDispatchStage{
 	// （阿拉德通行证）的领奖/查询（见 aradpass_flow.go）。
 	(*gameConnection).dispatchAradPass,
 	(*gameConnection).dispatchBoostEvent,
+	// dispatchAvatarCloset 处理衣柜（寄存衣柜）的 cmd1102/1103。
+	(*gameConnection).dispatchAvatarCloset,
 	(*gameConnection).dispatchFixtureResponse,
 }
 
@@ -107,6 +120,7 @@ func (client *gameConnection) dispatch(requestData *clientRequest) dispatchActio
 			return result
 		}
 	}
+	client.logUnhandledRaidRequest(requestData)
 	return dispatchNext
 }
 
@@ -136,6 +150,14 @@ func (client *gameConnection) dispatchFixtureResponse(requestData *clientRequest
 				return dispatchClose
 			}
 		}
+		if requestData.frame.ID == 1 && client.socialProfiles {
+			var e error
+			response, e = socialLoginResponse(client.keys, response)
+			if e != nil {
+				client.event(map[string]any{"kind": "social_login_error", "error": e.Error()})
+				return dispatchClose
+			}
+		}
 		if err := client.output.writeRaw(response); err != nil {
 			client.event(map[string]any{"kind": "write_error", "error": err.Error()})
 			return dispatchClose
@@ -148,6 +170,10 @@ func (client *gameConnection) dispatchFixtureResponse(requestData *clientRequest
 			// 按 opcode 直接分发，无请求等待态依赖。必须在角色/UI包前
 			// 建立时钟，不能等冒险团日期判断已访问空指针后再补发。
 			if requestData.err = client.sendServerTime("登录初始化"); requestData.err != nil {
+				return dispatchClose
+			}
+			if requestData.err = client.sendRankingUserKey(); requestData.err != nil {
+				client.event(map[string]any{"kind": "ranking_identity_error", "error": requestData.err.Error()})
 				return dispatchClose
 			}
 			if client.channelNotice != nil {

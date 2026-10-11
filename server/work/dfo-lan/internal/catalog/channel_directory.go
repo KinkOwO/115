@@ -39,10 +39,18 @@ type ChannelAttributes struct {
 	IsPreRaid  bool `json:"is_pre_raid,omitempty"`
 	IsSemiRaid bool `json:"is_semi_raid,omitempty"`
 
-	Town         int    `json:"town,omitempty"`
-	TownArea     int    `json:"town_area,omitempty"`
-	GuideDungeon uint32 `json:"guide_dungeon,omitempty"`
-	IconIndex    int    `json:"icon_index,omitempty"`
+	Town               int      `json:"town,omitempty"`
+	TownArea           int      `json:"town_area,omitempty"`
+	GuideDungeon       uint32   `json:"guide_dungeon,omitempty"`
+	IconIndex          int      `json:"icon_index,omitempty"`
+	SubChannelType     uint32   `json:"sub_channel_type,omitempty"`
+	MainSeparateReward []uint32 `json:"main_separate_reward,omitempty"`
+	SubSeparateReward  []uint32 `json:"sub_separate_reward,omitempty"`
+	ImageIndex         int      `json:"image_index,omitempty"`
+	// Legion availability is defined by legionsystem.cos, joined through
+	// its recruiting town and this channel's native town. Multiple difficulty
+	// blocks may share a channel; retain each declared event key.
+	OpenEvents []uint16 `json:"open_events,omitempty"`
 
 	// Panel / SlotDungeon / SlotSymbol 来自 channelslotinfo 里按 type 对上的那一块；
 	// 对不上时为空（普通区域频道本来就不在 channelslotinfo 的 special 段里）。
@@ -130,7 +138,43 @@ func ImportChannelDirectory(a *pvf.Archive) (ChannelDirectory, error) {
 	}
 	out.ByType = attrs
 	out.Source = a.Snapshot()
+	if _, exists := a.FindFile(LegionContentsPath); exists {
+		legions, err := ImportLegionContents(a)
+		if err != nil {
+			return out, fmt.Errorf("channel legion availability: %w", err)
+		}
+		if err := bindLegionChannelEvents(out.ByType, legions); err != nil {
+			return out, err
+		}
+	}
 	return out, nil
+}
+
+func bindLegionChannelEvents(attrs map[uint32]ChannelAttributes, source LegionContents) error {
+	for name, content := range source.Contents {
+		id, exists := content.UIInts["ENABLE_CHANNEL_TAB_EVENT_ID"]
+		if !exists || id == -1 {
+			continue
+		}
+		if id <= 0 || id > 65535 || content.Recruiting.Town == 0 {
+			return fmt.Errorf("%s %s: invalid channel event %d or recruiting town", source.Path, name, id)
+		}
+		for typ, attr := range attrs {
+			if !attr.IsLegion || attr.Town != int(content.Recruiting.Town) {
+				continue
+			}
+			seen := false
+			for _, event := range attr.OpenEvents {
+				seen = seen || event == uint16(id)
+			}
+			if !seen {
+				attr.OpenEvents = append(attr.OpenEvents, uint16(id))
+				sort.Slice(attr.OpenEvents, func(i, j int) bool { return attr.OpenEvents[i] < attr.OpenEvents[j] })
+			}
+			attrs[typ] = attr
+		}
+	}
+	return nil
 }
 
 func hashBytes(b []byte) string {
@@ -187,6 +231,13 @@ func parseClientChannelInfo(text string) (map[uint32]ChannelAttributes, error) {
 			a.Town = nodeInt(l, "seriaRoomTown")
 			a.TownArea = nodeInt(l, "seriaRoomArea")
 		}
+		// Some native channel types put the waiting town in [ui], not [logic].
+		if a.Town == 0 {
+			if u := sec.child("ui"); u != nil {
+				a.Town = nodeInt(u, "seriaRoomTown")
+				a.TownArea = nodeInt(u, "seriaRoomArea")
+			}
+		}
 		// ⚠️ [guide dungeon index] 在源里**两种位置都有**：108（噩梦循环）写在 [logic] 里，
 		// 107（赤红铁矿）直接挂在 [client channel info] 下。两处都查，谁先给出非零用谁。
 		a.GuideDungeon = nodeUint(sec, "guide dungeon index")
@@ -195,6 +246,17 @@ func parseClientChannelInfo(text string) (map[uint32]ChannelAttributes, error) {
 		}
 		if u := sec.child("ui"); u != nil {
 			a.IconIndex = nodeInt(u, "iconIndex")
+			a.SubChannelType = nodeUint(u, "subChannelType")
+			a.ImageIndex = nodeInt(u, "imageIndex")
+			for tag, target := range map[string]*[]uint32{"mainSeparateReward": &a.MainSeparateReward, "subSeparateReward": &a.SubSeparateReward} {
+				for _, value := range strings.Fields(nodeHead(u.child(tag))) {
+					id, ok := journalUint(value)
+					if !ok {
+						return nil, fmt.Errorf("%s: invalid %s operand", ClientChannelInfoPath, tag)
+					}
+					*target = append(*target, id)
+				}
+			}
 		}
 		out[channelType] = a
 	}

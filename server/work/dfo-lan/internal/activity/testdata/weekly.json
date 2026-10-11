@@ -1,0 +1,320 @@
+[
+  {
+    "type": 3,
+    "value": 278268373,
+    "text": "[db table name]"
+  },
+  {
+    "type": 6,
+    "value": 279617227,
+    "text": "event_1912_period_connection_keeping_event"
+  },
+  {
+    "type": 3,
+    "value": 200896723,
+    "text": "[event period]"
+  },
+  {
+    "type": 6,
+    "value": 279617313,
+    "text": "2026-08-18 06:00:00"
+  },
+  {
+    "type": 6,
+    "value": 171424865,
+    "text": "2026-10-15 06:00:00"
+  },
+  {
+    "type": 3,
+    "value": 276914687,
+    "text": "[/event period]"
+  },
+  {
+    "type": 3,
+    "value": 279617353,
+    "text": "[keeping connection info as period]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 3600
+  },
+  {
+    "type": 0,
+    "value": 490043311
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208542773,
+    "text": "chn_Weekly_Attendance_title"
+  },
+  {
+    "type": 6,
+    "value": 208542897,
+    "text": "chn_Weekly_Attendance_message"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 3600
+  },
+  {
+    "type": 0,
+    "value": 490043311
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208542773,
+    "text": "chn_Weekly_Attendance_title"
+  },
+  {
+    "type": 6,
+    "value": 208542897,
+    "text": "chn_Weekly_Attendance_message"
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": 3600
+  },
+  {
+    "type": 0,
+    "value": 490043311
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208542773,
+    "text": "chn_Weekly_Attendance_title"
+  },
+  {
+    "type": 6,
+    "value": 208542897,
+    "text": "chn_Weekly_Attendance_message"
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 0,
+    "value": 3600
+  },
+  {
+    "type": 0,
+    "value": 490043311
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208542773,
+    "text": "chn_Weekly_Attendance_title"
+  },
+  {
+    "type": 6,
+    "value": 208542897,
+    "text": "chn_Weekly_Attendance_message"
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 0,
+    "value": 3600
+  },
+  {
+    "type": 0,
+    "value": 490043311
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208542773,
+    "text": "chn_Weekly_Attendance_title"
+  },
+  {
+    "type": 6,
+    "value": 208542897,
+    "text": "chn_Weekly_Attendance_message"
+  },
+  {
+    "type": 3,
+    "value": 279617425,
+    "text": "[/keeping connection info as period]"
+  },
+  {
+    "type": 3,
+    "value": 278794885,
+    "text": "[accu reward info]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 490043312
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208542773,
+    "text": "chn_Weekly_Attendance_title"
+  },
+  {
+    "type": 6,
+    "value": 208542897,
+    "text": "chn_Weekly_Attendance_message"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 490043313
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 6,
+    "value": 208542773,
+    "text": "chn_Weekly_Attendance_title"
+  },
+  {
+    "type": 6,
+    "value": 208542897,
+    "text": "chn_Weekly_Attendance_message"
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": 490043313
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 6,
+    "value": 208542773,
+    "text": "chn_Weekly_Attendance_title"
+  },
+  {
+    "type": 6,
+    "value": 208542897,
+    "text": "chn_Weekly_Attendance_message"
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 0,
+    "value": 490043313
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 6,
+    "value": 208542773,
+    "text": "chn_Weekly_Attendance_title"
+  },
+  {
+    "type": 6,
+    "value": 208542897,
+    "text": "chn_Weekly_Attendance_message"
+  },
+  {
+    "type": 3,
+    "value": 279617659,
+    "text": "[/accu reward info]"
+  },
+  {
+    "type": 3,
+    "value": 279617699,
+    "text": "[click button on accu reward]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 279617759,
+    "text": "[add sec on proper dungeon clear]"
+  },
+  {
+    "type": 0,
+    "value": 60
+  },
+  {
+    "type": 3,
+    "value": 203225437,
+    "text": "[level limit]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 279051313,
+    "text": "[question icon tooltip]"
+  },
+  {
+    "type": 8,
+    "value": 279617827,
+    "reference": "\u003c23::event_387_question\u003e"
+  },
+  {
+    "type": 0,
+    "value": -125
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 279051419,
+    "text": "[/question icon tooltip]"
+  }
+]

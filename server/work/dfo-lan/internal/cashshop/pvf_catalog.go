@@ -44,6 +44,16 @@ func ImportPilot(a *pvf.Archive) (PilotConfig, error) {
 	if e = c.resolveEquipmentEntries(equipment, resolve); e != nil {
 		return c, e
 	}
+	if e = c.loadAvatarAbilityCases(resolve); e != nil {
+		return c, e
+	}
+	contracts, e := ImportContractRules(a, nil)
+	if e != nil {
+		return c, e
+	}
+	for i := range c.Entries {
+		c.Entries[i].Contracts = contracts
+	}
 	return c, c.Validate()
 }
 

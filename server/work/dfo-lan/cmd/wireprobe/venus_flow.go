@@ -169,11 +169,11 @@ func (w *worldSession) venusStandbyPartyHandle(id uint16, p []byte) (bool, []out
 			{"维纳斯队伍解散", 0, 9, protocol.BlackPurgatoryPartyGone(w.characters.ChannelContext)},
 		}, nil
 	}
-	name, err := protocol.DecodeVenusStandbyParty(p)
+	req, err := protocol.DecodeVenusStandbyParty(p)
 	if err != nil {
 		return fail(err)
 	}
-	party, err := protocol.VenusStandbyPartyReply(name, w.role.WireID, w.characters.ChannelContext)
+	party, err := protocol.VenusStandbyPartyReply(req.Name, w.role.WireID, w.characters.ChannelContext, req.Capacity)
 	if err != nil {
 		return fail(err)
 	}
@@ -807,22 +807,6 @@ func (w *worldSession) venusRewardEnd(p []byte) ([]outboundPacket, []map[string]
 // venusPotionGate 是维纳斯副本内的消耗品限制（军团口径每关 8 次，同伊斯
 // N1584 上限）：命中返回拒绝应答；未命中计数 +1 并返回 nil。计数在
 // venusStageEntryShared 进图时清零。
-const venusPotionLimit = 8
-
-func (w *worldSession) venusPotionGate(r protocol.UseStackableRequest) []outboundPacket {
-	if w.venus == nil || w.activeDungeon == nil {
-		return nil
-	}
-	stage, err := legion.VenusStageOfDungeon(w.activeDungeon.Definition.ID)
-	if err != nil || stage >= len(w.venus.potionUsed) {
-		return nil
-	}
-	if w.venus.potionUsed[stage] >= venusPotionLimit {
-		return []outboundPacket{{"venus_potion_refused", 1, 44, protocol.UseStackableRefused(r)}}
-	}
-	w.venus.potionUsed[stage]++
-	return nil
-}
 
 // venusStoryPause 应答终局通关视频期间的 CMD191（剧情暂停/恢复）：暂停/恢复
 // 都答原生 N170（StoryPauseNotice）；**恢复（state=1）= 视频播完**——发
@@ -1013,7 +997,7 @@ func (w *worldSession) completeVenusStage() ([]outboundPacket, error) {
 	})
 
 	// N9 队伍稳态：翻牌结束后重申作战中队伍状态（照伊斯链序）。
-	party, err := protocol.SoloPartyInfo(w.role.WireID)
+	party, err := w.soloPartyInfo(nil)
 	if err != nil {
 		return nil, err
 	}

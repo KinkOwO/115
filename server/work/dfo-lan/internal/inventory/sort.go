@@ -67,6 +67,17 @@ func sortOrdinaryItems(b Bag, rules BagRules, r protocol.SortItemRequest) (Bag, 
 		}
 		seen[v] = true
 	}
+	// Validate every destination before changing the shared input slices.
+	for _, row := range b.Items {
+		if int(row.Slot) < len(r.Slots) && rules.Modelled(row.Slot) && r.Slots[row.Slot] != row.Slot && !b.OrdinarySlotUnlocked(r.Slots[row.Slot]) {
+			return b, fmt.Errorf("sort destination outside ordinary inventory capacity")
+		}
+	}
+	for _, row := range b.Equipment {
+		if int(row.Slot) < len(r.Slots) && rules.Modelled(row.Slot) && r.Slots[row.Slot] != row.Slot && !b.OrdinarySlotUnlocked(r.Slots[row.Slot]) {
+			return b, fmt.Errorf("sort destination outside ordinary inventory capacity")
+		}
+	}
 	for idx := range b.Items {
 		if e := sortSlot(&b.Items[idx].Slot, r.Slots, rules); e != nil {
 			return b, e
@@ -118,10 +129,21 @@ func compactOrdinaryItems(b *Bag, rules BagRules) error {
 			occupied[s] = true
 		}
 	}
+	// [FIX-20261010 重复段去重] 配置里 [throw] 与 [etc] 可能指向同一槽位段
+	// （如均 [65,120]）。若同一段被压缩两次，第二次的 cands 已是紧凑后的物品，
+	// occupied 从段首起全满，next 会越过整段物品找到段内靠后的空位，把刚压好的
+	// 段整体推后（实测：18 件从 65-82 被推回 83-100，重进恢复"跳位"）。这里按
+	// 段范围去重，同一 [start,end] 只压缩一次。
+	seenSeg := map[uint32]bool{}
 	for _, seg := range rules.Slots {
 		if seg == [2]uint16{} {
 			continue
 		}
+		segKey := uint32(seg[0])<<16 | uint32(seg[1])
+		if seenSeg[segKey] {
+			continue
+		}
+		seenSeg[segKey] = true
 		var cands []cand
 		for idx := range b.Items {
 			item := &b.Items[idx]

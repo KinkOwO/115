@@ -101,5 +101,18 @@ func ImportRules(a *pvf.Archive, index catalog.ItemIndex) (*Rules, error) {
 		}
 		r.Shops[byte(category)] = shop
 	}
+	symbols, err := catalog.ReadScript(a, "etc/airshipcustomobject.etc")
+	if err != nil {
+		return nil, err
+	}
+	r.Symbols, err = readSymbols(symbols.Cells)
+	if err != nil {
+		return nil, err
+	}
+	r.Sources["etc/airshipcustomobject.etc"] = symbols.SHA256
+	r.EliteContents, r.Sources[EliteContentsPath], err = importEliteContents(a)
+	if err != nil {
+		return nil, err
+	}
 	return NewRules(r)
 }

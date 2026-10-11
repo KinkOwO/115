@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sync"
 	"sync/atomic"
 )
@@ -39,6 +40,8 @@ type Rules struct {
 	Experience     map[uint32]uint64 `json:"experience"`
 	Shops          map[byte]Shop     `json:"shops"`
 	Items          map[uint32]Item   `json:"items"`
+	Symbols        map[uint32]bool   `json:"symbols,omitempty"`
+	EliteContents  EliteContents     `json:"elite_contents,omitempty"`
 	Sources        map[string]string `json:"sources"`
 }
 
@@ -55,10 +58,13 @@ var load = sync.OnceValues(func() (*Rules, error) {
 })
 
 func NewRules(r Rules) (*Rules, error) {
+	if err := validateEliteContents(r.EliteContents); err != nil {
+		return nil, err
+	}
 	if b, err := hex.DecodeString(r.SourceChecksum); err != nil || len(b) != 32 {
 		return nil, fmt.Errorf("invalid adventure source identity")
 	}
-	if r.MaxLevel != 50 || r.ExpRate <= 0 || len(r.Shops) == 0 {
+	if r.MaxLevel == 0 || uint64(r.MaxLevel) > uint64(len(r.Experience)) || r.ExpRate <= 0 || math.IsNaN(float64(r.ExpRate)) || math.IsInf(float64(r.ExpRate), 0) || len(r.Shops) == 0 {
 		return nil, fmt.Errorf("冒险团源规则不完整")
 	}
 	for n := uint32(2); n <= r.MaxLevel; n++ {
@@ -99,6 +105,14 @@ func InstallRules(source *Rules) (func(), error) {
 		return nil, fmt.Errorf("nil adventure rules")
 	}
 	r := *source
+	r.EliteContents = make(EliteContents, len(source.EliteContents))
+	for k, v := range source.EliteContents {
+		r.EliteContents[k] = append([]uint32(nil), v...)
+	}
+	r.Symbols = make(map[uint32]bool, len(source.Symbols))
+	for k, v := range source.Symbols {
+		r.Symbols[k] = v
+	}
 	r.Experience = make(map[uint32]uint64, len(source.Experience))
 	for k, v := range source.Experience {
 		r.Experience[k] = v

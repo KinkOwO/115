@@ -21,4 +21,3 @@ var characterBuffDungeonBody = []byte{0x00, 0x00, 0xa5, 0x1f, 0x25, 0x7d, 0x3f, 
 func CharacterBuffDungeon() []byte {
 	return append([]byte(nil), characterBuffDungeonBody...)
 }
-

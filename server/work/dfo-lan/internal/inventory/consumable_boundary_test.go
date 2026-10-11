@@ -202,3 +202,17 @@ func TestPrepareBoxOpenPersistsDrawPointsAndPreservesOtherState(t *testing.T) {
 		t.Fatal("failed box open accepted or mutated the caller's state")
 	}
 }
+
+func TestUndefinedContractRetainsItemAndUnrelatedState(t *testing.T) {
+	s := consumableBoundaryService()
+	item := s.Catalog.Items[700]
+	item.StackableType = "[contract]"
+	s.Catalog.Items[700] = item
+	raw := consumableBoundaryState(t, []BagItem{{Slot: 65, Template: 700, Amount: 2}})
+	before := append([]byte(nil), raw...)
+	next, receipt, premiums, e := s.PrepareConsume(Role{State: raw}, protocol.UseStackableRequest{Slot: 65, Template: 700}, false,
+		func(raw json.RawMessage, _ uint32, _ time.Time) (json.RawMessage, uint32, error) { return raw, 0, nil }, func(uint32) (PremiumActivation, bool) { return PremiumActivation{}, false })
+	if e == nil || next != nil || receipt != nil || premiums != nil || !reflect.DeepEqual(before, []byte(raw)) {
+		t.Fatal("undefined contract was consumed", e)
+	}
+}

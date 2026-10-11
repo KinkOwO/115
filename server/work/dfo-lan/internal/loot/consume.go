@@ -66,6 +66,11 @@ type SeasonCapsuleApplier func(json.RawMessage, uint32, time.Time) (json.RawMess
 
 func (s *Service) PrepareConsume(current Role, r protocol.UseStackableRequest, seasonCapsule bool, applySeason SeasonCapsuleApplier, resolveContract ContractResolver) (json.RawMessage, json.RawMessage, []PremiumActivation, error) {
 	var out ConsumeReceipt
+	if definition, exists := s.Catalog.Items[r.Template]; exists && definition.StackableType == "[contract]" {
+		if _, mapped := resolveContract(r.Template); !mapped {
+			return nil, nil, nil, fmt.Errorf("契约未在当前源表定义可用效果，物品已保留")
+		}
+	}
 	b, e := inventory.ReadBag(current.State)
 	if e != nil {
 		return nil, nil, nil, e

@@ -19,6 +19,7 @@ type preparedPacket struct {
 	Raw []byte
 }
 type entryPayloads struct {
+	Attendance, Weekly                                                                     []byte
 	ChannelEventInfo                                                                       []byte
 	Select, Basic, Addition, Skills, SkillPreset, Vault, UserArea, Area, Fatigue, Complete []byte
 	Experience, CompletedQuests, Inventory                                                 []byte
@@ -43,7 +44,7 @@ type entryPayloads struct {
 	// 它在 packets() 里的位置必须晚于 2758，见那里的注释。
 	EquipmentSkill []byte
 	// OathPartSetPoints 是 NOTI2634「每角色一对 Set/Oath Point」的若干条候选帧
-	// （每条 10 字节：`u16 实体键 + u32 SetPoint + u32 OathPoint`）。它们在 packets()
+	// （每条 10 字节：`u16 实体键 + u32 OathPoint + u32 SetPoint`）。它们在 packets()
 	// 里被排在**所有帧之后**：handler 写的是角色实体对象，必须等 actor 重建完。
 	OathPartSetPoints []outboundPacket
 	// 冒险图鉴为账号登记集合，登录即恢复，不依赖角色移动上报。
@@ -111,7 +112,10 @@ type entryPayloads struct {
 	// that fills the same page, and a character with no skin applied leaves it
 	// empty so preparePackets drops the frame.
 	SkinSelection                                                 []byte
+	WeaponSkinActor                                               []byte
 	Avatars, AvatarReady, Creatures, CreatureList, CreatureGrowth []byte
+	TitleBooks                                                    [][]byte
+	TitleAppearance                                               []byte
 	CinematicSkips                                                []byte
 	// SkinRecent is the NOTI1547 body the storage window's 最近获得 strip rebuilds from
 	// its own five cells. The frame is absolute state - the reader clears the manager
@@ -133,6 +137,24 @@ type entryPayloads struct {
 	BoosterGage     []byte
 	SkillVariations []byte
 	OdysseyProgress []byte
+	// AvatarClosetInfo is the NOTI1076 ENUM_NOTIPACKET_AVATAR_CLOSET_INFO body the
+	// official server pushes on every login (16 B, byte-identical across sessions).
+	// The closet UI keeps every hanger locked - and refuses to send any closet
+	// command - until the server sends it, so it rides with the avatar container
+	// refresh after the entry barrier. A nil payload is skipped by preparePackets.
+	AvatarClosetInfo []byte
+	// AvatarClosetSet is the NOTI1077 ENUM_NOTIPACKET_CHANGE_AVATAR_CLOSET_SET body
+	// (the closet's contents/avatar sets). The client's reader (DFO.exe 0x1449e8100)
+	// starts with a u32 entry count and returns early on 0, so the empty body
+	// {0,0,0,0} is a valid "closet holds nothing" state. A nil payload is skipped.
+	AvatarClosetSet []byte
+	// AvatarPresetList is the NOTI1585 ENUM_NOTIPACKET_AVATAR_PRESET_LIST body
+	// (the Avatar Preset page + its preset slots). The layout comes from
+	// disassembling the client reader (DFO.exe 0x14335A230) and the encoder is
+	// pinned byte-for-byte to the official capture - see
+	// protocol.AvatarPresetList and protocol/avatar_preset_test.go. A nil
+	// payload is skipped by preparePackets.
+	AvatarPresetList []byte
 	// SkillLocks is the NOTI2827 character option block that restores the
 	// player's locked skills. It is sent last: the forwarded evidence for this
 	// client reports a crash on town entry when 2827 arrives early in the frame
@@ -307,7 +329,7 @@ func (p entryPayloads) packets() []outboundPacket {
 		// too (probe V4), so the frame keeps the empty tail.
 		// event_info_variant.go exposes DFO_EVENT_INFO_VARIANT for the 662
 		// entry investigation; unset = exactly this table.
-		{"event_info_sent", 0, 108, townEventInfoTable},
+		{"event_info_sent", 0, 108, p.eventInfoSnapshot()},
 		{"dungeon_enter_count_info_sent", 0, 537, dungeonEnterCountInfo},
 		{"entry_basic_probe_sent", 0, 2, p.Basic},
 		{"entry_addition_sent", 0, 2, p.Addition},
@@ -364,6 +386,8 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"town_entry_probe_sent", 0, 24, p.Area},
 		outboundPacket{"fatigue_sent", 0, 36, p.Fatigue},
 		outboundPacket{"enter_gameworld_complete_sent", 0, 124, p.Complete},
+		outboundPacket{"attendance_progress_restored", 0, 1379, p.Attendance},
+		outboundPacket{"weekly_progress_restored", 0, 1753, p.Weekly},
 		// 训练进度帧排在 124 之后：任务面板对象在进城完成前不存在，早到的 2638
 		// 会被丢掉，客户端的活动关卡停在旧值（实机第三关「面板不刷新」同一坑）。
 		outboundPacket{"boost_training_progress_restored", 0, 2638, p.BoostTraining},
@@ -385,6 +409,11 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"skill_variations_restored", 1, 29, p.SkillVariations},
 		// Complete lists and visual refresh after the entry/actor initialization barrier.
 		outboundPacket{"avatar_inventory_restored", 0, 13, p.AvatarReady},
+		outboundPacket{"avatar_closet_info", 0, 1076, p.AvatarClosetInfo},
+		outboundPacket{"avatar_closet_set", 0, 1077, p.AvatarClosetSet},
+		// NOTI1585 装扮预设列表：官方每次登录都下发一帧（624B，默认 12 个预设）。
+		// 帧形状与官方逐字节一致（见 protocol/avatar_preset_test.go 的金标准）。
+		outboundPacket{"avatar_preset_list", 0, 1585, p.AvatarPresetList},
 	)
 	// The list1 objects must exist before Clone's source lookup is restored,
 	// and subsequent worn reconstruction must consume this character's table.
@@ -469,8 +498,18 @@ func (p entryPayloads) packets() []outboundPacket {
 	)
 	// NOTI2634（每角色一对 Set/Oath Point）排在**最后**：handler 直接写角色实体对象的
 	// `实体+1872/+1876`，必须等 actor_appearance_ready 重建完实体再写，否则会被覆盖。
-	// 见 docs/protocol/oath-set-points-20261004.md §7.1。
-	return append(out, p.OathPartSetPoints...)
+	// 见 docs/protocol/upstream/oath-set-points-20261004.md §7.1。
+	for _, book := range p.TitleBooks {
+		out = append(out, outboundPacket{"title_book_restored_entry", 0, 344, book})
+	}
+	if len(p.TitleAppearance) > 0 {
+		out = append(out, outboundPacket{"title_appearance_restored_entry", 1, 560, p.TitleAppearance})
+	}
+	out = append(out, p.OathPartSetPoints...)
+	if len(p.WeaponSkinActor) > 0 {
+		out = append(out, outboundPacket{"weapon_skin_actor_restored_entry", 1, 1565, p.WeaponSkinActor})
+	}
+	return out
 }
 
 // Prepare every frame before the first write. In particular, a missing cipher

@@ -151,7 +151,7 @@ func TestBoostRecordsMatchOfficialCapture(t *testing.T) {
 		o++ // flag
 		seen[id] = body[start:o]
 		if id == 662 || id == 665 {
-			if name != "Sky of a Thousand Seas Boost Up" {
+			if name != "千海天冒险·奇迹加速" {
 				t.Fatalf("id=%d 标题 %q 与官服不符", id, name)
 			}
 		}
@@ -161,7 +161,20 @@ func TestBoostRecordsMatchOfficialCapture(t *testing.T) {
 		if !ok {
 			t.Fatalf("表里没有 id=%d 的行", id)
 		}
-		if hex.EncodeToString(got) != want {
+		official, err := hex.DecodeString(want)
+		if err != nil {
+			t.Fatal(err)
+		}
+		oldNameLen := int(binary.LittleEndian.Uint32(official[5:]))
+		translated := []byte("千海天冒险·奇迹加速")
+		expected := append([]byte(nil), official[:5]...)
+		expected = binary.LittleEndian.AppendUint32(expected, uint32(len(translated)))
+		expected = append(expected, translated...)
+		expected = append(expected, official[9+oldNameLen:]...)
+		dateOffset := 9 + len(translated) + 8
+		binary.LittleEndian.PutUint32(expected[dateOffset:], boostup.EventStart)
+		binary.LittleEndian.PutUint32(expected[dateOffset+4:], boostup.EventEnd)
+		if !bytes.Equal(got, expected) {
 			t.Fatalf("id=%d 与官服记录不一致:\n got=%x\nwant=%s", id, got, want)
 		}
 	}

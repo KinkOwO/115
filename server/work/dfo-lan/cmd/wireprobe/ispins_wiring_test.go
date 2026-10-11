@@ -6,11 +6,85 @@ import (
 	"dfolan/internal/game/wire"
 	"dfolan/internal/legion"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"net"
 	"testing"
+	"testing/synctest"
 	"time"
 )
+
+func TestIspinsPostSelectionWithoutOutputDoesNotStartKeepalive(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c := &gameConnection{worldState: &worldSession{channelType: 81}}
+		c.ispinsPostSelection(7)
+		if !c.worldState.pendingLegionEntryInfo {
+			t.Fatal("standby quota restoration was not scheduled")
+		}
+		// The original panic happened after the first 30-second tick, long
+		// after the test that created this incomplete connection had returned.
+		time.Sleep(31 * time.Second)
+		synctest.Wait()
+	})
+}
+
+func TestIspinsPostSelectionKeepaliveStopsWithConnection(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c, conn, events := newDispatchTestClient()
+		c.worldState.channelType = 81
+		c.connection = &connectionSession{done: make(chan struct{})}
+		c.ispinsPostSelection(7)
+		synctest.Wait()
+		time.Sleep(29 * time.Second)
+		synctest.Wait()
+		if conn.Len() != 0 {
+			t.Fatal("keepalive sent before the native 30-second interval")
+		}
+		time.Sleep(time.Second)
+		synctest.Wait()
+		raw := conn.Bytes()
+		if len(raw) < 16 || raw[0] != 0 || binary.LittleEndian.Uint16(raw[1:3]) != 1719 {
+			t.Fatalf("missing SEC_PING_CHECK frame: %x", raw)
+		}
+		plain, err := wire.DecryptPayload(c.keys, 1719, raw[16:])
+		want := []byte{0, 0, 0, 0, 0xe1, 0x6b, 0xa3, 0x76, 0x3f, 0, 0, 0, 0, 0, 0, 0}
+		if err != nil || !bytes.Equal(plain, want) {
+			t.Fatalf("keepalive payload changed: %x, %v", plain, err)
+		}
+		if len(*events) != 1 || (*events)[0]["kind"] != "sec_ping_check_sent" || (*events)[0]["character_id"] != int64(7) {
+			t.Fatalf("keepalive owner/log changed: %v", *events)
+		}
+		written := conn.Len()
+		close(c.connection.done)
+		synctest.Wait()
+		time.Sleep(60 * time.Second)
+		synctest.Wait()
+		if conn.Len() != written {
+			t.Fatal("keepalive continued after connection closure")
+		}
+	})
+}
+
+func TestIspinsPostSelectionCancelsDelayedLoginOnClose(t *testing.T) {
+	for _, channelType := range []uint32{0, legion.DimCloisterHallChannelType} {
+		t.Run(fmt.Sprint(channelType), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				c, conn, events := newDispatchTestClient()
+				c.worldState.channelType = channelType
+				c.connection = &connectionSession{done: make(chan struct{})}
+				c.ispinsPostSelection(7)
+				synctest.Wait()
+				close(c.connection.done)
+				synctest.Wait()
+				time.Sleep(31 * time.Second)
+				synctest.Wait()
+				if conn.Len() != 0 || len(*events) != 0 {
+					t.Fatalf("closed connection received login/keepalive output: %d bytes, %v", conn.Len(), *events)
+				}
+			})
+		})
+	}
+}
 
 func TestIspinsDispatchStartPushesWaitingStateFromSnapshot(t *testing.T) {
 	t.Setenv("DFO_ISPINS_MODE", "unlimited")
@@ -20,6 +94,7 @@ func TestIspinsDispatchStartPushesWaitingStateFromSnapshot(t *testing.T) {
 	events := make(chan map[string]any, 16)
 	c := &gameConnection{gatewayRuntime: &gatewayRuntime{}, bootstrapped: true, selectedCharacterID: 7, keys: make([]byte, wire.SessionKeyBytes), worldState: &worldSession{channelType: 81, role: database.Character{ID: 7, WireID: 7}}, event: func(e map[string]any) { events <- e }}
 	c.output = newConnectionOutput(server, c.keys, "test", c.event)
+	c.worldState.dungeons = ispinsCardFixtureCatalog()
 	body := make([]byte, 24)
 	body[13] = 101
 	result := make(chan dispatchAction, 1)
@@ -57,12 +132,19 @@ func TestIspinsDispatchStartPushesWaitingStateFromSnapshot(t *testing.T) {
 	if got := <-result; got != dispatchHandled {
 		t.Fatal(got)
 	}
+	order := c.worldState.ispins.order
+	want, err := c.worldState.ispinsWaitInfo()
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Change state after the start dispatch. Its scheduled notice must still
 	// describe the original waiting stage and owner, not this mutable state.
 	c.worldState.ispins.cleared[0] = true
 	c.selectedCharacterID = 99
 	kind, id, plain := read()
-	want, _ := legion.IspinsInfoPayload("wait0", [5]byte{})
+	for i, index := range order {
+		binary.LittleEndian.PutUint32(want[19+8*i:], uint32(index))
+	}
 	if kind != 0 || id != 2255 || len(plain) < len(want) || !bytes.Equal(plain[:len(want)], want) {
 		t.Fatal("missing native wait0 notice", kind, id)
 	}

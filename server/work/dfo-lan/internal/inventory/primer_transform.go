@@ -739,19 +739,8 @@ func primerBagCanAccept(bag Bag, rules BagRules) bool {
 	if slots[0] == 0 || slots[0] > slots[1] {
 		return true
 	}
-	occupied := map[uint16]bool{}
-	for _, row := range bag.Items {
-		occupied[row.Slot] = true
-	}
-	for _, row := range bag.Equipment {
-		occupied[row.Slot] = true
-	}
-	for n := uint32(slots[0]); n <= uint32(slots[1]); n++ {
-		if !occupied[uint16(n)] {
-			return true
-		}
-	}
-	return false
+	_, err := bag.EquipmentAwardSlots(slots, 1)
+	return err == nil
 }
 
 // applyPrimerJournal 把一次变换对**装备库登记**的影响一次算清，并保证三条纪律：

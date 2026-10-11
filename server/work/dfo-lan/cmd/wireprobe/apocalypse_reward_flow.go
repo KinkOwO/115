@@ -350,7 +350,7 @@ func (w *worldSession) apocalypseTerminalReward(id uint16, name string) (apocaly
 		}
 		advCancel()
 	}
-	if party, e := protocol.SoloPartyInfo(w.role.WireID); e == nil {
+	if party, e := w.soloPartyInfo(nil); e == nil {
 		plan = append(plan, outboundPacket{"apocalypse_settlement_party_steady", 0, 9, party})
 	}
 

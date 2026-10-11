@@ -542,7 +542,13 @@ func TestLaunchRejectsUnusableConfiguration(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			root := buildLaunchTree(t)
 			testCase.mutate(t, root)
-			_, err := LaunchPlan(root, LaunchOptions{Check: true})
+			opts := LaunchOptions{Check: true}
+			if testCase.name == "missing storage config" {
+				// Preview can now describe the first-install default. Actual launch
+				// still requires the GUI to initialize an active configuration.
+				opts.Check = false
+			}
+			_, err := LaunchPlan(root, opts)
 			if err == nil || err.Error() != testCase.want {
 				t.Fatalf("error = %v, want %q", err, testCase.want)
 			}

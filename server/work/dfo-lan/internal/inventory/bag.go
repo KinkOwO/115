@@ -99,42 +99,26 @@ func LoadBagRules(p string, source ...string) (BagRules, error) {
 			seen[uint16(n)] = true
 		}
 	}
-	// ⚠️ 2026-10-09：**允许两个类型共用同一段**（只拒绝"部分重叠"）。
-	//
-	// 依据：`internal/cashshop/pilot.go` 早就把 `[etc]` / `[waste]` / `[throw]` / `[hp]` …
-	// 一起落在 65..120（注释写明「`[etc]` 消耗品兜底、落 Use 页」）—— 共用一段是既有口径。
-	// 而 `Slots` 的消费方全是**正向**查表（`Slots[kind]` → 该类型可用的槽位区间：
-	// bag.Add / box_native / disjoint 都是这个方向），共用一段不会产生歧义；
-	// 真正会歧义的是**部分重叠**（区间交叉），所以那条仍然拒绝。
-	//
-	// 触发本改动的实例：沉月湖的誓约·星蕴石全是 `[etc]`，背包表里没有它 ⇒ 这一族永远发不出来。
+	// Types may share an identical band. Distinct bands must be disjoint,
+	// and neither may overlap the equipment bag or quick-use belt.
+	accepted := make([][2]uint16, 0, len(r.Slots))
 	for _, v := range r.Slots {
 		if v[0] == 0 || v[0] > v[1] || v[1] > 65534 {
 			return r, fmt.Errorf("invalid bag slot range")
 		}
-		exact := false
-		for _, other := range r.Slots {
-			if other == v {
-				exact = true
-				break
-			}
-		}
 		for n := uint32(v[0]); n <= uint32(v[1]); n++ {
-			if !seen[uint16(n)] {
-				continue
+			if seen[uint16(n)] {
+				return r, fmt.Errorf("bag slots overlap equipment or quick slots")
 			}
-			if exact {
-				continue // 与别的类型整段相同：共用同一段槽位，合法
+		}
+		for _, other := range accepted {
+			if other != v && v[0] <= other[1] && other[0] <= v[1] {
+				return r, fmt.Errorf("partially overlapping bag ranges")
 			}
-			return r, fmt.Errorf("partially overlapping bag ranges")
 		}
+		accepted = append(accepted, v)
 	}
-	// 校验通过后统一登记（放在这里，避免"自己和自己重叠"被误判）。
-	for _, v := range r.Slots {
-		for n := uint32(v[0]); n <= uint32(v[1]); n++ {
-			seen[uint16(n)] = true
-		}
-	}
+
 	return r, nil
 }
 
@@ -142,8 +126,12 @@ type BagItem struct {
 	Slot             uint16 `json:"slot"`
 	Template, Amount uint32
 	ExpireTime       uint32 `json:"expire_time,omitempty"`
+	WeaponShape      uint32 `json:"weapon_shape,omitempty"`
 }
 type Bag struct {
+	// Separates successive equipment instances in reused slots. Legacy saves start at zero.
+	DisjointSeq uint64 `json:"disjoint_seq,omitempty"`
+
 	// Missing in legacy saves; fences atomic emblem insertion/replacement.
 	EmblemInlaySeq uint64 `json:"emblem_inlay_seq,omitempty"`
 
@@ -152,16 +140,25 @@ type Bag struct {
 	EmblemCompoundSeq uint64 `json:"emblem_compound_seq,omitempty"`
 
 	// Legacy inventories omit this field and keep their original avatar capacity.
-	AvatarExpansion byte                    `json:"avatar_expansion,omitempty"`
-	Expansion       byte                    `json:"expansion,omitempty"`
-	Version         string                  `json:"version"`
-	Gold            uint32                  `json:"gold"`
-	Coin            uint32                  `json:"coin,omitempty"`
-	Items           []BagItem               `json:"items"`
-	PetItems        []BagItem               `json:"pet_items,omitempty"`
-	Equipment       []BagEquipment          `json:"equipment,omitempty"`
-	Worn            []BagEquipment          `json:"worn,omitempty"`
-	Special         map[byte][]BagEquipment `json:"special_equipment,omitempty"`
+	AvatarExpansion byte `json:"avatar_expansion,omitempty"`
+	Expansion       byte `json:"expansion,omitempty"`
+	// ClosetExpansion 是衣柜（Avatar Closet）档位：0=未购买（按官方默认档 1 下发），
+	// N=已买到 Tier N。对应 PVF 商品 "Avatar Closet Expansion Kit"（3001197/8/9）。
+	ClosetExpansion byte `json:"closet_expansion,omitempty"`
+	// AvatarPresetPages 是装扮预设（Avatar Preset）已解锁的**页数**（= 页签/栏位数）。
+	// 0 = 存档里没写过（按官方默认 1 页下发），N = 已用券解锁到 N+1 页。
+	// 字段名 2026-10-10 从 avatar_preset_slots 改成 avatar_preset_pages：语义从
+	// "每页条目数" 纠正为 "页签（栏位）数"，旧键自然作废、不用改存档。
+	// 对应 PVF 商品 "Avatar Preset Expansion Ticket"（3003017 / 模板 590723098）。
+	AvatarPresetPages byte                    `json:"avatar_preset_pages,omitempty"`
+	Version           string                  `json:"version"`
+	Gold              uint32                  `json:"gold"`
+	Coin              uint32                  `json:"coin,omitempty"`
+	Items             []BagItem               `json:"items"`
+	PetItems          []BagItem               `json:"pet_items,omitempty"`
+	Equipment         []BagEquipment          `json:"equipment,omitempty"`
+	Worn              []BagEquipment          `json:"worn,omitempty"`
+	Special           map[byte][]BagEquipment `json:"special_equipment,omitempty"`
 	// Missing in legacy saves. Socket zero is projected from Worn slot 24;
 	// the other four entries are the client's Reserved shield positions.
 	KnightShieldDeck []uint32 `json:"knight_shield_deck,omitempty"`
@@ -190,14 +187,18 @@ type Bag struct {
 	//
 	// 它只改外观：穿戴容器（list 3）里的武器对象、金库与背包里的物品都不动，
 	// 所以脱装/换装的身份校验（stale equipment identity）不受影响。
-	WeaponSkin uint32 `json:"weapon_skin,omitempty"`
+	WeaponSkin   uint32                    `json:"weapon_skin,omitempty"`
+	TitleBook    map[byte][]TitleBookEntry `json:"title_book,omitempty"`
+	TitleSkin    uint32                    `json:"title_skin,omitempty"`
+	TitleBookSeq uint64                    `json:"title_book_seq,omitempty"`
 	// WeaponSkins 是幻化仓库武器外观页签（NOTI1545 subtype 4）里已复制的皮肤 id，
 	// 按复制顺序排列。
 	//
 	// 客户端把这个容器当会话态：NOTI1545 只在复制（CMD1592）时推过一次，重登后
 	// 容器是空的，所以列表必须落库，入场时再按它重推一次。WeaponSkin（已应用的那
 	// 一个）正常是它的成员；老存档没有本字段，见 WeaponSkinStorage 的兜底。
-	WeaponSkins []uint32 `json:"weapon_skins,omitempty"`
+	WeaponSkins        []uint32 `json:"weapon_skins,omitempty"`
+	WeaponSkinTokenSeq uint64   `json:"weapon_skin_token_seq,omitempty"`
 	// WeaponSkinSeq 是幻化应用/解除的单调序号，每真正改一次外观加一。
 	//
 	// 它只服务于幂等键：CMD1565 的 Apply 与「浏览选中」是同一个帧，服务端按
@@ -287,6 +288,9 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 	if b.AvatarExpansion > protocol.MaxAvatarInventoryExpansion {
 		return b, fmt.Errorf("时装栏扩展档位超出客户端范围")
 	}
+	if b.AvatarPresetPages >= protocol.MaxAvatarPresetPages {
+		return b, fmt.Errorf("装扮预设页数超出客户端范围")
+	}
 	for _, i := range b.Items {
 		if i.Template == 1 {
 			if uint64(b.Coin)+uint64(i.Amount) <= math.MaxUint32 {
@@ -357,6 +361,9 @@ func ReadBag(state json.RawMessage) (Bag, error) {
 			seen[i.Slot] = true
 		}
 	}
+	if e := b.ValidateTitleBook(); e != nil {
+		return b, e
+	}
 	return b, nil
 }
 
@@ -395,6 +402,9 @@ func SaveBag(state json.RawMessage, b Bag) (json.RawMessage, error) {
 	}
 	if b.Expansion > 2 {
 		return nil, fmt.Errorf("背包扩展档位超出客户端范围")
+	}
+	if b.AvatarPresetPages >= protocol.MaxAvatarPresetPages {
+		return nil, fmt.Errorf("装扮预设页数超出客户端范围")
 	}
 
 	// [ALIGN-20260930-DURABILITY] 落库前 clamp 耐久（见 SetDurabilityLimit 的说明）。
@@ -478,7 +488,7 @@ func (b Bag) Rows() [][protocol.CurrentItemRecordSize]byte {
 		protocol.OrdinaryItem(1, 1, b.Coin),
 	}
 	for _, i := range items {
-		rows = append(rows, protocol.OrdinaryItem(i.Slot, i.Template, i.Amount, i.ExpireTime))
+		rows = append(rows, i.Row())
 	}
 	for _, i := range b.Equipment {
 		rows = append(rows, EquipmentRow(i))
@@ -502,7 +512,7 @@ func (b Bag) RowAt(slot uint16) ([protocol.CurrentItemRecordSize]byte, bool) {
 	}
 	for _, i := range b.Items {
 		if i.Slot == slot {
-			return protocol.OrdinaryItem(i.Slot, i.Template, i.Amount, i.ExpireTime), true
+			return i.Row(), true
 		}
 	}
 	for _, e := range b.Equipment {
@@ -516,6 +526,7 @@ func (b Bag) RowAt(slot uint16) ([protocol.CurrentItemRecordSize]byte, bool) {
 // Add updates the whole bag in the caller's character transaction. It does
 // not silently spill, drop or partially grant a stack when the bag is full.
 func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTime ...uint32) (Bag, uint16, error) {
+	original := b
 	if amount == 0 {
 		return b, 0, fmt.Errorf("invalid inventory award/source")
 	}
@@ -555,7 +566,6 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 	if amount > limit {
 		return b, 0, fmt.Errorf("award exceeds stack limit")
 	}
-	original := b
 	occupied := map[uint16]bool{}
 	for _, i := range b.Equipment {
 		occupied[i.Slot] = true
@@ -569,7 +579,7 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 		// 快捷栏上的同模板堆就是这堆本身（next79 2026-10-03）：发放必须并进
 		// 它，否则段内另起一叠、客户端陷入 findItemSlot "multiple slot issues"
 		// 死循环。belt 行作合并目标与其余守卫（期限、上限）完全同规则。
-		if row.Template == id && (r.Quick(row.Slot) || row.Slot >= slots[0] && row.Slot <= slots[1]) && row.Amount < limit {
+		if b.OrdinarySlotUnlocked(row.Slot) && row.WeaponShape == 0 && row.Template == id && (r.Quick(row.Slot) || row.Slot >= slots[0] && row.Slot <= slots[1]) && row.Amount < limit {
 			added := min(amount, limit-row.Amount)
 			b.Items[i].Amount += added
 			amount -= added
@@ -583,7 +593,7 @@ func (b Bag) Add(c catalog.LootCatalog, r BagRules, id, amount uint32, expireTim
 	}
 	for n := uint32(slots[0]); n <= uint32(slots[1]); n++ {
 		slot := uint16(n)
-		if !occupied[slot] {
+		if b.OrdinarySlotUnlocked(slot) && !occupied[slot] {
 			b.Items = append(b.Items, BagItem{Slot: slot, Template: id, Amount: amount, ExpireTime: exp})
 			return b, slot, nil
 		}
@@ -620,7 +630,7 @@ func SweepStackSlots(b Bag, c catalog.LootCatalog, r BagRules) (Bag, bool, error
 			target := -1
 			for j, other := range next.Items {
 				if other.Slot >= slots[0] && other.Slot <= slots[1] &&
-					other.Template == row.Template && other.ExpireTime == row.ExpireTime &&
+					other.Template == row.Template && other.WeaponShape == row.WeaponShape && other.ExpireTime == row.ExpireTime &&
 					other.Amount < limit {
 					target = j
 					break

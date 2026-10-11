@@ -12,7 +12,7 @@ import (
 // 装备 / 誓约「积分」源表（PVF 直读，2026-10-04 取证）。
 //
 // 背景：用户实机在「装备库 → 誓约」看到 `0/750次` 与「已添加的 誓约积分: 0」。
-// 取证结论（见 docs/protocol/oath-set-points-20261004.md §7）：
+// 取证结论（见 docs/protocol/upstream/oath-set-points-20261004.md §7）：
 //   - 客户端**不自己算总分**：它把服务端推来的「每角色一对 Set/Oath Point」原样存进角色实体
 //     （NOTI 2634：`u16 实体键 + u32 A + u32 B` → `实体+1872/+1876`）；
 //   - **每件**装备/晶体的分数由这两张源表给出（客户端只用它做逐件明细）；
@@ -81,6 +81,8 @@ type OathPointTable struct {
 
 // PointRules 是两张积分表的直读投影。
 type PointRules struct {
+	Groups         map[uint32][]uint32
+	GroupingSHA256 string
 	Source         pvf.ArchiveSnapshot
 	Set            SetPointTable
 	Oath           OathPointTable
@@ -127,6 +129,15 @@ func ImportPointRules(a *pvf.Archive) (PointRules, error) {
 	// 套装积分的第一层映射（模板 -> 能力组）。缺了它 SetPoints 只能返回"算不出"，
 	// 而 NOTI2634 会把 Set Point 记 0 —— 所以这里和两张表一样，读不到就显式报错。
 	if out.AbilityGroups, e = abilityGroupMembership(a); e != nil {
+		return out, e
+	}
+	grouping, e := ReadScript(a, "etc/equipmentgrouping.etc")
+	if e != nil {
+		return out, e
+	}
+	out.GroupingSHA256 = grouping.SHA256
+	out.Groups, e = EquipmentAbilityGroups(grouping.Cells)
+	if e != nil {
 		return out, e
 	}
 	out.Source = a.Snapshot()
@@ -439,57 +450,52 @@ func (p PointRules) oathPointForItem(it PointItem) (uint32, bool) {
 	return 0, false
 }
 
-// SetPoints 求套装积分合计：每件按 (能力组, 档位) 查 `setpointinfo.cos`，逐行加总。
-//
-// 两层映射（2026-10-07 取证）：
-//
-//	模板 --(AbilityGroups：equipmentgrouping.etc 的 [ability group])--> 能力组号
-//	能力组号 + 档位 --(setpointinfo.cos 的 [info])--> 每件积分
-//
-// 行归属：`[part set index]` 为 -1 的行用该件自己的 `[part set index]` 补上
-// （与名望侧 `character.fame` 同一口径：`if id == -1 { id = set }`）。补完仍 <= 0
-// （该件没有套装号可归属，例如没有 `[part set index]` 的耳环命中 group 306 的 -1 行）
-// **不累加**——归属不确定就不瞎算。
-//
-// 档位只做精确匹配：不能像誓约那样回退 0 档。实机与源都证明「能力组在表里没有该档位
-// 的行 ⇒ 该件 0 分」（例：`group 52` 只有 `[awakening] 0`，写调适 3 反而归 0），
-// 回退 0 档会把 0 分算成有分。
-//
-// 返回 (合计, 命中件数)。未装载 AbilityGroups 时返回 (0, 0)：调用方必须把它当
-// "算不出"，不得拿 0 冒充"该角色积分为 0"。
+// SetPoints returns the highest native part-set total (145CDE7B0), never
+// a sum of unrelated sets. Ambiguous group rows are excluded, not guessed.
 func (p PointRules) SetPoints(items []PointItem) (uint32, int) {
-	if len(p.AbilityGroups) == 0 {
-		return 0, 0
-	}
-	var total uint32
+	totals := map[int32]uint64{}
 	hits := 0
 	for _, it := range items {
-		groups := p.AbilityGroups[it.Template]
-		if len(groups) == 0 {
-			continue
+		contributions := map[int32]uint32{}
+		ambiguous := false
+		groups := p.Groups
+		if groups == nil {
+			groups = p.AbilityGroups
 		}
-		got := false
-		for _, g := range groups {
-			for _, r := range p.Set.Rules {
-				if r.Group != g || r.Awakening != it.Awakening {
+		for _, group := range groups[it.Template] {
+			for _, row := range p.Set.Rules {
+				if row.Group != group || row.Awakening != it.Awakening {
 					continue
 				}
-				owner := r.PartSetIndex
-				if owner == -1 {
-					owner = it.PartSetIndex
+				set := row.PartSetIndex
+				if set == -1 {
+					set = it.PartSetIndex
 				}
-				if owner <= 0 {
+				if set <= 0 {
 					continue
 				}
-				total += r.Value
-				got = true
+				if old, ok := contributions[set]; ok && old != row.Value {
+					ambiguous = true
+				}
+				contributions[set] = row.Value
 			}
 		}
-		if got {
-			hits++
+		if ambiguous || len(contributions) == 0 {
+			continue
+		}
+		hits++
+		for set, value := range contributions {
+			totals[set] += uint64(value)
 		}
 	}
-	return total, hits
+	var highest uint64
+	for _, value := range totals {
+		highest = max(highest, value)
+	}
+	if highest > uint64(^uint32(0)) {
+		return 0, 0
+	}
+	return uint32(highest), hits
 }
 
 // parseIntField 取 "[tag] 123" 形式的数值（裸标签视为错误，由调用方决定是否容忍）。

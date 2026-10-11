@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-
 )
 
 // MigrateSkinSelection stores which skin a character has applied. It only adds a

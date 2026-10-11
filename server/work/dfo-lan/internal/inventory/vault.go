@@ -50,13 +50,14 @@ func (r VaultRules) allows(n uint16) bool {
 }
 
 type VaultItem struct {
-	Slot       uint16        `json:"slot"`
-	Template   uint32        `json:"template"`
-	Amount     uint32        `json:"amount,omitempty"`
-	ExpireTime uint32        `json:"expire_time,omitempty"`
-	Durability uint16        `json:"durability,omitempty"`
-	IsEquip    bool          `json:"is_equip,omitempty"`
-	Equipment  *BagEquipment `json:"equipment,omitempty"`
+	Slot        uint16        `json:"slot"`
+	Template    uint32        `json:"template"`
+	Amount      uint32        `json:"amount,omitempty"`
+	ExpireTime  uint32        `json:"expire_time,omitempty"`
+	WeaponShape uint32        `json:"weapon_shape,omitempty"`
+	Durability  uint16        `json:"durability,omitempty"`
+	IsEquip     bool          `json:"is_equip,omitempty"`
+	Equipment   *BagEquipment `json:"equipment,omitempty"`
 }
 
 func (v VaultItem) Row() [protocol.CurrentItemRecordSize]byte {
@@ -70,7 +71,7 @@ func (v VaultItem) Row() [protocol.CurrentItemRecordSize]byte {
 		binary.LittleEndian.PutUint16(r[11:], v.Durability)
 		return r
 	}
-	return protocol.OrdinaryItem(v.Slot, v.Template, v.Amount, v.ExpireTime)
+	return (BagItem{Slot: v.Slot, Template: v.Template, Amount: v.Amount, ExpireTime: v.ExpireTime, WeaponShape: v.WeaponShape}).Row()
 }
 
 type Vault struct {
@@ -357,7 +358,7 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest, e
 		remainingToMove := toMoveTotal
 
 		// 步骤 A：优先合并到客户端指定的 DestinationSlot（如果是相同物品且未满）
-		if destItem := v.ItemAt(r.DestinationSlot); destItem != nil && !destItem.IsEquip && destItem.Template == srcItem.Template && destItem.ExpireTime == srcItem.ExpireTime && destItem.Amount < limit {
+		if destItem := v.ItemAt(r.DestinationSlot); destItem != nil && !destItem.IsEquip && destItem.Template == srcItem.Template && destItem.ExpireTime == srcItem.ExpireTime && destItem.WeaponShape == srcItem.WeaponShape && destItem.Amount < limit {
 			space := limit - destItem.Amount
 			n := remainingToMove
 			if n > space {
@@ -373,7 +374,7 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest, e
 				if v.Items[i].Slot == r.DestinationSlot {
 					continue
 				}
-				if !v.Items[i].IsEquip && v.Items[i].Template == srcItem.Template && v.Items[i].ExpireTime == srcItem.ExpireTime && v.Items[i].Amount < limit {
+				if !v.Items[i].IsEquip && v.Items[i].Template == srcItem.Template && v.Items[i].ExpireTime == srcItem.ExpireTime && v.Items[i].WeaponShape == srcItem.WeaponShape && v.Items[i].Amount < limit {
 					space := limit - v.Items[i].Amount
 					n := remainingToMove
 					if n > space {
@@ -417,8 +418,8 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest, e
 				Slot:       targetSlot,
 				Template:   srcItem.Template,
 				Amount:     remainingToMove,
-				ExpireTime: srcItem.ExpireTime,
-				IsEquip:    false,
+				ExpireTime: srcItem.ExpireTime, WeaponShape: srcItem.WeaponShape,
+				IsEquip: false,
 			})
 			remainingToMove = 0
 		}
@@ -448,6 +449,9 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest, e
 		}
 		srcItem := &v.Items[srcIdx]
 
+		if !b.OrdinarySlotUnlocked(r.DestinationSlot) {
+			return b, v, 0, fmt.Errorf("destination outside ordinary inventory capacity")
+		}
 		if srcItem.IsEquip {
 			if rules.EquipmentSlots != [2]uint16{} && (r.DestinationSlot < rules.EquipmentSlots[0] || r.DestinationSlot > rules.EquipmentSlots[1]) {
 				return b, v, 0, fmt.Errorf("target slot %d outside equipment bag range", r.DestinationSlot)
@@ -502,7 +506,7 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest, e
 		remaining := count
 		// First fill the client's chosen stack, then other matching stacks.
 		if targetBagItem != nil {
-			if targetBagItem.Template == srcItem.Template && targetBagItem.ExpireTime == srcItem.ExpireTime && targetBagItem.Amount < limit {
+			if targetBagItem.Template == srcItem.Template && targetBagItem.ExpireTime == srcItem.ExpireTime && targetBagItem.WeaponShape == srcItem.WeaponShape && targetBagItem.Amount < limit {
 				added := min(remaining, limit-targetBagItem.Amount)
 				targetBagItem.Amount += added
 				remaining -= added
@@ -520,7 +524,7 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest, e
 			row := &b.Items[i]
 			// Only an explicitly targeted quick-use stack may receive a merge.
 			// Otherwise search bag stacks, keeping the bag tab when known.
-			if !vaultWithdrawBagMergeSlot(rules, r.DestinationSlot, row.Slot) || row.Slot == r.DestinationSlot || row.Template != srcItem.Template || row.ExpireTime != srcItem.ExpireTime || row.Amount >= limit {
+			if !b.OrdinarySlotUnlocked(row.Slot) || !vaultWithdrawBagMergeSlot(rules, r.DestinationSlot, row.Slot) || row.Slot == r.DestinationSlot || row.Template != srcItem.Template || row.ExpireTime != srcItem.ExpireTime || row.WeaponShape != srcItem.WeaponShape || row.Amount >= limit {
 				continue
 			}
 			added := min(remaining, limit-row.Amount)
@@ -531,7 +535,7 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest, e
 			if remaining > limit {
 				return b, v, 0, fmt.Errorf("target bag stack is full")
 			}
-			b.Items = append(b.Items, BagItem{Slot: r.DestinationSlot, Template: srcItem.Template, Amount: remaining, ExpireTime: srcItem.ExpireTime})
+			b.Items = append(b.Items, BagItem{Slot: r.DestinationSlot, Template: srcItem.Template, Amount: remaining, ExpireTime: srcItem.ExpireTime, WeaponShape: srcItem.WeaponShape})
 			remaining = 0
 		}
 		moved := count - remaining
@@ -586,14 +590,14 @@ func MoveVaultItem(b Bag, v Vault, rules BagRules, r protocol.ItemMoveRequest, e
 				Slot:       toSlot,
 				Template:   itemAtSrc.Template,
 				Amount:     count,
-				ExpireTime: itemAtSrc.ExpireTime,
-				IsEquip:    false,
+				ExpireTime: itemAtSrc.ExpireTime, WeaponShape: itemAtSrc.WeaponShape,
+				IsEquip: false,
 			})
 			return b, v, count, nil
 		}
 
 		// 目标槽位已有物品：同类合并
-		if !itemAtSrc.IsEquip && !itemAtDest.IsEquip && itemAtSrc.Template == itemAtDest.Template && itemAtSrc.ExpireTime == itemAtDest.ExpireTime {
+		if !itemAtSrc.IsEquip && !itemAtDest.IsEquip && itemAtSrc.Template == itemAtDest.Template && itemAtSrc.ExpireTime == itemAtDest.ExpireTime && itemAtSrc.WeaponShape == itemAtDest.WeaponShape {
 			limit := rules.MissingStackLimit
 			if limit == 0 {
 				limit = 1000

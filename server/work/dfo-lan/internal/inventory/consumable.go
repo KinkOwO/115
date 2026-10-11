@@ -2,6 +2,7 @@ package inventory
 
 import (
 	crand "crypto/rand"
+	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"encoding/binary"
 	"encoding/json"
@@ -38,13 +39,14 @@ func (s *ItemService) Bootstrap(role Role) ([]byte, error) {
 }
 
 type ConsumeReceipt struct {
-	SeasonExperience uint32    `json:"season_experience,omitempty"`
-	EventKey         string    `json:"-"`
-	Slot             uint16    `json:"slot"`
-	Template         uint32    `json:"template"`
-	Remaining        uint32    `json:"remaining"`
-	Source           string    `json:"source"`
-	Premiums         []Premium `json:"premiums,omitempty"`
+	SeasonExperience  uint32    `json:"season_experience,omitempty"`
+	CharacterCapacity uint16    `json:"character_capacity,omitempty"`
+	EventKey          string    `json:"-"`
+	Slot              uint16    `json:"slot"`
+	Template          uint32    `json:"template"`
+	Remaining         uint32    `json:"remaining"`
+	Source            string    `json:"source"`
+	Premiums          []Premium `json:"premiums,omitempty"`
 	// Granted records every prize a box handed out, including pity draws, so a
 	// replayed request returns the same prizes instead of drawing new ones.
 	Granted []ConsumeGrant `json:"granted,omitempty"`
@@ -91,7 +93,15 @@ func (s *ItemService) ConsumeKey(role Role, r protocol.UseStackableRequest) (str
 type SeasonCapsuleApplier func(json.RawMessage, uint32, time.Time) (json.RawMessage, uint32, error)
 
 func (s *ItemService) PrepareConsume(current Role, r protocol.UseStackableRequest, seasonCapsule bool, applySeason SeasonCapsuleApplier, resolveContract ContractResolver) (json.RawMessage, json.RawMessage, []PremiumActivation, error) {
+	if r.Template == catalog.NativeCharacterSlotTicket {
+		return nil, nil, nil, fmt.Errorf("角色栏扩展券必须通过账号扩容事务使用")
+	}
 	var out ConsumeReceipt
+	if definition, exists := s.Catalog.Items[r.Template]; exists && definition.StackableType == "[contract]" {
+		if _, mapped := resolveContract(r.Template); !mapped {
+			return nil, nil, nil, fmt.Errorf("契约未在当前源表定义可用效果，物品已保留")
+		}
+	}
 	b, e := ReadBag(current.State)
 	if e != nil {
 		return nil, nil, nil, e
@@ -102,6 +112,14 @@ func (s *ItemService) PrepareConsume(current Role, r protocol.UseStackableReques
 				return nil, nil, nil, fmt.Errorf("物品已过期")
 			}
 		}
+	}
+	// CMD44 also carries the native aura license (which is a [waste] item).
+	// Its durable unlock belongs to the same transaction as the decrement.
+	if mask, ok := SkinSlotMaskForTicket(r.Template, s.Catalog); ok {
+		if r.List != 0 || b.ExpandEquipFlags&mask != 0 {
+			return nil, nil, nil, fmt.Errorf("skin slot already expanded or unsupported container")
+		}
+		b.ExpandEquipFlags |= mask
 	}
 	var remaining uint32
 	if r.List == 7 {

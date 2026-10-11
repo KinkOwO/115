@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"dfolan/internal/database/sqlcgen"
-
 )
 
 type BlackPurgatoryQuota struct {

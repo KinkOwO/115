@@ -47,7 +47,7 @@ func RunNetSelfTest() NetSelfTest {
 		return result
 	}
 	result.Errno = winsockErrno(err)
-	if result.Errno == int(syscall.EACCES) || result.Errno == 5 {
+	if result.Errno == int(syscall.WSAEACCES) {
 		result.RemoteDenied = true
 		result.Detail = "NETWORK_SELFTEST_PASS loopback_ok remote_WSAEACCES"
 		return result

@@ -14,6 +14,9 @@ PATH_KEYS = {
     'DFO_PVF_ITEM_SHOP_POLICY', 'DFO_PVF_BOX_POLICY', 'DFO_PVF_CHARACTER_POLICY', 'DFO_PVF_LAYER_REVISIT_POLICY', 'DFO_PVF_SCRIPT_WARP_POLICY', 'DFO_PVF_ARCHIVE', 'DFO_PVF_ENHANCEMENT_POLICY', 'DFO_PVF_VAULT_POLICY', 'DFO_PVF_DROP_POLICY', 'DFO_PVF_SCENE_POLICY', 'DFO_PVF_CONTENT_POLICY', 'DFO_PVF_SELECTION_POLICY', 'DFO_PVF_LOTTERY_POLICY',
 }
 FLAGS = {
+    'DFO_LOCAL_GM',
+    # Isolated raid-entry candidate; default gateway remains unchanged.
+    'DFO_RAID_OPEN_EVENTS_PROBE',
     'DFO_CHANNEL_IDENTITY',
     'DFO_DETAIL_WORN', 'DFO_SHOP_RELEASE', 'DFO_VAULT_PURCHASE_RELEASE',
     'DFO_ODYSSEY_REWARDS_RELEASE', 'DFO_ODYSSEY_TEMPORARY_CREDITS',
@@ -53,6 +56,8 @@ def load_profile(path, project):
             env[key] = str(p)
         elif key in FLAGS and value in ('0', '1'):
             env[key] = value
+        elif key in ('DFO_ATTUNEMENT_QUANTITY_MULTIPLIER', 'DFO_ATTUNEMENT_RARITY_WEIGHT_MULTIPLIER') and isinstance(value, str) and re.fullmatch(r'[0-9]{1,3}', value) and 1 <= int(value) <= 100:
+            env[key] = str(int(value))
         elif key == 'DFO_HELL_PARTY_DROP_PERCENT' and isinstance(value, str) and re.fullmatch(r'[0-9]{1,5}', value) and int(value) <= 10000:
             # Independent Hell numerical multiplier; 100 = 1x, default in Go.
             env[key] = str(int(value))
@@ -71,10 +76,18 @@ def load_profile(path, project):
             # 空串 = 正常路径（保底 + 国服爆率随机）。只接受空或两个十进制数。
             # ⚠️ 临时诊断入口：用于验证「天平档位 → 誓约掉落模板」的对应关系，验完清空。
             env[key] = value
+        elif key == 'DFO_BAKAL_MODE' and value in ('unlimited', 'weekly'):
+            # Repeat candidate admission; gateway additionally requires the raid probe.
+            # This never overrides source weekly reward eligibility.
+            env[key] = value
         elif key == 'DFO_ISPINS_MODE' and value in ('unlimited', 'weekly'):
             # 伊斯作战次数模式（unlimited=不限次 / weekly=每周一次），由
             # scripts/Set-Ispins-Mode.ps1 写入；Go 侧 ispins_policy.go 消费，
             # 空环境变量默认 unlimited。
+            env[key] = value
+        elif key == 'DFO_ELITE_COMPANION_PILOT' and isinstance(value, str) and value in ('attunement', 'all'):
+            env[key] = value
+        elif key == 'DFO_WEAPON_SKIN_ANIMATION' and isinstance(value, str) and value == 'r1':
             env[key] = value
         elif key == 'DFO_PVF_CATALOGS' and isinstance(value, str):
             domains = [part.strip() for part in value.split(',')]
@@ -82,7 +95,7 @@ def load_profile(path, project):
             # 只加一边会让启动脚本在 profile 校验处直接退出（exit status 1），
             # 而 Go 侧则会在 `parsePVFCatalogSelection` 报 "domain is not enabled"。
             # `test_repair_profile.py` / `test_pvf_default_launch.py` 的域数量断言是漂移哨兵。
-            allowed = {'world', 'quests', 'progression', 'items', 'equipment', 'periods', 'skins', 'journal', 'create-cost', 'transform', 'skills', 'prices', 'materials', 'boosters', 'tutorial', 'enhancements', 'random-options', 'shields', 'oath-grades', 'vault', 'loot', 'equipment-selection', 'town', 'dungeons', 'training-dungeons', 'tutorial-dungeons', 'dungeon-towers', 'dungeon-hell', 'dungeon-maze', 'apocalypse', 'attunement', 'odyssey-growth', 'odyssey-chapters', 'odyssey-weapons', 'odyssey-drop', 'odyssey-currency', 'clear-cube', 'black-purgatory', 'bleeding-mine', 'dungeon-terminal', 'dungeon-tournament', 'selection-boxes', 'lottery', 'adventure', 'adventure-recommended', 'season', 'odyssey-routes', 'roster-backgrounds', 'fame', 'bakal-raid', 'boostup', 'script-warps', 'layer-revisits', 'characters', 'cashshop', 'boxes', 'item-shops', 'buffer-rental'}
+            allowed = {'world', 'quests', 'progression', 'items', 'equipment', 'periods', 'skins', 'journal', 'create-cost', 'transform', 'skills', 'prices', 'materials', 'boosters', 'tutorial', 'enhancements', 'random-options', 'shields', 'oath-grades', 'vault', 'loot', 'equipment-selection', 'town', 'dungeons', 'training-dungeons', 'tutorial-dungeons', 'dungeon-towers', 'dungeon-hell', 'dungeon-maze', 'apocalypse', 'attunement', 'odyssey-growth', 'odyssey-chapters', 'odyssey-weapons', 'odyssey-drop', 'odyssey-currency', 'clear-cube', 'black-purgatory', 'bleeding-mine', 'dungeon-terminal', 'dungeon-tournament', 'selection-boxes', 'lottery', 'adventure', 'adventure-recommended', 'season', 'odyssey-routes', 'roster-backgrounds', 'fame', 'bakal-raid', 'boostup', 'script-warps', 'layer-revisits', 'characters', 'cashshop', 'boxes', 'item-shops', 'buffer-rental', 'attendance-login', 'attendance-weekly', 'attendance-activities', 'attendance-online', 'attendance-daily', 'membership'}
             if not domains or len(set(domains)) != len(domains) or any(part not in allowed for part in domains):
                 raise ValueError('Invalid PVF candidate domains')
             env[key] = ','.join(domains)

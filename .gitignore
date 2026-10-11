@@ -1,7 +1,5 @@
-# ==============================================================================
-# DFO 115级项目 Git 忽略规则 (.gitignore)
-# ==============================================================================
-
+# =======================================================================# DFO 115级项目 Git 忽略规则 (.gitignore)
+# =======================================================================
 # ------------------------------------------------------------------------------
 # 1. 外部依赖与通用运行环境 (Third-party runtimes & Toolchains)
 # 说明：tools/ 包含 Go 编译器 (255MB)、PostgreSQL 16.4 与 pgAdmin (967MB)、
@@ -155,6 +153,13 @@ server/work/client-build/Script.inner.manifest.json
 *.exp
 /client-patchs/*/dist/
 
+# mod 作者工作区（仓库根 mods/）里的启用名单是运行期状态，不入库（服务端模块的那份另有跟踪）
+/mods/enabled.json
+
+# R3 GUI build outputs and private validation fixtures
+/launcher/dist/
+/launcher/evidence/
+/launcher/self-test/
 # ------------------------------------------------------------------------------
 # mod 本体不入库，只留 mod 框架 —— 2026-10-07 业主定调
 #
@@ -183,3 +188,16 @@ server/work/client-build/Script.inner.manifest.json
 !/server/work/dfo-lan/mods/README.md
 !/server/work/dfo-lan/mods/zz_mods_gen.go
 !/server/work/dfo-lan/mods/zz_mods_test.go
+
+# 服务端 mod 的**运行时调参文件**：mod 首次带它启动自动生成，之后归玩家手改
+# （这类文件不要入库 —— 它记的是本机当前值，不是要给别人的配置）。
+# mod 自带的初始模板在 mod 包自己的 server/default-tuning.json 里，不在这个目录。
+/server/work/dfo-lan/configs/tuning.d/
+
+# AI 会话/代理本地状态目录（业主裁决 2026-10-11：不入库）
+/.dsh-memery/
+/.workbuddy/
+
+# .NET 构建产物（nuannuan.shop idxtool，生成物不入库 §0.4.1）
+/client-patchs/nuannuan.shop/idxtool/bin/
+/client-patchs/nuannuan.shop/idxtool/obj/

@@ -4,7 +4,8 @@ import pathlib
 import runpy
 import unittest
 
-ROOT = pathlib.Path(__file__).resolve().parents[4]
+ROOT = next(parent for parent in pathlib.Path(__file__).resolve().parents
+            if (parent / 'stop_environment.py').is_file())
 LAUNCH = pathlib.Path(__file__).with_name('launch_local.py')
 
 

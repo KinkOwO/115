@@ -161,6 +161,34 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 	// 与本次逐条同形（连 VMem 增量模式都一样）。
 	// ⇒ 定案：选项 5 必须**由应答当场驱动入场**，不能让客户端自己走 2062。
 	unsettledSeamless := r.Option == protocol.SettlementExitSeamless && w.cardsReady() != nil
+	// 次元回廊的 CMD72：**必须在这里收住**。
+	//
+	// ★ 2026-10-10 第十三轮定案：本客户端 build 里 `N2252/N2253`（本内容的翻牌界面）
+	// 取不到 XUI 窗口 ⇒ 只要发那种帧（大表或小帧），
+	// 客户端就在 `sub_1424FDC30` 里崩（`0x146EA0C30` / `0x1424FDD35`，14 轮实机一致）。
+	// 所以本内容**不走翻牌 UI**：横幅（N31）由清关链发，结算在服务端做（奖励已入库），
+	// 玩家点「返回城镇」时走这里 —— ACK72 + `leaveDungeon()` 回集结区，与伊斯/维纳斯同形。
+	//
+	// 若不在这里拦，CMD72 会落进下面的通用翻牌/结算分支（那需要 `cardsReady()`），
+	// 对军团内容不适用。
+	if w.legion != nil && w.legion.isDimCloister() && w.activeDungeon != nil {
+		ack := outboundPacket{"settlement_focus_ack", 1, 72, protocol.SettlementExitSuccess(r)}
+		if r.State == 2 {
+			// 只更新按钮选中态：保持 run 归属，等 state1 再真正离场。
+			return nil, []outboundPacket{ack}, nil
+		}
+		route, e := w.leaveDungeon()
+		if e != nil {
+			return nil, nil, e
+		}
+		w.selectingDungeon = false
+		ack.Name = "settlement_exit_ack"
+		w.legion.dimCloisterStage = -1
+		return nil, append([]outboundPacket{ack}, route[1:]...), nil
+	}
+	if w.bakalOpening != nil {
+		return w.bakalRetreat(r)
+	}
 	// [ISPINS-ARENA-BOSS] 伊斯大陆的 CMD72 全部不走通用翻牌/结算：官服 s4
 	// 整场没有一帧 69/70/71（阶段奖励由 N2256/N2252 承载），撤退休退
 	// （source=0）更发生在副本未完成时。回城复用 leaveDungeon（回到进本前
@@ -414,7 +442,9 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 	case 2, 3:
 		// Current scenario option3 is "Start Next Quest". A town objective
 		// returns to the owned town; preserve the active quest for NPC handling.
-		route, e = w.leaveDungeon()
+		// Settlement return keeps ordinary fake teammates; explicit leave-party
+		// actions still use leaveDungeon and release the roster/transport.
+		route, e = w.leaveDungeonToTown(true)
 		if e == nil {
 			route = route[1:]
 		}
@@ -434,6 +464,15 @@ func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPac
 			// 无法发奖不能阻断回城；不发送领取成功，也不删除待领奖单。
 			log.Printf("黑鸦翻牌暂未领取，保留奖单等待重登补发：角色=%d 挑战=%s 错误=%v", w.role.ID, w.cardPlan.Run, e)
 			plan = nil
+		}
+	}
+	if pending != nil && (r.Option == 0 || r.Option == protocol.SettlementExitSeamless) {
+		// Both restart routes pass through N27, which retires dungeon entities.
+		// Rebind the complete owned roster after that head and before N28;
+		// prepare it only after routing and the automatic card have succeeded.
+		route, e = w.rebindRobotRechallenge(route)
+		if e != nil {
+			return nil, nil, e
 		}
 	}
 	ack.Name = "settlement_exit_ack"
@@ -491,7 +530,7 @@ func (w *worldSession) restartDungeon() (*dungeon.Session, []outboundPacket, err
 	if e != nil {
 		return nil, nil, e
 	}
-	s, e := dungeon.Select(*copy.dungeons, sel, copy.level, accepted)
+	s, e := dungeon.Select(*copy.dungeons, sel, copy.level, accepted, copy.localRobotMonsterAuthority())
 	if e != nil {
 		return nil, nil, e
 	}

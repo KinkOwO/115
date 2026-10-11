@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "version": "2.0.2-cumulative-20261010-r3",
+  "dfo_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+  "modkit_sha256": "5258049aad8a7b25c34e7c18949c9fe2ce48027bdda03873c190788ad45e4b63",
+  "files": [
+    {
+      "target": ".115us-mods/ChineseInputProbe.dll",
+      "owner": "qol.chinese-input-probe",
+      "payload": "payload/client/.115us-mods/ChineseInputProbe.dll",
+      "sha256": "6eca78d7222608ce9627fc5530bb8727db1d9f1b4e1dd4577c9320f7d44cfd1c",
+      "bytes": 202752,
+      "allowed_before": [
+        "",
+        "6eca78d7222608ce9627fc5530bb8727db1d9f1b4e1dd4577c9320f7d44cfd1c"
+      ]
+    }
+  ],
+  "owners": [
+    {
+      "id": "qol.chinese-input-probe",
+      "requires": [
+        "qol.client-host"
+      ],
+      "allowed_manifest_sha256": [],
+      "known_entries": []
+    }
+  ]
+}

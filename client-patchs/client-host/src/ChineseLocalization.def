@@ -1,3 +1,7 @@
 LIBRARY ChineseLocalization
 EXPORTS
     StartLocalization
+    GetPlugin
+    GetPluginCount
+    GetPluginNameAt
+    GetHostVersion
