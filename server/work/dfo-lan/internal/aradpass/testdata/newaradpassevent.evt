@@ -1,0 +1,88 @@
+
+[db table name]
+`event_new_arad_pass_2026` `event_new_arad_pass_charac_2026` 
+[event period]
+`2026-08-04 09:00:00` `2026-10-20 09:00:00` 
+[/event period]
+
+[ui file]
+`Live\Else\Univ\2026\0804_2026_AradPass_season3\AradPass.xui` 
+[max level display]
+1 
+[pass item index]
+590722579 0 0 
+[expand royal item index]
+590722580 590722581 590722582 590722583 590722584 590722585 590722586 590722587 590722588 
+[/expand royal item index]
+
+[expand rental item index]
+590722580 590722581 590722582 590722583 590722584 590722585 590722586 590722587 590722588 
+[/expand rental item index]
+
+[remain days warning]
+42 42 
+[/remain days warning]
+
+[weekly gainable exp]
+7150 
+[purchase pass exp]
+5000 
+[pass level info]
+1 0 2 600 3 1200 4 1800 5 2400 6 3000 7 3600 8 4200 9 4800 10 5400 11 6200 12 7000 13 7800 14 8600 15 9400 16 10200 17 11000 18 11800 19 12600 20 13400 21 14400 22 15400 23 16400 24 17400 25 18400 26 19400 27 20400 28 21400 29 22400 30 23400 31 24600 32 25800 33 27000 34 28200 35 29400 36 30600 37 31800 38 33000 39 34200 40 35400 41 36800 42 38200 43 39600 44 41000 45 42500 46 44000 47 45500 48 47000 49 48500 50 50000 
+[/pass level info]
+
+[daily reward list]
+590722589 1 `AradPass_lettertitle_000` `AradPass_lettermsg_003` 
+[/daily reward list]
+
+[season reward list]
+590722591 1 `AradPass_Royalcharacter_lettertitle_000` `AradPass_lettermsg_004` 
+[/season reward list]
+
+[reward table]
+0 1 590722601 1 1 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 2 590722605 1 3 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 3 590722607 1 5 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 4 590722609 1 7 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 5 590722611 1 9 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 6 590722613 1 11 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 7 590722615 1 13 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 8 590722617 1 15 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 9 590722611 1 17 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 10 590722617 1 19 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 11 590722619 1 21 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 12 590722613 1 23 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 13 590722623 3 25 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 14 590722625 1 27 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 15 590722626 1 29 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 16 590722609 1 31 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 17 590722617 1 33 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 18 590722633 2 35 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 19 590722617 1 37 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 20 590722625 1 39 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 21 590722639 1 41 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 22 590722640 2 43 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 23 590722649 1 45 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 24 590722944 1 47 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 0 25 590722645 1 49 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 1 590722602 1 2 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 2 590722606 1 4 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 3 590722608 1 6 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 4 590722610 1 8 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 5 590722612 1 10 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 6 590722614 1 12 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 7 590722616 1 14 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 8 590722624 1 16 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 9 590722618 1 18 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 10 590722632 1 20 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 11 590722620 1 22 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 12 590722614 1 24 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 13 590722624 1 26 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 14 590722610 1 28 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 15 590722627 1 30 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 16 590722628 1 32 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 17 590722614 1 34 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 18 590722620 1 36 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 19 590722637 1 38 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 20 590722638 1 40 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 21 590722616 1 42 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 22 590722632 1 44 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 23 590722641 1 46 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 24 590722644 1 48 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 2 25 590722646 1 50 `AradPass_lettertitle_000` `AradPass_lettermsg_000` 
+[/reward table]
+
+[mission change level]
+0 
+[normal alter mission]
+
+[/normal alter mission]
+
+[normal mission]
+1 `daily_mission` 4 300 2 `scenario_clear` 3 100 3 `normal_dungeon_2` 3 100 4 `clear_disciple_of_doom` 3 100 5 `clear_endkeeper_of_order` 3 100 6 `clear_moon_lake` 1 300 7 `clear_azure_main` 1 300 8 `clear_temple_of_death` 1 300 9 `clear_unshackled_nightmare_normal` 1 300 10 `clear_grand_constellation_turtle_library` 1 300 11 `clear_castle_of_the_apostate` 1 300 12 `legion_clear` 1 300 13 `raid_clear` 1 300 14 `clear_infinite_inflorescence` 3 100 15 `clear_bleeding_mine` 1 300 16 `start world boss` 1 100 
+[/normal mission]
+
+[season mission]
+1 `proper_dungeon_clear` 100 800 2 `disjoint` 100 800 3 `repair` 20 800 4 `reinforce` 10 800 5 `amplify` 5 800 6 `use_cube_skill` 200 800 7 `join_pvp` 5 800 8 `sss_rank_clear` 20 800 9 `use_awakening_skill` 20 800 10 `enchant` 3 800 11 `use_fatigue` 1000 800 12 `higher_dungeon` 5 800 
+[/season mission]
+
+[normal mission title]
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 
+[/normal mission title]
+
+[season mission title]
+1 2 3 4 5 6 7 8 9 10 11 12 
+[/season mission title]
+
+[royal registable count]
+1 10 
+[rental registable count]
+1 10 
+[royalpass first reward]
+590722598 1 `AradPass_Royalcharacter_lettertitle_000` `AradPass_Royalcharacter_lettermsg_000` 590722593 1 `AradPass_Royalcharacter_lettertitle_000` `AradPass_Royalcharacter_lettermsg_000` 590722599 1 `AradPass_Royalcharacter_lettertitle_000` `AradPass_Royalcharacter_lettermsg_000` 590722594 1 `AradPass_Royalcharacter_lettertitle_000` `AradPass_Royalcharacter_lettermsg_000` 
+[/royalpass first reward]
+
+[refund playpoint item]
+10329645 10329646 10329647 10329648 10329649 10329650 10333721 10333722 10333723 10339643 10339644 10339645 
+[/refund playpoint item]
+
+[pass character discount]
+10 
+[pass character arbitrator hell safe drop gauge]
+120 
+[pass character asrahan lib hell safe drop gauge]
+80 
+[normal dungeon index list]
+`normal_dungeon_2` 100004140 100004141 100004142 100004143 100004144 100004145 100004463 100004464 100004465 100004466 100004467 100004468 100005064 100005065 
+[/normal dungeon index list]

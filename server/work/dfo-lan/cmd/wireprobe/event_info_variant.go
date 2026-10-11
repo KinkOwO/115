@@ -125,7 +125,7 @@ func buildTownEventInfoTable(challenge bool) ([]byte, bool) {
 	// 活动行同理 —— 条数取 eventInfoActivityIDs 的长度（测试保证它与 hex 里的条数一致）。
 	activityCount := uint16(0)
 	if len(activity) > 0 {
-		activityCount = uint16(len(eventInfoActivityIDs))
+		activityCount = activityEventInfoCount()
 	}
 	total := binary.LittleEndian.Uint16(base[:2]) + activityCount + binary.LittleEndian.Uint16(rows[:2])
 	out := make([]byte, 0, len(base)+len(activity)+added)

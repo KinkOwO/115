@@ -213,6 +213,9 @@ func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
 	}
 	plan := []outboundPacket{{"dungeon_play_result", 0, 34, notice}, {"dungeon_clear_experience", 0, 37, experience}, {"dungeon_clear_reward", 0, 35, reward}}
 	plan = append(plan, boostPlan...)
+	// 战令（阿拉德通行证）：这次通关计入任务（`proper_dungeon_clear` / `normal_dungeon_2`）。
+	// 状态与经验在同一笔事务里落库；只有真的做满某条任务时才会追加 0x08A1 刷新帧。
+	plan = append(plan, w.recordAradPassDungeonClear(ctx)...)
 	// 665 的通关计数就藏在这笔结算事务里，面板只认 2722：不补这一帧，玩家打完
 	// 「秩序终结者」回到城里看到的还是旧计数（实机 2026-10-06 16:43）。
 	plan = append(plan, boostChallengeClearProgress(w.boostup, preClear, w.role)...)

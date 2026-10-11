@@ -1,17 +1,70 @@
-# CHANGELOG
+## 2026-10-11 客户端 mod 宿主 1.1.0（四项增强）+ 暖暖商城包 3.2.1 + 服务端 catalog 临时摘域
 
-> **2026-10-05 重开归档**：历史全文移至 [`docs/archive/CHANGELOG-20260916-20261004.md`](docs/archive/CHANGELOG-20260916-20261004.md)
-> （868,446 字节 / 3,643 行 / **141 个带日期小节**，覆盖 2026-09-16 → 2026-10-04，正文未做任何改动）。
-> 历史档中 **220 条「未闭环 / 未验收 / 待取证」条目**已机械提取为
-> [`docs/archive/CHANGELOG-unresolved-20260916-20261004.md`](docs/archive/CHANGELOG-unresolved-20260916-20261004.md)（带归档行号，未改写）。
->
-> **本文件规则**（自本次重开起生效）：
-> 1. **最新在上**；每个阶段一节，节内固定三段：**已修复 / 已完成** → **未修复 / 未闭环** → **bug 测试取证**。
-> 2. 只写「结论 + 可追溯锚点」（会话目录、候选 SHA256 前 8 位、文档名、数量、CMD/NOTI 编号）；
->    逐条细节与原始证据留在归档和 `docs/` 下对应文档，**不在这里复制全文**。
-> 3. 未闭环条目必须留在对应阶段的第二段，并在阶段末同步进「跨阶段未闭环总表」的指向；
->    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
-> 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
+**已完成**：`client-host`（mod id `qol.client-host`）升到 **1.1.0**，`src/client-host.c` 由 182 行扩到 820 行，落地四项增强 —— **A** 无 `ModStart`/`StartLocalization` 入口点的插件不再被判"跳过"，照样登记进插件表（纯记账：`DllMain` 在 `LoadLibrary` 时已跑完，不额外执行任何代码）；**B** 递归 `.115us-mods\**\*.dll`（深度上限 3），子目录只 `LoadLibrary` 不调入口点、且**同步**先加载；**C** 可选清单 `.115us-mods\plugins.json`（`name`/`path`/`enabled`/`entrypoint`/`deps` + 顶层 `autoDiscover`/`recurse`，宿主内建极简 JSON 读取器，只认这几个字段），无清单时行为与 1.0.0 完全一致；**D** 新增导出 `GetPlugin`/`GetPluginCount`/`GetPluginNameAt`/`GetHostVersion`(0x00010001)。实现中补了一个原方案未提的坑：**依赖必须同步加载**，否则依赖与依赖方起跑无顺序保证，`GetPlugin` 会时灵时不灵。配套改 `ChineseLocalization.def`、`HOST-README.md`、`build-mod.py` 版本→1.1.0，重打 `client-host-1.1.0.zip`（DLL 183,808 B / sha256 `a88a6787…`）。
+
+暖暖商城包升 **3.2.1**：撤掉 `.115us-mods/NuanNuanShop.dll` 那条 op。依据是 PE 导出表实测 —— 该文件导出 `DirectInput8Create`/`DllCanUnloadNow`/`DllGetClassObject`/`DllRegisterServer`/`DllUnregisterServer`/`GetdfDIJoystick`，即它是**旧版**扩展按钮（同样含 `BEAST controller … F9/F10` 功能串），而客户端根 `dinput8.dll` 已是其新版（855,040 B）。宿主永远不会调用上述导出，把它放插件目录只能触发 `DllMain`，等于让新旧两个扩展按钮同时初始化。
+
+**验证取证**：宿主四项在 `%TEMP%\host115-test` 假客户端目录实测（固件 `.tmp\hosttest\t_plugin.c` 四形态 + `t_host.c` 模拟 dinput8 代理的调用方式）。场景1（无清单）证明 A/B/D，且 `.115us-mods\sub\tp-plugin.log` **不存在** ⇒ `DepOnly` 的 `ModStart` 确未被子目录逻辑调用；场景2（有清单）证明 `enabled:false` 生效、`deps` 顺序成立（PluginB 返回后 PluginA 才启动）、声明项不被自动发现重复加载。两次 `t_host.exe` 均 exit=0、宿主零崩溃，MSVC `/W4` **零警告**。modkit 侧：`verify` 全包通过，升级安装 10 步执行/21 步已就绪，客户端 `dinput8.dll`=855,040 B/`5b4a9099…`，`.115us-mods\NuanNuanShop.dll` 已删除，registry 3.2.1/31 条。
+
+**服务端 `DFO_PVF_CATALOGS` 临时摘域（63→57）**：业主报"游戏进不去"，末行 `PVF candidate catalogs: pvf file not found: live/else/chn/common/ceravipsystem/ceravipsystem.cos`。逐层定位到 `internal/activity/membership.go:12` 写死该路径、`cmd/wireprobe/bootstrap.go:208` 任一域失败即终止网关。普查（574 万条记录）证明**当前 inner 与原版 inner 的缺失项完全一致**，该文件在任何一份 PVF 里都不存在 ⇒ 与换 PVF 只有时间先后、没有因果；`scripts/r3-resource-plans/restoration/pvf-plan.json` 虽含该路径，但 `client_script_sha256`=`608782ae…`/`client_sk_sha256`=`c3b95e04…`/`source_inner_sha256`=`e7098b35…` 与磁盘三方全不匹配，`build-restoration-resources.ps1` 第一道校验即抛 `Client source identity changed`，套不上当前客户端。故摘除 `membership` + `attendance-login/weekly/online/daily`（四个 attendance 均为 `activity.RoutineRules`，同走 `routine mail text missing` 检查）。本沙箱 `go build` 不可用、`scripts/test_local.ps1` 走 go test，故改用仓库现成 `bin/wireprobe-pvf.exe` 搭本地验证（`.tmp\hosttest\verify-gateway.py`，38-40s/轮）：改前精确复现启动器报错，改后**连跑 3 次全过**（39.9/39.3/38.4s），`PVF candidate catalogs prepared` + `PVF shop enabled: 20827 ordinary products` + `商城发布模式：true`。过程见 `docs/HANDOVER-2026-10-11.md` §7/§7.1/§7.2。
+
+**未修复 / 未闭环**：① 全部改动**尚未实机验收** —— 游戏至今未能启动成功，扩展按钮 F9/F10 变身、龙袍特效、`115-shop-tabs.log` 三项均未取证，不得据此宣称功能可用；② 摘除的 5 个域（VIP 会员体系 + 4 种签到）要恢复，前提是拿到**正确客户端身份**的 restoration 资源，在此之前保持摘除；③ 并发痕迹：`scripts/r3-resource-plans/restoration/pvf-plan.json` mtime 为 13:34、`server/work/dfo-lan/mods/zz_mods_gen.go` 有他人未提交改动（**本次未修改、未暂存、未提交**）；④ 本轮未改 Go 源码，故未执行 `go build/vet/test`；`pvf-default.json` 的正确性由现成 exe 实跑验证替代；⑤ 既有告警非本次引入 —— `loot requires -equipment-catalog or DFO_EQUIPMENT_CATALOG`，配置缺该项时装备掉落被静默丢弃，待业主决定是否补；⑥ 暖暖包原始素材目录 `~/Downloads/10月4日版暖暖商城mod` 已被删除，`build-mod.py` 已不可用，后续改包改走"以成品包为基线派生"（流程见 `client-patchs/nuannuan.shop/README.md` §0.1）。本轮未提交任何运行期文件、构建产物或客户端资源。
+
+## 2026-10-11：正式累计 R7 源码与上游集成
+
+按业主“目前本地的更新已经到r7了，你帮我看看然后推上去”重放冻结 R5 到正式 R7 的 42 个源码文件增量，合并上游 db707d59。包含 R6 原生 PVF 默示之真谛升级、SQLite 资产事务与状态恢复，以及 R7 GUI 2.0.7.0 / Go 启动哈希差异告警；保留上游精锐随机属性、登录断连取消、APC 源码与双方协议保护，不覆盖本机游戏。
+
+合并 build/vet/test 全量退出 0（5484 pass、394 skip、0 fail），SQLite 四包 1466 pass/28 skip、GUI 30 项、Python 19 项及真实 PVF + 临时 SQLite charactercheck 通过。原累计包验收不扩大为新上游组合实机验收；继续 Draft。源码缺默认 exe 的环境例外沿用原授权，生成程序、资源、玩家库与令牌不入库。完整范围与跳过原因见 server/work/dfo-lan/docs/r7-gitgud-source-submission.md。
+
+## 2026-10-11：正式累计 R5 冻结源码提交
+
+按业主最新范围由尚未提交的 R3 改为正式累计 R5（2026.10.11-cumulative-r5，GUI 2.0.5.0），导入冻结服务端、GUI/GM、已有精锐/本地功能及武器动画插件源码和维护脚本。R4 修正与 R5 武器幻化/16 GiB 配置均保留；不新增运行玩法假设，不上传玩家库、生成程序或完整资源。
+
+隔离源码 build/vet/test 全量退出 0（4753 pass、323 skip、0 fail），GUI 29 项自检和新增武器插件机制自测通过。未启动游戏；正式包原验收与本轮源码检查范围见 server/work/dfo-lan/docs/r5-gitgud-source-submission.md。
+
+最新 main a3952da8 尚未集成；冻结来源为 9c99e651。业主在阅读本轮方案及门禁例外后回复“帮我推送吧”，授权提交至独立分支并推送；MR 按 Draft 处理，不宣称最新上游已集成或可直接合并。既有实机确认边界保持。
+## 2026-10-11 精锐已解封装备加载与剧情 APC 出现确认
+
+**已修复 / 已完成**：业主确认“确认APC出现，可以提交”。服务端0.3.20补齐队友装备随机属性的原生嵌套列表，将已保存181字节实例的属性三列转换为(id,A,B)三元组，保留type与special FF。修复已解封装备100060157使CMD1811拒绝整队加载的问题，猛毒雷鸣废墟剧情图恢复APC出现；原装备、角色属性和精锐名单无需改动。来源沿用当前PVF的 `[random option]` 与既有解封/存档链，不增加内容白名单或随机规则。确认基线见 `analysis/tasks/adventure-elite-random-options-confirmed-20261011.json`。
+
+**bug 测试取证**：043715_391804_next37 / PID22488 / runTick15202078，events203加载成功、204/206发送N1382/N1879；10476字节资料包含014a101702ff，客户端N1382 after的remaining=0/readerSuccess=1，N1879后三名weakAlive=3，首房原生登记成功。当前完整工作树go build ./...、go vet ./...、go test ./... -count=1 -json均退出0（4264通过/276跳过，逐名对照既有失败基线为空）；临时SQLite保存/加载与真实PVF三名现存队友编码检查通过。隔离服务端候选95dc56bb；DLL0.3.15/8180378b、启动器和默认程序保持。
+
+**未修复 / 未闭环**：确认范围为本次装备加载拒绝与APC出现；不扩大为随机属性伤害收益、完整战斗/死亡、所有副本或特殊替换属性分支。采集保留run.json缺失、死亡数量关联和全局登记汇总缺口，不能改写为全场验收。无PVF、SQLite/schema或玩家存档修改；运行日志、二进制和其他任务文件不入库。提交前fetch实际远端gud/main，无待合并更新；本机无origin/fork。
+
+独立拟提交源码以HEAD归档叠加本任务五份Go文件，保留原mods及本机login_ok.bin测试夹具，完整build/vet/test退出0（4155通过/293跳过，失败与新增失败空）；没有依赖其他未跟踪源码。提交门禁通过。
+
+## 2026-10-11 PVF清单测试独立输入构建确认
+
+**已修复 / 已完成**：业主确认“确认能编译通过，可以提交”。`TestDecideOnThePythonWrittenManifest` 改用Python生成的固定清单与临时三件套，移除对本机客户端、launcher.local.json和旧内层产物的依赖。保留同源复用，并增加DFO.exe/sk.dat/Script.pvf逐项变化必须重建的断言；运行期来源门禁不放宽。确认基线见 `server/work/dfo-lan/docs/innerpvf-manifest-build-confirmed-baseline-20261011.md`。
+
+**bug 测试取证**：原测试独立复现失败，本机DFO.exe指纹与旧清单不一致，sk.dat及Script.pvf一致；按来源拒绝复用是正确行为。修复后格式解析、渲染、门禁分支及三件套变更专项通过。Go1.26.0全量build/vet/test退出0/0/0，失败集合空；原build-game脚本完成两产物编译和身份检查。提交门禁通过，提交前fetch实际远端gud/main无待合并更新；本机无origin/fork。
+
+**未修复 / 未闭环**：确认仅覆盖构建与自动测试；本轮不重建本机内层PVF，不修改客户端、运行清单、schema或玩家存档。默认程序保持；固定JSON仅为合成测试夹具，不是运行内容源，日志与二进制不入库。
+
+## 2026-10-11 登录后台发送生命周期构建确认
+
+**已修复 / 已完成**：业主确认“确认能编译通过，可以提交”。选角后无输出通道时不启动保活，保活及两类延迟登录推送绑定连接关闭信号；保留原30秒间隔、16字节保活体、1.1秒登录延迟及伊斯待机区pending分支。新增虚拟时间回归，覆盖无输出、正常保活和断连取消。合并上游后的已有nil保护纳入同一生命周期管理，确认基线见 `server/work/dfo-lan/docs/ispins-login-build-confirmed-baseline-20261011.md`。
+
+**bug 测试取证**：原nil-output回归在修复前复现同一panic，修复后专项及次元回廊登录测试通过；Go1.26.0全量build/vet/test退出0/0/0。当前完整工作树验证同时包含另行提交的PVF清单测试修复，失败集合为空。源码候选82af37d1、启动器0d9301cd已构建并留有旧件备份；程序与运行日志不入库。提交前已fetch实际远端gud/main，无待合并更新；本机无origin/fork。
+
+**未修复 / 未闭环**：确认仅为编译与自动回归，不扩大为游戏实机验收；默认程序、客户端资源、PVF、schema和玩家存档不变，其它工作区文件不纳入本提交。
+
+## 2026-10-11 艾尔文换层 APC 出现确认
+
+**已修复 / 已完成**：业主确认“确认APC出现，可以提交了”。DLL v0.3.15 对同一原生场景、同代次锚点中持续缺登记3秒的精锐，完成原生登记后的启用步骤再传送至玩家附近；已登记对象沿原生A*判断不可达后补救。x64dbg实际命中原生清理链，确认此前缺少加载器的virtual320(actor,1)，不直接改字段或禁用清理。确认基线见 `analysis/tasks/elite-apc-catchup-confirmed-20261011.json`；源码、机制测试、采集脚本和取证记录同步收口。
+
+**bug 测试取证**：PID21376/runTick11640906，033840_888022_next37会话首次三轮各三名APC，9次原生启用0→1、9次传送坐标一致；后续ordinal263仍全部sceneAttached=1、主人绑定有效。MSVC /W4 /WX构建、14组机制和采集兼容夹具通过；采集退出0、产物与资源哈希匹配。DLL245248字节，SHA256 8180378b06d0a106a95e75835bd4580a4d07d580d6f378a5629556a5f69244a5。已合并gud/main；远端加载器误引用四个缺失mod，另行修复空注册后，Go1.26全量build/vet/test退出0/0/0（4256 通过/277 跳过，失败集合空）。首次SQLite时间精度断言因-5.2µs失败、完整复跑通过，未改数据库代码；详情记录在确认基线。
+
+**未修复 / 未闭环**：不同scene的剧情重挂未实现；完整战斗/死亡/AI连续性、之前PID2012崩溃原因和modkit安装卸载仍待证。采集保留六项战斗缺口，不将用户的出现确认扩大为完整玩法验收。未改PVF、schema或玩家存档；DLL/包/日志不入库，军团等其他工作区改动不纳入APC提交。
+
+
+## 2026-10-10 艾尔文泪湖换层入口确认
+
+**已修复 / 已完成**：业主确认“能进去了，提交这里吧”。精锐门禁取消对CMD2015的无条件拒绝，保留冻结身份、源范围与加载校验，恢复legacy原有换层执行器。确认源码候选dda10d39，默认程序未替换；详见 `server/work/dfo-lan/docs/protocol/elvenmere-elite-teleport-confirmed-baseline-20261010.md`。
+
+**未修复 / 未闭环**：业主继续报告APC未跟随换层、留在首层，此项另行取证；不纳入当前确认。手写周常/赛季奖励和经验与PVF重复、经验首层源0/Go90000等内容债务已提示并记入PVF依赖台账；本轮未改奖励、schema或存档，不扩大为全部楼层和完整结算验收。
+
+**bug 测试取证**：150641_992519_next37/PID22348：events260/264首次CMD2015应答与层2进度，至547/551连续应答与层12进度，用户确认可进入。原生完整分派回归修复前带精锐用例失败，修复后通过；Go1.26全量build/vet/test通过（4154通过/273跳过，前后失败集合空）。提交前fetch实际远端gud/main与HEAD为0/0；本机无origin/fork。完整验证与候选身份见取证文档，运行日志、二进制及用户其它改动不入库。
 
 ## 2026-10-10 事件脚本奖励不再白给（结算/任务提交后回读入库态再编帧，已实机确认）
 
@@ -117,6 +170,36 @@ DB fixture 缺失 + `ispins_wiring.go` 已知 panic），本次未引入新失�
 **bug 测试取证**：会话 `201020_727054_next37`，候选 `7fa15a96`；六次均 applied=true，含原生皮肤/服饰与 MOD 散件，属性 0/2/4 与 NOTI14 一致，默认孔保留。最新主线 `d80919db` 上 build/vet/全量测试通过；九个既有失败商品的真实 PVF 属性购买回归通过。详见 `server/work/dfo-lan/docs/protocol/shop-avatar-selected-options-confirmed-20261010.md`。
 
 
+## 2026-10-11 选择箱 `[stackable]` 内容段建模（每日礼包选 x45 只到 1 个）
+
+**已修复 / 已完成**：`[booster select category]` 的内容段此前只建模 `[equipment]`，把 `[stackable]` 与 `[avatar]/[etc]/[cera]` 一起当「未建模段」跳过 ⇒ `Resolve` 的件数表为空 ⇒ `openBoosterItem` 发放回落到**礼盒自身数量**。实机表现：Royal Pass 每日礼包 `590722589` 选 `Radiant Harmonious Crystal (x45)`，进背包只有 **1** 个（`gateway.err`：`selection box 590722589: category [0 0] has no exported item set … the pick goes down the generic path`）。现按与 `[equipment]` 同口径建模 `(模板, 数量)` 成对形态；`hasUnmodelledSection` 放行 `[stackable]`。
+
+**未修复 / 未闭环**：源里另有 33 个 `[stackable]` 块是 **5 个数字一条**的记录（`模板 数量 ? ? ?`，如 10404663 的 `10404771 1 2 115 108 …`），形状未定 ⇒ 整块不建模并在 `Sections` 记 `selectionSectionStackableUnparsed`，语义与改动前完全一致。
+
+**bug 测试取证**：全量审计 16757 个 `[booster selection]` 候选 —— 带 `[stackable]` 的盒子 3178 个、块成对 17660 / 奇数 33；分类计数改前改后均为 `boxes=16749 fixed=2 unparsed=3 rejected=3`；目标箱分类 `[0 0]` 的 items 由 0 变 3（`10327284×90`、`10327285×45`、`10362432×50`）。用例 `TestParseSelectionStackablePairs`、`TestParseSelectionStackableRecordShapeStaysUnmodelled`、`TestSelectionBoxGrantsTheSourceStackableCount`（钉在下发帧 `booster_open_ack` 的 count=45）。记录 `analysis/tasks/next58-selection-box-import.md §3.7`。
+
+## 2026-10-11 战令（阿拉德通行证，活动 516 / 10005）完整移植
+
+**已修复 / 已完成**：面板 / 领取 / ROYAL 轨 / 每日登录礼包 / 任务记账全链路打通，源驱动直读 `newaradpassevent.evt`。
+
+- 两帧：`0x08A1`（账号级 760B）与 `0x08A2`（每角色 1104B）。**ROYAL 轨解锁 = 0x08A1 正文 u32 头 == 2**（判定函数 `sub_14229FF90` 反证），`0x08A2` 正文头同样必须是 2。
+- `CMD680` 第 3 个 u32 = **奖励等级**（皇家偶数级 / 普通奇数级）；`0` = Receive All；`3` = 每日登录礼包（8 字节帧）。
+- 已领标记是**每档 1 字节**（非位图）：普通轨 `0x1C2`、皇家轨 `0x28A`（各 25 字节，实机两轮对照定案，两条轨基址不相邻）。
+- 每日礼包「已领」= 正文 **`0x1C0`** 的 u16（实机 + IDA 双证，饱和值 `0xFFFF` 表达已领，09:00 UTC 换日）。
+- 任务进度按角色落库，每日 06:00 UTC 归零并设每日经验上限；沉月湖 / 蔚蓝号通关记账分别挂到各自**结算点**。
+- `NOTI108` 追加构造活动行（516 / 10005），`activityEventInfoCount` 与正文实际行数同口径。
+
+**未修复 / 未闭环**：`NOTI2318 NEW_ARAD_PASS_CHARAC_DETAIL_INFO` 从未实现（不在三个注册助手的覆盖内，需另开一轮定位 handler）；`NOTI2855` 仍从不发送。
+
+**bug 测试取证**：`go test ./internal/aradpass/ ./cmd/wireprobe/ -run AradPass`；实机会话 `runtime/roles_persist_*172342*`（`arad pass royal daily role=2 day=2026-10-11 applied=true items=1 slots=1`）。记录 `analysis/tasks/next195-战令移植-20261010.md`（§20 结案、§21 任务字段、§23 沉月湖、§25 每日礼包、§27 已领位）。
+
+## 2026-10-11 活动帧通用读法抽出（331 / 662 / 战令共用）
+
+**已修复 / 已完成**：`CMD680`（领奖）与 `CMD681`（查询）是**多个活动共用**的帧 —— 331 签到、313 HoneyTime、662/665、战令 516/10005 的载荷都是「u32 活动号 + …」，判据只有首 u32。**已修复**「662 的 `dispatchBoostEvent` 拿自己的校验去拒别人的请求」这一类误判（2026-10-10 实测：点 HoneyTime 的 Get 发来 `680`（313,0），我们回了 662 的 `event reward request carries no parameter`）。做法：新增 `protocol.EventRequestEventID115`（`internal/game/protocol/attendance_claim115.go`），662 与战令的 `680/681` 分流都先读它、非本活动的帧原样放行。
+
+**未修复 / 未闭环**：无。
+
+**bug 测试取证**：`cmd/wireprobe` 中 662 与战令的分流用例各自覆盖「非本活动帧原样放行」。里程碑 `analysis/tasks/next193-签到活动打通-计划与里程碑-20261010.md`。
 
 ## 2026-10-10 已支持特殊频道精锐准入多频道确认
 
@@ -727,6 +810,20 @@ Go 1.26 `go build ./...`、`go vet ./...`、`go test ./... -count=1` 通过，�
 **验证**：`go build ./internal/inventory/` 通过；完整 wireprobe 编译通过并部署。待实机：克隆套红孔嵌红徽章、高级时装绿孔嵌绿徽章、天空白金孔嵌白金。
 
 **遗留**：Skin Avatar Box（590703373）皮肤时装仍 0 孔（selection-boxes 目录该盒 [avatar] 分类未建模，kind 判定差异待核对）；部分模板 PVF 无默认孔声明（512600205/101591087 等）保持 0 孔属预期。10-06 时装默认孔补全两段记录见文末。
+
+> **2026-10-05 重开归档**：历史全文移至 [`docs/archive/CHANGELOG-20260916-20261004.md`](docs/archive/CHANGELOG-20260916-20261004.md)
+> （868,446 字节 / 3,643 行 / **141 个带日期小节**，覆盖 2026-09-16 → 2026-10-04，正文未做任何改动）。
+> 历史档中 **220 条「未闭环 / 未验收 / 待取证」条目**已机械提取为
+> [`docs/archive/CHANGELOG-unresolved-20260916-20261004.md`](docs/archive/CHANGELOG-unresolved-20260916-20261004.md)（带归档行号，未改写）。
+>
+> **本文件规则**（自本次重开起生效）：
+> 1. **最新在上**；每个阶段一节，节内固定三段：**已修复 / 已完成** → **未修复 / 未闭环** → **bug 测试取证**。
+> 2. 只写「结论 + 可追溯锚点」（会话目录、候选 SHA256 前 8 位、文档名、数量、CMD/NOTI 编号）；
+>    逐条细节与原始证据留在归档和 `docs/` 下对应文档，**不在这里复制全文**。
+> 3. 未闭环条目必须留在对应阶段的第二段，并在阶段末同步进「跨阶段未闭环总表」的指向；
+>    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
+> 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
+
 
 ## 2026-10-05：汉化 dll（localization.dll）经启动宿主接回完整链路
 

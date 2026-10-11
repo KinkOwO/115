@@ -28,6 +28,16 @@ func (client *gameConnection) dispatchBoostEvent(requestData *clientRequest) dis
 	if requestData.frame.ID != 643 && requestData.frame.ID != 680 && requestData.frame.ID != 681 && requestData.frame.ID != 2333 {
 		return dispatchNext
 	}
+	// 680/681 是**通用**活动帧：签到（331）、HoneyTime（313）等也用它。本段只认 662/665，
+	// 其余原样放行 —— 否则会拿 662 的校验去拒别人的请求、回一个错的失败码。
+	// 2026-10-10 实测：客户端点 HoneyTime 的 Get 发了 op680（313,0），
+	// 我们回了 662 的 `event reward request carries no parameter`。
+	if requestData.frame.ID == 680 || requestData.frame.ID == 681 {
+		event, ok := protocol.EventRequestEventID115(requestData.plaintext)
+		if ok && event != boostup.EventID && event != boostup.ChallengeEventID {
+			return dispatchNext
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var plan []outboundPacket

@@ -17,6 +17,17 @@ import (
 // ⇒ **就是两个 u32，没有补齐到 16 字节**（这一点与 op681 不同：681 线上补齐到 16）。
 const AttendanceClaimRequestBytes = 8
 
+// EventRequestEventID115 读**通用活动帧**（CMD680 领奖 / CMD681 查询）载荷里的活动号（首 u32）。
+//
+// 这一族是**多个活动共用**的：331 签到、313 HoneyTime、662/665 全是「u32 活动号 + …」。
+// 谁都不能拿自己的校验去拒别人的请求 —— 判据只有这个首 u32。
+func EventRequestEventID115(p []byte) (uint32, bool) {
+	if len(p) < 4 {
+		return 0, false
+	}
+	return binary.LittleEndian.Uint32(p), true
+}
+
 // DecodeAttendanceClaim115 读 CMD680 的领奖请求。返回活动号与**行号**（0 起）。
 func DecodeAttendanceClaim115(p []byte) (event uint32, day uint32, err error) {
 	if len(p) < AttendanceClaimRequestBytes {
