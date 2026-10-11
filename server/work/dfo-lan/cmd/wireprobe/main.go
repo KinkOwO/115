@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/channelrefresh"
 	"dfolan/internal/localgm"
+	"dfolan/internal/modcompanion"
 	"dfolan/internal/modpolicy"
 	"dfolan/internal/ranking"
 	"dfolan/internal/servermod"
@@ -61,6 +62,11 @@ func runGateway(startup Config) error {
 	// 上游的复活用例与默认放行用例都因此失败。
 	modpolicy.Reset()
 	defer modpolicy.Reset()
+	// 副本同伴（internal/modcompanion）与模式策略同一条生命周期：进程级状态，
+	// 进来先清空、退出再清空。理由与上面那段完全相同 —— 网关会在同一进程里被
+	// 反复起停（测试就是），留着上一次的注册等于让下一次的副本带上上一次的同伴。
+	modcompanion.Reset()
+	defer modcompanion.Reset()
 	// —— 服务端层 mod：注册阶段（必须在 prepareRuntime **之前**）——
 	//
 	// 为什么这么早：奖励管线是在 prepareRuntime 内部构造的
@@ -104,6 +110,9 @@ func runGateway(startup Config) error {
 		return err
 	}
 	log.Print(servermod.Description())
+	// 副本同伴生效状态打一行：与 `odyssey mode rules: …` 同口径，
+	// 让"规则没生效"永远看得出来，不会静默。
+	log.Printf("副本同伴规则：%s", modcompanion.Current())
 	// —— 场景实体能力（internal/modactor）宿主接线 ——
 	//
 	// 放这里而不是更早：宿主要把 mod 造出来的假人放进 lanHub，而 hub 是

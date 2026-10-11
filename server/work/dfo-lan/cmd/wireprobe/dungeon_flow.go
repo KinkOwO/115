@@ -354,6 +354,16 @@ func (w *worldSession) prepareDungeonEntry(r protocol.DungeonSelection) (*dungeo
 			return nil, nil, database.ErrFatigueExhausted
 		}
 	}
+	// 服务端层 mod 注册的**副本同伴**（internal/modcompanion）：必须在拼进图帧列
+	// **之前**加进会话怪物表 —— 首间的 NOTI29 就是从 `s.Monsters` 编出来的，
+	// 加晚了这一间就没有同伴，之后每间房由既有的同伴携带逻辑（enterRoom →
+	// rememberCompanions/appendMissingCompanions）带过去。没有 mod 注册时这里是空操作。
+	//
+	// 为什么放在这一条路径上而不是 `dungeon.Select` 里：次元回廊（军团家族）的怪物表
+	// 会被 `DimCloisterAlignArenaEntities` 按官方 N29 的编号**逐位对齐**，多一行就长度
+	// 不匹配、整关载入失败 —— 它走自己的 `dungeon.Select`，不经过这里。其它军团内容
+	// （森林/维纳斯/末世录/伊斯）同样各自拼帧列，也不经过这里。
+	s.ApplyModCompanions()
 	plan, e := w.dungeonEntryPlan(context.Background(), "dungeon_select_ack", 16, r, s)
 	if e != nil {
 		return nil, nil, e
@@ -889,6 +899,8 @@ func (w *worldSession) seamlessRoomReset() (*dungeon.Session, []outboundPacket, 
 	if err != nil {
 		return nil, nil, err
 	}
+	// 无缝续刷是「同一张图的原地重开」，同伴照常带上（口径与 prepareDungeonEntry 一致）。
+	s.ApplyModCompanions()
 	noteMazeEntry(s)
 	var seed uint32
 	if err := binary.Read(rand.Reader, binary.LittleEndian, &seed); err != nil {
