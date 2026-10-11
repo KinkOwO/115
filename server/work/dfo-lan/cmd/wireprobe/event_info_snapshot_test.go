@@ -26,7 +26,9 @@ func TestEventSnapshotRetainsChallengeAcrossEntryAndReturn(t *testing.T) {
 			t.Fatal("selection, entry and return diverged")
 		}
 		ids := decodeOpenEventKeys(t, entry)
-		want := 23
+		// 官方切片 23 行 + 本仓构造的两行活动行（战令 516/10005，见
+		// event_info_activity_constructed.go）；challenge 行另计一行。
+		want := 25
 		if challenge {
 			want++
 		}

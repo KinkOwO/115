@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"strings"
 	"testing"
@@ -34,6 +35,35 @@ func TestEventRequest115LiveWidths(t *testing.T) {
 	three[8] = 7
 	if q, e := DecodeEventRequest115(three, true); e != nil || q.Parameter != 7 {
 		t.Fatal(q, e)
+	}
+}
+
+// TestBoostChallengeRequest115FieldOrder 钉住 665 领奖请求里「哪一格是行号」。
+// 两帧都是逐字节原文：官服 cap43 21:30:16.042（第 0 行解锁奖励，其后 2722 槽 0 的
+// 解锁已领位由 0 翻 1）与实机 2026-10-11 17:45:19 业主在 10/10 那行点「Get」
+// （会话 `…_20261011_174423_800898_next37`，该行 `unlocked=true progress=10 claims=0`）。
+// 旧实现把第三格当行号，实机整笔被拒成 `challenge is locked`。
+func TestBoostChallengeRequest115FieldOrder(t *testing.T) {
+	official, e := hex.DecodeString("99020000000000000000000000000000")
+	if e != nil {
+		t.Fatal(e)
+	}
+	if r, e := DecodeBoostChallengeRequest115(official); e != nil || r.Index != 0 || r.Action != 0 {
+		t.Fatal(r, e)
+	}
+	live, e := hex.DecodeString("99020000000000000100000000000000")
+	if e != nil {
+		t.Fatal(e)
+	}
+	if r, e := DecodeBoostChallengeRequest115(live); e != nil || r.Index != 0 || r.Action != 1 {
+		t.Fatal(r, e)
+	}
+	// 行号越界仍然拒收（客户端槽位上限 32）。
+	out := make([]byte, 16)
+	out[0], out[1] = 0x99, 0x02
+	binary.LittleEndian.PutUint32(out[4:], 33)
+	if _, e := DecodeBoostChallengeRequest115(out); e == nil {
+		t.Fatal("out-of-range challenge index accepted")
 	}
 }
 
