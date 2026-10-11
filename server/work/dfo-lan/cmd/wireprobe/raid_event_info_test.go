@@ -68,7 +68,8 @@ func TestOfficialRaidGateTablePreservedAtEntry(t *testing.T) {
 	before := append([]byte(nil), eventInfoTable...)
 	body := raidChannelEventInfo(map[uint32]uint32{45: 45, 50: 50, 99: 99, 119: 119, 112: 112}, nil)
 	keys := decodeOpenEventKeys(t, body)
-	if len(keys) != 24 {
+	// 官方 24 行 + 构造的 516/10005 两行。
+	if len(keys) != 26 {
 		t.Fatalf("official records=%d", len(keys))
 	}
 	seen := map[uint16]bool{}
@@ -91,7 +92,10 @@ func TestOfficialRaidGateTablePreservedAtEntry(t *testing.T) {
 				t.Fatal("official gate records altered or split")
 			}
 			mergedKeys := decodeOpenEventKeys(t, p.Payload)
-			if len(mergedKeys) != 24 || mergedKeys[19] != 331 || mergedKeys[20] != 10017 || mergedKeys[21] != 10018 || mergedKeys[22] != 662 || mergedKeys[23] != 665 {
+			// 官方尾部 19..23 是 331/10017/10018/662/665；本仓在 331 之后插了构造的
+			// 516/10005 两行 ⇒ 尾部整体后移两位。（见 event_info_activity_constructed.go）
+			if len(mergedKeys) != 26 || mergedKeys[19] != 331 || mergedKeys[20] != 516 || mergedKeys[21] != 10005 || mergedKeys[22] != 10017 || mergedKeys[23] != 10018 ||
+				mergedKeys[24] != 662 || mergedKeys[25] != 665 {
 				t.Fatalf("boost activities replaced raid gates: %v", mergedKeys)
 			}
 		}

@@ -23,7 +23,7 @@ func TestTownEventInfoTableCarriesBoostRows(t *testing.T) {
 		t.Fatal("合并表丢了 0x00 尾")
 	}
 	// 表体 = 官方 19 条门 + 运营活动行 + Boost Up 4 行（10017/10018/662/665）。
-	want := binary.LittleEndian.Uint16(eventInfoTable[:2]) + uint16(len(eventInfoActivityIDs)) + 4
+	want := binary.LittleEndian.Uint16(eventInfoTable[:2]) + activityEventInfoCount() + 4
 	got := binary.LittleEndian.Uint16(townEventInfoTable[:2])
 	if got != want {
 		t.Fatalf("记录数 %d, want %d", got, want)
@@ -53,7 +53,7 @@ func TestTownEventInfoTableCountFollowsRows(t *testing.T) {
 	// （下面用「challenge=true 的表以 challenge=false 的表为前缀」来钉这一点）。
 	activityRows := uint16(0)
 	if activityEventInfoRows() != nil {
-		activityRows = uint16(len(eventInfoActivityIDs))
+		activityRows = activityEventInfoCount()
 	}
 	for _, tc := range []struct {
 		challenge bool

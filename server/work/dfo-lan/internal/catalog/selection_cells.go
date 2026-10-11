@@ -123,7 +123,53 @@ func parseSelectionCategory(cells []pvf.Token, i int) (SelectionCategory, int, b
 				}
 				cat.Items = append(cat.Items, SelectionItem{Template: id, Count: count})
 			}
-		case "[avatar]", "[creature]", "[etc]", "[stackable]", "[cera]":
+		case "[stackable]":
+			// 成对形态的 `[stackable]` 段按 (模板, 数量) 建模 —— 与 [equipment] 同一口径。
+			//
+			// ★★ 2026-10-11（「Royal Pass 每日登录礼包」开到的东西只给 1 个的根因）：
+			// 590722589 的分类块内容是
+			//
+			//	[booster select category] 0 0
+			//	[stackable] 10327284 90 10327285 45 10362432 50 [/stackable]
+			//
+			// 而这里原本把 `[stackable]` 和 [avatar]/[etc] 一起当「未建模段」跳过 ⇒
+			// `Resolve` 的件数表为空 ⇒ 发放回落到**礼盒自身数量**（源 `[daily reward list]`
+			// 写的是 1）⇒ 玩家选了 x45 只拿到 1 个（实机 `gateway.err`：
+			// `selection box 590722589: category [0 0] has no exported item set`）。
+			//
+			// 全量实测（16757 个 `[booster selection]` 候选，2026-10-11）：带 `[stackable]`
+			// 的盒子 3178 个、块 **成对 17660 / 奇数 33**。那 33 个是 5 个数字一条的记录
+			// （`模板 数量 ? ? ?`，如 10404663 的 `10404771 1 2 115 108 …`），形状未定
+			// ⇒ **整块不建模**，并且在 Sections 里记成已声明的 `selectionSectionStackableUnparsed`，
+			// 保持旧的「未建模段」语义（`hasUnmodelledSection` 照样拦下重复类的去重）。
+			// 宁可少一次校验，也不猜。
+			i++
+			start := i
+			for i < len(cells) {
+				e := cells[i]
+				if e.Type == 3 {
+					if e.Text == "[/stackable]" {
+						break
+					}
+					// 下一个类别头、或源里缺尾标签的写法：以类别边界收口。
+					if e.Text == "[booster select category]" || e.Text == "[/booster select category]" {
+						break
+					}
+					i++
+					continue
+				}
+				i++
+			}
+			if pairs, ok := selectionPairs(cells[start:i]); ok {
+				cat.Sections = append(cat.Sections, c.Text)
+				cat.Items = append(cat.Items, pairs...)
+			} else {
+				cat.Sections = append(cat.Sections, selectionSectionStackableUnparsed)
+			}
+			if i < len(cells) && cells[i].Type == 3 && cells[i].Text == "[/stackable]" {
+				i++
+			}
+		case "[avatar]", "[creature]", "[etc]", "[cera]":
 			// 尚未建模的内容段：只记名并跳过。Resolve 见到这些类别时不校验
 			// （它们的条目结构各不相同，先把装备段做对再说）。
 			cat.Sections = append(cat.Sections, c.Text)
@@ -137,4 +183,33 @@ func parseSelectionCategory(cells []pvf.Token, i int) (SelectionCategory, int, b
 		}
 	}
 	return cat, len(cells), true
+}
+
+// selectionSectionStackableUnparsed 记进 Sections，表示「这个类别带一个形状未定、
+// 因此没有建模的 `[stackable]` 块」。`hasUnmodelledSection` 认这个值，
+// 于是这类类别仍然走「未建模」的老路（重复类别照旧判冲突、Resolve 不校验）。
+const selectionSectionStackableUnparsed = "[stackable] (unparsed)"
+
+// selectionPairs 把内容块里的数字 token 按 (模板, 数量) 成对读出来。
+//
+// 数字个数为奇数、个数为 0、或出现非正数时返回 ok=false：那说明这个块不是成对形态
+// （源里确有一批 5 个数字一条的 `[stackable]` 记录），**宁可不建模也不猜**。
+func selectionPairs(tokens []pvf.Token) ([]SelectionItem, bool) {
+	nums := make([]int32, 0, len(tokens))
+	for _, t := range tokens {
+		if t.Type == 0 {
+			nums = append(nums, t.Value)
+		}
+	}
+	if len(nums) == 0 || len(nums)%2 != 0 {
+		return nil, false
+	}
+	out := make([]SelectionItem, 0, len(nums)/2)
+	for i := 0; i < len(nums); i += 2 {
+		if nums[i] <= 0 || nums[i+1] <= 0 {
+			return nil, false
+		}
+		out = append(out, SelectionItem{Template: uint32(nums[i]), Count: uint32(nums[i+1])})
+	}
+	return out, true
 }

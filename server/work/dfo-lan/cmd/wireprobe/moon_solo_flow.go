@@ -851,6 +851,8 @@ func (w *worldSession) moonHandle(id uint16, p []byte, now time.Time, event func
 		if req.Actor != w.role.WireID || !s.Completed() || s.Definition.ID != 100004137 || !w.completionSent {
 			return fail(fmt.Errorf("Moon result before owned final"))
 		}
+		// 战令任务：月湖**不走通用 `dungeonResult`**（它自建结算帧），本分支就是它的结算点。
+		var aradPlan []outboundPacket
 		if w.moon.plan == nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			var plan loot.MoonRewardPlan
@@ -876,8 +878,16 @@ func (w *worldSession) moonHandle(id uint16, p []byte, now time.Time, event func
 			}
 			w.moon.plan = &plan
 			w.moon.resultAt = now.Add(3 * time.Second)
+			// ★ 这里才是"**沉月湖通关**"的那一刻（本局奖励刚冻结、随后自动翻牌）。
+			// 记账必须挂在这里，**不能挂离场命令**（`case 42,72`）—— 那时 `w.activeDungeon`
+			// 可能已被清、判定会静默为假。2026-10-11 实机：打完 100004137 翻牌都跑了，
+			// 存档里却一个 mission 事件都没有，就是挂错了位置。
+			// 幂等键带 run id（`recordAradPassDungeonClear` 内部生成），重复触发不会多记。
+			aradCtx, aradCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			aradPlan = w.recordAradPassDungeonClear(aradCtx)
+			aradCancel()
 		}
-		return true, nil, nil
+		return true, aradPlan, nil
 	case 69, 70:
 		if !w.resultSent || w.moon.plan == nil {
 			return fail(fmt.Errorf("Moon cards before own result"))
