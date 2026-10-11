@@ -1,7 +1,7 @@
 // Bakal reward ledger (巴卡尔攻坚战奖励账). Reconstruction of the handover
 // binary's internal/workflow/bakal_rewards.go (221 lines, symbols
-// BakalRewardService{Claim,Freeze,Recover} / BakalRaidAdmission /
-// readBakalProgress / saveBakalProgress / ErrBakalWeeklyClearLimit — all
+// NativeBakalRewardService{Claim,Freeze,Recover} / NativeBakalRaidAdmission /
+// nativeReadBakalProgress / nativeSaveBakalProgress / ErrNativeBakalWeeklyClearLimit — all
 // recovered from the wireprobe-pvf.exe disassembly, see next151 §0.3).
 //
 // State contract (A-layer, byte-verified against the binary's string blob):
@@ -18,7 +18,7 @@
 //     reward slot (rewards++ and the plan is stored), an *ineligible* clear
 //     only advances the weekly clear counter (clears++). Admission then
 //     rejects further entries once clears reach [WEEKLY CLEAR LIMIT] —
-//     普通巴卡尔本周通关次数已用完 (ErrBakalWeeklyClearLimit, the binary's
+//     普通巴卡尔本周通关次数已用完 (ErrNativeBakalWeeklyClearLimit, the binary's
 //     only workflow-level error variable, .data at 0x1415bb1b0).
 //
 // Event keys are `bakal-clear:<run>` (Freeze) and `bakal-grant:<run>` (Claim)
@@ -58,42 +58,42 @@ import (
 // bakalProgressKey is the character-state top-level key of the ledger.
 const bakalProgressKey = "bakal_raid_rewards"
 
-// bakalRewardModel is the character-event model of both reward events.
-const bakalRewardModel = "bakal-source-reward-v1"
+// nativeBakalRewardModel is the character-event model of both reward events.
+const nativeBakalRewardModel = "bakal-source-reward-v1"
 
 // bakalRewardCategories is the A-layer freeze order of the plan item
 // categories (raid_bakal_rewards.go:103, two 10-byte string constants).
 var bakalRewardCategories = [2]string{"party_card", "squad_item"}
 
-// ErrBakalWeeklyClearLimit rejects starting another run this week. The text is
+// ErrNativeBakalWeeklyClearLimit rejects starting another run this week. The text is
 // the binary's own (errorString at .data 0x1415bb1c0, 42 bytes UTF-8).
-var ErrBakalWeeklyClearLimit = errors.New("普通巴卡尔本周通关次数已用完")
+var ErrNativeBakalWeeklyClearLimit = errors.New("普通巴卡尔本周通关次数已用完")
 
-// BakalRewardEntry rows live in catalog (catalog.BakalRewardEntry); the plan
+// NativeBakalRewardEntry rows live in catalog (catalog.NativeBakalRewardEntry); the plan
 // below stores them as Items.
 
-// BakalRewardPlan is what Freeze stored for one run (A-layer shape: Run,
+// NativeBakalRewardPlan is what Freeze stored for one run (A-layer shape: Run,
 // Source, Week, Content, Items, Products, Eligible — go:dict evidence
-// commitEquipmentEvent[...BakalRewardPlan], 7 fields, 112 bytes).
-type BakalRewardPlan struct {
-	Hard     bool                       `json:"hard,omitempty"`
-	Run      string                     `json:"run"`
-	Source   string                     `json:"source"`
-	Week     string                     `json:"week"`
-	Content  string                     `json:"content"`
-	Items    []catalog.BakalRewardEntry `json:"items"`
-	Products []loot.Award               `json:"products"`
-	Eligible bool                       `json:"eligible"`
+// commitEquipmentEvent[...NativeBakalRewardPlan], 7 fields, 112 bytes).
+type NativeBakalRewardPlan struct {
+	Hard     bool                             `json:"hard,omitempty"`
+	Run      string                           `json:"run"`
+	Source   string                           `json:"source"`
+	Week     string                           `json:"week"`
+	Content  string                           `json:"content"`
+	Items    []catalog.NativeBakalRewardEntry `json:"items"`
+	Products []loot.Award                     `json:"products"`
+	Eligible bool                             `json:"eligible"`
 }
 
-// bakalProgress is the persisted weekly ledger: the week stamp, the two
+// nativeBakalProgress is the persisted weekly ledger: the week stamp, the two
 // counters (clears advanced by ineligible freezes, rewards reserved by
 // eligible ones) and the frozen plans still waiting to be claimed.
-type bakalProgress struct {
-	Week    string                     `json:"week"`
-	Clears  uint32                     `json:"clears"`
-	Rewards uint32                     `json:"rewards"`
-	Plans   map[string]BakalRewardPlan `json:"plans"`
+type nativeBakalProgress struct {
+	Week    string                           `json:"week"`
+	Clears  uint32                           `json:"clears"`
+	Rewards uint32                           `json:"rewards"`
+	Plans   map[string]NativeBakalRewardPlan `json:"plans"`
 }
 
 // bakalWeekOf returns the raid week key of now.
@@ -101,12 +101,12 @@ func bakalWeekOf(now time.Time) string {
 	return database.IspinsWeekStart(now).Format(time.RFC3339)
 }
 
-// readBakalProgress loads the ledger out of a raw character state. It returns
-// the parsed top-level map (saveBakalProgress writes back into it) and the
+// nativeReadBakalProgress loads the ledger out of a raw character state. It returns
+// the parsed top-level map (nativeSaveBakalProgress writes back into it) and the
 // progress. A state that is not a JSON object, or a ledger row that fails to
 // decode, is `invalid character state for raid rewards` (go:string.*+248412).
-func readBakalProgress(state json.RawMessage) (map[string]json.RawMessage, bakalProgress, error) {
-	var p bakalProgress
+func nativeReadBakalProgress(state json.RawMessage) (map[string]json.RawMessage, nativeBakalProgress, error) {
+	var p nativeBakalProgress
 	var top map[string]json.RawMessage
 	if len(state) > 0 {
 		if err := json.Unmarshal(state, &top); err != nil || top == nil {
@@ -122,14 +122,14 @@ func readBakalProgress(state json.RawMessage) (map[string]json.RawMessage, bakal
 		}
 	}
 	if p.Plans == nil {
-		p.Plans = make(map[string]BakalRewardPlan)
+		p.Plans = make(map[string]NativeBakalRewardPlan)
 	}
 	return top, p, nil
 }
 
-// saveBakalProgress writes the ledger back into the top-level state map and
+// nativeSaveBakalProgress writes the ledger back into the top-level state map and
 // returns the re-encoded state blob.
-func saveBakalProgress(top map[string]json.RawMessage, p bakalProgress) (json.RawMessage, error) {
+func nativeSaveBakalProgress(top map[string]json.RawMessage, p nativeBakalProgress) (json.RawMessage, error) {
 	raw, err := json.Marshal(p)
 	if err != nil {
 		return nil, err
@@ -138,10 +138,10 @@ func saveBakalProgress(top map[string]json.RawMessage, p bakalProgress) (json.Ra
 	return json.Marshal(top)
 }
 
-// BakalRaidAdmission reports whether one more run may start this week. The
+// NativeBakalRaidAdmission reports whether one more run may start this week. The
 // rules carry [WEEKLY CLEAR LIMIT]; a ledger stamped with a different week
 // never blocks (the counters reset with the next Freeze).
-func BakalRaidAdmission(rules *catalog.BakalRaidRules, role database.Character, now time.Time) error {
+func NativeBakalRaidAdmission(rules *catalog.NativeBakalRaidRules, role database.Character, now time.Time) error {
 	if rules == nil {
 		// go:string.*+102372, 25 bytes
 		return errors.New("native raid rules missing")
@@ -154,7 +154,7 @@ func BakalRaidAdmission(rules *catalog.BakalRaidRules, role database.Character, 
 		return err
 	}
 	if usage.Clears >= uint32(rules.WeeklyClearLimit) {
-		return ErrBakalWeeklyClearLimit
+		return ErrNativeBakalWeeklyClearLimit
 	}
 	return nil
 }
@@ -167,7 +167,7 @@ type BakalWeeklyCounters struct{ Clears, Rewards uint32 }
 // without rewriting the character or its pending reward plans.
 func BakalWeeklyUsage(role database.Character, now time.Time) (BakalWeeklyCounters, error) {
 	var usage BakalWeeklyCounters
-	_, p, err := readBakalProgress(role.State)
+	_, p, err := nativeReadBakalProgress(role.State)
 	if err != nil {
 		return usage, err
 	}
@@ -177,8 +177,8 @@ func BakalWeeklyUsage(role database.Character, now time.Time) (BakalWeeklyCounte
 	return usage, nil
 }
 
-// BakalRewardService freezes and pays out the raid rewards.
-type BakalRewardService struct {
+// NativeBakalRewardService freezes and pays out the raid rewards.
+type NativeBakalRewardService struct {
 	// Store commits the two ledger events. *database.Store satisfies the narrow
 	// interface, so the production wiring is unchanged; the unit tests inject
 	// the in-memory fake.
@@ -187,7 +187,7 @@ type BakalRewardService struct {
 	// reward-box resolver; wrappers a plan carries are opened at freeze time.
 	Loot *loot.Service
 	// Rules is the bakal.etc projection.
-	Rules *catalog.BakalRaidRules
+	Rules *catalog.NativeBakalRaidRules
 	// Content is the catalog-side identity string stamped into every plan
 	// (A-layer: a string read off the rules object at Claim time).
 	Content string
@@ -199,25 +199,25 @@ type BakalRewardService struct {
 // reserved, further clears only advance the clear counter.
 //
 // Event key: bakal-clear:<run> (model bakal-source-reward-v1).
-func (s *BakalRewardService) Freeze(ctx context.Context, role database.Character, run string, cleared int, now time.Time) (BakalRewardPlan, database.Character, error) {
-	var plan BakalRewardPlan
+func (s *NativeBakalRewardService) Freeze(ctx context.Context, role database.Character, run string, cleared int, now time.Time) (NativeBakalRewardPlan, database.Character, error) {
+	var plan NativeBakalRewardPlan
 	if s == nil || s.Rules == nil || s.Store == nil || run == "" || role.ID == 0 {
 		// go:string.*+174460, 32 bytes
 		return plan, role, errors.New("raid reward source/owner missing")
 	}
 	// go:string.*+21789 (bakal-clear:) + run
-	saved, plan, err := commitEquipmentEvent(ctx, s.Store, role, "bakal-clear:"+run, bakalRewardModel,
-		func(current database.Character) (json.RawMessage, BakalRewardPlan, error) {
+	saved, plan, err := commitEquipmentEvent(ctx, s.Store, role, "bakal-clear:"+run, nativeBakalRewardModel,
+		func(current database.Character) (json.RawMessage, NativeBakalRewardPlan, error) {
 			return s.freeze(current, run, cleared, now)
 		})
 	return plan, saved, err
 }
 
 // freeze is the Freeze body, factored out for readability.
-func (s *BakalRewardService) freeze(current database.Character, run string, cleared int, now time.Time) (json.RawMessage, BakalRewardPlan, error) {
-	top, p, err := readBakalProgress(current.State)
+func (s *NativeBakalRewardService) freeze(current database.Character, run string, cleared int, now time.Time) (json.RawMessage, NativeBakalRewardPlan, error) {
+	top, p, err := nativeReadBakalProgress(current.State)
 	if err != nil {
-		return nil, BakalRewardPlan{}, err
+		return nil, NativeBakalRewardPlan{}, err
 	}
 	week := bakalWeekOf(now)
 	if p.Week != week {
@@ -226,7 +226,7 @@ func (s *BakalRewardService) freeze(current database.Character, run string, clea
 		// the week — a Sunday plan is claimable on Monday).
 		p.Week, p.Clears, p.Rewards = week, 0, 0
 	}
-	plan := BakalRewardPlan{
+	plan := NativeBakalRewardPlan{
 		Run:     run,
 		Source:  current.ConfigVersion, // save identity at freeze time
 		Week:    week,
@@ -238,27 +238,27 @@ func (s *BakalRewardService) freeze(current database.Character, run string, clea
 	if !plan.Eligible {
 		// The clear still counts toward the weekly clear limit.
 		p.Clears++
-		blob, err := saveBakalProgress(top, p)
+		blob, err := nativeSaveBakalProgress(top, p)
 		return blob, plan, err
 	}
 	p.Rewards++ // reserve this week's reward slot (A-layer INCL at :156)
 	plan.Items, err = s.freezeItems()
 	if err != nil {
-		return nil, BakalRewardPlan{}, err
+		return nil, NativeBakalRewardPlan{}, err
 	}
 	plan.Products, err = s.openProducts(plan.Items)
 	if err != nil {
-		return nil, BakalRewardPlan{}, err
+		return nil, NativeBakalRewardPlan{}, err
 	}
 	p.Plans[run] = plan
-	blob, err := saveBakalProgress(top, p)
+	blob, err := nativeSaveBakalProgress(top, p)
 	return blob, plan, err
 }
 
 // freezeItems walks the two reward rows bakal.etc declares, in the A-layer
 // category order (party_card then squad_item).
-func (s *BakalRewardService) freezeItems() ([]catalog.BakalRewardEntry, error) {
-	items := make([]catalog.BakalRewardEntry, 0, len(bakalRewardCategories))
+func (s *NativeBakalRewardService) freezeItems() ([]catalog.NativeBakalRewardEntry, error) {
+	items := make([]catalog.NativeBakalRewardEntry, 0, len(bakalRewardCategories))
 	for _, category := range bakalRewardCategories {
 		var total uint64
 		for _, row := range s.Rules.Rewards {
@@ -292,7 +292,7 @@ func (s *BakalRewardService) freezeItems() ([]catalog.BakalRewardEntry, error) {
 // A-layer draws the box-open seed fresh from crypto/rand (raid_bakal_rewards.
 // go:144 calls crypto/rand.Int right before loot.OpenRewardBoxes at :148);
 // replay safety comes from the event ledger, never from a derived seed.
-func (s *BakalRewardService) openProducts(items []catalog.BakalRewardEntry) ([]loot.Award, error) {
+func (s *NativeBakalRewardService) openProducts(items []catalog.NativeBakalRewardEntry) ([]loot.Award, error) {
 	awards := make([]loot.Award, 0, len(items))
 	for _, item := range items {
 		awards = append(awards, loot.Award{Template: item.Template, Amount: item.Amount})
@@ -324,13 +324,13 @@ func (s *BakalRewardService) openProducts(items []catalog.BakalRewardEntry) ([]l
 // plan; the weekly reward slot was already reserved at Freeze.
 //
 // Event key: bakal-grant:<run> (model bakal-source-reward-v1).
-func (s *BakalRewardService) Claim(ctx context.Context, role database.Character, run string, now time.Time) ([]inventory.AwardReceipt, database.Character, error) {
+func (s *NativeBakalRewardService) Claim(ctx context.Context, role database.Character, run string, now time.Time) ([]inventory.AwardReceipt, database.Character, error) {
 	if s == nil || s.Store == nil || s.Loot == nil {
 		// go:string.*+122255, 27 bytes
 		return nil, role, errors.New("raid reward service missing")
 	}
 	// go:string.*+21801 (bakal-grant:) + run
-	saved, receipts, err := commitEquipmentEvent(ctx, s.Store, role, "bakal-grant:"+run, bakalRewardModel,
+	saved, receipts, err := commitEquipmentEvent(ctx, s.Store, role, "bakal-grant:"+run, nativeBakalRewardModel,
 		func(current database.Character) (json.RawMessage, []inventory.AwardReceipt, error) {
 			return s.claim(current, run)
 		})
@@ -340,11 +340,11 @@ func (s *BakalRewardService) Claim(ctx context.Context, role database.Character,
 // claim is the Claim body. now is unused here: the week is never re-checked at
 // claim time (A-layer evidence), but the parameter keeps the public surface
 // aligned with Freeze for the wireprobe wiring.
-func (s *BakalRewardService) claim(current database.Character, run string) (json.RawMessage, []inventory.AwardReceipt, error) {
+func (s *NativeBakalRewardService) claim(current database.Character, run string) (json.RawMessage, []inventory.AwardReceipt, error) {
 	if current.ConfigVersion != savecontract.Identity() {
 		return nil, nil, errors.New("no owned source raid reward plan")
 	}
-	_, p, err := readBakalProgress(current.State)
+	_, p, err := nativeReadBakalProgress(current.State)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -385,12 +385,12 @@ func (s *BakalRewardService) claim(current database.Character, run string) (json
 	}
 	// Consume the plan out of the granted state (A-layer: re-read, mapdelete,
 	// save — the reward counter is not touched here).
-	granted, p2, err := readBakalProgress(next.State)
+	granted, p2, err := nativeReadBakalProgress(next.State)
 	if err != nil {
 		return nil, nil, err
 	}
 	delete(p2.Plans, run)
-	blob, err := saveBakalProgress(granted, p2)
+	blob, err := nativeSaveBakalProgress(granted, p2)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -402,11 +402,11 @@ func (s *BakalRewardService) claim(current database.Character, run string) (json
 // (sorted: A-layer sort.Strings at :219). A failed claim keeps the role on its
 // pre-claim state and does not stop the remaining claims; all failures are
 // joined into the returned error.
-func (s *BakalRewardService) Recover(ctx context.Context, role database.Character, now time.Time) (database.Character, error) {
+func (s *NativeBakalRewardService) Recover(ctx context.Context, role database.Character, now time.Time) (database.Character, error) {
 	if s == nil || s.Store == nil {
 		return role, errors.New("raid reward service missing")
 	}
-	_, p, err := readBakalProgress(role.State)
+	_, p, err := nativeReadBakalProgress(role.State)
 	if err != nil {
 		return role, err
 	}

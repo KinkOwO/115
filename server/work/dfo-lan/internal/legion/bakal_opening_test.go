@@ -75,7 +75,7 @@ func bakalAssertLocationPrefix(t *testing.T, f BakalFrame, name string, location
 // bakalTestRules builds normal-phase rules with the values the catalog tests
 // lock against the real PVF (TestImportBakalRaidRules): the replay runs on
 // the same numbers the clear run used.
-func bakalTestRules() *catalog.BakalRaidRules {
+func bakalTestRules() *catalog.NativeBakalRaidRules {
 	normal := &catalog.BakalPhaseRules{
 		MonsterMaxHP: 10000,
 		RaidBuffs: []catalog.BakalBuffGrant{
@@ -113,7 +113,7 @@ func bakalTestRules() *catalog.BakalRaidRules {
 		{Location: 7, Name: "blona"}, {Location: 47, Name: "nympha"},
 		{Location: 23, Name: "basilisk"}, {Location: 25, Name: "gerda"},
 	}
-	return &catalog.BakalRaidRules{
+	return &catalog.NativeBakalRaidRules{
 		StartDelaySecs:    3,
 		PhaseTimeOverSecs: 9999,
 		NormalPhase:       normal,

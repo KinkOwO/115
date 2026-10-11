@@ -279,13 +279,17 @@ func SaveEmblemInlay(state json.RawMessage, b Bag) (json.RawMessage, error) {
 		return nil, err
 	}
 	var oldSpaces, newSpaces map[string]json.RawMessage
-	if err := json.Unmarshal(oldBag["special_equipment"], &oldSpaces); err != nil {
-		return nil, err
+	if raw, ok := oldBag["special_equipment"]; ok {
+		if err := json.Unmarshal(raw, &oldSpaces); err != nil {
+			return nil, err
+		}
 	}
-	if err := json.Unmarshal(newBag["special_equipment"], &newSpaces); err != nil {
-		return nil, err
+	if raw, ok := newBag["special_equipment"]; ok {
+		if err := json.Unmarshal(raw, &newSpaces); err != nil {
+			return nil, err
+		}
 	}
-	if oldBag == nil || oldSpaces == nil || len(newSpaces["1"]) == 0 {
+	if oldBag == nil {
 		return nil, fmt.Errorf("missing saved avatar emblem inventory")
 	}
 	oldBag["items"] = newBag["items"]
@@ -295,10 +299,16 @@ func SaveEmblemInlay(state json.RawMessage, b Bag) (json.RawMessage, error) {
 	if wornRaw, ok := newBag["worn"]; ok {
 		oldBag["worn"] = wornRaw
 	}
-	oldSpaces["1"] = newSpaces["1"]
-	oldBag["special_equipment"], err = json.Marshal(oldSpaces)
-	if err != nil {
-		return nil, err
+	// A worn avatar can be the only avatar: no wardrobe map is required.
+	if avatarRows, ok := newSpaces["1"]; ok {
+		if oldSpaces == nil {
+			oldSpaces = map[string]json.RawMessage{}
+		}
+		oldSpaces["1"] = avatarRows
+		oldBag["special_equipment"], err = json.Marshal(oldSpaces)
+		if err != nil {
+			return nil, err
+		}
 	}
 	original["inventory"], err = json.Marshal(oldBag)
 	if err != nil {

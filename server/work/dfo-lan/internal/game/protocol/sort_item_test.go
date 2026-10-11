@@ -1,11 +1,49 @@
 package protocol
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"os"
 	"testing"
 )
+
+// Vectors match the current PE's generic command framing, CMD20 protobuf
+// reader and container selector (native/audit_sort_native.py in the repair
+// evidence). They deliberately omit the unassigned CMD20-specific error.
+func TestSortItemRepliesMatchNativeContainerVectors(t *testing.T) {
+	for _, tc := range []struct {
+		list    byte
+		success string
+		refusal string
+	}{
+		{0, "01020000000800", "000400020000000800"},
+		{1, "01020000000801", "000400020000000801"},
+		{2, "01020000000802", "000400020000000802"},
+		{7, "01020000000807", "000400020000000807"},
+		{12, "0102000000080c", "00040002000000080c"},
+		{45, "0102000000082d", "00040002000000082d"},
+	} {
+		for _, reply := range []struct {
+			name string
+			body []byte
+			hex  string
+		}{
+			{"success-" + tc.success, SortItemSuccess(tc.list), tc.success},
+			{"refusal-" + tc.refusal, SortItemRefusal(tc.list), tc.refusal},
+		} {
+			t.Run(reply.name, func(t *testing.T) {
+				want, err := hex.DecodeString(reply.hex)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !bytes.Equal(reply.body, want) {
+					t.Fatalf("body = %x, want %x", reply.body, want)
+				}
+			})
+		}
+	}
+}
 
 func loadSortItemVector(t *testing.T) []byte {
 	t.Helper()

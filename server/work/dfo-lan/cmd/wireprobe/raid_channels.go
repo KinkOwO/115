@@ -6,19 +6,33 @@ import (
 	"encoding/hex"
 )
 
-// Source raid flags decide publication. Local channel config remains the
-// source of existing display names and IDs, not a second raid content list.
-func publishSourceRaidChannels(c *channelrefresh.Config, source *catalog.ChannelDirectory) error {
+// Publish native raid flags, CTP-bound raid channels and legion channels with
+// source-defined availability. New CTP channels need not carry [isRaid].
+// Local channel config remains the source of existing display names and IDs.
+func publishSourceRaidChannels(c *channelrefresh.Config, source *catalog.ChannelDirectory, entries map[uint32]catalog.RaidEntrance) error {
+	linked := map[uint32]bool{}
+	for _, typ := range source.Types() {
+		attr, _ := source.Attributes(typ)
+		if !attr.IsRaid || attr.SubChannelType == 0 {
+			continue
+		}
+		sub, found := source.Attributes(attr.SubChannelType)
+		if found && (sub.IsPreRaid || sub.IsSemiRaid) {
+			linked[sub.Type] = true
+		}
+	}
 	var types []uint32
 	for _, typ := range source.Types() {
 		a, _ := source.Attributes(typ)
-		if a.IsRaid {
+		_, bound := entries[typ]
+		if a.IsRaid || bound || linked[typ] || (a.IsLegion && len(a.OpenEvents) > 0) {
 			types = append(types, typ)
 		}
 	}
 	return c.PublishSourceRaids(types, func(typ uint32) (channelrefresh.ChannelAttributes, bool) {
 		a, ok := source.Attributes(typ)
-		return channelrefresh.ChannelAttributes{Type: a.Type, Area: "[none]", SourceValues: make([]int32, 11)}, ok && a.IsRaid
+		_, bound := entries[typ]
+		return channelrefresh.ChannelAttributes{Type: a.Type, Area: "[none]", SourceValues: make([]int32, 11)}, ok && (a.IsRaid || bound || linked[typ] || (a.IsLegion && len(a.OpenEvents) > 0))
 	})
 }
 
@@ -30,7 +44,8 @@ func (client *gameConnection) logUnhandledRaidRequest(request *clientRequest) {
 	}
 	typ := client.channelTypes[client.channel]
 	a, ok := client.channelDirectory.Attributes(typ)
-	if !ok || !a.IsRaid {
+	_, bound := client.raidEntrances[typ]
+	if !ok || (!a.IsRaid && !bound) {
 		return
 	}
 	name := ""

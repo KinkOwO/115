@@ -247,8 +247,9 @@ func (s *Service) PlanBlackPurgatoryCards(role Role, d *dungeon.Session, seed ui
 		d.Definition.ID != BlackPurgatorySquadDungeon || role.ConfigVersion != savecontract.Identity() {
 		return p, fmt.Errorf("黑鸦奖励尚未加载或挑战未通关")
 	}
-	r := s.BlackPurgatory
-	p = CardPlan{Run: d.RunID, Source: r.Source, Model: blackPurgatoryCardModel}
+	// The archive hash binds content tables; persisted rewards share the
+	// character's save contract with the transaction and boss pickup receipt.
+	p = CardPlan{Run: d.RunID, Source: s.Catalog.Source.SaveIdentity(), Model: blackPurgatoryCardModel}
 	return p, nil
 }
 func (s *Service) PrepareBlackPurgatoryCards(p CardPlan, seed uint32) (json.RawMessage, error) {
@@ -274,8 +275,7 @@ func (s *Service) PrepareBlackPurgatoryCards(p CardPlan, seed uint32) (json.RawM
 	return json.Marshal(p)
 }
 func (s *Service) ValidateBlackPurgatoryCards(p CardPlan, d *dungeon.Session) error {
-	r := s.BlackPurgatory
-	if p.Run != d.RunID || p.Source != r.Source || p.Model != blackPurgatoryCardModel || p.Items[0].Amount == 0 || p.Gold != 0 {
+	if p.Run != d.RunID || p.Source != s.Catalog.Source.SaveIdentity() || p.Model != blackPurgatoryCardModel || p.Items[0].Amount == 0 || p.Gold != 0 {
 		return fmt.Errorf("黑鸦冻结奖单不匹配")
 	}
 	return nil

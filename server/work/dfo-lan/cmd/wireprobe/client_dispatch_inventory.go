@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"dfolan/internal/boostup"
+	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"encoding/binary"
@@ -152,7 +153,11 @@ func (client *gameConnection) dispatchCashshopAndBoxes(requestData *clientReques
 		var e error
 		if requestData.frame.ID == 41 {
 			pilotEnabled := odysseyTemporaryCreditsEnabled() && isOdysseyRewardRole(client.worldState.role) && client.worldState.activeDungeon != nil && client.worldState.activeDungeon.Definition.Odyssey
-			plan, e = client.worldState.useCoinRevive(ctx, client.gameStore, requestData.plaintext, requestData.frame.Raw, pilotEnabled)
+			var handled bool
+			plan, handled, e = client.worldState.reviveTownRobot(ctx, client.gameStore, requestData.plaintext, requestData.frame.Raw)
+			if !handled {
+				plan, e = client.worldState.useCoinRevive(ctx, client.gameStore, requestData.plaintext, requestData.frame.Raw, pilotEnabled)
+			}
 		} else if client.worldState.activeDungeon != nil || client.worldState.role.ID == 0 {
 			e = fmt.Errorf("booster box use requires selected character in town")
 		} else {
@@ -299,12 +304,24 @@ func (client *gameConnection) dispatchEquipmentSkillsAndMoves(requestData *clien
 		}
 		return dispatchHandled
 	}
+	if requestData.frame.Type == 1 && (requestData.frame.ID == 2420 || requestData.frame.ID == 2421) && client.bootstrapped && requestData.verified && client.worldState != nil && client.worldState.role.ID == client.selectedCharacterID {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		plan, truthErr := client.worldState.oathTruthPackets(ctx, requestData.frame.ID, requestData.plaintext)
+		cancel()
+		if truthErr != nil {
+			client.event(map[string]any{"kind": "oath_truth_rejected", "character_id": client.selectedCharacterID, "id": requestData.frame.ID, "reason": truthErr.Error(), "request_hex": hex.EncodeToString(requestData.plaintext)})
+		}
+		if client.sendPlan(plan, client.logCharacterResponseBody) != nil {
+			return dispatchClose
+		}
+		return dispatchHandled
+	}
 	if requestData.frame.Type == 1 && requestData.frame.ID == 2382 && client.bootstrapped && requestData.verified && client.worldState != nil && client.worldState.role.ID == client.selectedCharacterID {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		plan, oathErr := client.worldState.oathSelectionPackets(ctx, requestData.plaintext)
 		cancel()
 		if oathErr != nil {
-			client.event(map[string]any{"kind": "oath_selection_rejected", "character_id": client.selectedCharacterID, "reason": oathErr.Error()})
+			client.event(map[string]any{"kind": "oath_selection_rejected", "character_id": client.selectedCharacterID, "reason": oathErr.Error(), "request_hex": hex.EncodeToString(requestData.plaintext)})
 			return dispatchHandled
 		}
 		if client.sendPlan(plan, client.logCharacterResponseBody) != nil {
@@ -348,6 +365,10 @@ func (client *gameConnection) dispatchEquipmentSkillsAndMoves(requestData *clien
 			if b, err := inventory.ReadBag(client.worldState.role.State); err == nil {
 				oldShield = b.KnightDeck()[0]
 			}
+		}
+		var previousState []byte
+		if client.worldState != nil {
+			previousState = append([]byte(nil), client.worldState.role.State...)
 		}
 		plan, e := client.equipmentState.handle(client.wearService, client.worldState, requestData.plaintext, requestData.frame.Raw)
 		if shieldMove {
@@ -407,18 +428,6 @@ func (client *gameConnection) dispatchEquipmentSkillsAndMoves(requestData *clien
 			}
 			plan = append(plan, sources...)
 		}
-		plan = client.worldState.appendFameUpdate(plan, client.event)
-		if decodeErr == nil && client.characters != nil && client.worldState != nil &&
-			((r.SourceList == 3 && r.SourceSlot == 47) || (r.DestinationList == 3 && r.DestinationSlot == 47)) {
-			oathCtx, oathCancel := context.WithTimeout(context.Background(), 5*time.Second)
-			selection, oathErr := client.gameStore.EquippedOathSelection(oathCtx, client.developmentAccount, client.worldState.role.ID)
-			oathCancel()
-			if oathErr != nil {
-				client.event(map[string]any{"kind": "oath_selection_refresh_error", "character_id": client.worldState.role.ID, "reason": oathErr.Error()})
-			} else if info, infoErr := protocol.OathSystemInfo(selection.Level, selection.Option); infoErr == nil {
-				plan = append(plan, outboundPacket{"oath_system_info_after_wear", 0, 2839, info})
-			}
-		}
 		if cloneRefreshed {
 			plan = append(plan, cloneRefresh...)
 		}
@@ -426,6 +435,21 @@ func (client *gameConnection) dispatchEquipmentSkillsAndMoves(requestData *clien
 			plan, e = appendDungeonWornRandomOptions(plan, client.worldState)
 			if e != nil {
 				client.event(map[string]any{"kind": "equipment_random_option_restore_error", "error": e.Error()})
+				return dispatchClose
+			}
+		}
+		if decodeErr == nil && client.worldState != nil && moveTouchesOath(r) && len(plan) > 0 {
+			oathCtx, oathCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			plan = client.worldState.refreshOathAfterEquipment(oathCtx, plan, r)
+			oathCancel()
+		}
+		if decodeErr == nil {
+			plan = client.worldState.appendFameAfterMove(plan, client.event, r, previousState)
+		}
+		if decodeErr == nil {
+			plan, e = appendDungeonWeaponSkinAfterMove(plan, client.worldState, r)
+			if e != nil {
+				client.event(map[string]any{"kind": "equipment_weapon_skin_restore_error", "error": e.Error()})
 				return dispatchClose
 			}
 		}
@@ -468,10 +492,7 @@ func (client *gameConnection) dispatchEquipmentSkillsAndMoves(requestData *clien
 		}
 		if e != nil {
 			client.event(map[string]any{"kind": "item_sort_refused", "reason": e.Error()})
-			if requestData.plaintext[0] != 0 {
-				return dispatchHandled
-			}
-			if e = client.output.send(1, 20, protocol.Refusal(4)); e != nil {
+			if e = client.output.send(1, 20, protocol.SortItemRefusal(requestData.plaintext[0])); e != nil {
 				return dispatchClose
 			}
 			return dispatchHandled
@@ -597,6 +618,25 @@ func (client *gameConnection) dispatchCosmeticsAndGold(requestData *clientReques
 		// the fatigue potion (54) and `[add skin storage]` (169, damage font)
 		// paths never collide; the fatigue path keeps its exact prior shape.
 		_, action, actionErr := protocol.DecodeStackableAction(requestData.plaintext)
+		if actionErr == nil && action == protocol.JumpLevelCapsuleAction {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			var plan []outboundPacket
+			var err error
+			if client.purchaseSession == nil {
+				err = fmt.Errorf("capsule request session unavailable")
+			} else {
+				plan, err = client.worldState.useJumpLevelCapsule(ctx, requestData.plaintext, requestData.frame.Raw, client.purchaseSession.prefix, client.event)
+			}
+			cancel()
+			if err != nil {
+				client.event(map[string]any{"kind": "jump_level_capsule_refused", "character_id": client.worldState.role.ID, "reason": err.Error()})
+				return dispatchHandled
+			}
+			if client.sendPlan(plan, client.logWorldResponseBody) != nil {
+				return dispatchClose
+			}
+			return dispatchHandled
+		}
 		if len(requestData.plaintext) >= 11 && binary.LittleEndian.Uint32(requestData.plaintext[7:11]) == protocol.AvatarInventoryExpansionAction {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			var plan []outboundPacket
@@ -940,6 +980,20 @@ func (client *gameConnection) dispatchEnhancementAndConsumables(requestData *cli
 		}
 		return dispatchHandled
 	}
+	if client.worldState != nil && client.bootstrapped && (requestData.frame.ID == 404 || requestData.frame.ID == 405 || requestData.frame.ID == 560) {
+		if !requestData.verified || client.lootService == nil {
+			return dispatchHandled
+		}
+		plan, e := client.worldState.titleBookCommand(requestData.frame.ID, requestData.plaintext, client.lootService.BagRules.EquipmentSlots, client.event)
+		if e != nil {
+			client.event(map[string]any{"kind": "title_book_refused", "character_id": client.worldState.role.ID, "opcode": requestData.frame.ID, "reason": e.Error()})
+			return dispatchHandled
+		}
+		if client.sendPlan(plan, client.logWorldResponseBody) != nil {
+			return dispatchClose
+		}
+		return dispatchHandled
+	}
 	if client.worldState != nil && client.bootstrapped && requestData.frame.ID == 1565 {
 		if !requestData.verified {
 			return dispatchHandled
@@ -1005,7 +1059,11 @@ func (client *gameConnection) dispatchEnhancementAndConsumables(requestData *cli
 		if e != nil {
 			client.event(map[string]any{"kind": "item_use_refused", "character_id": client.worldState.role.ID, "reason": e.Error()})
 			if r, decodeErr := protocol.DecodeUseStackable(requestData.plaintext); decodeErr == nil {
-				if e = client.output.send(1, 44, protocol.UseStackableRefused(r)); e != nil {
+				body := protocol.UseStackableRefused(r)
+				if r.Template == catalog.NativeCharacterSlotTicket {
+					body = protocol.CharacterSlotTicketRefused(r)
+				}
+				if e = client.output.send(1, 44, body); e != nil {
 					return dispatchClose
 				}
 			}

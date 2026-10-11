@@ -20,6 +20,21 @@ func (s *Service) EntryAddition(role Character) ([]byte, error) {
 	return s.entryAddition(role, nil, false)
 }
 
+// TownRobotEntryAddition supplies the ordinary remote actor's full worn
+// inventory. Its native equipment reader is shared with TagCharacter; this
+// does not register an Elite or change the real player's entry projection.
+func (s *Service) TownRobotEntryAddition(role Character) ([]byte, error) {
+	snapshot, err := s.TownRobotCompanionSnapshot(role)
+	if err != nil {
+		return nil, err
+	}
+	var state State
+	if err = json.Unmarshal(role.State, &state); err != nil {
+		return nil, err
+	}
+	return s.entryAdditionEquipment(role, state, snapshot.Stats, nil, false, &snapshot.Worn)
+}
+
 // AdventureEliteSkillUsage 只接受该角色已掌握的技能使用偏好。
 // 设置不会授予技能或改变等级；实际技能资料仍必须由角色存档生成。
 func (s *Service) AdventureEliteSkillUsage(role Character, requested [30]int32) ([30]int32, error) {
@@ -98,6 +113,10 @@ func entryPackedStats(state State) (protocol.PackedEntryStats, error) {
 }
 
 func (s *Service) entryAdditionWithStats(role Character, state State, stats protocol.PackedEntryStats, visualOverrides map[uint16]uint32, omitResolvedClones bool) ([]byte, error) {
+	return s.entryAdditionEquipment(role, state, stats, visualOverrides, omitResolvedClones, nil)
+}
+
+func (s *Service) entryAdditionEquipment(role Character, state State, stats protocol.PackedEntryStats, visualOverrides map[uint16]uint32, omitResolvedClones bool, companionWorn *[]protocol.DetailedWorn) ([]byte, error) {
 	var trees [2][]protocol.EntrySkill
 	for i := range trees {
 		known, e := s.knownSkills(role, state, i)
@@ -123,7 +142,9 @@ func (s *Service) entryAdditionWithStats(role Character, state State, stats prot
 		return nil, e
 	}
 	var worn []protocol.DetailedWorn
-	if s.DetailedWornCandidate {
+	if companionWorn != nil {
+		worn = *companionWorn
+	} else if s.DetailedWornCandidate {
 		var wornProjection struct {
 			Inventory struct {
 				Worn    []inventory.BagEquipment          `json:"worn"`
@@ -155,7 +176,9 @@ func (s *Service) entryAdditionWithStats(role Character, state State, stats prot
 				dw.Slot = item.Slot
 				dw.Template = item.Template
 				dw.Durability = item.Durability
-				dw.Record = item.Record
+				if item.Slot > 11 {
+					dw.Record = item.Record
+				}
 				// 头像扩展（孔/徽章）**只有时装行有格子**：槽 ≤ 11 走 avatar 分支，
 				// 槽 12..25 不投影，槽 26~29 / 32 走原生 sub_1452C1540 的
 				// creature/普通分支，行里根本没有 u32len+blob 两格。
@@ -199,7 +222,12 @@ func (s *Service) entryAdditionWithStats(role Character, state State, stats prot
 		return nil, err
 	}
 	var adventureLevel uint32
-	if s.Store != nil {
+	if s.entrySnapshot != nil {
+		if err = s.entrySnapshot.check(role); err != nil {
+			return nil, err
+		}
+		adventureLevel = s.entrySnapshot.adventure
+	} else if s.Store != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		adventureLevel, err = s.Store.AdventureLevel(ctx, role.AccountID, role.ID)
@@ -207,7 +235,7 @@ func (s *Service) entryAdditionWithStats(role Character, state State, stats prot
 			return nil, fmt.Errorf("读取角色属性包的冒险团等级：%w", err)
 		}
 	}
-	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{Context: s.ChannelContext, ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees, Worn: worn, Fame: fame, ExpandEquipFlags: projection.Inventory.ExpandEquipFlags, SkillTreeType: state.SkillTreeType, AdventureLevel: adventureLevel})
+	return protocol.UserInfoAdditionProbe(protocol.EntryAdditionProbe{Context: s.ChannelContext, ActorServerID: role.WireID, Experience: state.Experience, Stats: stats, SkillTrees: trees, Worn: worn, CompanionEquipment: companionWorn != nil, Fame: fame, ExpandEquipFlags: projection.Inventory.ExpandEquipFlags, SkillTreeType: state.SkillTreeType, AdventureLevel: adventureLevel})
 }
 
 // EquipmentFame复用完整穿戴名望投影；明细可通过EquipmentFameBreakdown核对。

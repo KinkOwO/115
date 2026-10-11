@@ -50,6 +50,12 @@ func preparePVFChannels(c *Catalogs, s *Source) error {
 	//（瘟疫之迪瑞吉）这类未打标记但有专属城镇的频道同样需要落点（通用落点表）。
 	towns := map[uint32]catalog.TownArea{}
 	for _, channelType := range dir.Types() {
+		if entry, bound := c.RaidEntrances[channelType]; bound && entry.Recruiting != nil {
+			// Delezie explicitly names its recruitment area in the native CTP.
+			// Do not choose a waiting area by probing map availability or flags.
+			towns[channelType] = *entry.Recruiting
+			continue
+		}
 		a, ok := dir.Attributes(channelType)
 		if !ok || a.Town <= 0 {
 			continue

@@ -79,4 +79,3 @@ func TestEvildomDispatchRunsBeforeLegion(t *testing.T) {
 		t.Fatalf("dispatchEvildom 排在第 %d 位、dispatchLegion 在第 %d 位：顺序反了", evildomAt, legionAt)
 	}
 }
-

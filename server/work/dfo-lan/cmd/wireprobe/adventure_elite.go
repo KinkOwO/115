@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"dfolan/internal/adventure"
 	"dfolan/internal/adventureelite"
 	"dfolan/internal/character"
 	"dfolan/internal/database"
@@ -10,6 +11,9 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"log"
+	"maps"
+	"math"
 )
 
 // 角色选择列表按Store.Characters的顺序下发。精锐页14021ADF0从该列表
@@ -19,18 +23,26 @@ func (w *worldSession) adventureElitePayload(ctx context.Context, profile databa
 	if err != nil {
 		return nil, err
 	}
-	rows, err := w.withBoostAPCSelection(adventureEliteSelectionsForRoles(w.eliteProfileView(profile), roles))
+	rows, err := w.withBoostAPCSelection(adventureEliteSelectionsForRoles(w.eliteProfileView(profile), roles, w.role.ID))
 	if err != nil {
 		return nil, err
 	}
-	return protocol.AdventureEliteSelections(rows)
+	body, err := protocol.AdventureEliteSelections(rows)
+	if err != nil {
+		return nil, err
+	}
+	return w.boostTrainingAPCMerge(body)
 }
 
-func adventureElitePayloadForRoles(profile database.AccountAdventure, roles []database.Character) ([]byte, error) {
-	return protocol.AdventureEliteSelections(adventureEliteSelectionsForRoles(profile, roles))
+func adventureElitePayloadForRoles(profile database.AccountAdventure, roles []database.Character, activeCharacter ...int64) ([]byte, error) {
+	return protocol.AdventureEliteSelections(adventureEliteSelectionsForRoles(profile, roles, activeCharacter...))
 }
 
-func adventureEliteSelectionsForRoles(profile database.AccountAdventure, roles []database.Character) []protocol.AdventureEliteSelection {
+func adventureEliteSelectionsForRoles(profile database.AccountAdventure, roles []database.Character, activeCharacter ...int64) []protocol.AdventureEliteSelection {
+	var active int64
+	if len(activeCharacter) > 0 {
+		active = activeCharacter[0]
+	}
 	slots := make(map[int64]int32, len(roles))
 	for slot, role := range roles {
 		slots[role.ID] = int32(slot)
@@ -43,10 +55,14 @@ func adventureEliteSelectionsForRoles(profile database.AccountAdventure, roles [
 		}
 		row := protocol.AdventureEliteSelection{Mode: mode, Slots: [3]int32{-1, -1, -1}}
 		seen := map[int64]bool{}
-		for i, id := range ids {
-			if slot, exists := slots[id]; exists && !seen[id] {
-				row.Slots[i] = slot
-				row.SkillUsage[i] = profile.Data.EliteSkillUsage[mode][id]
+		position := 0
+		for _, id := range ids {
+			if slot, exists := slots[id]; exists && id != active && !seen[id] {
+				// 1382压紧有效同伴，1879按相同的连续序号读取技能。
+				// 删除、空位和切换到已选同伴时，名单和技能一起压紧。
+				row.Slots[position] = slot
+				row.SkillUsage[position] = profile.Data.EliteSkillUsage[mode][id]
+				position++
 				seen[id] = true
 			}
 		}
@@ -56,8 +72,8 @@ func adventureEliteSelectionsForRoles(profile database.AccountAdventure, roles [
 }
 
 func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, prefix string) ([]outboundPacket, error) {
-	if w.blackPurgatory.prepared {
-		return nil, fmt.Errorf("黑鸦挑战已开始，请回到等待区后再修改精锐名单")
+	if w.adventureEliteBusy() {
+		return nil, fmt.Errorf("挑战或场景切换已开始，请回到城镇后再修改精锐名单")
 	}
 	req, err := protocol.DecodeAdventureEliteSelection(p)
 	if err != nil {
@@ -71,7 +87,8 @@ func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, pre
 			w.bleedingMineStart != nil || w.specialWarpPending) {
 		return nil, fmt.Errorf("请完成回城后再修改精锐名单或技能设置")
 	}
-	if _, err = w.prepareAdventure(ctx); err != nil {
+	profile, err := w.prepareAdventure(ctx)
+	if err != nil {
 		return nil, err
 	}
 	roles, err := w.store.Characters(ctx, w.account)
@@ -107,9 +124,16 @@ func (w *worldSession) setAdventureElite(ctx context.Context, p, raw []byte, pre
 		}
 		seen[role.ID] = true
 	}
-	key := fmt.Sprintf("adventure-elite:%s:%x", prefix, sha256.Sum256(raw))
-	_, profile, _, err := w.store.CommitAdventure(ctx, w.account, w.role.ID, key,
+	key := fmt.Sprintf("adventure-elite:%s:%d:%x", prefix, profile.Data.SettingsRevision, sha256.Sum256(raw))
+	_, profile, _, err = w.store.CommitAdventure(ctx, w.account, w.role.ID, key,
 		func(role database.Character, profile *database.AccountAdventure) (json.RawMessage, json.RawMessage, error) {
+			previous, exists := profile.Data.EliteSelections[req.Mode]
+			if !exists || previous != selected || !maps.Equal(profile.Data.EliteSkillUsage[req.Mode], usage) {
+				if profile.Data.SettingsRevision == math.MaxUint64 {
+					return nil, nil, fmt.Errorf("冒险团设置版本已超出范围")
+				}
+				profile.Data.SettingsRevision++
+			}
 			if profile.Data.EliteSelections == nil {
 				profile.Data.EliteSelections = map[uint16][3]int64{}
 			}
@@ -144,29 +168,69 @@ func adventureEliteChannel(channelType uint32) bool {
 	return false
 }
 
+func (w *worldSession) adventureEliteBusy() bool {
+	return w == nil || w.blackPurgatory.prepared || w.activeDungeon != nil ||
+		w.selectingDungeon || w.bleedingMineStart != nil || w.pendingTownArrival != nil || w.specialWarpPending
+}
+
+// Use the same native content-to-dungeon binding that the adventure window
+// reads. No default mode is substituted when the source does not permit it.
+func (w *worldSession) adventureEliteForDungeon(ctx context.Context, id uint32) ([]outboundPacket, error) {
+	if w == nil || !adventureEliteChannel(w.channelType) {
+		return nil, fmt.Errorf("当前频道未启用客户端精锐同伴系统")
+	}
+	rules, err := adventure.Current()
+	if err != nil {
+		return nil, err
+	}
+	mode, ok := rules.EliteModeForDungeon(id)
+	if !ok {
+		return nil, fmt.Errorf("当前PVF未配置副本%d的精锐同伴模式", id)
+	}
+	return w.adventureEliteSnapshotPackets(ctx, mode)
+}
+
 func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outboundPacket, error) {
 	mode, err := protocol.DecodeAdventureEliteLoad(p)
 	if err != nil {
 		return nil, err
 	}
 	if mode == boostAPCMode {
-		return w.loadBoostAPC()
+		if w.boostAPCSelectionSent {
+			return w.loadBoostAPC()
+		}
+		return w.loadBoostTrainingAPC()
 	}
 	if w == nil || (!adventureEliteChannel(w.channelType) && !w.ordinaryElitePreparationAllowed()) {
 		return nil, fmt.Errorf("当前频道未启用客户端精锐同伴系统，请在支持精锐的频道加载")
 	}
-	if w.activeDungeon != nil || w.selectingDungeon || w.bleedingMineStart != nil || w.pendingTownArrival != nil {
+	if w.adventureEliteBusy() {
 		return nil, fmt.Errorf("请在城镇加载精锐资料，不能重建正在出战的同伴")
 	}
-	// 当前原版mycharacters_apc_contents.etc仅保留contents key=2。
-	// 旧模式和活动模式4有不同消费分支，不套用当前账号同伴资料。
-	if mode != 2 {
-		return nil, fmt.Errorf("当前客户端资源未启用此精锐模式：%d", mode)
-	}
-	ordinary := !adventureEliteChannel(w.channelType)
-	if ordinary && w.adventureElitePrepared != nil {
+	if !adventureEliteChannel(w.channelType) && w.adventureElitePrepared != nil {
 		return nil, fmt.Errorf("精锐资料已经准备，请勿重复加载")
 	}
+	return w.adventureEliteSnapshotPackets(ctx, mode)
+}
+
+// Shared by the native town loader and the explicitly authorized pilot entry.
+// Entry authorization belongs to the caller; snapshot validation remains here.
+func (w *worldSession) adventureEliteSnapshotPackets(ctx context.Context, mode uint16) ([]outboundPacket, error) {
+	rules, err := adventure.Current()
+	if err != nil {
+		return nil, err
+	}
+	if len(rules.EliteContents[mode]) == 0 && mode != 2 {
+		return nil, fmt.Errorf("当前客户端资源未启用此精锐模式：%d", mode)
+	}
+	// Source permission and wire support are separate. Only content key 2's
+	// own-account adapter has been wired; 1879 has a distinct mode-4 branch.
+	// A future PVF entry alone must not enable an unverified adapter.
+	if mode != 2 {
+		return nil, fmt.Errorf("精锐模式%d的账号同伴适配尚未验证", mode)
+	}
+	ordinary := !adventureEliteChannel(w.channelType)
+	// Repeated native load requests replay the same owned snapshots; no durable state is changed.
 	profile, err := w.prepareAdventure(ctx)
 	if err != nil {
 		return nil, err
@@ -184,7 +248,7 @@ func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outb
 	seen := map[int64]bool{}
 	effectiveProfile := w.eliteProfileView(profile)
 	for _, id := range effectiveProfile.Data.EliteSelections[mode] {
-		if id == 0 {
+		if id == 0 || id == w.role.ID {
 			continue
 		}
 		slot, exists := byID[id]
@@ -213,6 +277,11 @@ func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outb
 		if err != nil {
 			return nil, fmt.Errorf("读取精锐角色%s的装备技能：%w", role.Name, err)
 		}
+		if readiness, checkErr := w.characters.CompanionReadiness(role); checkErr == nil {
+			if report, encodeErr := json.Marshal(readiness); encodeErr == nil {
+				log.Printf("companion_readiness %s", report)
+			}
+		}
 		slots = append(slots, byte(slot))
 		companions = append(companions, snapshot)
 	}
@@ -223,7 +292,7 @@ func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outb
 	if err != nil {
 		return nil, fmt.Errorf("精锐装备技能资料无法完整编码：%w", err)
 	}
-	settings, err := adventureElitePayloadForRoles(effectiveProfile, roles)
+	settings, err := adventureElitePayloadForRoles(effectiveProfile, roles, w.role.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +311,7 @@ func (w *worldSession) loadAdventureElite(ctx context.Context, p []byte) ([]outb
 	}
 	// 原生 layout attempt 1/3；普通事务适配 attempt 2/3。1382建立真实对象，1879克隆为AI同伴并应用技能开关。
 	return append(packets,
-		outboundPacket{"精锐真实装备技能加载（attempt 1/3）", 0, 1382, characters},
+		outboundPacket{fmt.Sprintf("精锐真实装备技能加载（attempt 1/3；mode=%d companions=%d）", mode, len(companions)), 0, 1382, characters},
 		outboundPacket{"精锐同伴资料加载完成", 0, 1879, done},
 	), nil
 }

@@ -1,0 +1,3878 @@
+{
+  "version": 1,
+  "source": "2429b15aa4235be32c3f3b49676646a25b6bf42bd45d5d651dae7e6fd9186167",
+  "table": "etc/amplifyupgrade.etc",
+  "table_type": "amplify",
+  "matrix_width": 24,
+  "material_template": 3242,
+  "materials": [
+    {
+      "template": 3242,
+      "path": "stackable/material/crystal_contradictory.stk",
+      "name": "Crystallized Chaos / 矛盾结晶体"
+    }
+  ],
+  "safe_material_templates": [
+    10327282
+  ],
+  "safe_materials": [
+    {
+      "template": 10327282,
+      "path": "(Harmonious Crystals / 115 副本产出)",
+      "name": "Harmonious Crystals"
+    }
+  ],
+  "levels": [
+    {
+      "level": 0,
+      "material_template": 3242,
+      "material_count": 1,
+      "gold_columns": [
+        0,
+        0
+      ]
+    },
+    {
+      "level": 1,
+      "material_template": 3242,
+      "material_count": 2,
+      "gold_columns": [
+        0,
+        0
+      ]
+    },
+    {
+      "level": 2,
+      "material_template": 3242,
+      "material_count": 3,
+      "gold_columns": [
+        0,
+        0
+      ]
+    },
+    {
+      "level": 3,
+      "material_template": 3242,
+      "material_count": 4,
+      "gold_columns": [
+        0,
+        0
+      ]
+    },
+    {
+      "level": 4,
+      "material_template": 3242,
+      "material_count": 5,
+      "gold_columns": [
+        20000,
+        20000
+      ]
+    },
+    {
+      "level": 5,
+      "material_template": 3242,
+      "material_count": 6,
+      "gold_columns": [
+        30000,
+        30000
+      ]
+    },
+    {
+      "level": 6,
+      "material_template": 3242,
+      "material_count": 7,
+      "gold_columns": [
+        40000,
+        40000
+      ]
+    },
+    {
+      "level": 7,
+      "material_template": 3242,
+      "material_count": 8,
+      "gold_columns": [
+        30000,
+        30000
+      ]
+    },
+    {
+      "level": 8,
+      "material_template": 3242,
+      "material_count": 9,
+      "gold_columns": [
+        40000,
+        40000
+      ]
+    },
+    {
+      "level": 9,
+      "material_template": 3242,
+      "material_count": 10,
+      "gold_columns": [
+        50000,
+        50000
+      ]
+    },
+    {
+      "level": 10,
+      "material_template": 3242,
+      "material_count": 11,
+      "gold_columns": [
+        60000,
+        60000
+      ]
+    },
+    {
+      "level": 11,
+      "material_template": 3242,
+      "material_count": 12,
+      "gold_columns": [
+        70000,
+        70000
+      ]
+    },
+    {
+      "level": 12,
+      "material_template": 3242,
+      "material_count": 13,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 13,
+      "material_template": 3242,
+      "material_count": 14,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 14,
+      "material_template": 3242,
+      "material_count": 15,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 15,
+      "material_template": 3242,
+      "material_count": 16,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 16,
+      "material_template": 3242,
+      "material_count": 17,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 17,
+      "material_template": 3242,
+      "material_count": 18,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 18,
+      "material_template": 3242,
+      "material_count": 19,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 19,
+      "material_template": 3242,
+      "material_count": 20,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 20,
+      "material_template": 3242,
+      "material_count": 21,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 21,
+      "material_template": 3242,
+      "material_count": 22,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 22,
+      "material_template": 3242,
+      "material_count": 23,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 23,
+      "material_template": 3242,
+      "material_count": 24,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 24,
+      "material_template": 3242,
+      "material_count": 25,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 25,
+      "material_template": 3242,
+      "material_count": 26,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 26,
+      "material_template": 3242,
+      "material_count": 27,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 27,
+      "material_template": 3242,
+      "material_count": 28,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 28,
+      "material_template": 3242,
+      "material_count": 29,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 29,
+      "material_template": 3242,
+      "material_count": 30,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 30,
+      "material_template": 3242,
+      "material_count": 31,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 31,
+      "material_template": 3242,
+      "material_count": 32,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 32,
+      "material_template": 3242,
+      "material_count": 33,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 33,
+      "material_template": 3242,
+      "material_count": 34,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 34,
+      "material_template": 3242,
+      "material_count": 35,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 35,
+      "material_template": 3242,
+      "material_count": 36,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 36,
+      "material_template": 3242,
+      "material_count": 37,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 37,
+      "material_template": 3242,
+      "material_count": 38,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 38,
+      "material_template": 3242,
+      "material_count": 39,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 39,
+      "material_template": 3242,
+      "material_count": 40,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 40,
+      "material_template": 3242,
+      "material_count": 41,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 41,
+      "material_template": 3242,
+      "material_count": 42,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 42,
+      "material_template": 3242,
+      "material_count": 43,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 43,
+      "material_template": 3242,
+      "material_count": 44,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 44,
+      "material_template": 3242,
+      "material_count": 45,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 45,
+      "material_template": 3242,
+      "material_count": 46,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 46,
+      "material_template": 3242,
+      "material_count": 47,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 47,
+      "material_template": 3242,
+      "material_count": 48,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 48,
+      "material_template": 3242,
+      "material_count": 49,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 49,
+      "material_template": 3242,
+      "material_count": 50,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 50,
+      "material_template": 3242,
+      "material_count": 51,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 51,
+      "material_template": 3242,
+      "material_count": 52,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 52,
+      "material_template": 3242,
+      "material_count": 53,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 53,
+      "material_template": 3242,
+      "material_count": 54,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 54,
+      "material_template": 3242,
+      "material_count": 55,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 55,
+      "material_template": 3242,
+      "material_count": 56,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 56,
+      "material_template": 3242,
+      "material_count": 57,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 57,
+      "material_template": 3242,
+      "material_count": 58,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 58,
+      "material_template": 3242,
+      "material_count": 59,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 59,
+      "material_template": 3242,
+      "material_count": 60,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 60,
+      "material_template": 3242,
+      "material_count": 61,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 61,
+      "material_template": 3242,
+      "material_count": 62,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 62,
+      "material_template": 3242,
+      "material_count": 63,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 63,
+      "material_template": 3242,
+      "material_count": 64,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 64,
+      "material_template": 3242,
+      "material_count": 65,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 65,
+      "material_template": 3242,
+      "material_count": 66,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 66,
+      "material_template": 3242,
+      "material_count": 67,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 67,
+      "material_template": 3242,
+      "material_count": 68,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 68,
+      "material_template": 3242,
+      "material_count": 69,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 69,
+      "material_template": 3242,
+      "material_count": 70,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 70,
+      "material_template": 3242,
+      "material_count": 71,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 71,
+      "material_template": 3242,
+      "material_count": 72,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 72,
+      "material_template": 3242,
+      "material_count": 73,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 73,
+      "material_template": 3242,
+      "material_count": 74,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 74,
+      "material_template": 3242,
+      "material_count": 75,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 75,
+      "material_template": 3242,
+      "material_count": 76,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 76,
+      "material_template": 3242,
+      "material_count": 77,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 77,
+      "material_template": 3242,
+      "material_count": 78,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 78,
+      "material_template": 3242,
+      "material_count": 79,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 79,
+      "material_template": 3242,
+      "material_count": 80,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 80,
+      "material_template": 3242,
+      "material_count": 81,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 81,
+      "material_template": 3242,
+      "material_count": 82,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 82,
+      "material_template": 3242,
+      "material_count": 83,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 83,
+      "material_template": 3242,
+      "material_count": 84,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 84,
+      "material_template": 3242,
+      "material_count": 85,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 85,
+      "material_template": 3242,
+      "material_count": 86,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 86,
+      "material_template": 3242,
+      "material_count": 87,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 87,
+      "material_template": 3242,
+      "material_count": 88,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 88,
+      "material_template": 3242,
+      "material_count": 89,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 89,
+      "material_template": 3242,
+      "material_count": 90,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 90,
+      "material_template": 3242,
+      "material_count": 91,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 91,
+      "material_template": 3242,
+      "material_count": 92,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 92,
+      "material_template": 3242,
+      "material_count": 93,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 93,
+      "material_template": 3242,
+      "material_count": 94,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 94,
+      "material_template": 3242,
+      "material_count": 95,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 95,
+      "material_template": 3242,
+      "material_count": 96,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 96,
+      "material_template": 3242,
+      "material_count": 97,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 97,
+      "material_template": 3242,
+      "material_count": 98,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 98,
+      "material_template": 3242,
+      "material_count": 99,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 99,
+      "material_template": 3242,
+      "material_count": 100,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 100,
+      "material_template": 3242,
+      "material_count": 101,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 101,
+      "material_template": 3242,
+      "material_count": 102,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 102,
+      "material_template": 3242,
+      "material_count": 103,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 103,
+      "material_template": 3242,
+      "material_count": 104,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 104,
+      "material_template": 3242,
+      "material_count": 105,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 105,
+      "material_template": 3242,
+      "material_count": 106,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 106,
+      "material_template": 3242,
+      "material_count": 107,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 107,
+      "material_template": 3242,
+      "material_count": 108,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 108,
+      "material_template": 3242,
+      "material_count": 109,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 109,
+      "material_template": 3242,
+      "material_count": 110,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 110,
+      "material_template": 3242,
+      "material_count": 111,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 111,
+      "material_template": 3242,
+      "material_count": 112,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 112,
+      "material_template": 3242,
+      "material_count": 113,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 113,
+      "material_template": 3242,
+      "material_count": 114,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 114,
+      "material_template": 3242,
+      "material_count": 115,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 115,
+      "material_template": 3242,
+      "material_count": 116,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 116,
+      "material_template": 3242,
+      "material_count": 117,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 117,
+      "material_template": 3242,
+      "material_count": 118,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 118,
+      "material_template": 3242,
+      "material_count": 119,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 119,
+      "material_template": 3242,
+      "material_count": 120,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 120,
+      "material_template": 3242,
+      "material_count": 121,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 121,
+      "material_template": 3242,
+      "material_count": 122,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 122,
+      "material_template": 3242,
+      "material_count": 123,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 123,
+      "material_template": 3242,
+      "material_count": 124,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 124,
+      "material_template": 3242,
+      "material_count": 125,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 125,
+      "material_template": 3242,
+      "material_count": 126,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 126,
+      "material_template": 3242,
+      "material_count": 127,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 127,
+      "material_template": 3242,
+      "material_count": 128,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 128,
+      "material_template": 3242,
+      "material_count": 129,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 129,
+      "material_template": 3242,
+      "material_count": 130,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 130,
+      "material_template": 3242,
+      "material_count": 131,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 131,
+      "material_template": 3242,
+      "material_count": 132,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 132,
+      "material_template": 3242,
+      "material_count": 133,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 133,
+      "material_template": 3242,
+      "material_count": 134,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 134,
+      "material_template": 3242,
+      "material_count": 135,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 135,
+      "material_template": 3242,
+      "material_count": 136,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 136,
+      "material_template": 3242,
+      "material_count": 137,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 137,
+      "material_template": 3242,
+      "material_count": 138,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 138,
+      "material_template": 3242,
+      "material_count": 139,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 139,
+      "material_template": 3242,
+      "material_count": 140,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 140,
+      "material_template": 3242,
+      "material_count": 141,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 141,
+      "material_template": 3242,
+      "material_count": 142,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 142,
+      "material_template": 3242,
+      "material_count": 143,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 143,
+      "material_template": 3242,
+      "material_count": 144,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 144,
+      "material_template": 3242,
+      "material_count": 145,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 145,
+      "material_template": 3242,
+      "material_count": 146,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 146,
+      "material_template": 3242,
+      "material_count": 147,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 147,
+      "material_template": 3242,
+      "material_count": 148,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 148,
+      "material_template": 3242,
+      "material_count": 149,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 149,
+      "material_template": 3242,
+      "material_count": 150,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 150,
+      "material_template": 3242,
+      "material_count": 151,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 151,
+      "material_template": 3242,
+      "material_count": 152,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 152,
+      "material_template": 3242,
+      "material_count": 153,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 153,
+      "material_template": 3242,
+      "material_count": 154,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 154,
+      "material_template": 3242,
+      "material_count": 155,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 155,
+      "material_template": 3242,
+      "material_count": 156,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 156,
+      "material_template": 3242,
+      "material_count": 157,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 157,
+      "material_template": 3242,
+      "material_count": 158,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 158,
+      "material_template": 3242,
+      "material_count": 159,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 159,
+      "material_template": 3242,
+      "material_count": 160,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 160,
+      "material_template": 3242,
+      "material_count": 161,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 161,
+      "material_template": 3242,
+      "material_count": 162,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 162,
+      "material_template": 3242,
+      "material_count": 163,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 163,
+      "material_template": 3242,
+      "material_count": 164,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 164,
+      "material_template": 3242,
+      "material_count": 165,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 165,
+      "material_template": 3242,
+      "material_count": 166,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 166,
+      "material_template": 3242,
+      "material_count": 167,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 167,
+      "material_template": 3242,
+      "material_count": 168,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 168,
+      "material_template": 3242,
+      "material_count": 169,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 169,
+      "material_template": 3242,
+      "material_count": 170,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 170,
+      "material_template": 3242,
+      "material_count": 171,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 171,
+      "material_template": 3242,
+      "material_count": 172,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 172,
+      "material_template": 3242,
+      "material_count": 173,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 173,
+      "material_template": 3242,
+      "material_count": 174,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 174,
+      "material_template": 3242,
+      "material_count": 175,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 175,
+      "material_template": 3242,
+      "material_count": 176,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 176,
+      "material_template": 3242,
+      "material_count": 177,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 177,
+      "material_template": 3242,
+      "material_count": 178,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 178,
+      "material_template": 3242,
+      "material_count": 179,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 179,
+      "material_template": 3242,
+      "material_count": 180,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 180,
+      "material_template": 3242,
+      "material_count": 181,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 181,
+      "material_template": 3242,
+      "material_count": 182,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 182,
+      "material_template": 3242,
+      "material_count": 183,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 183,
+      "material_template": 3242,
+      "material_count": 184,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 184,
+      "material_template": 3242,
+      "material_count": 185,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 185,
+      "material_template": 3242,
+      "material_count": 186,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 186,
+      "material_template": 3242,
+      "material_count": 187,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 187,
+      "material_template": 3242,
+      "material_count": 188,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 188,
+      "material_template": 3242,
+      "material_count": 189,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 189,
+      "material_template": 3242,
+      "material_count": 190,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 190,
+      "material_template": 3242,
+      "material_count": 191,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 191,
+      "material_template": 3242,
+      "material_count": 192,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 192,
+      "material_template": 3242,
+      "material_count": 193,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 193,
+      "material_template": 3242,
+      "material_count": 194,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 194,
+      "material_template": 3242,
+      "material_count": 195,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 195,
+      "material_template": 3242,
+      "material_count": 196,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 196,
+      "material_template": 3242,
+      "material_count": 197,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 197,
+      "material_template": 3242,
+      "material_count": 198,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 198,
+      "material_template": 3242,
+      "material_count": 199,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 199,
+      "material_template": 3242,
+      "material_count": 200,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 200,
+      "material_template": 3242,
+      "material_count": 201,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 201,
+      "material_template": 3242,
+      "material_count": 202,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 202,
+      "material_template": 3242,
+      "material_count": 203,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 203,
+      "material_template": 3242,
+      "material_count": 204,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 204,
+      "material_template": 3242,
+      "material_count": 205,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 205,
+      "material_template": 3242,
+      "material_count": 206,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 206,
+      "material_template": 3242,
+      "material_count": 207,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 207,
+      "material_template": 3242,
+      "material_count": 208,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 208,
+      "material_template": 3242,
+      "material_count": 209,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 209,
+      "material_template": 3242,
+      "material_count": 210,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 210,
+      "material_template": 3242,
+      "material_count": 211,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 211,
+      "material_template": 3242,
+      "material_count": 212,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 212,
+      "material_template": 3242,
+      "material_count": 213,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 213,
+      "material_template": 3242,
+      "material_count": 214,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 214,
+      "material_template": 3242,
+      "material_count": 215,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 215,
+      "material_template": 3242,
+      "material_count": 216,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 216,
+      "material_template": 3242,
+      "material_count": 217,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 217,
+      "material_template": 3242,
+      "material_count": 218,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 218,
+      "material_template": 3242,
+      "material_count": 219,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 219,
+      "material_template": 3242,
+      "material_count": 220,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 220,
+      "material_template": 3242,
+      "material_count": 221,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 221,
+      "material_template": 3242,
+      "material_count": 222,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 222,
+      "material_template": 3242,
+      "material_count": 223,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 223,
+      "material_template": 3242,
+      "material_count": 224,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 224,
+      "material_template": 3242,
+      "material_count": 225,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 225,
+      "material_template": 3242,
+      "material_count": 226,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 226,
+      "material_template": 3242,
+      "material_count": 227,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 227,
+      "material_template": 3242,
+      "material_count": 228,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 228,
+      "material_template": 3242,
+      "material_count": 229,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 229,
+      "material_template": 3242,
+      "material_count": 230,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 230,
+      "material_template": 3242,
+      "material_count": 231,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 231,
+      "material_template": 3242,
+      "material_count": 232,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 232,
+      "material_template": 3242,
+      "material_count": 233,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 233,
+      "material_template": 3242,
+      "material_count": 234,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 234,
+      "material_template": 3242,
+      "material_count": 235,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 235,
+      "material_template": 3242,
+      "material_count": 236,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 236,
+      "material_template": 3242,
+      "material_count": 237,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 237,
+      "material_template": 3242,
+      "material_count": 238,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 238,
+      "material_template": 3242,
+      "material_count": 239,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 239,
+      "material_template": 3242,
+      "material_count": 240,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 240,
+      "material_template": 3242,
+      "material_count": 241,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 241,
+      "material_template": 3242,
+      "material_count": 242,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 242,
+      "material_template": 3242,
+      "material_count": 243,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 243,
+      "material_template": 3242,
+      "material_count": 244,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 244,
+      "material_template": 3242,
+      "material_count": 245,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 245,
+      "material_template": 3242,
+      "material_count": 246,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 246,
+      "material_template": 3242,
+      "material_count": 247,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 247,
+      "material_template": 3242,
+      "material_count": 248,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 248,
+      "material_template": 3242,
+      "material_count": 249,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 249,
+      "material_template": 3242,
+      "material_count": 250,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 250,
+      "material_template": 3242,
+      "material_count": 251,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 251,
+      "material_template": 3242,
+      "material_count": 252,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 252,
+      "material_template": 3242,
+      "material_count": 253,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 253,
+      "material_template": 3242,
+      "material_count": 254,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    },
+    {
+      "level": 254,
+      "material_template": 3242,
+      "material_count": 255,
+      "gold_columns": [
+        80000,
+        80000
+      ]
+    }
+  ],
+  "gold_semantics": "金币取 gold_columns[0]（+0..+3 为 0，+12 起封顶 80000）；是否再乘 [cost weights by rarity] 待实机读数确认 | ★ 安全增幅金币取 [safe upgrade] 第 8 列（value 列），已与官方页校准；原第 3 列（gold_column_raw）不是安全增幅费用。",
+  "max_upgrade_level_by_rarity": [
+    "common",
+    50,
+    "uncommon",
+    50
+  ],
+  "safe_upgrade": [
+    {
+      "level": 0,
+      "enabled": 1,
+      "gold": 430100,
+      "b": 0,
+      "c": 1,
+      "material": 10327282,
+      "count": 36,
+      "value": 430100,
+      "gold_column_raw": 0
+    },
+    {
+      "level": 0,
+      "enabled": 0,
+      "gold": 189860,
+      "b": 0,
+      "c": 1,
+      "material": 10327282,
+      "count": 16,
+      "value": 189860,
+      "gold_column_raw": 0
+    },
+    {
+      "level": 1,
+      "enabled": 1,
+      "gold": 490600,
+      "b": 0,
+      "c": 1,
+      "material": 10327282,
+      "count": 41,
+      "value": 490600,
+      "gold_column_raw": 0
+    },
+    {
+      "level": 1,
+      "enabled": 0,
+      "gold": 250360,
+      "b": 0,
+      "c": 1,
+      "material": 10327282,
+      "count": 21,
+      "value": 250360,
+      "gold_column_raw": 0
+    },
+    {
+      "level": 2,
+      "enabled": 1,
+      "gold": 551100,
+      "b": 0,
+      "c": 1,
+      "material": 10327282,
+      "count": 46,
+      "value": 551100,
+      "gold_column_raw": 0
+    },
+    {
+      "level": 2,
+      "enabled": 0,
+      "gold": 310860,
+      "b": 0,
+      "c": 1,
+      "material": 10327282,
+      "count": 26,
+      "value": 310860,
+      "gold_column_raw": 0
+    },
+    {
+      "level": 3,
+      "enabled": 1,
+      "gold": 611600,
+      "b": 0,
+      "c": 1,
+      "material": 10327282,
+      "count": 51,
+      "value": 611600,
+      "gold_column_raw": 0
+    },
+    {
+      "level": 3,
+      "enabled": 0,
+      "gold": 371360,
+      "b": 0,
+      "c": 1,
+      "material": 10327282,
+      "count": 31,
+      "value": 371360,
+      "gold_column_raw": 0
+    },
+    {
+      "level": 4,
+      "enabled": 1,
+      "gold": 876652,
+      "b": 10000,
+      "c": 1,
+      "material": 10327282,
+      "count": 55,
+      "value": 876652,
+      "gold_column_raw": 30000
+    },
+    {
+      "level": 4,
+      "enabled": 0,
+      "gold": 490750,
+      "b": 10000,
+      "c": 1,
+      "material": 10327282,
+      "count": 46,
+      "value": 490750,
+      "gold_column_raw": 30000
+    },
+    {
+      "level": 5,
+      "enabled": 1,
+      "gold": 1072098,
+      "b": 10000,
+      "c": 1,
+      "material": 10327282,
+      "count": 67,
+      "value": 1072098,
+      "gold_column_raw": 40000
+    },
+    {
+      "level": 5,
+      "enabled": 0,
+      "gold": 615450,
+      "b": 10000,
+      "c": 1,
+      "material": 10327282,
+      "count": 58,
+      "value": 615450,
+      "gold_column_raw": 40000
+    },
+    {
+      "level": 6,
+      "enabled": 1,
+      "gold": 1730400,
+      "b": 10000,
+      "c": 1,
+      "material": 10327282,
+      "count": 109,
+      "value": 1730400,
+      "gold_column_raw": 50000
+    },
+    {
+      "level": 6,
+      "enabled": 0,
+      "gold": 1043132,
+      "b": 10000,
+      "c": 1,
+      "material": 10327282,
+      "count": 98,
+      "value": 1043132,
+      "gold_column_raw": 50000
+    },
+    {
+      "level": 7,
+      "enabled": 1,
+      "gold": 1932679,
+      "b": 5000,
+      "c": 1,
+      "material": 10327282,
+      "count": 122,
+      "value": 1932679,
+      "gold_column_raw": 50000
+    },
+    {
+      "level": 7,
+      "enabled": 0,
+      "gold": 1157283,
+      "b": 5000,
+      "c": 1,
+      "material": 10327282,
+      "count": 109,
+      "value": 1157283,
+      "gold_column_raw": 50000
+    },
+    {
+      "level": 8,
+      "enabled": 1,
+      "gold": 3656400,
+      "b": 5000,
+      "c": 1,
+      "material": 10327282,
+      "count": 230,
+      "value": 3656400,
+      "gold_column_raw": 60000
+    },
+    {
+      "level": 8,
+      "enabled": 0,
+      "gold": 2246200,
+      "b": 5000,
+      "c": 1,
+      "material": 10327282,
+      "count": 212,
+      "value": 2246200,
+      "gold_column_raw": 60000
+    },
+    {
+      "level": 9,
+      "enabled": 1,
+      "gold": 5084870,
+      "b": 5000,
+      "c": 1,
+      "material": 10327282,
+      "count": 320,
+      "value": 5084870,
+      "gold_column_raw": 70000
+    },
+    {
+      "level": 9,
+      "enabled": 0,
+      "gold": 2937440,
+      "b": 5000,
+      "c": 1,
+      "material": 10327282,
+      "count": 277,
+      "value": 2937440,
+      "gold_column_raw": 70000
+    }
+  ],
+  "safe_upgrade_replace_item": [
+    10327285
+  ],
+  "safe_upgrade_usable_rarity": [
+    "unique",
+    "legendary",
+    "epic",
+    "mythology",
+    "primeval",
+    "rare"
+  ],
+  "safe_upgrade_min_level": [
+    100
+  ],
+  "safe_upgrade_semantics": "每级两行：enabled=1 与 enabled=0 对应武器 / 非武器（官方：武器与非武器消耗不同）；等级只到 +9，与「安全增幅限 +9 及以下」一致",
+  "destroy_level_by_rarity": [
+    "common",
+    8,
+    "uncommon",
+    8
+  ],
+  "client_level_section": [
+    8,
+    8,
+    8,
+    24,
+    24,
+    24,
+    100
+  ],
+  "final_damage_table": [],
+  "upgrade_value_pairs": [
+    0,
+    0,
+    1,
+    0,
+    2,
+    0,
+    3,
+    0,
+    4,
+    0,
+    5,
+    0,
+    6,
+    0,
+    7,
+    0,
+    8,
+    0,
+    9,
+    0,
+    10,
+    0.20000000298023224,
+    11,
+    0.4000000059604645,
+    12,
+    0.699999988079071,
+    13,
+    1.0,
+    14,
+    1.2000000476837158,
+    15,
+    1.399999976158142,
+    16,
+    1.600000023841858,
+    17,
+    1.7999999523162842,
+    18,
+    2.0,
+    19,
+    2.200000047683716,
+    20,
+    2.4000000953674316,
+    21,
+    2.5999999046325684,
+    22,
+    2.799999952316284,
+    23,
+    3.0,
+    24,
+    3.200000047683716,
+    25,
+    3.4000000953674316,
+    26,
+    3.5999999046325684,
+    27,
+    3.799999952316284,
+    28,
+    4.0,
+    29,
+    4.199999809265137,
+    30,
+    4.400000095367432,
+    0,
+    0,
+    1,
+    0,
+    2,
+    0,
+    3,
+    0,
+    4,
+    0,
+    5,
+    0,
+    6,
+    0,
+    7,
+    0,
+    8,
+    0,
+    9,
+    0,
+    10,
+    0,
+    11,
+    0,
+    12,
+    0.4000000059604645,
+    13,
+    0.699999988079071,
+    14,
+    1.0,
+    15,
+    1.2000000476837158,
+    16,
+    1.399999976158142,
+    17,
+    1.600000023841858,
+    18,
+    1.7999999523162842,
+    19,
+    2.0,
+    20,
+    2.200000047683716,
+    21,
+    2.4000000953674316,
+    22,
+    2.5999999046325684,
+    23,
+    2.799999952316284,
+    24,
+    3.0,
+    25,
+    3.200000047683716,
+    26,
+    3.4000000953674316,
+    27,
+    3.5999999046325684,
+    28,
+    3.799999952316284,
+    29,
+    4.0,
+    30,
+    4.199999809265137,
+    0,
+    0,
+    1,
+    0,
+    2,
+    0,
+    3,
+    0,
+    4,
+    0,
+    5,
+    0,
+    6,
+    0,
+    7,
+    0,
+    8,
+    0,
+    9,
+    0,
+    10,
+    0,
+    11,
+    0,
+    12,
+    0.4000000059604645,
+    13,
+    0.699999988079071,
+    14,
+    1.0,
+    15,
+    1.2000000476837158,
+    16,
+    1.399999976158142,
+    17,
+    1.600000023841858,
+    18,
+    1.7999999523162842,
+    19,
+    2.0,
+    20,
+    2.200000047683716,
+    21,
+    2.4000000953674316,
+    22,
+    2.5999999046325684,
+    23,
+    2.799999952316284,
+    24,
+    3.0,
+    25,
+    3.200000047683716,
+    26,
+    3.4000000953674316,
+    27,
+    3.5999999046325684,
+    28,
+    3.799999952316284,
+    29,
+    4.0,
+    30,
+    4.199999809265137
+  ],
+  "cost_weights_by_rarity": [
+    0.25,
+    0.75,
+    1.5,
+    2.5,
+    4,
+    2,
+    3,
+    4,
+    4
+  ],
+  "cost_weights_by_rarity_100lv": [
+    0.25,
+    0.75,
+    4,
+    4,
+    4,
+    2,
+    4,
+    4,
+    4
+  ],
+  "amplification_const": [
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    2,
+    3,
+    3,
+    3,
+    3,
+    4,
+    4,
+    4,
+    4,
+    6,
+    6,
+    6,
+    6,
+    8,
+    8,
+    8,
+    8,
+    10,
+    10,
+    10,
+    10,
+    22,
+    22,
+    22,
+    22,
+    28,
+    28,
+    28,
+    28,
+    35,
+    35,
+    35,
+    35,
+    42,
+    42,
+    42,
+    42,
+    50,
+    50,
+    50,
+    50,
+    67,
+    67,
+    67,
+    67,
+    108,
+    108,
+    108,
+    108,
+    150,
+    150,
+    150,
+    150,
+    192,
+    192,
+    192,
+    192,
+    267,
+    267,
+    267,
+    267,
+    342,
+    342,
+    342,
+    342,
+    417,
+    417,
+    417,
+    417,
+    500,
+    500,
+    500,
+    500,
+    583,
+    583,
+    583,
+    583,
+    667,
+    667,
+    667,
+    667,
+    750,
+    750,
+    750,
+    750,
+    833,
+    833,
+    833,
+    833,
+    917,
+    917,
+    917,
+    917,
+    1001,
+    1001,
+    1001,
+    1001,
+    1085,
+    1085,
+    1085,
+    1085,
+    1169,
+    1169,
+    1169,
+    1169,
+    1253,
+    1253,
+    1253,
+    1253,
+    1337,
+    1337,
+    1337,
+    1337,
+    1421,
+    1421,
+    1421,
+    1421,
+    1505,
+    1505,
+    1505,
+    1505,
+    1589,
+    1589,
+    1589,
+    1589,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "client_note": "PVF 的 [max upgrade level by rarity]=50 与 [destroy level by rarity]=8 可能失真（强化里 PVF 写 50、客户端 reader 实机只认到 15），故失败惩罚与成功率一律以 official 段为准。",
+  "official": {
+    "source": "official page 2026-09-27 (amplify: NPC Klonter, material Crystallized Chaos)",
+    "success_rate_percent_by_level": {
+      "0": 100,
+      "1": 100,
+      "2": 100,
+      "3": 100,
+      "4": 70,
+      "5": 60,
+      "6": 50,
+      "7": 50,
+      "8": 40,
+      "9": 30,
+      "default": 30
+    },
+    "failure_penalty": {
+      "0-6": "none",
+      "7-9": "level_down_1",
+      "10+": "destroy"
+    },
+    "failure_bonus_percent_point": {
+      "4-6": 10,
+      "7-9": 5
+    },
+    "protection_ticket": "不碎，但增幅等级归零",
+    "safe_amplify": {
+      "material": "Harmonious Crystals（模板见 safe_material_templates，PVF 段 [safe upgrade]）",
+      "condition": "装备等级 >= 100 且品质在 safe_upgrade_usable_rarity 内，且当前增幅 <= +9",
+      "max_level": 9,
+      "cost": "材料数量与金币取 [safe upgrade] 中该等级对应的一行（武器/非武器不同）",
+      "success_rate": "与普通增幅同一张表",
+      "failure_penalty": "none（不掉级、不摧毁）",
+      "failure_bonus_percent_point": {
+        "4-6": 10,
+        "7-9": 5
+      },
+      "note": "★ 官方条件为「当前增幅 <= +9」，即可安全增幅到 +10；早期实现误判为「当前 >= +9 拒绝」，把 +9→10 这一档挡掉了。失败补正（连续失败累加 10%p(4-6)/5%p(7-9)，成功清零）仍未实现。",
+      "source": "官方页 dfoneople Reinforce/Amplify/Refine（Safe Amplification 表，2025-03-18 更新）；PVF [safe upgrade] 与官方表逐格吻合",
+      "max_reachable": 10
+    }
+  },
+  "record_offsets": {
+    "amplify_type": 19,
+    "amplify_value": 20,
+    "amplify_level": {
+      "offset": 10,
+      "bits": "bit0-4",
+      "shared_with": "reinforcement"
+    },
+    "note": "★ 增幅等级 = offset 10 的 bit0-4，与强化等级共用同一个字节；offset 19 = 次元属性类型（红字），offset 20 = 次元属性数值（红字数值）。早期把等级写进 offset 20 是错的：红字数值被覆盖、等级字节仍是 0，装备上不显示 +N。"
+  },
+  "verified": [
+    {
+      "case": "+0 增幅",
+      "material": 1,
+      "gold": 0
+    },
+    {
+      "case": "+9 增幅",
+      "material": 10,
+      "gold": 50000
+    }
+  ]
+}

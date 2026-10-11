@@ -42,14 +42,14 @@ func parseGraduationMail(cells []pvf.Token) (*GraduationMail, error) {
 	// Current source's localized text is empty in the exported view. These
 	// are local presentation fallbacks, not invented reward identities.
 	if sender == "" {
-		sender = "Starter Boost"
+		sender = "奇迹加速"
 	}
 	if len(sender) > 29 {
 		body = sender + "\n" + body
-		sender = "Starter Boost"
+		sender = "奇迹加速"
 	}
 	if body == "" {
-		body = "Starter Boost level reward."
+		body = "奇迹加速等级奖励已送达，请注意查收。"
 	}
 	if len(body) > 512 {
 		body = body[:512]

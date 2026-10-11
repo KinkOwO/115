@@ -22,6 +22,28 @@ type seasonRefusal struct {
 
 func (e seasonRefusal) Error() string { return e.reason }
 
+// The own-account window can open before CMD35 enables periodic refresh.
+// Initialize the native manager's experience, reward flags and acquisition
+// history from the account store without granting or marking any reward.
+func (w *worldSession) initialSeasonPlan(ctx context.Context) ([]outboundPacket, error) {
+	rules, err := adventure.CurrentSeason()
+	if err != nil {
+		return nil, err
+	}
+	state, err := w.store.CharacterSeason(ctx, w.account, w.role.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err = rules.Normalize(&state, time.Now()); err != nil {
+		return nil, err
+	}
+	oath, err := adventure.SeasonOathHistory(state.Acquisitions)
+	if err != nil {
+		return nil, err
+	}
+	return []outboundPacket{{"誓约获取记录初始化", 0, 2858, oath}, {"迷雾誓约进度初始化", 0, 2799, adventure.SeasonLevelHistory(state)}}, nil
+}
+
 func (w *worldSession) refreshSeason(ctx context.Context) ([]outboundPacket, error) {
 	if !w.adventureReady || w.characters == nil || w.store == nil || w.role.ID == 0 {
 		return nil, nil

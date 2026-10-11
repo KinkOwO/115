@@ -162,6 +162,12 @@ func TestOathDirectEntryIntegration(t *testing.T) {
 							t.Fatalf("pre-map worn snapshot changed: %v", err)
 						}
 						for _, p := range loading {
+							// The upstream identified-option replay restores only sealed
+							// option data (list 3), after the direct worn initialization.
+							// It is not another actor or complete equipment rebuild.
+							if p.Name == "dungeon_worn_random_options_restored" && p.Kind == 0 && p.ID == 14 {
+								continue
+							}
 							if p.ID == 2 || p.ID == 13 || p.ID == 14 || p.ID == 2839 {
 								t.Fatalf("loading repeats actor/equipment/oath packet: %s", p.Name)
 							}

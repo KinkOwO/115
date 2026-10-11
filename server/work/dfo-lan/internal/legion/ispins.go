@@ -31,10 +31,11 @@ const (
 	NotiIspinsAdditionalClearReward uint16 = 2253 // native fixed 2405B, next79 §29
 	NotiIspinsEntryCharacterInfo    uint16 = 2254 // 272B, next78 §2.2
 	NotiIspinsInfo                  uint16 = 2255 // 88B state machine, next78 §2.1
-	NotiIspinsOperation             uint16 = 2256 // 16B, constant in capture
+	NotiIspinsOperation             uint16 = 2256 // native3B: selected i16 index + u8 result
 )
 
-// Stage geometry from the official capture (next78 §1.3): stage order is the
+// Historical capture IDs for compatibility tests; runtime obtains IDs from
+// the prepared LegionContents. Stage order is the
 // client's selection; the run recorded there used the default order, whose
 // dungeon ids map to these PVF dungeon_info_data indices.
 // 100002985 ispins_ashcore, 100002986 ispins_itrenog,
@@ -45,8 +46,9 @@ var IspinsStageDungeons = [4]uint32{100002987, 100002988, 100002985, 100002986}
 // dungeon in the recorded default order (nemaug, nagor, ashcore, itrenog).
 var IspinsStageDungeonIndex = [4]byte{2, 3, 0, 1}
 
-// Stage tokens link N31 (ENABLE_CLEAR_DUNGEON) with the N2252 reward tail
-// (next78 §1.4). Official S1..S4 values, replayed verbatim.
+// Historical N31 head scalars. The matching old N2252 tail was elapsed
+// milliseconds, not an opaque stage token. Runtime N2252 uses the owned clock;
+// N31's nonzero branch remains the accepted capture projection.
 var IspinsStageTokens = [4][2]byte{{0x93, 0x8c}, {0xa7, 0x69}, {0x75, 0x77}, {0xac, 0x87}}
 
 // Per-stage 5B nonces observed on N31; semantics unclosed (next78 §5.1),
@@ -63,10 +65,10 @@ var ispinsStageNonces = [4][5]byte{
 func IspinsRequests(id uint16) bool { return id == CmdIspinsOperationSelect }
 
 // DecodeIspinsStart reads the CMD2043 request sent on an Ispins channel.
-// Official body: 24 bytes, content u32 LE at offset 13 == 101.
+// Current writer1424fe550 emits17 logical bytes; capture includes cipher padding.
 func DecodeIspinsStart(p []byte) (StartRequest, error) {
-	if len(p) < EnvelopeSize+11 {
-		return StartRequest{}, fmt.Errorf("ispins start payload %d bytes, want at least %d", len(p), EnvelopeSize+11)
+	if len(p) < EnvelopeSize+4 {
+		return StartRequest{}, fmt.Errorf("ispins start payload %d bytes, want at least %d", len(p), EnvelopeSize+4)
 	}
 	if content := binary.LittleEndian.Uint32(p[EnvelopeSize:]); content != IspinsContentID {
 		return StartRequest{}, fmt.Errorf("ispins start content %d, want %d", content, IspinsContentID)
@@ -88,8 +90,8 @@ type IspinsOperationRequest struct {
 
 // DecodeIspinsOperationSelect reads the CMD2047 request (32B official).
 func DecodeIspinsOperationSelect(p []byte) (IspinsOperationRequest, error) {
-	if len(p) < EnvelopeSize+18 {
-		return IspinsOperationRequest{}, fmt.Errorf("ispins operation payload %d bytes, want at least %d", len(p), EnvelopeSize+18)
+	if len(p) < EnvelopeSize+6 {
+		return IspinsOperationRequest{}, fmt.Errorf("ispins operation payload %d bytes, want at least %d", len(p), EnvelopeSize+6)
 	}
 	out := IspinsOperationRequest{BodyLength: len(p)}
 	switch p[EnvelopeSize] {
@@ -121,8 +123,8 @@ func DecodeIspinsOperationSelect(p []byte) (IspinsOperationRequest, error) {
 // 13, stage u32 at 17 (0-based). The stage selects which of the four stage
 // dungeons to load.
 func DecodeIspinsEnter(p []byte) (EnterDungeonRequest, error) {
-	if len(p) < EnvelopeSize+11 {
-		return EnterDungeonRequest{}, fmt.Errorf("ispins enter payload %d bytes, want at least %d", len(p), EnvelopeSize+11)
+	if len(p) < EnvelopeSize+8 {
+		return EnterDungeonRequest{}, fmt.Errorf("ispins enter payload %d bytes, want at least %d", len(p), EnvelopeSize+8)
 	}
 	req := EnterDungeonRequest{
 		Channel:    binary.LittleEndian.Uint32(p[EnvelopeSize:]),
@@ -135,12 +137,12 @@ func DecodeIspinsEnter(p []byte) (EnterDungeonRequest, error) {
 	return req, nil
 }
 
-// DecodeIspinsRewardEnd reads the CMD2046 request (32B official): content at
-// 13, stage at 17, next-stage echo at 21. The observed next value is
-// (stage+2)%4 on every frame including the final one (next78 §1.4/§1.5).
+// DecodeIspinsRewardEnd reads content u32@13, phase ordinal u32@17 and
+// source dungeon index u8@21. Native writer1424fe4a0 and caller1425287d5
+// read the latter from the owned N2255 dungeon record, not the next phase.
 func DecodeIspinsRewardEnd(p []byte) (EnterDungeonRequest, uint32, error) {
-	if len(p) < EnvelopeSize+12 {
-		return EnterDungeonRequest{}, 0, fmt.Errorf("ispins reward-end payload %d bytes, want at least %d", len(p), EnvelopeSize+12)
+	if len(p) < EnvelopeSize+9 {
+		return EnterDungeonRequest{}, 0, fmt.Errorf("ispins reward-end payload %d bytes, want at least %d", len(p), EnvelopeSize+9)
 	}
 	req := EnterDungeonRequest{
 		Channel:    binary.LittleEndian.Uint32(p[EnvelopeSize:]),
@@ -150,7 +152,7 @@ func DecodeIspinsRewardEnd(p []byte) (EnterDungeonRequest, uint32, error) {
 	if req.Channel != IspinsContentID {
 		return EnterDungeonRequest{}, 0, fmt.Errorf("ispins reward-end content %d, want %d", req.Channel, IspinsContentID)
 	}
-	return req, binary.LittleEndian.Uint32(p[EnvelopeSize+8:]), nil
+	return req, uint32(p[EnvelopeSize+8]), nil
 }
 
 // IspinsStartAck builds the 16B ACK2043 observed at f377:
@@ -206,13 +208,14 @@ func IspinsEnterAck(stage byte, nonce [5]byte) []byte {
 }
 
 // IspinsRewardEndAck builds the 32B ACK2046: 01 00000000 65 000000 <stage>
-// 0000 <next> <token> ... The official next byte is (stage+2)%4.
-func IspinsRewardEndAck(stage, next byte, nonce [5]byte) []byte {
+// 0000 <source boss index> <token> ... It echoes the owned C2046 boss index.
+// The captured order made that index (stage+2)%4; it is not a phase formula.
+func IspinsRewardEndAck(stage, sourceIndex byte, nonce [5]byte) []byte {
 	p := make([]byte, 32)
 	p[0] = 1
 	p[5] = 0x65
 	p[9] = stage
-	p[13] = next
+	p[13] = sourceIndex
 	copy(p[14:], nonce[:])
 	return p
 }
@@ -332,11 +335,20 @@ func IspinsSpentStandbyEntryCharacterInfo() ([]byte, error) {
 	return p, nil
 }
 
-// IspinsOperationNotice replays the 16B N2256 observed three times in the
-// official run (S3 anomaly aside, the body never varies; next78 §1.4).
-func IspinsOperationNotice() []byte {
-	p, _ := decodeHex("0b0001d6f70201400000000000000000")
-	return p
+// Current NOTI2256 registration1425314b1 -> reader142530eb0 copies three
+// bytes: signed operation index and result. IspinsManager::setOperResult
+// 14252c460 compares that index to the selected operation, then stores
+// result != 1 as its failure flag. Transport padding is not gameplay data.
+func IspinsOperationNotice(operation uint16, success bool) ([]byte, error) {
+	if operation == 0 || operation > 0x7fff {
+		return nil, fmt.Errorf("invalid Ispins operation result index %d", operation)
+	}
+	p := make([]byte, 3)
+	binary.LittleEndian.PutUint16(p, operation)
+	if success {
+		p[2] = 1
+	}
+	return p, nil
 }
 
 // IspinsDungeonClearEnabled builds the 16B N31 with the stage token that the
@@ -362,58 +374,6 @@ func IspinsStoryPause(resumed bool, nonce [5]byte) []byte {
 	p[3] = 1
 	copy(p[4:], nonce[:])
 	return p
-}
-
-// IspinsRewardRecord is one 40B N2253 record: flag, item id, count.
-type IspinsRewardRecord struct {
-	Item  uint32
-	Count byte
-}
-
-// Official per-stage additional reward tables (next78 §2.4). Item ids are the
-// 0x009Dxxxx material family plus the 0x009E0E20 finale item.
-var IspinsAdditionalRewards = [4][]IspinsRewardRecord{
-	{{0x9DB1BC, 28}, {0x9DB1BD, 12}, {0x9D94F3, 50}, {0x9D94F6, 25}, {0x9D94F1, 100}},
-	{{0x9DB1BC, 28}, {0x9DB1BD, 12}, {0x9D94F3, 50}, {0x9D94F1, 100}},
-	{{0x9DB1BC, 28}, {0x9DB1BD, 12}, {0x9D94F3, 50}, {0x9D94F1, 100}},
-	{{0x9DB1BC, 28}, {0x9DB1BD, 12}, {0x9D94F3, 50}, {0x9D94F1, 100}, {0x9E0E20, 2}},
-}
-
-// IspinsBasicClearReward builds the native 7772B N2252 payload:
-// zero buffer, the constant 20x 0x009DB1BC entry at 1600, and the stage
-// token at 7760 that must equal the N31 head (next78 §2.3).
-// Local client/DFO.exe handler 1424FDC30 reads 0x1e5c bytes directly through
-// 146EA0BE0. Unlike the newer official capture it does not inflate zlib;
-// a compressed body trips the reader's deliberate null write at 146EA0C30.
-func IspinsBasicClearReward(stage int) ([]byte, error) {
-	if stage < 0 || stage > 3 {
-		return nil, fmt.Errorf("ispins reward stage %d out of range", stage)
-	}
-	raw := make([]byte, 7772)
-	binary.LittleEndian.PutUint32(raw[1600:], 0x009DB1BC)
-	binary.LittleEndian.PutUint32(raw[1604:], 20)
-	copy(raw[7760:], IspinsStageTokens[stage][:])
-	return raw, nil
-}
-
-// IspinsAdditionalClearReward builds the native fixed 2405B N2253
-// payload: 40B records, first flagged 01, the rest 00, byte 9 = 03.
-// Local handler 1424FDB60 likewise reads 0x965 bytes without inflation.
-func IspinsAdditionalClearReward(stage int) ([]byte, error) {
-	if stage < 0 || stage > 3 {
-		return nil, fmt.Errorf("ispins reward stage %d out of range", stage)
-	}
-	raw := make([]byte, 2405)
-	for i, rec := range IspinsAdditionalRewards[stage] {
-		off := i * 40
-		if i == 0 {
-			raw[off] = 1
-		}
-		binary.LittleEndian.PutUint32(raw[off+1:], rec.Item)
-		raw[off+5] = rec.Count
-		raw[off+9] = 3
-	}
-	return raw, nil
 }
 
 // IspinsReplayFrame is one verbatim frame from the official capture's enter

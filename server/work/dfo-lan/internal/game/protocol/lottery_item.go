@@ -24,10 +24,11 @@ func DecodeLotteryItemUse(p []byte) (uint16, error) {
 }
 
 // LotteryItemSuccess follows the 115 client reader sub_14529EDE0:
-// common result/error header, consumed slot, then one 181-byte item record.
+// success flag, consumed slot, then one 181-byte item record. The dispatcher
+// sub_1459A1BB0 reads the u16 error code only when the success flag is zero;
+// putting an error code in a success reply shifts every field in this reader.
 // Gold and stackable rewards do not take the equipment-only trailing u32.
 func LotteryItemSuccess(sourceSlot uint16, reward [CurrentItemRecordSize]byte) []byte {
-	p := add16([]byte{1}, 0)
-	p = add16(p, sourceSlot)
+	p := add16([]byte{1}, sourceSlot)
 	return append(p, reward[:]...)
 }

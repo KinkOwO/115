@@ -1,0 +1,986 @@
+{
+  "schema": 1,
+  "version": "2.0.3-cumulative-20261010-r3",
+  "dfo_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+  "modkit_sha256": "5258049aad8a7b25c34e7c18949c9fe2ce48027bdda03873c190788ad45e4b63",
+  "files": [
+    {
+      "target": "Script.pvf",
+      "owner": "qol.ranking-local-http",
+      "payload": "payload/client/Script.pvf",
+      "sha256": "dcac135b127712e067d2388c9a881738069b29f6b03eb6caeed13915dc83ee94",
+      "bytes": 852583570,
+      "allowed_before": [
+        "01a47bdd5dbd999dd7659bb46299c6a03a13e7d5191024620f1686f228e6c9e6",
+        "9c1d2873237c5de587b11a432fe8b28db915a0858bf28df66cc40dd590bdc5d0",
+        "b3fcb87432df563680fa685b91a846e9f876e30eece21c5ea327dba5300289b4",
+        "fd89d167b7a0b7eee8d50729d089fd4c56c4263c7adc04a18887c4dbb1c72d5f",
+        "608782aeef671c762e529f92e03dc1a25e4fcf9d187005c6929dd5425dbc0a5d"
+      ]
+    },
+    {
+      "target": "sk.dat",
+      "owner": "qol.ranking-local-http",
+      "payload": "payload/client/sk.dat",
+      "sha256": "0b669124a34cb146b23f26f3c730d2012ca9c436b01e980fa820d369b9677d11",
+      "bytes": 2944,
+      "allowed_before": [
+        "0816c234eecd746ee9c22f27860446c4a65b5391c69662c94d53dd9d51c9e9dd",
+        "56d827b59b3f62139252948152a68ca85e04d8ed7c4cb4b3b7c1658ace882a21",
+        "e2c4ddb068ded16c803280989755783744d12c2e7d4ac290bc2acafe51dccc5d",
+        "5a75cecdc195abbfc1b91f93ae9478982bfe7a3e809c4c2dd389ebf686d15e86",
+        "c3b95e0486cc1e39c435d197f6c0a779e8092c7d6679e010c9ffa04753ff1791"
+      ]
+    },
+    {
+      "target": "dinput8.dll",
+      "owner": "qol.avatar-equipped-marker",
+      "payload": "payload/client/dinput8.dll",
+      "sha256": "5b4a90994d2ba59441f7f96d3dc6bc37a40c3f8e9267db38e43b41fbc64b1147",
+      "bytes": 855040,
+      "allowed_before": [
+        "57983cb221afb4f4a6aa1fb148202a0042503e09b3bec172393af8eeb7874bd0",
+        "5b4a90994d2ba59441f7f96d3dc6bc37a40c3f8e9267db38e43b41fbc64b1147"
+      ]
+    },
+    {
+      "target": "ChineseLocalization.dll",
+      "owner": "qol.client-host",
+      "payload": "payload/client/ChineseLocalization.dll",
+      "sha256": "90ee6bbc01b0c8e506e2b9a6ced7bb79234610fa1da4b0ca00f99b56a498832b",
+      "bytes": 165888,
+      "allowed_before": [
+        "",
+        "90ee6bbc01b0c8e506e2b9a6ced7bb79234610fa1da4b0ca00f99b56a498832b"
+      ]
+    },
+    {
+      "target": ".115us-mods/EliteCompanionPilot.dll",
+      "owner": "qol.elite-attunement-companion",
+      "payload": "payload/client/.115us-mods/EliteCompanionPilot.dll",
+      "sha256": "d6d4125414899ab553ba9cb014404b83a2de0d28ada87a7551d34893243f659a",
+      "bytes": 189952,
+      "allowed_before": [
+        "",
+        "84fa4a7c64b4aaa0e6d36d4cdc5e18080b7d489eb2cea0fd97cacf95a4c66df7"
+      ]
+    },
+    {
+      "target": "7z.exe",
+      "owner": "qol.integration-client-tools",
+      "payload": "payload/client/7z.exe",
+      "sha256": "061c79c063ecdb18b2cd134a7a7545b5d25fd3577630b9d497cbaa1139c7db7c",
+      "bytes": 517632,
+      "allowed_before": [
+        "",
+        "061c79c063ecdb18b2cd134a7a7545b5d25fd3577630b9d497cbaa1139c7db7c"
+      ]
+    },
+    {
+      "target": ".115us-mods/LocalFeatures.dll",
+      "owner": "qol.local-features",
+      "payload": "payload/client/.115us-mods/LocalFeatures.dll",
+      "sha256": "50a57b3da0ed5aa3aa33851b304391f4c5f63448e3015e6647325f5cb6887df2",
+      "bytes": 713216,
+      "allowed_before": [
+        "",
+        "8fea62448a8972742e4ead6c849fdf7c4f1b989998172fad7b738b4926b40e13",
+        "d0dd711d3aba11a5fe15a15033f520ea73a26009a064543a14454c14efc45724",
+        "26ce3a1ba4787260071639899917ec55c1d7239d41c28cbb58785cb40d9bafc4",
+        "add4fbfe4ea3b773b91b5e8c6af9d1cb6db600924064f4fe8ebb4ef681fbf020"
+      ]
+    },
+    {
+      "target": "Fonts/NotoSansKR-Bold.ttf",
+      "owner": "qol.ui-latin-crisp",
+      "payload": "payload/client/Fonts/NotoSansKR-Bold.ttf",
+      "sha256": "732ced1d82b63af5681ec26c3a151e3d769e5f84af8e34d794d99541b341efdd",
+      "bytes": 8716380,
+      "allowed_before": [
+        "728248ec01047da9c693a68f00eff8d9521cf2f026f82fd470047e8140a0cca0",
+        "732ced1d82b63af5681ec26c3a151e3d769e5f84af8e34d794d99541b341efdd"
+      ]
+    },
+    {
+      "target": "Fonts/NotoSansSC-Bold.otf",
+      "owner": "qol.ui-latin-crisp",
+      "payload": "payload/client/Fonts/NotoSansSC-Bold.otf",
+      "sha256": "d1961be1161ea1be08496c920862d06ea5c23a757628f4fd69368de1d9f51bed",
+      "bytes": 8716392,
+      "allowed_before": [
+        "80fa20170f5bdffd05270f35c87a56ec8a18716ed6dd2e5a296bc18b213a5b8c",
+        "d1961be1161ea1be08496c920862d06ea5c23a757628f4fd69368de1d9f51bed"
+      ]
+    },
+    {
+      "target": "Fonts/NotoSerifSC-Bold.otf",
+      "owner": "qol.ui-latin-crisp",
+      "payload": "payload/client/Fonts/NotoSerifSC-Bold.otf",
+      "sha256": "fbb49fb1f7851e663b683d85d1cc8e81cda8c0a227f24964d067b188b8cba946",
+      "bytes": 11728184,
+      "allowed_before": [
+        "5b384d847b59e9a56a774256f2523ca39827a5b8a394256d1b9b1263333abc18",
+        "fbb49fb1f7851e663b683d85d1cc8e81cda8c0a227f24964d067b188b8cba946"
+      ]
+    },
+    {
+      "target": "ImagePacks2/NpkIndex.etc",
+      "owner": "qol.adventure-cn-ui",
+      "payload": "payload/client/ImagePacks2/NpkIndex.etc",
+      "sha256": "1674c6b9633f5d5e5355e904bc9984ca36b9735ab742745188f6cf2844e2f3f1",
+      "bytes": 4656208,
+      "allowed_before": [
+        "53c9c585bb2dca90b7955a55796d47384df4af28b399b645ee81cd8805c0230f",
+        "692bb89ab70777ab79ef3157f469997891181fc32b3a81102da3747db019ee95",
+        "d7bb945370d5fb4956abc5f62d46eea06ef740a5174820ce5c031c5760ec633b",
+        "3865aa81660a02aefb643625a7129052697db444a5c7fa92a49d932c83ee4d61"
+      ]
+    },
+    {
+      "target": "ImagePacks2/sprite_local_20261008_emblem_r15.NPK",
+      "owner": "qol.local-emblem-resources",
+      "payload": "payload/client/ImagePacks2/sprite_local_20261008_emblem_r15.NPK",
+      "sha256": "8ca501799657b4744a39e322227353747dcd62cf7268af7f2a4232541f44432e",
+      "bytes": 2148803,
+      "allowed_before": [
+        "",
+        "8ca501799657b4744a39e322227353747dcd62cf7268af7f2a4232541f44432e"
+      ]
+    },
+    {
+      "target": "ImagePacks2/sprite_local_20261008_symbol_r30.NPK",
+      "owner": "qol.local-emblem-resources",
+      "payload": "payload/client/ImagePacks2/sprite_local_20261008_symbol_r30.NPK",
+      "sha256": "6b56e9df5dfc519c5179bbd7d91c714ec24bc7cd688cf8776a58030ebf66a41e",
+      "bytes": 2696156,
+      "allowed_before": [
+        "",
+        "6b56e9df5dfc519c5179bbd7d91c714ec24bc7cd688cf8776a58030ebf66a41e"
+      ]
+    },
+    {
+      "target": ".115us-mods/LocalDungeonExit.dll",
+      "owner": "qol.local-dungeon-exit",
+      "payload": "payload/client/.115us-mods/LocalDungeonExit.dll",
+      "sha256": "cfaab9fbaffa523a40b1545a96ddeb499f3695db2d536e6f33c227d72460e0a0",
+      "bytes": 153088,
+      "allowed_before": [
+        "",
+        "cfaab9fbaffa523a40b1545a96ddeb499f3695db2d536e6f33c227d72460e0a0"
+      ]
+    },
+    {
+      "target": ".115us-mods/RobotNativeAI.dll",
+      "owner": "qol.robot-native-ai",
+      "payload": "payload/client/.115us-mods/RobotNativeAI.dll",
+      "sha256": "14f7131621e5a7d48bd7d6289ba13fd559804dcc03debb9d632f44180584fb23",
+      "bytes": 244224,
+      "allowed_before": [
+        "",
+        "c665d8595065f237718fd518e74b5c386ba5dcf0c33b8235dcadbcd1fe2ee365",
+        "65beec27a75a1adbdc5dc563b2b2b76abb4c8df6d38f3d5c325626d81adfe6d9",
+        "66dfbee6f900512ae6738ccc77becd80f86b96f955c8f4c6756b064b76c92b25"
+      ]
+    },
+    {
+      "target": ".115us-mods/RobotObjectAuthority.dll",
+      "owner": "qol.robot-object-authority",
+      "payload": "payload/client/.115us-mods/RobotObjectAuthority.dll",
+      "sha256": "7be9030a6c9b57820e4b53523d5ae01483e677bd5c72f6b5550fbca421144b69",
+      "bytes": 155136,
+      "allowed_before": [
+        "",
+        "7be9030a6c9b57820e4b53523d5ae01483e677bd5c72f6b5550fbca421144b69"
+      ]
+    },
+    {
+      "target": ".115us-mods/HeadTextUpscale.dll",
+      "owner": "qol.head-text-upscale-exclusion",
+      "payload": "payload/client/.115us-mods/HeadTextUpscale.dll",
+      "sha256": "b336f571bf9129c184e04af06287152f123b8d70f0ef0f684be32c847f62a4fc",
+      "bytes": 155136,
+      "allowed_before": [
+        "",
+        "b336f571bf9129c184e04af06287152f123b8d70f0ef0f684be32c847f62a4fc"
+      ]
+    },
+    {
+      "target": "ImagePacks2/sprite_local_event_20261008_attendance.NPK",
+      "owner": "qol.attendance-native",
+      "payload": "payload/client/ImagePacks2/sprite_local_event_20261008_attendance.NPK",
+      "sha256": "66c79f034e2dd91db3d37be625711d7f10ccd82a7e3b880bc5a0b4399e4df9d7",
+      "bytes": 843970,
+      "allowed_before": [
+        "",
+        "66c79f034e2dd91db3d37be625711d7f10ccd82a7e3b880bc5a0b4399e4df9d7"
+      ]
+    },
+    {
+      "target": "ImagePacks2/sprite_local_20261008_weekly_cn.NPK",
+      "owner": "qol.attendance-native",
+      "payload": "payload/client/ImagePacks2/sprite_local_20261008_weekly_cn.NPK",
+      "sha256": "7399b4e4b445e6a3f16ad3812f5f0239928ec84ffb4bf45f962bc1701208e804",
+      "bytes": 97705,
+      "allowed_before": [
+        "",
+        "7399b4e4b445e6a3f16ad3812f5f0239928ec84ffb4bf45f962bc1701208e804"
+      ]
+    },
+    {
+      "target": "ImagePacks2/sprite_local_20261008_lilwen.NPK",
+      "owner": "qol.lilwen-resources",
+      "payload": "payload/client/ImagePacks2/sprite_local_20261008_lilwen.NPK",
+      "allowed_before": [
+        ""
+      ],
+      "sha256": "f83d96f178bb757d6d752d04dcaa67cdc8bdbe286a979ec9b0e99090472bd351",
+      "bytes": 319087
+    },
+    {
+      "target": "ImagePacks2/sprite_local_20261008_lilwen_dialogue.NPK",
+      "owner": "qol.lilwen-resources",
+      "payload": "payload/client/ImagePacks2/sprite_local_20261008_lilwen_dialogue.NPK",
+      "allowed_before": [
+        ""
+      ],
+      "sha256": "c968e289d21329141fd9139b72762440c2244678a8a9ffa948d95b88e2afcd02",
+      "bytes": 14808850
+    },
+    {
+      "target": "ImagePacks2/sprite_interface2_aura.NPK",
+      "owner": "qol.aura-hud-resources",
+      "payload": "payload/client/ImagePacks2/sprite_interface2_aura.NPK",
+      "allowed_before": [
+        "d73e959f82cf8f1cb14ed1a9601d70e5c85df0f5250138a1fbb05637ec234678"
+      ],
+      "sha256": "d2f5d117e6c38c9001494414e645899574f37d2ade24f572605e565963144663",
+      "bytes": 1547886
+    },
+    {
+      "target": ".115us-mods/WeaponSkinAnimation.dll",
+      "owner": "qol.weapon-skin-animation",
+      "payload": "payload/client/.115us-mods/WeaponSkinAnimation.dll",
+      "sha256": "9fd71412a1b3eea1ffcb5bc7c3422147ad1aff2e4cbe1dbe2fc33a43de5739ee",
+      "bytes": 133632,
+      "allowed_before": [
+        "",
+        "9fd71412a1b3eea1ffcb5bc7c3422147ad1aff2e4cbe1dbe2fc33a43de5739ee"
+      ]
+    }
+  ],
+  "owners": [
+    {
+      "id": "qol.adventure-cn-ui",
+      "requires": [],
+      "allowed_manifest_sha256": [
+        "9b6a1d1bd121e49f3b2e56e4a555c32bc7147f72fc68f1cc6c6d91822030bddd",
+        "d40299183747ca7ed8e1be3f5fd91ed74438605052609a0826a178014e1a0885",
+        "74c8ef95b64ae746b00078759ad033358fa0c4dd97a8b5e9927176eb2ed63cdb"
+      ],
+      "known_entries": [
+        {
+          "target": "ImagePacks2/NpkIndex.etc",
+          "installedSHA256": "d7bb945370d5fb4956abc5f62d46eea06ef740a5174820ce5c031c5760ec633b",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state",
+          "kind": "file.replace",
+          "backup": "backups/qol.adventure-cn-ui/ImagePacks2/NpkIndex.etc",
+          "originalSHA256": "692bb89ab70777ab79ef3157f469997891181fc32b3a81102da3747db019ee95"
+        },
+        {
+          "kind": "file.replace",
+          "target": "ImagePacks2/sprite_interface2_adventurer2018.NPK",
+          "backup": "backups/qol.adventure-cn-ui/ImagePacks2/sprite_interface2_adventurer2018.NPK",
+          "originalSHA256": "ef43f1dbf2fcb07e061facbd5dcde61d095dfdf5f7c6417c33ad96c49122a6b3",
+          "installedSHA256": "b4fc5e0ab5e137acd93a386af94545f3b1ecee5d75a85b54ac51f6991e7406df",
+          "note": "client 层由 qol.adventure-cn-ui 提供"
+        },
+        {
+          "kind": "exe.patch",
+          "target": "DFO.exe",
+          "backup": "backups/qol.adventure-cn-ui/DFO.exe",
+          "originalSHA256": "6c78cdf8c1db4426c2438c609601416a34cf9a9f0baeda23e49f9c9499dd7a43",
+          "installedSHA256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+          "note": "EXE 字节补丁（卸载=从备份整文件还原）"
+        },
+        {
+          "kind": "file.replace",
+          "target": "ImagePacks2/NpkIndex.etc",
+          "backup": "backups/qol.adventure-cn-ui/ImagePacks2/NpkIndex.etc",
+          "originalSHA256": "aa77024fcd8ec1ca7a51e9e7015470ea9e8e120547edc4f8e45f776845c975b6",
+          "installedSHA256": "d7bb945370d5fb4956abc5f62d46eea06ef740a5174820ce5c031c5760ec633b",
+          "note": "client 层由 qol.adventure-cn-ui 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "ImagePacks2/NpkIndex.etc",
+          "backup": "backups/qol.adventure-cn-ui/ImagePacks2/NpkIndex.etc",
+          "originalSHA256": "aa77024fcd8ec1ca7a51e9e7015470ea9e8e120547edc4f8e45f776845c975b6",
+          "installedSHA256": "692bb89ab70777ab79ef3157f469997891181fc32b3a81102da3747db019ee95",
+          "note": "client 层由 qol.adventure-cn-ui 提供"
+        },
+        {
+          "target": "ImagePacks2/NpkIndex.etc",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state",
+          "kind": "file.replace",
+          "backup": "backups/qol.adventure-cn-ui/ImagePacks2/NpkIndex.etc",
+          "originalSHA256": "692bb89ab70777ab79ef3157f469997891181fc32b3a81102da3747db019ee95",
+          "installedSHA256": "3865aa81660a02aefb643625a7129052697db444a5c7fa92a49d932c83ee4d61"
+        },
+        {
+          "kind": "file.replace",
+          "target": "ImagePacks2/NpkIndex.etc",
+          "backup": "backups/qol.adventure-cn-ui/ImagePacks2/NpkIndex.etc",
+          "originalSHA256": "aa77024fcd8ec1ca7a51e9e7015470ea9e8e120547edc4f8e45f776845c975b6",
+          "note": "client 层由 qol.adventure-cn-ui 提供",
+          "installedSHA256": "3865aa81660a02aefb643625a7129052697db444a5c7fa92a49d932c83ee4d61"
+        }
+      ]
+    },
+    {
+      "id": "qol.avatar-equipped-marker",
+      "requires": [
+        "qol.client-host"
+      ],
+      "allowed_manifest_sha256": [
+        "4aed470f9cbfd11126dc0f7b037aa27077314563fb06058df3836981f7c11ecc",
+        "9e53bea1020b8c87f4068bfad7a746f8dac2a2ebf92973db7fda37a783c3e248"
+      ],
+      "known_entries": [
+        {
+          "kind": "file.replace",
+          "target": "dinput8.dll",
+          "backup": "backups/qol.avatar-equipped-marker/dinput8.dll",
+          "originalSHA256": "7ab7aba2758eff23e0a263cef21254dab3753bbc8dc7e3692fc2c1f2e5ebde01",
+          "installedSHA256": "5b4a90994d2ba59441f7f96d3dc6bc37a40c3f8e9267db38e43b41fbc64b1147",
+          "note": "client 层由 qol.avatar-equipped-marker 提供"
+        },
+        {
+          "target": "dinput8.dll",
+          "installedSHA256": "5b4a90994d2ba59441f7f96d3dc6bc37a40c3f8e9267db38e43b41fbc64b1147",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state",
+          "kind": "file.replace",
+          "backup": "backups/qol.avatar-equipped-marker/dinput8.dll",
+          "originalSHA256": "57983cb221afb4f4a6aa1fb148202a0042503e09b3bec172393af8eeb7874bd0"
+        }
+      ]
+    },
+    {
+      "id": "qol.client-host",
+      "requires": [],
+      "allowed_manifest_sha256": [
+        "316e7b4fe73cc9164edcc7cfba388d0fb9f345bf75a3af44f50a92cb520eddca",
+        "cdb5d5ef627fe3cb86122222a53386d6d05b00a7bb20194ee3a93d7a939f8e2f",
+        "18708b791c9318c905c36b81db72a134362371f64cc42ca64ac8ab11a7ef5532"
+      ],
+      "known_entries": [
+        {
+          "kind": "file.add",
+          "target": "ChineseLocalization.dll",
+          "installedSHA256": "90ee6bbc01b0c8e506e2b9a6ced7bb79234610fa1da4b0ca00f99b56a498832b",
+          "note": "client 层由 qol.client-host 提供"
+        },
+        {
+          "kind": "file.add",
+          "target": "ChineseLocalization.dll",
+          "installedSHA256": "90ee6bbc01b0c8e506e2b9a6ced7bb79234610fa1da4b0ca00f99b56a498832b",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state"
+        }
+      ]
+    },
+    {
+      "id": "qol.elite-attunement-companion",
+      "requires": [
+        "qol.client-host",
+        "qol.avatar-equipped-marker"
+      ],
+      "allowed_manifest_sha256": [
+        "a1b673c469d263edab7b6288eba2ec20a59ad6bbb4cdcc6caa665e680cf928a6",
+        "5f7f71cdedaada2da4af85b928a3bf4ae0b3b6f233b81abe7a6a986189094616",
+        "7cc47f7e285e46460c05dceca8b4a7d38bd8fe635c0182e0079972b6a4c6b744"
+      ],
+      "known_entries": [
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/EliteCompanionPilot.dll",
+          "installedSHA256": "84fa4a7c64b4aaa0e6d36d4cdc5e18080b7d489eb2cea0fd97cacf95a4c66df7",
+          "note": "client 层由 qol.elite-attunement-companion 提供"
+        },
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/EliteCompanionPilot.dll",
+          "installedSHA256": "84fa4a7c64b4aaa0e6d36d4cdc5e18080b7d489eb2cea0fd97cacf95a4c66df7",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state"
+        }
+      ]
+    },
+    {
+      "id": "qol.head-text-upscale-exclusion",
+      "requires": [
+        "qol.client-host"
+      ],
+      "allowed_manifest_sha256": [
+        "79174992c4fad05d94e9dbf92931b01b488af6c3c215a9927ab970f5ac5d44cb",
+        "b43688d04edbcfe40a74bc938ede8cb295123cef9a495a13252f93b9398f042a",
+        "acd228a1d909277b6a66075f869ec1f7d8300fa77a5093629d61a513de276ce3"
+      ],
+      "known_entries": [
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/HeadTextUpscale.dll",
+          "installedSHA256": "b336f571bf9129c184e04af06287152f123b8d70f0ef0f684be32c847f62a4fc",
+          "note": "client 层由 qol.head-text-upscale-exclusion 提供"
+        },
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/HeadTextUpscale.dll",
+          "installedSHA256": "b336f571bf9129c184e04af06287152f123b8d70f0ef0f684be32c847f62a4fc",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state"
+        }
+      ]
+    },
+    {
+      "id": "qol.integration-client-tools",
+      "requires": [],
+      "allowed_manifest_sha256": [
+        "1f5cfa94b105e85318e42528dcf69900b542f1c52e8ce6ec959f58a91abc5a5f",
+        "a0d1c8723061913efd798ab9cccbe13399f978a7e8464823796e811f91e00464"
+      ],
+      "known_entries": [
+        {
+          "kind": "file.add",
+          "target": "7z.exe",
+          "installedSHA256": "061c79c063ecdb18b2cd134a7a7545b5d25fd3577630b9d497cbaa1139c7db7c",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state"
+        },
+        {
+          "kind": "file.replace",
+          "target": "7z.exe",
+          "backup": "backups/qol.integration-client-tools/7z.exe",
+          "originalSHA256": "061c79c063ecdb18b2cd134a7a7545b5d25fd3577630b9d497cbaa1139c7db7c",
+          "installedSHA256": "061c79c063ecdb18b2cd134a7a7545b5d25fd3577630b9d497cbaa1139c7db7c",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state"
+        }
+      ]
+    },
+    {
+      "id": "qol.local-dungeon-exit",
+      "requires": [
+        "qol.client-host"
+      ],
+      "allowed_manifest_sha256": [
+        "9ff278953fa2e5f7fc1a2af66a96031d0d4f25ed01ff4e75afd308e3a185c1ab",
+        "1ffb74d49e623019c0290d1e4169a0153f14818cf14aa36e5188756b80b066db",
+        "b331c39f65f25ee86cdbb855b32a08b5be763ef04895405717787ff0afaacf1c"
+      ],
+      "known_entries": [
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/LocalDungeonExit.dll",
+          "installedSHA256": "cfaab9fbaffa523a40b1545a96ddeb499f3695db2d536e6f33c227d72460e0a0",
+          "note": "client 层由 qol.local-dungeon-exit 提供"
+        },
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/LocalDungeonExit.dll",
+          "installedSHA256": "cfaab9fbaffa523a40b1545a96ddeb499f3695db2d536e6f33c227d72460e0a0",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state"
+        }
+      ]
+    },
+    {
+      "id": "qol.local-emblem-resources",
+      "requires": [],
+      "allowed_manifest_sha256": [
+        "e2a6891f70e07be93d9091b126a0c1a38b33e6a3ce404b201bfe6f1d39dedab3"
+      ],
+      "known_entries": [
+        {
+          "kind": "file.add",
+          "target": "ImagePacks2/sprite_local_20261008_emblem_r15.NPK",
+          "installedSHA256": "8ca501799657b4744a39e322227353747dcd62cf7268af7f2a4232541f44432e",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state"
+        },
+        {
+          "kind": "file.add",
+          "target": "ImagePacks2/sprite_local_20261008_symbol_r30.NPK",
+          "installedSHA256": "6b56e9df5dfc519c5179bbd7d91c714ec24bc7cd688cf8776a58030ebf66a41e",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state"
+        }
+      ]
+    },
+    {
+      "id": "qol.local-features",
+      "requires": [
+        "qol.client-host"
+      ],
+      "allowed_manifest_sha256": [
+        "7b883d1049b4841420807a5be465999df39ab6361a7e1e47b515c84adaaa91de",
+        "0744c37d2ee62f3dd24182cdc8f098adf74ffbb4e868ce4fbd4c63e9c0290b58",
+        "93ee53913481e0c2e1cbae7f3b6672e7d31eb7d0732351059399d0e6ac00829c",
+        "703f2a736cb87fce77eb4a911531d55ac0651ed730e6c8602a9bec0057740c65"
+      ],
+      "known_entries": [
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/LocalFeatures.dll",
+          "installedSHA256": "26ce3a1ba4787260071639899917ec55c1d7239d41c28cbb58785cb40d9bafc4",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state"
+        },
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/LocalFeatures.dll",
+          "installedSHA256": "26ce3a1ba4787260071639899917ec55c1d7239d41c28cbb58785cb40d9bafc4",
+          "note": "client 层由 qol.local-features 提供"
+        },
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/LocalFeatures.dll",
+          "installedSHA256": "8fea62448a8972742e4ead6c849fdf7c4f1b989998172fad7b738b4926b40e13",
+          "note": "client 层由 qol.local-features 提供"
+        },
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/LocalFeatures.dll",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state",
+          "installedSHA256": "add4fbfe4ea3b773b91b5e8c6af9d1cb6db600924064f4fe8ebb4ef681fbf020"
+        },
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/LocalFeatures.dll",
+          "note": "client 层由 qol.local-features 提供",
+          "installedSHA256": "add4fbfe4ea3b773b91b5e8c6af9d1cb6db600924064f4fe8ebb4ef681fbf020"
+        }
+      ]
+    },
+    {
+      "id": "qol.ranking-local-http",
+      "requires": [],
+      "allowed_manifest_sha256": [
+        "d9ad3df861e6e019eba03c3570f2a34f3da58d7e59ecf83e7446ecf7c12016d9",
+        "90a8b4d9e75850073e1e36e1c23ae4cee3f0d55a839feb0666ebfbacf0c55900",
+        "1f2ae92ebd6a9e2c58b1485a7e4efc2417f45e1f4d49a2b64584498e707b3f51"
+      ],
+      "known_entries": [
+        {
+          "target": "Script.pvf",
+          "installedSHA256": "fd89d167b7a0b7eee8d50729d089fd4c56c4263c7adc04a18887c4dbb1c72d5f",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state",
+          "kind": "file.replace",
+          "backup": "backups/qol.ranking-local-http/Script.pvf",
+          "originalSHA256": "b3fcb87432df563680fa685b91a846e9f876e30eece21c5ea327dba5300289b4"
+        },
+        {
+          "target": "sk.dat",
+          "installedSHA256": "5a75cecdc195abbfc1b91f93ae9478982bfe7a3e809c4c2dd389ebf686d15e86",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state",
+          "kind": "file.replace",
+          "backup": "backups/qol.ranking-local-http/sk.dat",
+          "originalSHA256": "0816c234eecd746ee9c22f27860446c4a65b5391c69662c94d53dd9d51c9e9dd"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Script.pvf",
+          "backup": "backups/qol.ranking-local-http/Script.pvf",
+          "originalSHA256": "468c64dd50aa50ac858e9a7e9550a7a811a075ba6179b83b409fdcce2e17f709",
+          "installedSHA256": "fd89d167b7a0b7eee8d50729d089fd4c56c4263c7adc04a18887c4dbb1c72d5f",
+          "note": "client 层由 qol.ranking-local-http 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "sk.dat",
+          "backup": "backups/qol.ranking-local-http/sk.dat",
+          "originalSHA256": "a3c55caa5af70a0c5179e261ce48bb4d0f22cc26f22d2316855a2eb5dffbbac5",
+          "installedSHA256": "5a75cecdc195abbfc1b91f93ae9478982bfe7a3e809c4c2dd389ebf686d15e86",
+          "note": "client 层由 qol.ranking-local-http 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Script.pvf",
+          "backup": "backups/qol.ranking-local-http/Script.pvf",
+          "originalSHA256": "468c64dd50aa50ac858e9a7e9550a7a811a075ba6179b83b409fdcce2e17f709",
+          "installedSHA256": "9c1d2873237c5de587b11a432fe8b28db915a0858bf28df66cc40dd590bdc5d0",
+          "note": "client 层由 qol.ranking-local-http 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "sk.dat",
+          "backup": "backups/qol.ranking-local-http/sk.dat",
+          "originalSHA256": "a3c55caa5af70a0c5179e261ce48bb4d0f22cc26f22d2316855a2eb5dffbbac5",
+          "installedSHA256": "e2c4ddb068ded16c803280989755783744d12c2e7d4ac290bc2acafe51dccc5d",
+          "note": "client 层由 qol.ranking-local-http 提供"
+        },
+        {
+          "target": "Script.pvf",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state",
+          "kind": "file.replace",
+          "backup": "backups/qol.ranking-local-http/Script.pvf",
+          "originalSHA256": "b3fcb87432df563680fa685b91a846e9f876e30eece21c5ea327dba5300289b4",
+          "installedSHA256": "608782aeef671c762e529f92e03dc1a25e4fcf9d187005c6929dd5425dbc0a5d"
+        },
+        {
+          "target": "sk.dat",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state",
+          "kind": "file.replace",
+          "backup": "backups/qol.ranking-local-http/sk.dat",
+          "originalSHA256": "0816c234eecd746ee9c22f27860446c4a65b5391c69662c94d53dd9d51c9e9dd",
+          "installedSHA256": "c3b95e0486cc1e39c435d197f6c0a779e8092c7d6679e010c9ffa04753ff1791"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Script.pvf",
+          "backup": "backups/qol.ranking-local-http/Script.pvf",
+          "originalSHA256": "468c64dd50aa50ac858e9a7e9550a7a811a075ba6179b83b409fdcce2e17f709",
+          "note": "client 层由 qol.ranking-local-http 提供",
+          "installedSHA256": "608782aeef671c762e529f92e03dc1a25e4fcf9d187005c6929dd5425dbc0a5d"
+        },
+        {
+          "kind": "file.replace",
+          "target": "sk.dat",
+          "backup": "backups/qol.ranking-local-http/sk.dat",
+          "originalSHA256": "a3c55caa5af70a0c5179e261ce48bb4d0f22cc26f22d2316855a2eb5dffbbac5",
+          "note": "client 层由 qol.ranking-local-http 提供",
+          "installedSHA256": "c3b95e0486cc1e39c435d197f6c0a779e8092c7d6679e010c9ffa04753ff1791"
+        }
+      ]
+    },
+    {
+      "id": "qol.robot-native-ai",
+      "requires": [
+        "qol.client-host"
+      ],
+      "allowed_manifest_sha256": [
+        "41297b63cf55263a7e960bf2568c226d309a1ebffdabb3150397e987f4b4f4dc",
+        "4f85805d93f89d0a34615f9a6809900aedb79d32fb2eeb305b51008d0e664c70",
+        "c9b5c298ddf1e389aa5b8ba2ffc44a2cc9e13e9bb93a9893d59f64bcaa0ecee3",
+        "d4491e6c088bb9988728ea094a43740b5d4e1d74766a09a3d572751a487e2c02"
+      ],
+      "known_entries": [
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/RobotNativeAI.dll",
+          "installedSHA256": "c665d8595065f237718fd518e74b5c386ba5dcf0c33b8235dcadbcd1fe2ee365",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state"
+        },
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/RobotNativeAI.dll",
+          "installedSHA256": "66dfbee6f900512ae6738ccc77becd80f86b96f955c8f4c6756b064b76c92b25",
+          "note": "client 层由 qol.robot-native-ai 提供"
+        },
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/RobotNativeAI.dll",
+          "installedSHA256": "c665d8595065f237718fd518e74b5c386ba5dcf0c33b8235dcadbcd1fe2ee365",
+          "note": "client 层由 qol.robot-native-ai 提供"
+        },
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/RobotNativeAI.dll",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state",
+          "installedSHA256": "14f7131621e5a7d48bd7d6289ba13fd559804dcc03debb9d632f44180584fb23"
+        },
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/RobotNativeAI.dll",
+          "note": "client 层由 qol.robot-native-ai 提供",
+          "installedSHA256": "14f7131621e5a7d48bd7d6289ba13fd559804dcc03debb9d632f44180584fb23"
+        }
+      ]
+    },
+    {
+      "id": "qol.robot-object-authority",
+      "requires": [
+        "qol.client-host"
+      ],
+      "allowed_manifest_sha256": [
+        "0c587c6bc90031d7eff9e90c62985424712cfaef2b5e76d708eaa4e693e92fb5",
+        "5cdcf6bdaf086ea067c8bc963b132ab9e22ff320aed709c6bd5c1d76b44ef9cc",
+        "b8ca9cce7a819c6b64a7d4e08e8394aca38d43c92c95316ebfb59d5889ea2a08"
+      ],
+      "known_entries": [
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/RobotObjectAuthority.dll",
+          "installedSHA256": "7be9030a6c9b57820e4b53523d5ae01483e677bd5c72f6b5550fbca421144b69",
+          "note": "client 层由 qol.robot-object-authority 提供"
+        },
+        {
+          "kind": "file.add",
+          "target": ".115us-mods/RobotObjectAuthority.dll",
+          "installedSHA256": "7be9030a6c9b57820e4b53523d5ae01483e677bd5c72f6b5550fbca421144b69",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state"
+        }
+      ]
+    },
+    {
+      "id": "qol.ui-latin-crisp",
+      "requires": [],
+      "allowed_manifest_sha256": [
+        "dba4482adb912d60ddef4c373df319f004d92d00330dbc97a035cea64aabc20c",
+        "cace3a231ad096e10b50835ad1df90cff42eae426d4d6579e4b797fa7495ff29"
+      ],
+      "known_entries": [
+        {
+          "kind": "file.replace",
+          "target": "Fonts/DNFBitBitv2.ttf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/DNFBitBitv2.ttf",
+          "originalSHA256": "eb92c69936b0bff42718f1a77de0a0419775db29779a89f63e705f9d305874d6",
+          "installedSHA256": "07a0733eb4853fe0744bbe16d65a8c2540c5296e23818d031c6f0d085530f59c",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/DNFForgedBlade-Bold.ttf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/DNFForgedBlade-Bold.ttf",
+          "originalSHA256": "112940ad9b7be20b6fef172ccac673b083e45b38021b89475438ed3a8078343c",
+          "installedSHA256": "b86d96ee55f9e711f03310a38f5ade62651f6febe77e525a2907e19819a4e867",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/DNFForgedBlade-Light.ttf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/DNFForgedBlade-Light.ttf",
+          "originalSHA256": "0073fc89e976a7e1045ac4eec2b4d51ccf7ce4a5da000c62ad067916de37ace0",
+          "installedSHA256": "9991bbbc25288f5c87b656a1782bc68a10fccad670e30a3c272059e4c0f288b2",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/DNFForgedBlade-Medium.ttf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/DNFForgedBlade-Medium.ttf",
+          "originalSHA256": "dbcb3b20e5dad59fe436da73a567ff2528833a87715fbfdcc32e17561bd7fbcd",
+          "installedSHA256": "822b93a7b8b71cf619bbb76ca79e0ab2ec63e1eb7f28b2cb43377ea03c4f3261",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/hud-cn-digits.otf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/hud-cn-digits.otf",
+          "originalSHA256": "a2b93e6c2db05d6bbbf6f27d413ec73269735b7b679019c8a5aa9670ff0ffbf2",
+          "installedSHA256": "cce16a9f8dee50340d517172827c90ea5a645e62e82eae52fbb519d2ca34e267",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/menu-cn-regular.otf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/menu-cn-regular.otf",
+          "originalSHA256": "a2b93e6c2db05d6bbbf6f27d413ec73269735b7b679019c8a5aa9670ff0ffbf2",
+          "installedSHA256": "cce16a9f8dee50340d517172827c90ea5a645e62e82eae52fbb519d2ca34e267",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/menu-cn-serifbold.otf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/menu-cn-serifbold.otf",
+          "originalSHA256": "fbb49fb1f7851e663b683d85d1cc8e81cda8c0a227f24964d067b188b8cba946",
+          "installedSHA256": "b7e7d8ff14be01466f01ab19f48b7e3a38ead07956061a9bb64818afdc97f36d",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/MPLUSRounded1c-Bold.ttf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/MPLUSRounded1c-Bold.ttf",
+          "originalSHA256": "1fc56a31aa11c2b2c1748735c943699b38503081cdd00441c23355b267893d5e",
+          "installedSHA256": "d60f42a409e2922a490a64896805b3c2475692e572da1ad2b59ccb905442d95e",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/NotoSansCJKsc-Bold.otf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSansCJKsc-Bold.otf",
+          "originalSHA256": "d811dab909186f350cca252ae02f8679645d382b274a4c99074865a43adccd5a",
+          "installedSHA256": "9440cea71969a685a03d389e98e1899201bc510e5c0eba23a771cf26ff75dd04",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/NotoSansCJKsc-Regular.otf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSansCJKsc-Regular.otf",
+          "originalSHA256": "5a0b5b75e4fe003e0e65b8392442349f68ff23015dc8dbe4bb6430b80d711eba",
+          "installedSHA256": "aa4eda31d29566eef932ce802cf986d825cfcdaa3b156983963482cd4a01c232",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/NotoSansKR-Bold.ttf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSansKR-Bold.ttf",
+          "originalSHA256": "e4a8a860d02f8abc8dde8617836ef08d9706db9afa277ff814c461322a6ff4b6",
+          "installedSHA256": "728248ec01047da9c693a68f00eff8d9521cf2f026f82fd470047e8140a0cca0",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/NotoSansKR-Medium.ttf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSansKR-Medium.ttf",
+          "originalSHA256": "17c0b8757b0f22f15717ade8a7f7c7003362df76466bc5ec304e87d234a6cb73",
+          "installedSHA256": "a4302e69ce4b56918f0aa977752ca3941bb4d587ae83c2691babaf641e16fa71",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/NotoSansKR-Regular.ttf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSansKR-Regular.ttf",
+          "originalSHA256": "3bf195d4abe05573b49c8095408397fc590741714eee43bb2e67cd01c0a252f7",
+          "installedSHA256": "a5dd204265b5966e920cc5da6518fce54ba940de38fb3ee668098a67145ff80d",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/NotoSansSC-Bold.otf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSansSC-Bold.otf",
+          "originalSHA256": "e8acd27f7a2f6ba6f12dd51aa805af1ba6efde58700359e81f6ac303a5642fb7",
+          "installedSHA256": "80fa20170f5bdffd05270f35c87a56ec8a18716ed6dd2e5a296bc18b213a5b8c",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/NotoSansSC-Light.otf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSansSC-Light.otf",
+          "originalSHA256": "363d198c8a314116929f3ab6db5ebe6eb1c959043d4f1e36e4a3754700ec167e",
+          "installedSHA256": "53d3c939c30004b77b29655e2c60ac9bfa0b25273e146f533dd5e29590a5f9a2",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/NotoSansSC-Regular.otf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSansSC-Regular.otf",
+          "originalSHA256": "f507beec799cf5f78ff111ce4243ff2fdca38cfd3e4c53c20a016687fb0e038c",
+          "installedSHA256": "b265676e8e146b88ab78ecf8d7b6ad5719c1c21b07ed9261e1a1f61ca88d99db",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/NotoSerifSC-Black.otf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSerifSC-Black.otf",
+          "originalSHA256": "e1af8270b9570420e3d6ac5c67823ff9ca1467f09580363934a6c29231f38fea",
+          "installedSHA256": "e010a8c11db26554bfcbb0a30b544609e65b7329480fd9b145c71ad4087fcd3d",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/NotoSerifSC-Bold.otf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSerifSC-Bold.otf",
+          "originalSHA256": "114b153c53b1c87861c6e5c9078b4bda2176aa9b6c85264e4e3ba8a9e97d4159",
+          "installedSHA256": "5b384d847b59e9a56a774256f2523ca39827a5b8a394256d1b9b1263333abc18",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/NotoSerifSC-SemiBold.otf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSerifSC-SemiBold.otf",
+          "originalSHA256": "be6e4f9676327fbadae1d56383aa9f50079a30984257025e8bf66ebc4cd10f5c",
+          "installedSHA256": "7cdeb3b2f86912cf998934427449db55e70a7da3aa821355c8a8f0c34c13c675",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/simsun.ttc",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/simsun.ttc",
+          "originalSHA256": "1526ac24375f51f6eb73bc2d3f8072dbe4a80a3a65217677c9d9a84f67dab2ab",
+          "installedSHA256": "fdefb349c643184e4234ecea493aa9e1f4367a2637e5532371697bfdf1ddd3d3",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "target": "Fonts/NotoSansKR-Bold.ttf",
+          "installedSHA256": "732ced1d82b63af5681ec26c3a151e3d769e5f84af8e34d794d99541b341efdd",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state",
+          "kind": "file.replace",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSansKR-Bold.ttf",
+          "originalSHA256": "728248ec01047da9c693a68f00eff8d9521cf2f026f82fd470047e8140a0cca0"
+        },
+        {
+          "target": "Fonts/NotoSansSC-Bold.otf",
+          "installedSHA256": "d1961be1161ea1be08496c920862d06ea5c23a757628f4fd69368de1d9f51bed",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state",
+          "kind": "file.replace",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSansSC-Bold.otf",
+          "originalSHA256": "80fa20170f5bdffd05270f35c87a56ec8a18716ed6dd2e5a296bc18b213a5b8c"
+        },
+        {
+          "target": "Fonts/NotoSerifSC-Bold.otf",
+          "installedSHA256": "fbb49fb1f7851e663b683d85d1cc8e81cda8c0a227f24964d067b188b8cba946",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state",
+          "kind": "file.replace",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSerifSC-Bold.otf",
+          "originalSHA256": "5b384d847b59e9a56a774256f2523ca39827a5b8a394256d1b9b1263333abc18"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/NotoSansKR-Bold.ttf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSansKR-Bold.ttf",
+          "originalSHA256": "e4a8a860d02f8abc8dde8617836ef08d9706db9afa277ff814c461322a6ff4b6",
+          "installedSHA256": "732ced1d82b63af5681ec26c3a151e3d769e5f84af8e34d794d99541b341efdd",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/NotoSansSC-Bold.otf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSansSC-Bold.otf",
+          "originalSHA256": "e8acd27f7a2f6ba6f12dd51aa805af1ba6efde58700359e81f6ac303a5642fb7",
+          "installedSHA256": "d1961be1161ea1be08496c920862d06ea5c23a757628f4fd69368de1d9f51bed",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        },
+        {
+          "kind": "file.replace",
+          "target": "Fonts/NotoSerifSC-Bold.otf",
+          "backup": "backups/qol.ui-latin-crisp/Fonts/NotoSerifSC-Bold.otf",
+          "originalSHA256": "114b153c53b1c87861c6e5c9078b4bda2176aa9b6c85264e4e3ba8a9e97d4159",
+          "installedSHA256": "fbb49fb1f7851e663b683d85d1cc8e81cda8c0a227f24964d067b188b8cba946",
+          "note": "client 层由 qol.ui-latin-crisp 提供"
+        }
+      ]
+    },
+    {
+      "id": "qol.attendance-native",
+      "requires": [],
+      "allowed_manifest_sha256": [
+        "920a9490d46a8934e0f92f0eb7dd9d98380dc847596da636924fc03e9d76e710",
+        "58e95761278afd923a2b06b1d1a5de2b0468ba77e1ccb49a6a84847f101fd22a"
+      ],
+      "known_entries": [
+        {
+          "kind": "file.add",
+          "target": "ImagePacks2/sprite_local_event_20261008_attendance.NPK",
+          "installedSHA256": "66c79f034e2dd91db3d37be625711d7f10ccd82a7e3b880bc5a0b4399e4df9d7",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state"
+        },
+        {
+          "kind": "file.add",
+          "target": "ImagePacks2/sprite_local_20261008_weekly_cn.NPK",
+          "installedSHA256": "7399b4e4b445e6a3f16ad3812f5f0239928ec84ffb4bf45f962bc1701208e804",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state"
+        },
+        {
+          "target": "ImagePacks2/sprite_local_event_20261008_attendance.NPK",
+          "installedSHA256": "66c79f034e2dd91db3d37be625711d7f10ccd82a7e3b880bc5a0b4399e4df9d7",
+          "note": "Integration ownership established from verified schema2 payload and observed pre-install state",
+          "kind": "file.replace",
+          "backup": "backups/qol.attendance-native/ImagePacks2/sprite_local_event_20261008_attendance.NPK",
+          "originalSHA256": "66c79f034e2dd91db3d37be625711d7f10ccd82a7e3b880bc5a0b4399e4df9d7"
+        }
+      ]
+    },
+    {
+      "id": "qol.lilwen-resources",
+      "requires": [],
+      "allowed_manifest_sha256": [],
+      "known_entries": []
+    },
+    {
+      "id": "qol.aura-hud-resources",
+      "requires": [],
+      "allowed_manifest_sha256": [],
+      "known_entries": []
+    },
+    {
+      "id": "qol.weapon-skin-animation",
+      "requires": [
+        "qol.client-host"
+      ],
+      "allowed_manifest_sha256": [
+        "6ac1b9550ad5f32be77823f76d8d8e7cfcc56fd7a1a9605edb2c6ab8973a143d"
+      ],
+      "known_entries": []
+    }
+  ]
+}

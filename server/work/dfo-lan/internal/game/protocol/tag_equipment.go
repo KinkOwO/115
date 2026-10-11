@@ -17,6 +17,8 @@ func TagEquipment(rows []DetailedWorn) ([]byte, error) {
 	p := []byte{byte(len(rows))}
 	seen := map[uint16]bool{}
 	for _, item := range rows {
+		// 1452C15C9 and 1452C2EF4 iterate the native 48-slot worn table;
+		// this includes current primer/oath slots, not only legacy equipment.
 		if item.Slot >= 48 || item.Template == 0 || seen[item.Slot] {
 			return nil, fmt.Errorf("队友穿戴槽位或模板无效：%d", item.Slot)
 		}
@@ -36,6 +38,33 @@ func TagEquipment(rows []DetailedWorn) ([]byte, error) {
 			period = binary.LittleEndian.Uint32(r[56:60])
 		}
 		binary.LittleEndian.PutUint32(r[56:], ItemPeriodForWire(item.Template, period))
+		avatar := item.Slot <= 11
+		creature := item.Slot == 26 || item.Slot == 32
+		headerA := item.HeaderTemplateA
+		storedAttachment := binary.LittleEndian.Uint32(r[24:28])
+		switch {
+		case avatar:
+			// The native reader consumes the appearance attachment separately
+			// (1452C1786, 1452C26BF..1452C2705), outside the temporary record.
+			// Preserve persisted looks even when legacy saves have no CloneSource.
+			// The caller resolves current owned CloneSource/coexisting look
+			// first, as EntryAddition does. The inventory cell can be an older
+			// cached look and must not override that authoritative relationship.
+			if headerA == 0 {
+				headerA = storedAttachment
+			}
+		case creature:
+			// Ordinary pet rows mirror the same instance key at +6 and +24.
+			// The tag constructor 14576D9E6 reads +6; do not treat the duplicate
+			// as an avatar attachment or discard an independent conflicting key.
+			if storedAttachment != 0 && storedAttachment != binary.LittleEndian.Uint32(r[6:10]) {
+				return nil, fmt.Errorf("队友宠物%d的重复实例标识不一致", item.Template)
+			}
+		default:
+			if storedAttachment != 0 {
+				return nil, fmt.Errorf("队友装备%d含尚未接入补充通知的实例字段24", item.Template)
+			}
+		}
 		randomOptions, err := tagRandomOptions(r)
 		if err != nil {
 			return nil, fmt.Errorf("队友装备%d随机属性：%w", item.Template, err)
@@ -48,6 +77,10 @@ func TagEquipment(rows []DetailedWorn) ([]byte, error) {
 		// duplicate is identity, not extra saved growth. Permit only the
 		// matching duplicate on the native creature/creature-skin slots.
 		spans := [][2]int{{13, 14}, {22, 56}, {82, 83}, {99, 103}}
+		if avatar {
+			// +24 is the persisted appearance attachment, consumed by headerA.
+			spans = [][2]int{{13, 14}, {22, 24}, {28, 56}, {82, 83}, {99, 103}}
+		}
 		if item.Slot == 26 || item.Slot == 32 {
 			key := binary.LittleEndian.Uint32(r[6:10])
 			mirror := binary.LittleEndian.Uint32(r[24:28])
@@ -63,26 +96,25 @@ func TagEquipment(rows []DetailedWorn) ([]byte, error) {
 				}
 			}
 		}
-		avatar := item.Slot <= 11
 		if len(item.AvatarOptions) > 4096 || len(item.AvatarSockets) > 4096 ||
 			!avatar && (len(item.AvatarOptions) != 0 || len(item.AvatarSockets) != 0 || item.HeaderTemplateA != 0 || item.HeaderTemplateB != 0) {
 			return nil, fmt.Errorf("队友装备附加数据类型或长度无效")
 		}
 		// 槽9的外观替换还会在头部读取模板相关块，不能套用普通装扮布局。
-		if item.Slot == 9 && item.HeaderTemplateA != 0 {
+		if item.Slot == 9 && headerA != 0 {
 			return nil, fmt.Errorf("队友光环外观替换布局尚未核实")
 		}
 		p = append(p, byte(item.Slot))
 		p = append(p, r[2:13]...)
 		p = append(p, r[110:112]...)
 		p = append(p, r[148:158]...)
-		p = add32(add32(p, item.HeaderTemplateA), item.HeaderTemplateB)
+		p = add32(add32(p, headerA), item.HeaderTemplateB)
 		p = append(p, r[14:22]...)
 		if avatar {
 			p = append(add32(p, uint32(len(item.AvatarOptions))), item.AvatarOptions...)
 			p = append(add32(p, uint32(len(item.AvatarSockets))), item.AvatarSockets...)
 		}
-		if item.Slot == 26 || item.Slot == 32 {
+		if creature {
 			p = append(add32(p, 0), r[159])
 		} else if r[159] != 0 {
 			return nil, fmt.Errorf("非宠物队友装备包含宠物扩展")

@@ -1,0 +1,62 @@
+{
+  "scope": "Pinned native ready-message reads and slot/position/loading-state call boundaries.",
+  "client_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+  "vectors": [
+    {
+      "command": 77,
+      "payload_hex": "014d00010602c600",
+      "consumed": 8,
+      "effects": [
+        {
+          "select_slot": 1
+        },
+        {
+          "dormant": 0
+        },
+        {
+          "position": [
+            518,
+            198
+          ],
+          "direction": 0
+        },
+        {
+          "buff_enable": 513
+        }
+      ]
+    },
+    {
+      "command": 192,
+      "payload_hex": "01c000010003000000e621f605",
+      "consumed": 13,
+      "effects": [
+        {
+          "select_slot": 1
+        },
+        {
+          "dormant": 0
+        }
+      ]
+    },
+    {
+      "command": 195,
+      "payload_hex": "02c3000100",
+      "consumed": 5,
+      "effects": [
+        {
+          "select_slot": 1
+        },
+        {
+          "map_change_state": 0
+        }
+      ]
+    }
+  ],
+  "game_access": false,
+  "rendering_proven": false,
+  "substitutions": [
+    "private empty filter tree and selected slot entity",
+    "native actual loading-state store145f17940",
+    "position/dormant/UI setter call boundaries captured, diagnostic calls omitted"
+  ]
+}

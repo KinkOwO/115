@@ -51,7 +51,7 @@ func TestBakalSourceNoPenaltyKickDoesNotAdvanceRecovery(t *testing.T) {
 	}
 	o.LoadingDone(dgn)
 	q := []bakalSignal{}
-	if e := o.executeEvent(catalog.BakalScriptInstruction{Op: "[KICK OUT DUNGEON NO PENALTY]", Args: []pvf.Token{{Type: 0, Value: int32(dgn)}}}, at, &q); e != nil {
+	if e := o.executeEvent(catalog.NativeBakalScriptInstruction{Op: "[KICK OUT DUNGEON NO PENALTY]", Args: []pvf.Token{{Type: 0, Value: int32(dgn)}}}, at, &q); e != nil {
 		t.Fatal(e)
 	}
 	if !o.RecoveryUntil().IsZero() || o.penalizedReturns != 0 || !o.NeedsCampReturn() {
@@ -79,7 +79,7 @@ func TestBakalChangedSourceRecoveryAndFailedEventRollback(t *testing.T) {
 	}
 	o.LoadingDone(dgn)
 	old := o.script.Events
-	o.script.Events = append(o.script.Events, catalog.BakalScriptEvent{Trigger: []catalog.BakalScriptInstruction{{Op: "[ON GIVEUP DUNGEON]", Args: []pvf.Token{{Type: 0, Value: int32(dgn)}}}}, Behavior: []catalog.BakalScriptInstruction{{Op: "invalid"}}})
+	o.script.Events = append(o.script.Events, catalog.NativeBakalScriptEvent{Trigger: []catalog.NativeBakalScriptInstruction{{Op: "[ON GIVEUP DUNGEON]", Args: []pvf.Token{{Type: 0, Value: int32(dgn)}}}}, Behavior: []catalog.NativeBakalScriptInstruction{{Op: "invalid"}}})
 	if _, e := o.CampReturnAt(at, BakalReturnDeath); e == nil {
 		t.Fatal("bad script accepted")
 	}

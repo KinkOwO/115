@@ -1082,7 +1082,8 @@ func TestVenusStageProjectionOnLastDeath(t *testing.T) {
 // 序列终止（终局结算分支未实现）。合成目录驱动真实 Select。
 func TestVenusDirectMoveStageTransition(t *testing.T) {
 	c := &catalog.DungeonCatalog{
-		Source: pvf.ArchiveSnapshot{Checksum: strings.Repeat("a", 64)},
+		StackableLimits: &catalog.StackableDungeonLimits{Dungeons: map[uint32]uint32{legion.VenusStageDungeons[0]: 8, legion.VenusStageDungeons[1]: 8}},
+		Source:          pvf.ArchiveSnapshot{Checksum: strings.Repeat("a", 64)},
 		Dungeons: map[uint32]catalog.DungeonDefinition{
 			legion.VenusStageDungeons[0]: {ID: legion.VenusStageDungeons[0], MinimumLevel: 1,
 				Mazes: []catalog.DungeonMaze{{Index: 0, Quest: 0, Start: [2]byte{1, 0}, Boss: [2]byte{0, 0},

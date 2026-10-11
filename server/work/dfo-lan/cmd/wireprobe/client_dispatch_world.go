@@ -6,8 +6,10 @@ import (
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/legion"
+	"dfolan/internal/quest"
 	"dfolan/internal/workflow"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -114,18 +116,18 @@ func (client *gameConnection) dispatchSpecialContent(requestData *clientRequest)
 		return dispatchHandled
 	}
 	if requestData.frame.Type == 1 && client.bootstrapped && requestData.verified && client.worldState != nil && client.selectedCharacterID != 0 {
-				// ★ 2026-10-10 收尾：这里原先有一条「次元回廊 CMD39 就直接投影清关链」
-				// 的兜底，用来绕过两个闸门（`ConfirmDeath` 查不到客户端报的怪物编号、
-				// 以及 completeDungeon 开头的 `!Completed()`）。**已经删掉**：
-				//
-				// 根因是会话怪物编号与 N29 给的编号不一致（客户端那只 BOSS 是 N29 生成的），
-				// 现已在 `dimCloisterLoadStagePlan` 里对齐（见 dimension_cloister_entity.go）。
-				// 对齐之后 `monsterDeath → ConfirmDeath → tryComplete → completeDungeon`
-				// 这条**既有**通用路径自然就通了，不需要这条旁路 ——
-				// 而它当时是**不看清的是哪只怪**就发清关链的，留着会在打小怪时误触发。
-				//
-				// 若将来又出现「BOSS 死了不通关」，先看 events.jsonl 里 CMD39/CMD117 的
-				// 拒绝原因，不要重新加旁路。
+		// ★ 2026-10-10 收尾：这里原先有一条「次元回廊 CMD39 就直接投影清关链」
+		// 的兜底，用来绕过两个闸门（`ConfirmDeath` 查不到客户端报的怪物编号、
+		// 以及 completeDungeon 开头的 `!Completed()`）。**已经删掉**：
+		//
+		// 根因是会话怪物编号与 N29 给的编号不一致（客户端那只 BOSS 是 N29 生成的），
+		// 现已在 `dimCloisterLoadStagePlan` 里对齐（见 dimension_cloister_entity.go）。
+		// 对齐之后 `monsterDeath → ConfirmDeath → tryComplete → completeDungeon`
+		// 这条**既有**通用路径自然就通了，不需要这条旁路 ——
+		// 而它当时是**不看清的是哪只怪**就发清关链的，留着会在打小怪时误触发。
+		//
+		// 若将来又出现「BOSS 死了不通关」，先看 events.jsonl 里 CMD39/CMD117 的
+		// 拒绝原因，不要重新加旁路。
 		eliteBefore := client.worldState.eliteCombatState(requestData.frame.ID, requestData.plaintext)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		handled, packets, e := client.worldState.blackPurgatoryHandle(ctx, requestData.frame.ID, requestData.plaintext)
@@ -186,31 +188,66 @@ func (client *gameConnection) dispatchSpecialContent(requestData *clientRequest)
 }
 
 func (client *gameConnection) dispatchLegion(requestData *clientRequest) dispatchAction {
-	if requestData.frame.Type == 1 && client.bootstrapped && requestData.verified && client.worldState != nil && (requestData.frame.ID == 12 || requestData.frame.ID == 13) {
-		// 末世录待机区（频道 Type 119）建队/离队。CMD12/13 **不属于军团家族命令**
-		// （legion.Requests 只认 2043/2044/2045/2046/2354/2355），所以这段必须放在
-		// 家族门禁之前 —— 2026-10-08 两次实机会话里它被写在门禁内部，CMD12 永远
-		// 进不来，events.jsonl 只有 client_frame、没有应答也没有拒绝事件，客户端表现
-		// 就是「输入队名点确定没反应」。apocalypse_party_probe 记录三个判定输入。
-		client.event(map[string]any{
-			"kind":         "apocalypse_party_probe",
-			"id":           requestData.frame.ID,
-			"channel_type": client.worldState.channelType,
-			"character_id": client.selectedCharacterID,
-			"plain_bytes":  len(requestData.plaintext),
-			"plain_hex":    hex.EncodeToString(requestData.plaintext),
-		})
-		handled, packets, e := client.worldState.apocalypseStandbyPartyHandle(requestData.frame.ID, requestData.plaintext)
-		if handled {
-			if e != nil {
-				client.event(map[string]any{"kind": "apocalypse_party_request_rejected", "id": requestData.frame.ID, "channel_type": client.worldState.channelType, "error": e.Error(), "plain_hex": hex.EncodeToString(requestData.plaintext)})
-				packets = []outboundPacket{{"末世录待机区队伍请求拒绝应答", 1, requestData.frame.ID, protocol.Refusal(8)}}
-			}
-			if client.sendPlan(packets, client.logCharacterResponseBody) != nil {
-				return dispatchClose
+	if requestData.frame.Type == 1 && requestData.frame.ID == 72 && requestData.verified && client.bootstrapped && client.worldState != nil && client.worldState.ownsApocalypseDungeon() {
+		plan, leave, err := client.legionState.prepareApocalypseRetreat(client.worldState, requestData.plaintext)
+		if err != nil {
+			client.event(map[string]any{"kind": "apocalypse_retreat_refused", "reason": err.Error()})
+			if r, decodeErr := protocol.DecodeSettlementExit(requestData.plaintext); decodeErr == nil {
+				if client.output.send(1, 72, protocol.SettlementExitRefused(r.Option)) != nil {
+					return dispatchClose
+				}
 			}
 			return dispatchHandled
 		}
+		if client.sendPlan(plan, client.logCharacterResponseBody) != nil {
+			return dispatchClose
+		}
+		if leave {
+			client.cancelApocalypsePortal()
+			client.finishApocalypseRetreat()
+		}
+		return dispatchHandled
+	}
+	if requestData.frame.Type == 1 && requestData.verified && client.bootstrapped && client.worldState != nil && client.worldState.channelType == 119 && client.worldState.ownsApocalypseDungeon() && (requestData.frame.ID == 117 || requestData.frame.ID == 2062) {
+		var result legionResult
+		var err error
+		if requestData.frame.ID == 117 {
+			result, err = client.legionState.prepareNavigationAdvance(client.worldState, requestData.plaintext)
+		} else {
+			result, err = client.legionState.prepareCombatPortal(client.worldState, requestData.plaintext)
+		}
+		if err != nil {
+			client.event(map[string]any{"kind": "apocalypse_route_refused", "id": requestData.frame.ID, "reason": err.Error()})
+			return dispatchHandled
+		}
+		if requestData.frame.ID == 2062 && client.deferApocalypsePortal(requestData.plaintext, time.Now()) {
+			return dispatchHandled
+		}
+		if client.deliverApocalypseRoute(result) != nil {
+			return dispatchClose
+		}
+		return dispatchHandled
+	}
+	if requestData.frame.Type == 1 && requestData.verified && client.bootstrapped && client.worldState != nil && client.worldState.channelType == 119 && (requestData.frame.ID == 12 || requestData.frame.ID == 13) {
+		previous := client.legionState.party
+		result, err := client.legionState.handleParty(client.worldState, requestData.plaintext, requestData.frame.ID)
+		if err != nil {
+			client.event(map[string]any{"kind": "apocalypse_party_refused", "id": requestData.frame.ID, "reason": err.Error(), "character_id": client.worldState.role.ID})
+			return dispatchHandled
+		}
+		if client.sendPlan(result.Packets, client.logCharacterResponseBody) != nil {
+			client.legionState.party = previous
+			return dispatchClose
+		}
+		for _, note := range result.Events {
+			client.event(note)
+		}
+		return dispatchHandled
+	}
+	if requestData.frame.Type == 1 && requestData.verified && client.bootstrapped && client.worldState != nil && (requestData.frame.ID == legion.CmdVenusOperationSelect || requestData.frame.ID == legion.CmdVenusEndAtPhase4) {
+		n, raw := legionRequestBody(requestData.plaintext)
+		client.event(map[string]any{"kind": "legion_refused", "id": requestData.frame.ID, "channel_type": client.worldState.channelType, "character_id": client.worldState.role.ID, "request_bytes": n, "request_hex": raw, "reason": "Venus operation/phase executor is not implemented"})
+		return dispatchHandled
 	}
 	if requestData.frame.Type == 1 && legion.Requests(requestData.frame.ID) && client.bootstrapped && requestData.verified && client.worldState != nil {
 		// Legion / apocalypse family. CMD2043/2354/2045 are handled in
@@ -227,7 +264,17 @@ func (client *gameConnection) dispatchLegion(requestData *clientRequest) dispatc
 		// the raw bytes are kept.
 		legionBytes, legionHex := legionRequestBody(requestData.plaintext)
 		if legionErr != nil {
-			client.event(map[string]any{"kind": "legion_refused", "id": requestData.frame.ID, "reason": legionErr.Error(), "request_bytes": legionBytes, "request_hex": legionHex})
+			client.event(map[string]any{"kind": "legion_refused", "id": requestData.frame.ID, "channel_type": client.worldState.channelType, "character_id": client.worldState.role.ID, "in_dungeon": client.worldState.activeDungeon != nil, "reason": legionErr.Error(), "request_bytes": legionBytes, "request_hex": legionHex})
+			// Native1424FE290 suppresses C2045 while its opcode is in the
+			// pending set14E652C80. FD160/FD290 erase that entry even on
+			// failure, before their success-only13B/8B readers. A silent
+			// refusal leaves a rejected request blocking the next attempt.
+			if client.worldState.channelType == 119 && (requestData.frame.ID == legion.CmdEnterDungeon || requestData.frame.ID == legion.CmdFail) {
+				if client.output.send(1, requestData.frame.ID, protocol.Refusal(4)) != nil {
+					return dispatchClose
+				}
+				client.event(map[string]any{"kind": "apocalypse_request_refused_ack", "id": requestData.frame.ID, "plain_hex": "000400", "attempt": "1/3"})
+			}
 			return dispatchHandled
 		}
 		for _, note := range legionPlan.Events {
@@ -240,6 +287,39 @@ func (client *gameConnection) dispatchLegion(requestData *clientRequest) dispatc
 			client.event(map[string]any{"kind": packet.Name, "id": packet.ID, "character_id": client.worldState.role.ID, "request_bytes": legionBytes, "request_hex": legionHex, "plain_hex": hex.EncodeToString(packet.Payload)})
 		}) != nil {
 			return dispatchClose
+		}
+		if navigation := legionPlan.Navigation; navigation != nil {
+			w := client.worldState
+			w.deathSent = map[uint16]bool{}
+			w.drops = nil
+			w.resetCards()
+			w.completionSent, w.resultSent = false, false
+			w.completionErr = nil
+			w.selectingDungeon = false
+			w.approvedDungeonGate = 0
+			w.pendingTownArrival = nil
+			w.leaveScene()
+			w.activeDungeon, w.apocalypseNavigation = navigation, navigation
+			w.apocalypseRun = legionPlan.Route
+			client.event(map[string]any{"kind": "dungeon_session_started", "dungeon": navigation.Definition.ID, "map": navigation.Room.Map, "monsters": len(navigation.Monsters), "source": "apocalypse_navigation", "attempt": "1/3"})
+		}
+		client.legionState.adoptProjection(legionPlan.Packets)
+		if legionPlan.Combat != nil {
+			w := client.worldState
+			w.activeDungeon, w.apocalypseRun = legionPlan.Combat, legionPlan.Route
+			w.deathSent = map[uint16]bool{}
+			w.drops = nil
+			w.resetCards()
+			w.completionSent, w.resultSent = false, false
+			w.completionErr = nil
+			w.leaveScene()
+		}
+		if legionPlan.ReturnWaiting {
+			if requestData.frame.ID == legion.CmdFail {
+				client.finishApocalypseReturn("apocalypse_abandon", "apocalypse_abandon_completed")
+			} else {
+				client.finishApocalypseReturn("apocalypse_clear", "apocalypse_clear_return_completed")
+			}
 		}
 		return dispatchHandled
 	}
@@ -574,11 +654,12 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 				return dispatchHandled
 			}
 			if requestData.frame.ID == 43 {
-				if request, decodeErr := protocol.DecodePickup(requestData.plaintext); decodeErr == nil {
-					body, encodeErr := protocol.PickupRefused(request.Object)
+				if _, decodeErr := protocol.DecodePickup(requestData.plaintext); decodeErr == nil {
+					body, encodeErr := client.worldState.pickupRefusal(requestData.plaintext)
 					if encodeErr != nil || client.output.send(1, 43, body) != nil {
 						return dispatchClose
 					}
+					client.recordPickupState("pickup_refused_ack_written", requestData.plaintext, body)
 				}
 				return dispatchHandled
 			}
@@ -615,6 +696,9 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 			client.event(map[string]any{"kind": p.Name, "id": p.ID, "character_id": client.selectedCharacterID, "plain_hex": hex.EncodeToString(p.Payload)})
 		}); e != nil {
 			return dispatchClose
+		}
+		if requestData.frame.ID == 37 {
+			client.worldState.commitRobotRoom()
 		}
 		if requestData.frame.ID == 39 && client.worldState.completionErr != nil {
 			client.event(map[string]any{"kind": "dungeon_completion_error", "map": client.worldState.activeDungeon.Room.Map, "error": client.worldState.completionErr.Error()})
@@ -687,6 +771,7 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 		for _, p := range plan {
 			if p.Name == "solo_party_initialized" {
 				client.worldState.soloPartyReady = true
+				client.worldState.rememberOrdinarySoloParty(p.Payload)
 			}
 			if p.Name == "card_scroll_ack" {
 				client.worldState.cardScrolled = true
@@ -811,6 +896,26 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 			}
 		}
 		client.worldState.noteEliteCommittedState(requestData.frame.ID, requestData.plaintext, eliteBefore, client.event)
+		if requestData.frame.ID == 39 && client.worldState.ownsApocalypseDungeon() {
+			client.noteApocalypsePickupWindow(time.Now())
+			result, err := client.legionState.prepareCombatDeathAdvance(client.worldState)
+			if err == nil && result.Route == nil && client.worldState.activeDungeon != client.worldState.apocalypseNavigation {
+				result, err = client.legionState.prepareApocalypseClear(client.worldState, client.worldState.apocalypseRewardService(), time.Now())
+			}
+			if err != nil {
+				client.event(map[string]any{"kind": "apocalypse_death_route_refused", "reason": err.Error()})
+			} else if result.Route != nil {
+				if client.sendPlan(result.Packets, client.logCharacterResponseBody) != nil {
+					return dispatchClose
+				}
+				client.worldState.apocalypseRun = result.Route
+				client.legionState.session.Phase = byte(result.Route.Stage)
+				client.legionState.adoptProjection(result.Packets)
+				for _, note := range result.Events {
+					client.event(note)
+				}
+			}
+		}
 		return dispatchHandled
 	}
 
@@ -872,7 +977,13 @@ func (client *gameConnection) dispatchWorldAndQuests(requestData *clientRequest)
 				client.worldState.pendingTownArrival = nil
 			}
 		}
-		if e := client.worldState.handle(requestData.frame.ID, requestData.plaintext, client.output.send, client.event); e != nil {
+		transition := client.worldState.areaTransition
+		if requestData.frame.ID == 36 && client.worldState.channelType == 119 {
+			transition = func(r protocol.AreaChangeRequest) (database.WorldPosition, error) {
+				return client.legionState.partyAreaTransition(client.worldState, r)
+			}
+		}
+		if e := client.worldState.handleWithAreaTransition(requestData.frame.ID, requestData.plaintext, client.output.send, client.event, transition); e != nil {
 			client.event(map[string]any{"kind": "world_error", "id": requestData.frame.ID, "error": e.Error()})
 		}
 		return dispatchHandled
@@ -888,7 +999,7 @@ func (client *gameConnection) dispatchWorldAndQuests(requestData *clientRequest)
 				return dispatchHandled
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			count, e := (&workflow.QuestService{Store: client.gameStore, Quest: client.questService}).ClearActQuests(ctx, client.worldState.role)
+			result, e := (&workflow.QuestService{Store: client.gameStore, Quest: client.questService}).SkipMainlineNow(ctx, client.worldState.role, "client", "CMD1422 mainline skip", 0)
 			cancel()
 			if e != nil {
 				client.event(map[string]any{"kind": "act_quest_clear_refused", "id": requestData.frame.ID, "reason": e.Error()})
@@ -897,7 +1008,17 @@ func (client *gameConnection) dispatchWorldAndQuests(requestData *clientRequest)
 			if e = client.output.send(1, 1422, protocol.ClearQuestTicketAccepted()); e != nil {
 				return dispatchClose
 			}
-			client.event(map[string]any{"kind": "act_quests_cleared", "character_id": client.worldState.role.ID, "count": count})
+			refreshCtx, refreshCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			plan, e := client.worldState.instantQuestPlan(refreshCtx, result)
+			refreshCancel()
+			if e != nil {
+				client.event(map[string]any{"kind": "instant_quest_refresh_error", "reason": e.Error()})
+				return dispatchClose
+			}
+			if client.sendPlan(plan, client.logWorldAction) != nil {
+				return dispatchClose
+			}
+			client.event(map[string]any{"kind": "instant_quests_cleared", "character_id": result.Role.ID, "count": len(result.Settled), "key_items": result.KeyItems, "stopped": result.Stopped, "blocked": result.Blocked})
 		} else {
 			// The native CMD1422 success branch immediately requests CMD2278.
 			// Its sender writes no body; publish the quest snapshots here.
@@ -1020,7 +1141,11 @@ func (client *gameConnection) dispatchWorldAndQuests(requestData *clientRequest)
 		}
 		cancel()
 		if e != nil {
-			client.event(map[string]any{"kind": "quest_rejected", "quest": qid, "error": e.Error()})
+			if requestData.frame.ID == 31 && errors.Is(e, quest.ErrAlreadyCompleted) {
+				client.event(map[string]any{"kind": "quest_accept_already_completed", "quest": qid, "operation": requestData.frame.ID})
+			} else {
+				client.event(map[string]any{"kind": "quest_rejected", "quest": qid, "operation": requestData.frame.ID, "error": e.Error()})
+			}
 			return dispatchHandled
 		}
 		if e = client.output.send(1, requestData.frame.ID, response); e != nil {

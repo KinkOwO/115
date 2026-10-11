@@ -166,6 +166,20 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		} else if e != nil {
 			return nil, e
 		}
+		// Exclusion tags govern the generic monster roll. The dungeon's explicit
+		// group result is a separate source and must not be filtered a second time
+		// after it replaces generic items. Keep the pre-filter item budget for the
+		// declared pool's existing count/probability contract.
+		genericBudget := 0
+		for _, a := range result.Awards {
+			if a.Template != 0 {
+				genericBudget += int(a.Amount)
+			}
+		}
+		if sourceOrdinary {
+			genericBudget = result.ItemBudget
+		}
+		result.Awards = filterDungeonAwards(d.Definition, result.Awards)
 		// [MERGE-20260928-DUNGEON-GROUP-DROP] 副本自带掉落组时的分支。
 		//
 		// 两条组来源，**优先用带率的那条**：
@@ -183,8 +197,8 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		//
 		// 两条都命中时只走第 1 条：dungeondropinfo 带率，语义更完整。
 		//
-		// ⚠️ 与外部包的一处**有意收窄**：这两条只在「该副本不排除掉落、且这只怪属于本次
-		// 战斗」时启用（即仍在本 `if` 内）。排除标记是副本作者写下的意图，宁可不发。
+		// These groups still require an owned combat monster and the existing
+		// roll trigger. They do not enable object/encounter surprise rewards.
 		groupTaken := false
 		// Historical catalogs without any group projection keep their existing
 		// compatibility result. PVF direct catalogs always carry the source hash;
@@ -217,16 +231,7 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 			// 件数由全局表先定：「掉不掉、掉几件」是怪物侧的判断，组只决定「掉什么」。
 			// 没有这层约束时每只小怪都会把每个声明组各抽一件 —— 100005014 声明 2 组，
 			// 实机就变成每只小怪必掉 2 件、13 只小怪 26 件/把（「普通小怪爆了一地」）。
-			budget := 0
-			for _, a := range result.Awards {
-				if a.Template != 0 {
-					budget += int(a.Amount)
-				}
-			}
-			if sourceOrdinary {
-				budget = result.ItemBudget
-			}
-			grpOut, _, gerr := rollDeclaredGroups(s.Catalog, ids, budget, result.NextSeed, ordinaryGroups)
+			grpOut, _, gerr := rollDeclaredGroups(s.Catalog, ids, genericBudget, result.NextSeed, ordinaryGroups)
 			if gerr != nil {
 				return nil, gerr
 			}
@@ -242,9 +247,9 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		// 没有声明组的副本保持全局表结果不动，groupTaken 只用于排查。
 		_ = groupTaken
 	}
-	result.Awards = filterDungeonAwards(d.Definition, result.Awards)
-	// 宠物蛋不走怪掉：本服设计为蛋只来自商城/魔盒/礼包，官方掉落表里的蛋在这里拦下
-	// （见 egg_drop_filter.go；商城/魔盒/任务等其它路径不受影响）。
+	if hellOwned {
+		result.Awards = filterDungeonAwards(d.Definition, result.Awards)
+	}
 	result.Awards = dropCreatureEggs(s.Equipment, result.Awards)
 	// Append this independent pool after map awards; it cannot replace gear.
 	// Deferred/special modes do not consume its RNG or runtime policy.

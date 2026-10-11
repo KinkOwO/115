@@ -15,7 +15,7 @@ import (
 // Native position words are presentation data; DGN start/maze and the COS
 // slot table determine the owned room (raid_bakal_portal.go:94/132/145).
 func (w *worldSession) bakalDungeonEntry(id uint32, difficulty byte, grid *[2]byte, now time.Time, final bool) ([]outboundPacket, error) {
-	if w.bakal == nil || w.bakalRules == nil || w.bakalRules.DungeonCatalog == nil || w.role.ID == 0 {
+	if w.bakal == nil || w.nativeBakalRules == nil || w.nativeBakalRules.DungeonCatalog == nil || w.role.ID == 0 {
 		return nil, fmt.Errorf("Bakal portal has no native map source")
 	}
 	if !w.bakal.HasDungeon(id) {
@@ -24,7 +24,7 @@ func (w *worldSession) bakalDungeonEntry(id uint32, difficulty byte, grid *[2]by
 	if w.bakal.IsCleared(id) {
 		return nil, fmt.Errorf("Bakal dungeon already cleared")
 	}
-	native := *w.bakalRules.DungeonCatalog
+	native := *w.nativeBakalRules.DungeonCatalog
 	d, ok := native.Dungeons[id]
 	if !ok {
 		return nil, fmt.Errorf("native Bakal dungeon %d missing", id)
@@ -110,16 +110,16 @@ func (w *worldSession) charactersChannel() [2]byte {
 }
 
 func (w *worldSession) bakalLocationForRoom(s *dungeon.Session) (uint32, error) {
-	if slot, ok := w.bakalRules.SlotForMap(s.Definition.ID, s.Room.Map); ok {
+	if slot, ok := w.nativeBakalRules.SlotForMap(s.Definition.ID, s.Room.Map); ok {
 		return slot.Index, nil
 	}
-	if s.Definition.ID == uint32(w.bakalRules.NormalPhase.FinalClearDungeon) {
-		return uint32(w.bakalRules.NormalPhase.SettlementTimer.Sub), nil
+	if s.Definition.ID == uint32(w.nativeBakalRules.NormalPhase.FinalClearDungeon) {
+		return uint32(w.nativeBakalRules.NormalPhase.SettlementTimer.Sub), nil
 	}
 	return 0, fmt.Errorf("Bakal room map %d has no native raid location", s.Room.Map)
 }
 
-func (w *worldSession) bakalLoadedBoss() ([]outboundPacket, error) {
+func (w *worldSession) nativeBakalLoadedBoss() ([]outboundPacket, error) {
 	s := w.activeDungeon
 	if s == nil || !s.Loaded {
 		return nil, nil
@@ -139,7 +139,7 @@ func (w *worldSession) bakalLoadedBoss() ([]outboundPacket, error) {
 		if uint32(spawn.Location) != location {
 			continue
 		}
-		m, ok := w.bakalRules.Monsters[spawn.Name]
+		m, ok := w.nativeBakalRules.Monsters[spawn.Name]
 		if !ok {
 			return nil, fmt.Errorf("Bakal placement has missing monster %s", spawn.Name)
 		}
@@ -152,7 +152,7 @@ func (w *worldSession) bakalLoadedBoss() ([]outboundPacket, error) {
 			grid = m.Grid
 		}
 		// Native InitialMonster uses LOCATION INFO / SPECIFIC GRID.
-		for _, loc := range w.bakalRules.Locations {
+		for _, loc := range w.nativeBakalRules.Locations {
 			if uint32(loc.Index) == location {
 				grid = [2]byte{byte(loc.X), byte(loc.Y)}
 				if loc.SpecificX != nil && loc.SpecificY != nil {
@@ -188,13 +188,13 @@ func (w *worldSession) bakalLoadedBoss() ([]outboundPacket, error) {
 // Battle reports cannot author deaths. The source-owned rank3 entity's CMD39
 // advances its raid placement independently of ordinary actors in the room.
 // Native create/delete presence must not wait for those actors' cleanup.
-func (w *worldSession) bakalConfirmDefeats(now time.Time) ([]outboundPacket, error) {
+func (w *worldSession) nativeBakalConfirmDefeats(now time.Time) ([]outboundPacket, error) {
 	s := w.activeDungeon
 	if w.bakal == nil || s == nil || !s.Loaded {
 		return nil, nil
 	}
-	if s.Definition.ID == uint32(w.bakalRules.NormalPhase.FinalClearDungeon) {
-		if bakalFinalActorDefeated(s) {
+	if s.Definition.ID == uint32(w.nativeBakalRules.NormalPhase.FinalClearDungeon) {
+		if nativeBakalFinalActorDefeated(s) {
 			return nil, w.bakal.ClearFinalDungeon(now)
 		}
 		return nil, nil
@@ -203,7 +203,7 @@ func (w *worldSession) bakalConfirmDefeats(now time.Time) ([]outboundPacket, err
 		if uint32(spawn.Location) != w.bakalLocation {
 			continue
 		}
-		m := w.bakalRules.Monsters[spawn.Name]
+		m := w.nativeBakalRules.Monsters[spawn.Name]
 		template := m.Template
 		if spawn.Name == "bakal" && w.bakal.SecondPhase() {
 			template = m.SecondTemplate
@@ -234,7 +234,7 @@ func (w *worldSession) bakalConfirmDefeats(now time.Time) ([]outboundPacket, err
 		if w.bakal.Stage() == legion.BakalOpeningFinal {
 			// Transition is driven by the script's SettlementDungeon, not a guessed
 			// next boss. Build the real final DGN load instead of navigation alone.
-			final, err := w.bakalDungeonEntry(uint32(w.bakalRules.NormalPhase.FinalClearDungeon), s.Difficulty, nil, now, true)
+			final, err := w.bakalDungeonEntry(uint32(w.nativeBakalRules.NormalPhase.FinalClearDungeon), s.Difficulty, nil, now, true)
 			if err != nil {
 				return nil, err
 			}
@@ -245,7 +245,7 @@ func (w *worldSession) bakalConfirmDefeats(now time.Time) ([]outboundPacket, err
 	return nil, nil
 }
 
-func bakalFinalActorDefeated(s *dungeon.Session) bool {
+func nativeBakalFinalActorDefeated(s *dungeon.Session) bool {
 	if s == nil || !s.Loaded || !s.RoomCleared() || s.Definition.SourceBoss == 0 {
 		return false
 	}

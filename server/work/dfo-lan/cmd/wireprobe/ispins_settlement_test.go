@@ -299,8 +299,9 @@ func TestIspinsRepeatQuotaRestoresOnlyAfterFullTownReturn(t *testing.T) {
 
 // TestIspinsAuxReplayTables guards the §26 settlement aux tables: the bodies
 // are verbatim official s4 dumps with fixed shapes (2204=32B, 2201=32B,
-// 279=16B, 2168=48B, 14=192B) and the stage0 packet mix matches the official
-// chain (pre31=2204+2201+279, pre2252=4×2168+1×14, pre2253=3×2168+5×14,
+// 279=16B, 2168=48B). Inventory is built from the real owner's saved state;
+// captured N14 slot/count echoes must never appear in any auxiliary table.
+// The remaining stage0 mix is pre31=2204+2201+279, pre2252=4×2168, pre2253=3×2168,
 // pre115=1×2168).
 func TestIspinsAuxReplayTables(t *testing.T) {
 	sizes := map[uint16]int{2204: 32, 2201: 32, 279: 16, 2168: 48, 14: 192}
@@ -309,10 +310,10 @@ func TestIspinsAuxReplayTables(t *testing.T) {
 			ispinsAuxPre31[stage], ispinsAuxPre2252[stage], ispinsAuxPre2253[stage], ispinsAuxPre115[stage],
 		}
 		for _, aux := range tables {
-			if len(aux) == 0 {
-				t.Fatalf("stage%d aux table is empty", stage)
-			}
 			for _, a := range aux {
+				if a.ID == 14 {
+					t.Fatal("capture inventory frame retained")
+				}
 				if len(a.Body) != sizes[a.ID] {
 					t.Errorf("stage%d %s id=%d len=%d want %d", stage, a.Name, a.ID, len(a.Body), sizes[a.ID])
 				}
@@ -333,11 +334,11 @@ func TestIspinsAuxReplayTables(t *testing.T) {
 		}
 		return
 	}
-	if n2168, n14 := countMix(ispinsAuxPre2252[0]); n2168 != 4 || n14 != 1 {
-		t.Errorf("stage0 pre2252 mix 2168×%d 14×%d want 2168×4 14×1", n2168, n14)
+	if n2168, n14 := countMix(ispinsAuxPre2252[0]); n2168 != 4 || n14 != 0 {
+		t.Errorf("stage0 pre2252 mix 2168×%d 14×%d want 2168×4 14×0", n2168, n14)
 	}
-	if n2168, n14 := countMix(ispinsAuxPre2253[0]); n2168 != 3 || n14 != 5 {
-		t.Errorf("stage0 pre2253 mix 2168×%d 14×%d want 2168×3 14×5", n2168, n14)
+	if n2168, n14 := countMix(ispinsAuxPre2253[0]); n2168 != 3 || n14 != 0 {
+		t.Errorf("stage0 pre2253 mix 2168×%d 14×%d want 2168×3 14×0", n2168, n14)
 	}
 	if aux := ispinsAuxPre115[0]; len(aux) != 1 || aux[0].ID != 2168 {
 		t.Errorf("stage0 pre115=%v want exactly one 2168", aux)

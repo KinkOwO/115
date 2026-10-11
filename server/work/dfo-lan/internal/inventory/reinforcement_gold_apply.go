@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"time"
 )
 
 // 账号材料仓库固定格数量：363..379（17 格；0/1 是两条光辉灵魂）。
@@ -32,10 +33,12 @@ type GoldReinforcementReceipt struct {
 	// PostLevel 是落库后的真实等级；Level 是回包里要写的值。
 	// 实机证据：把降级（8→7）写进回包会让客户端发 ADD_HACKTYPE_CNT 并锁死窗口，
 	// 所以失败回包的 level 必须等于 old（与固定券分支的校验一致），掉级只靠装备行下发。
-	PostLevel byte `json:"post_level"`
-	Rate      int  `json:"rate"`   // 本次掷骰用的成功率（安全强化含失败补正）
-	Streak    int  `json:"streak"` // 安全强化本级的连续失败次数（成功后清零）
-	Destroyed bool `json:"destroyed,omitempty"`
+	PostLevel      byte                  `json:"post_level"`
+	Rate           int                   `json:"rate"`   // 本次掷骰用的成功率（安全强化含失败补正）
+	Streak         int                   `json:"streak"` // 安全强化本级的连续失败次数（成功后清零）
+	Destroyed      bool                  `json:"destroyed,omitempty"`
+	JournalAdded   []JournalRegistration `json:"journal_added,omitempty"`
+	JournalSkipped []JournalSkip         `json:"journal_skipped,omitempty"`
 	// Protected：本次失败落在「会碎」区间，但背包里有强化保护券，装备被保住（等级归零）。
 	Protected bool `json:"protected,omitempty"`
 	// ProtectionSlot：被消耗的那张保护券在背包里的槽位。客户端强化窗口没有保护券槽
@@ -107,8 +110,7 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 			return fail(RefusalItems, "材料不在所属角色背包")
 		}
 	}
-	// 便携强化器（[portable upgrade]）也是合法来源：只耗道具本身、不耗金币与无色/安全材料。
-	portable := IsPortableUpgradeTemplate(materialTemplate)
+	portable := IsPortableEnhancement(materialTemplate, 0)
 	if !IsGoldMaterial(materialTemplate) && !IsSafeMaterial(materialTemplate) && !portable {
 		return fail(RefusalGeneric, "窗口里的物品不是强化的消耗材料")
 	}
@@ -118,7 +120,7 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 	if safe && !IsSafeMaterial(materialTemplate) {
 		return fail(RefusalGeneric, "安全强化需要安全强化材料（10327281 / 10327284）")
 	}
-	if !safe && !portable && !IsGoldMaterial(materialTemplate) {
+	if !safe && !IsGoldMaterial(materialTemplate) && !portable {
 		return fail(RefusalGeneric, "普通强化只收无色小晶块；安全强化材料请放到另一侧")
 	}
 
@@ -156,6 +158,15 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 	}
 	row := EquipmentRow(gear)
 	old := row[10] & goldLevelFieldMask
+	if portable {
+		if err = s.validatePortable(role, r, bag.Items[bagIndex], gear, d, int(old)); err != nil {
+			return nil, nil, out, err
+		}
+		bag, err = spendPortableMaterials(bag, bag.Items[bagIndex].Template, r.TicketSlot, time.Now().Unix())
+		if err != nil {
+			return nil, nil, out, err
+		}
+	}
 
 	equipLevel, levelOK := singleInt(d, "[minimum level]")
 	rarity, rarityOK := singleInt(d, "[rarity]")
@@ -192,15 +203,19 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 		if int(old) >= GoldMaxUpgradeLevel() {
 			return fail(RefusalLimit, "强化已达到客户端上限 +"+fmt.Sprint(GoldMaxUpgradeLevel())+"：更高的结果等级会让客户端判定异常并锁死强化面板")
 		}
-		count, ok := GoldMaterialCount(int(old))
-		if !ok {
-			return fail(RefusalGeneric, "当前强化等级不在金币强化表内")
+		if portable {
+			needed, gold = 1, 0
+		} else {
+			count, ok := GoldMaterialCount(int(old))
+			if !ok {
+				return fail(RefusalGeneric, "当前强化等级不在金币强化表内")
+			}
+			cost, e := GoldCost(int(equipLevel), int(rarity), int(old), weapon)
+			if e != nil {
+				return nil, nil, out, e
+			}
+			needed, gold = count, cost
 		}
-		cost, e := GoldCost(int(equipLevel), int(rarity), int(old), weapon)
-		if e != nil {
-			return nil, nil, out, e
-		}
-		needed, gold = count, cost
 	}
 	if materialAmount < needed {
 		return fail(RefusalGeneric, "强化材料数量不足（需要 "+fmt.Sprint(needed)+" 个）")
@@ -285,6 +300,7 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 
 	// 落库：破坏则移除该装备行，否则写回强化等级。
 	if destroyed {
+		result = 3 // Native CMD80 destruction; result=1 leaves the window target alive.
 		remaining := append([]BagEquipment(nil), items[:gearIndex]...)
 		remaining = append(remaining, items[gearIndex+1:]...)
 		if r.EquipmentSpace == 3 {
@@ -334,6 +350,8 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 		mode = "portable_upgrade"
 	} else if safe {
 		mode = "safe"
+	} else if portable {
+		mode = "portable"
 	}
 	// 回包等级：成功写新等级（客户端上限 15）；失败必须写 old，否则客户端判定异常。
 	replyLevel := level
@@ -354,6 +372,12 @@ func (s *WearService) ApplyGoldReinforcement(role Role, counts json.RawMessage, 
 	next, err := SaveBag(role.State, bag)
 	if err != nil {
 		return nil, nil, out, err
+	}
+	if destroyed {
+		next, out.JournalAdded, out.JournalSkipped, err = s.registerDestroyedEquipment(next, gear)
+		if err != nil {
+			return nil, nil, out, err
+		}
 	}
 	next, err = writeGoldReinforcementReceipt(next, key, out)
 	if err != nil {

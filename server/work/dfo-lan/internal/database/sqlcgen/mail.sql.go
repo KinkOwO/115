@@ -365,7 +365,7 @@ func (q *Queries) UpdateMail(ctx context.Context, arg UpdateMailParams) (int64, 
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}

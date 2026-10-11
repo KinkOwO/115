@@ -195,7 +195,7 @@ func (q *Queries) ClaimAdminGrant(ctx context.Context, arg ClaimAdminGrantParams
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}

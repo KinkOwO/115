@@ -4,7 +4,6 @@ import (
 	"context"
 	"dfolan/internal/database/sqlcgen"
 	"errors"
-
 )
 
 // 征兆（omen）的**角色存档**。
@@ -30,7 +29,7 @@ type OmenState struct {
 	// 归零（官方「结算征兆并重置」），而隐藏 BOSS 的机会要到**通关确认之后**才
 	// 兑现 —— 掉线或退出不该吞掉已经攒到的那一次奥尔泰尔（与 oath_progress.go
 	// 同一条教训）。
-	OrthaierPending bool
+	OrthaierPending bool
 	// Misses 是**连续没有触发征兆**的通关次数（0..）。累计到 30 就保底补 1 阶
 	// 征兆并归零（官方设定，见 internal/loot/omen.go 的 OmenPityMisses）。
 	// 只有小深渊（100005014）会推进它。

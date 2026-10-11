@@ -43,6 +43,8 @@ type storageSyncResult struct {
 	StorageDir   string                  `json:"storage_dir"`
 	BackupsDir   string                  `json:"backups_dir"`
 	ActiveEngine string                  `json:"active_engine"`
+	Source       string                  `json:"source"`
+	Database     string                  `json:"database"`
 	Stores       []storageSyncStoreView  `json:"stores,omitempty"`
 	Backups      []database.BackupEntry  `json:"backups,omitempty"`
 	Backup       *database.BackupEntry   `json:"backup,omitempty"`
@@ -81,6 +83,8 @@ func runStorageSync(args []string) int {
 	backup := flags.Bool("backup", false, "备份当前活动档")
 	restore := flags.String("restore", "", "还原 backups 下的某个备份目录（覆盖当前档）")
 	dryRun := flags.Bool("dry-run", false, "只打印计划，不落盘、不起进程")
+	source := flags.String("source", "storage", "备份来源：storage 或 gm-local")
+	expectedDatabase := flags.String("expected-database", "", "启动器已解析的现有SQLite文件")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -124,9 +128,11 @@ func runStorageSync(args []string) int {
 	// 进度一律 stderr：stdout 留给那行 JSON。
 	logf := func(format string, args ...any) { fmt.Fprintf(os.Stderr, format+"\n", args...) }
 	if err := storageSyncRun(absolute, &result, storageSyncOptions{
-		Restore: *restore,
-		DryRun:  *dryRun,
-		Log:     logf,
+		Restore:          *restore,
+		Source:           *source,
+		ExpectedDatabase: *expectedDatabase,
+		DryRun:           *dryRun,
+		Log:              logf,
 	}); err != nil {
 		result.OK = false
 		result.Error = err.Error()
@@ -140,9 +146,11 @@ func runStorageSync(args []string) int {
 }
 
 type storageSyncOptions struct {
-	Restore string
-	DryRun  bool
-	Log     func(string, ...any)
+	Source           string
+	ExpectedDatabase string
+	Restore          string
+	DryRun           bool
+	Log              func(string, ...any)
 }
 
 // writeStorageSyncResult 把结论写成 stdout 上唯一的一行 JSON。
@@ -165,6 +173,30 @@ func storageSyncRun(root string, result *storageSyncResult, options storageSyncO
 		return err
 	}
 	result.ActiveEngine = activeEngine
+	source := options.Source
+	if source == "" {
+		source = "storage"
+	}
+	if source != "storage" && source != "gm-local" {
+		return fmt.Errorf("未知备份来源 %q", source)
+	}
+	result.Source = source
+	if store.usable {
+		actual, e := database.ExistingSQLitePath(store.config.SQLitePath, options.ExpectedDatabase)
+		if e != nil {
+			return e
+		}
+		store.config.SQLitePath = actual
+		store.label = database.SQLiteTarget(actual).Label
+		result.Database = actual
+		result.StorageDir = filepath.Dir(actual)
+		result.BackupsDir = filepath.Join(result.StorageDir, database.BackupDirName)
+		if source == "gm-local" {
+			result.BackupsDir = filepath.Join(result.StorageDir, "gm-backups", "local")
+		}
+	} else if options.ExpectedDatabase != "" {
+		return fmt.Errorf("活动配置无法确定预期SQLite数据库")
+	}
 	if store.usable {
 		result.Stores = append(result.Stores, storageSyncStoreView{
 			Engine: store.engine, Label: store.label, Origin: store.origin,
@@ -228,6 +260,12 @@ func storageSyncRun(root string, result *storageSyncResult, options storageSyncO
 		}
 		if blocked := storageSyncBlocked(store); blocked != "" {
 			return errors.New(blocked)
+		}
+		if err := database.VerifyBackupDatabase(entry, store.config.SQLitePath); err != nil {
+			return err
+		}
+		if err := database.VerifyBackup(entry); err != nil {
+			return err
 		}
 		plan := []string{"1) 校验备份 " + entry.Name + " 的文件哈希",
 			"2) 自动备份被覆盖的 " + store.label,
@@ -309,7 +347,7 @@ func resolveStorageSyncStore(root string) (storageSyncStore, string, error) {
 	}
 
 	if activeOK && activeEngine == database.DriverSQLite {
-		store, err := buildStorageSyncStore(activePath, activeProfile)
+		store, err := buildStorageSyncStore(root, activePath, activeProfile)
 		if err != nil {
 			return storageSyncStore{}, activeEngine, err
 		}
@@ -318,9 +356,9 @@ func resolveStorageSyncStore(root string) (storageSyncStore, string, error) {
 	templatePath := filepath.Join(dir, "local."+database.DriverSQLite+".json")
 	profile, ok := readStorageProfile(templatePath)
 	if ok && profileEngine(profile) == database.DriverSQLite {
-		store, err := buildStorageSyncStore(templatePath, profile)
+		store, err := buildStorageSyncStore(root, templatePath, profile)
 		if err != nil {
-			// 模板存在但内容有问题（例如 sqlite_path 是相对路径）：这是"这一端不可用"，
+			// 模板存在但内容有问题（例如 sqlite_path 为空）：这是"这一端不可用"，
 			// 不是整条命令的失败 —— --list 照样应该能列备份。
 			fmt.Fprintf(os.Stderr, "storage-sync: 忽略 %s：%v\n", templatePath, err)
 			return storageSyncStore{}, activeEngine, nil
@@ -331,7 +369,7 @@ func resolveStorageSyncStore(root string) (storageSyncStore, string, error) {
 }
 
 // buildStorageSyncStore 把一份档位文件变成"这一端"的配置。
-func buildStorageSyncStore(path string, profile map[string]any) (storageSyncStore, error) {
+func buildStorageSyncStore(root, path string, profile map[string]any) (storageSyncStore, error) {
 	config, err := database.LoadConfig(path)
 	if err != nil {
 		return storageSyncStore{}, err
@@ -345,8 +383,19 @@ func buildStorageSyncStore(path string, profile map[string]any) (storageSyncStor
 		return storageSyncStore{}, fmt.Errorf("SQLite 档缺少 sqlite_path")
 	}
 	if !filepath.IsAbs(dbPath) {
-		return storageSyncStore{}, fmt.Errorf("sqlite_path 必须是绝对路径（现在是 %q）：服务端会按自己的工作目录解析", dbPath)
+		// The caller already selected an explicit package root. Relative storage
+		// paths are module-relative, just as in the GUI and local GM manager; never
+		// interpret them against this process's working directory or rewrite config.
+		if filepath.VolumeName(dbPath) != "" {
+			return storageSyncStore{}, fmt.Errorf("sqlite_path 不能使用依赖当前盘符目录的路径：%q", dbPath)
+		}
+		dbPath = filepath.Join(root, "server", "work", "dfo-lan", dbPath)
 	}
+	dbPath, err = filepath.Abs(dbPath)
+	if err != nil {
+		return storageSyncStore{}, err
+	}
+	store.config.SQLitePath = filepath.Clean(dbPath)
 	store.label = database.SQLiteTarget(dbPath).Label
 	return store, nil
 }

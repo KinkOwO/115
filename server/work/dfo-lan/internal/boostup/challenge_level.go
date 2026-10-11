@@ -53,5 +53,5 @@ func (c *Catalog) CapsuleLevelMail(level byte) *GraduationMail {
 		return nil
 	}
 	// This source has no sender/body at this node; these are local UI labels.
-	return &GraduationMail{Item: r.Item, Count: r.Count, Sender: "Starter Boost", Body: "Starter Boost level-up bonus."}
+	return &GraduationMail{Item: r.Item, Count: r.Count, Sender: "奇迹加速", Body: "奇迹加速升级奖励已送达，请注意查收。"}
 }

@@ -649,6 +649,15 @@ func ForestLeaveInfo() []byte { return forestInfo(forestLeaveInfoHex) }
 // ForestOperationReadyAck answers the action-1 ping (verbatim 32B).
 func ForestOperationReadyAck() []byte { return forestInfo(forestReadyAckHex) }
 
+// ForestOperationResetAck echoes action4 in the already verified ready ACK.
+// Native reader 141d41db0 consumes the same 19-byte result after success,
+// with error=0 and selected=false reopening dialog 0x2BE for actions1 and4.
+func ForestOperationResetAck() []byte {
+	body := ForestOperationReadyAck()
+	binary.LittleEndian.PutUint32(body[1:5], 4)
+	return body
+}
+
 // ForestOperationConfirmAck answers the action-2 confirm: the official vector
 // with the target u32 patched at @5..8.
 func ForestOperationConfirmAck(target uint32) []byte {

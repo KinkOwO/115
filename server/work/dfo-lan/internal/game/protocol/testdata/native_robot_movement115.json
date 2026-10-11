@@ -1,0 +1,50 @@
+{
+  "client_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+  "scope": "Actual pinned native UDP4 dispatcher and missing-target scalar consumption, private mapped input.",
+  "vectors": [
+    {
+      "flags": 0,
+      "payload_hex": "010400010500feff000002000300000000000100000002000000030000000400000005000000060000000700000008000000090000000a0000000b0000000c000000",
+      "consumed": 66,
+      "scalar_count": 12
+    },
+    {
+      "flags": 1431655680,
+      "payload_hex": "010400010500feff00000200030000555555",
+      "consumed": 18,
+      "scalar_count": 0
+    },
+    {
+      "flags": 2863311360,
+      "payload_hex": "010400010500feff00000200030000aaaaaa",
+      "consumed": 18,
+      "scalar_count": 0
+    },
+    {
+      "flags": 4294967040,
+      "payload_hex": "010400010500feff00000200030000ffffff",
+      "consumed": 18,
+      "scalar_count": 0
+    },
+    {
+      "flags": 2863311530,
+      "payload_hex": "010400010500feff000002000300aaaaaaaa",
+      "consumed": 18,
+      "scalar_count": 0
+    }
+  ],
+  "native_functions": [
+    "14663ef80 actual entry and UDP4 branch",
+    "14665aba0",
+    "14665b570",
+    "14665aec0",
+    "14665ae50"
+  ],
+  "substitutions": [
+    "valid private scene lookup; absent target exercises actual scalar-consumption fallback",
+    "private empty filter tree",
+    "diagnostic/stack-probe side effects omitted"
+  ],
+  "live_memory_writes": 0,
+  "rendering_proven": false
+}

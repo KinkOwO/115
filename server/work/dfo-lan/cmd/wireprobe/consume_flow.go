@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"dfolan/internal/catalog"
+	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/legion"
 	"dfolan/internal/workflow"
 	"fmt"
 	"time"
@@ -22,19 +25,6 @@ func (w *worldSession) useStackable(p []byte, event func(map[string]any)) ([]out
 	if e != nil {
 		return nil, e
 	}
-	// 苏醒之森军团口径：副本内消耗品每关限 8 次（用户要求），超限拒绝且
-	// 不扣库存。gate 命中时森林计数已 +1。
-	if refused := w.forestPotionGate(r); refused != nil {
-		return refused, nil
-	}
-	// 维纳斯军团口径：同款每关 8 次（BUG2，用户确认副本内无法使用任何
-	// 消耗品——缺 N1584 许可，见 dungeon_flow）。
-	if refused := w.venusPotionGate(r); refused != nil {
-		return refused, nil
-	}
-	// 奥德赛模式口径（业主 2026-10-06，由服务端 mod 打开）：副本内禁止使用任何
-	// 消耗品、可以携带；城镇不受影响。客户端本来就不发 N1584 = 界面已灰，
-	// 这里挡的是权威侧（改过的客户端绕过界面也拿不到药）。
 	if refused := w.odysseyConsumableGate(r); refused != nil {
 		return refused, nil
 	}
@@ -69,9 +59,40 @@ func (w *worldSession) useStackable(p []byte, event func(map[string]any)) ([]out
 			event(map[string]any{"kind": "bakal_consumable_budget", "raid": w.bakalRun, "coins": coins, "potions": potions})
 		}
 	}
-	saved, receipt, _, e := (&workflow.ItemService{Store: w.store, Items: w.items}).ConsumeChecked(ctx, w.role, r, check, committed)
+	service := &workflow.ItemService{Store: w.store, Items: w.items}
+	var saved database.Character
+	var receipt inventory.ConsumeReceipt
+	var applied bool
+	if r.Template == catalog.NativeCharacterSlotTicket {
+		if w.characters == nil {
+			return nil, fmt.Errorf("character rules unavailable")
+		}
+		saved, receipt, applied, e = service.ConsumeCharacterSlotTicket(ctx, w.role, r, w.characters.Rules.MaxCharacters)
+	} else {
+		saved, receipt, applied, e = service.ConsumeCheckedWithRole(ctx, w.role, r, func(current database.Character, request protocol.UseStackableRequest) error {
+			if err := w.checkContentPotionUse(current, request); err != nil {
+				return err
+			}
+			if check != nil {
+				return check()
+			}
+			return nil
+		}, committed)
+	}
 	if e != nil {
 		return nil, e
+	}
+	// Connections serialize run mutations. This in-memory quota belongs to
+	// this owned attempt only; disconnect ends the attempt, not resumes it.
+	if applied && w.ispinsLimitedPotion(r) {
+		w.ispins.potionUsed++
+	}
+	if applied && w.forestLimitedPotion(r) {
+		w.forest.potionUsed[w.forest.stage]++
+	}
+	if applied && w.venusLimitedPotion(r) {
+		stage, _ := legion.VenusStageOfDungeon(w.activeDungeon.Definition.ID)
+		w.venus.potionUsed[stage]++
 	}
 	// One durable record per use: a box names the source lot row it handed out,
 	// an ordinary consumable records the slot it spent.
@@ -128,6 +149,21 @@ func (w *worldSession) useStackable(p []byte, event func(map[string]any)) ([]out
 	plan := []outboundPacket{
 		{"item_use_ack", 1, 44, ack},
 		{"item_use_inventory_updated", 0, 14, update},
+	}
+	if receipt.CharacterCapacity != 0 {
+		body, err := protocol.CharacterCapacityUpdated(receipt.CharacterCapacity)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"character_capacity_updated", 0, 66, body})
+		event(map[string]any{"kind": "character_slot_expanded", "character_id": w.role.ID, "account_id": w.role.AccountID, "capacity": receipt.CharacterCapacity, "applied": applied})
+	}
+	if mask, skinTicket := inventory.SkinSlotMaskForTicket(r.Template, w.items.Catalog); skinTicket && b.ExpandEquipFlags&mask != 0 {
+		refresh, err := w.unlockRefresh(saved)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, refresh...)
 	}
 	return plan, nil
 }

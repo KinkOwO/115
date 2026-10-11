@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"sort"
 	"strings"
 )
@@ -311,6 +312,7 @@ type EquipmentTransformReceipt struct {
 	Source    string                   `json:"source"`
 	Pairs     []EquipmentTransformPair `json:"pairs,omitempty"`
 	Materials []CraftMaterial          `json:"materials,omitempty"`
+	Refunds   []CraftMaterial          `json:"refunds,omitempty"`
 	Gold      uint32                   `json:"gold,omitempty"`
 	Option    int                      `json:"option,omitempty"`
 	// VaultGold 是本次从**账号金库**调取的金币（背包不够时才会 > 0）。
@@ -391,12 +393,17 @@ func (s *ItemService) PlanEquipmentTransform(role Role, slots, templates []uint3
 		n = len(templates)
 	}
 	var notes []string
+	seenSlots := map[uint16]bool{}
 	for i := 0; i < n; i++ {
 		target := templates[i]
 		slot := uint16(slots[i])
 		if target == 0 || target == 0xFFFFFFFF {
 			continue
 		}
+		if seenSlots[slot] {
+			return EquipmentTransformPlan{Receipt: result}, fmt.Errorf("equipment transform: duplicate slot %d", slot)
+		}
+		seenSlots[slot] = true
 		from, bagSlot, held := s.transformSource(bag, slot)
 		if !held || from == 0 {
 			notes = append(notes, fmt.Sprintf("slot %d: 身上和背包里都没有该部位的装备(部位类型=%q)", slot, s.kindForWornSlot(slot)))
@@ -457,7 +464,7 @@ func (s *ItemService) PrepareEquipmentTransform(current Role, accountRaw json.Ra
 	// 事务内重校验：状态可能已被别的请求改过。**账本守卫（`equipmentSwapAllowed`）与
 	// 扣账必须分开**：守卫不通过的条目要在**任何写入之前**剔除（否则会出现"装备换了、
 	// 图鉴却没记账"的半状态）。
-	var bagMats, accountMats []MaterialCost
+	var bagMats, accountMats, refunds []MaterialCost
 	var gold uint32
 	option := 0
 	next := live
@@ -511,20 +518,15 @@ func (s *ItemService) PrepareEquipmentTransform(current Role, accountRaw json.Ra
 			result.Skipped = append(result.Skipped, p.to)
 			continue
 		}
-		affordable := true
-		for _, m := range pay.AccountMats {
-			if account.Count(m.Template) < m.Count {
-				affordable = false
-				break
-			}
-		}
-		if !affordable {
-			result.Skipped = append(result.Skipped, p.to)
-			continue
+		if !tutorialFree {
+			refunds = append(refunds, s.equipmentTransformSoulRefund(p.from)...)
 		}
 		accountMats = append(accountMats, pay.AccountMats...)
 		bagMats = append(bagMats, pay.BagMats...)
 		option = pay.Option
+		if uint64(gold)+uint64(pay.Gold) > math.MaxUint32 {
+			return nil, nil, vaultGold, result, fmt.Errorf("equipment transform: gold overflow")
+		}
 		gold += pay.Gold
 		done = append(done, EquipmentTransformPair{
 			Slot: p.slot, From: p.from, To: p.to, Group: 0,
@@ -533,6 +535,17 @@ func (s *ItemService) PrepareEquipmentTransform(current Role, accountRaw json.Ra
 	}
 	if len(done) == 0 {
 		return nil, nil, vaultGold, result, fmt.Errorf("equipment transform: none of the %d pairs is affordable", len(plans))
+	}
+	// The native window quotes the batch's net soul cost. Settle the complete
+	// bill once: an early upgrade can use the refund from a later downgrade.
+	// Aggregate bag costs too; PayMaterials checks individual input rows.
+	bagMats, e = equipmentTransformCosts(bagMats)
+	if e != nil {
+		return nil, nil, vaultGold, result, e
+	}
+	out, e := settleEquipmentTransformSouls(account, accountMats, refunds)
+	if e != nil {
+		return nil, nil, vaultGold, result, e
 	}
 	paid, e := next.PayMaterials(bagMats, 1)
 	if e != nil {
@@ -544,14 +557,6 @@ func (s *ItemService) PrepareEquipmentTransform(current Role, accountRaw json.Ra
 		return nil, nil, vaultGold, result, e
 	}
 	result.VaultGold = fromVault
-	out := account
-	for _, m := range accountMats {
-		nxt, _, e := out.Spend(m.Template, m.Count)
-		if e != nil {
-			return nil, nil, vaultGold, result, e
-		}
-		out = nxt
-	}
 	replaced, e := s.applyTransform(paid, done)
 	if e != nil {
 		return nil, nil, vaultGold, result, e
@@ -590,7 +595,110 @@ func (s *ItemService) PrepareEquipmentTransform(current Role, accountRaw json.Ra
 	for _, m := range accountMats {
 		result.Materials = append(result.Materials, CraftMaterial{Template: m.Template, Amount: m.Count, FromAccount: true})
 	}
+	for _, m := range refunds {
+		result.Refunds = append(result.Refunds, CraftMaterial{Template: m.Template, Amount: m.Count, FromAccount: true})
+	}
 	return updated, accountNext, vaultNext, result, nil
+}
+
+// Only account-shared souls present with the same amount in every refund
+// branch are settled here. Current PVF branches 0/1 agree for all five soul
+// grades. The primeval-only non-account bonus differs between branches and
+// requires its own native condition evidence; it must not be minted on swaps.
+func (s *ItemService) equipmentTransformSoulRefund(template uint32) []MaterialCost {
+	if s.Transform == nil {
+		return nil
+	}
+	_, rarity, ok := s.equipmentGradeRarity(template)
+	if !ok {
+		return nil
+	}
+	name, ok := catalog.TransformRarityName(rarity)
+	if !ok {
+		return nil
+	}
+	var rows []catalog.TransformRefundRow
+	for _, row := range s.Transform.EquipmentRefund {
+		if row.Rarity == name {
+			rows = append(rows, row)
+		}
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	var out []MaterialCost
+	for _, m := range rows[0].Items {
+		if _, ok := AccountMaterialSlot(m.Template); !ok || m.Count == 0 {
+			continue
+		}
+		common := true
+		for _, row := range rows[1:] {
+			found := false
+			for _, other := range row.Items {
+				if other == m {
+					found = true
+					break
+				}
+			}
+			common = common && found
+		}
+		if common {
+			out = append(out, MaterialCost{Template: m.Template, Count: m.Count})
+		}
+	}
+	return out
+}
+
+func equipmentTransformCosts(items []MaterialCost) ([]MaterialCost, error) {
+	totals := map[uint32]uint64{}
+	for _, m := range items {
+		totals[m.Template] += uint64(m.Count)
+		if totals[m.Template] > math.MaxUint32 {
+			return nil, fmt.Errorf("equipment transform: material %d overflow", m.Template)
+		}
+	}
+	ids := make([]uint32, 0, len(totals))
+	for id := range totals {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	var out []MaterialCost
+	for _, id := range ids {
+		if totals[id] != 0 {
+			out = append(out, MaterialCost{Template: id, Count: uint32(totals[id])})
+		}
+	}
+	return out, nil
+}
+
+func settleEquipmentTransformSouls(account AccountMaterials, costs, refunds []MaterialCost) (AccountMaterials, error) {
+	debits, err := equipmentTransformCosts(costs)
+	if err != nil {
+		return account, err
+	}
+	credits, err := equipmentTransformCosts(refunds)
+	if err != nil {
+		return account, err
+	}
+	net := map[uint32]int64{}
+	for _, m := range debits {
+		net[m.Template] += int64(m.Count)
+	}
+	for _, m := range credits {
+		net[m.Template] -= int64(m.Count)
+	}
+	out := account
+	for id, amount := range net {
+		if amount > 0 {
+			out, _, err = out.Spend(id, uint32(amount))
+		} else if amount < 0 {
+			out, _, err = out.Add(id, uint32(-amount))
+		}
+		if err != nil {
+			return account, fmt.Errorf("equipment transform: net material %d amount %d (have %d): %w", id, amount, account.Count(id), err)
+		}
+	}
+	return out, nil
 }
 
 // applyTransform 把 worn 里这些槽的模板换成目标。
@@ -1076,7 +1184,7 @@ type JournalSkip struct {
 	Reason   string `json:"reason"`
 }
 
-// disjointEventKey 让"同一批分解"只应用一次。
+// disjointEventKey fingerprints batch contents; PlanDisjoint also includes the durable sequence.
 //
 // ⚠️ 键里必须带**整批内容**：旧版只取 `Items[0]`，于是"第一件相同、其余不同"的两批分解会
 // 撞同一个 event_key —— 第二批被 `CommitCharacterEvent` 当成重放、取回上一批的 receipt，
@@ -1108,6 +1216,7 @@ func disjointEventKey(toolSlot uint16, items []protocol.DisjointItemEntry) strin
 }
 
 type DisjointReceipt struct {
+	Sequence     uint64                         `json:"sequence"`
 	DeletedSlots []uint16                       `json:"deleted_slots"`
 	ToolSlot     uint16                         `json:"tool_slot"`
 	Rewards      []protocol.DisjointRewardEntry `json:"rewards"`
@@ -1125,7 +1234,7 @@ type DisjointReceipt struct {
 // 所以登记挂在分解上，而不是另有一条登记命令。三条纪律：
 //
 //  1. **模板一律取服务端背包里那一行**（`bySlot` 由 `Bag.Disjoint` 之前的背包快照构建）。
-//     `Bag.Disjoint` 只按槽位取行、**不校验请求里客户端上报的模板**，所以请求值不能当依据。
+//     PrepareDisjoint 在调用前校验请求模板；登记仍以服务端实际行作为依据。
 //  2. **达上限只跳过收录，不拒绝分解** —— 分解本身照常扣装备、发材料，回执里记下原因。
 //  3. **规则表未装载 ⇒ 不收录也不报错**（与其它可选表一致）。此时连 skip 都不记：
 //     整条特性是关的，不是"这一件被跳过"。
@@ -1177,6 +1286,7 @@ func journalRegistrations(
 }
 
 type DisjointPlan struct {
+	Sequence    uint64
 	Key         string
 	Slots       []uint16
 	Definitions EquipmentDefinitioner
@@ -1201,15 +1311,17 @@ func (s *ItemService) PlanDisjoint(role Role, r protocol.DisjointItemRequest) (D
 		defs = s.Equipment
 	}
 
-	// [ALIGN-20260930-DISJOINT-KEY] 幂等键必须覆盖**整批**请求。
-	//
-	// 原来只用 `Items[0]`（`disjoint:<tool>:<第一件slot>:<第一件template>`）—— 只要两次分解的
-	// **第一件相同**就会撞同一个 event_key：第二次被 `CommitCharacterEvent` 当作重放，直接取回
-	// 上一次的 receipt ⇒ `len(result.DeletedSlots) != len(slots)` ⇒ `disjoint receipt conflict`
-	// （见下面那个校验）⇒ **整批被拒**（装备没删、图鉴没登记）。
-	// 实测 2026-09-30 02:36:48 / 02:41:48 各一次 —— 用户看到的就是"分解了却没入库"。
-	key := disjointEventKey(r.ToolSlot, r.Items)
-	return DisjointPlan{Key: key, Slots: slots, Definitions: defs}, nil
+	b, e := ReadBag(role.State)
+	if e != nil {
+		return DisjointPlan{}, e
+	}
+	if b.DisjointSeq == math.MaxUint64 {
+		return DisjointPlan{}, fmt.Errorf("disjoint sequence exhausted")
+	}
+	// A permanent slot/template key confuses newly acquired identical items with
+	// old receipts. Persist the next sequence atomically with deletion and rewards.
+	key := fmt.Sprintf("%s:v2:%d", disjointEventKey(r.ToolSlot, r.Items), b.DisjointSeq)
+	return DisjointPlan{Key: key, Sequence: b.DisjointSeq, Slots: slots, Definitions: defs}, nil
 }
 func (s *ItemService) PrepareDisjoint(current Role, r protocol.DisjointItemRequest, plan DisjointPlan) (json.RawMessage, json.RawMessage, error) {
 	var result DisjointReceipt
@@ -1218,16 +1330,26 @@ func (s *ItemService) PrepareDisjoint(current Role, r protocol.DisjointItemReque
 	if e != nil {
 		return nil, nil, e
 	}
+	if b.DisjointSeq != plan.Sequence || b.DisjointSeq == math.MaxUint64 {
+		return nil, nil, fmt.Errorf("stale disjoint sequence")
+	}
 	// 登记用的是**背包里那一行**的模板（见 journalRegistrations 的纪律 1）。
 	// 删除之后这一行就没了，所以必须在 Disjoint 之前先按槽位记下来。
 	bySlot := make(map[uint16]uint32, len(b.Equipment))
 	for _, row := range b.Equipment {
 		bySlot[row.Slot] = row.Template
 	}
+	// The request must still refer to the equipment currently occupying the slot.
+	for _, item := range r.Items {
+		if item.Template == 0 || bySlot[item.Slot] != item.Template {
+			return nil, nil, fmt.Errorf("stale disjoint equipment identity at slot %d", item.Slot)
+		}
+	}
 	b, res, e := b.Disjoint(s.Catalog, s.BagRules, s.Equipment, slots, r.ToolSlot)
 	if e != nil {
 		return nil, nil, e
 	}
+	b.DisjointSeq++
 	updated, e := SaveBag(current.State, b)
 	if e != nil {
 		return nil, nil, e
@@ -1258,6 +1380,7 @@ func (s *ItemService) PrepareDisjoint(current Role, r protocol.DisjointItemReque
 		})
 	}
 	result = DisjointReceipt{
+		Sequence:       plan.Sequence,
 		DeletedSlots:   res.DeletedSlots,
 		ToolSlot:       res.ToolSlot,
 		Rewards:        rewards,
@@ -1280,6 +1403,7 @@ type ItemService struct {
 	AvatarDisjoint *AvatarDisjointRules
 	AvatarSockets  *AvatarSocketRules
 	EmblemInlay    *EmblemInlayRules
+	SymbolSockets  *SymbolSocketLayout
 	EmblemCompound *EmblemCompoundRules
 	Boxes          *BoxCatalog
 	// WearRules maps a requested body slot to equipment still in the bag.
@@ -1296,6 +1420,7 @@ type ItemService struct {
 	// equipmentgrouping.etc 的能力组映射）。nil = 算不出积分 ⇒ 不推 NOTI2634
 	// （客户端保持原值），绝不发 0 冒充。
 	Points *catalog.PointRules
+	Truth  *catalog.OathTruthRules
 }
 
 // PartSetIndexes 返回每个模板的套装号（`.equ` 的 `[part set index]`），

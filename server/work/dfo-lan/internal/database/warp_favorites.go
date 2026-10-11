@@ -5,7 +5,6 @@ import (
 	"dfolan/internal/database/sqlcgen"
 	"dfolan/internal/game/protocol"
 	"fmt"
-
 )
 
 // This additive table keeps account favorites separate from ordinary numeric

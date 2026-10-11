@@ -948,6 +948,9 @@ func (ix *ItemIndex) Filters() Filters {
 
 // ItemFilter 是一次物品查询的全部条件，字段之间是「与」的关系。
 type ItemFilter struct {
+	Kind     string
+	RawType  string
+	Offset   int
 	Q        string
 	Type     string // 客户端页签分类 / 装备大类 / 装备位
 	Slot     string // 装备位（中文标签或 [cell] 文本）
@@ -963,7 +966,7 @@ type ItemFilter struct {
 // Empty 判断是否一个条件都没给。没给条件时按"低等级一批"列出，
 // 给了任意条件就老老实实按条件列，避免筛选结果被默认门槛吃掉。
 func (f ItemFilter) Empty() bool {
-	return strings.TrimSpace(f.Q) == "" && f.Type == "" && f.Slot == "" &&
+	return strings.TrimSpace(f.Q) == "" && f.Type == "" && f.Slot == "" && f.Kind == "" && f.RawType == "" &&
 		f.LevelMin == 0 && f.LevelMax == 0 && !f.RaritySet
 }
 
@@ -980,6 +983,10 @@ func (ix *ItemIndex) Search(f ItemFilter) []ItemEntry {
 	if f.Limit <= 0 || f.Limit > 500 {
 		f.Limit = 60
 	}
+	if f.Offset < 0 || f.Offset > 1000000 {
+		f.Offset = 0
+	}
+	skipped := 0
 	f.Q = strings.TrimSpace(f.Q)
 	f.Type = strings.TrimSpace(f.Type)
 	f.Slot = strings.TrimSpace(f.Slot)
@@ -998,6 +1005,10 @@ func (ix *ItemIndex) Search(f ItemFilter) []ItemEntry {
 					continue
 				}
 			} else if f.Q != "" && !strings.HasPrefix(strconv.FormatUint(uint64(it.ID), 10), f.Q) {
+				continue
+			}
+			if skipped < f.Offset {
+				skipped++
 				continue
 			}
 			out = append(out, *it)
@@ -1027,6 +1038,10 @@ func (ix *ItemIndex) Search(f ItemFilter) []ItemEntry {
 			}
 			if ok {
 				hit[it.ID] = true
+				if skipped < f.Offset {
+					skipped++
+					continue
+				}
 				out = append(out, *it)
 				if len(out) >= f.Limit {
 					return out
@@ -1039,6 +1054,12 @@ func (ix *ItemIndex) Search(f ItemFilter) []ItemEntry {
 
 // match 判断一件物品是否满足过滤条件（不含关键字）。
 func (ix *ItemIndex) match(it *ItemEntry, f ItemFilter) bool {
+	if f.Kind != "" && f.Kind != it.Kind {
+		return false
+	}
+	if f.RawType != "" && f.RawType != it.Type {
+		return false
+	}
 	if !ix.inType(it, f.Type) {
 		return false
 	}

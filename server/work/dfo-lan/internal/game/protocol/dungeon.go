@@ -22,7 +22,7 @@ func DecodeDungeonGate(p []byte) (uint32, error) {
 // beyond verified mode fields remain unnamed, rather than guessed IDs.
 // The full 36-byte reader sequence is checked with the original native code.
 func EnterDungeonSelection() []byte {
-	p := []byte{0, 0, 0}      // first/relay/relay-extra, 1453032f6/307/7c4
+	p := []byte{0, 0, 0} // first/relay/relay-extra, 1453032f6/307/7c4
 	// 官服抓包（next178 §18）：offset 3 那个 u32 **两种模式都写 1**（本仓此前恒为 0）；
 	// 本仓客户端在 offset=3 处 size=4 读它（testdata/native_dungeon_gate_cursor.json）。
 	p = add32(add32(p, 1), 0) // 145303871/8ec
@@ -213,8 +213,11 @@ type DungeonMonster struct {
 	Hidden     bool
 }
 type StartMapState struct {
-	ReuseRoom   bool
-	LayerChange bool
+	// Native1452b7100 final seat byte selects an existing party actor.
+	// nil preserves the ordinary whole-room notification (FF).
+	PartyActorSlot *byte
+	ReuseRoom      bool
+	LayerChange    bool
 	// ExitLayer clears the native layer ordinal before selecting the base cache
 	// (1452b787f -> 1452b7876). Ordinary flag 0 leaves that ordinal unchanged.
 	ExitLayer     bool
@@ -238,6 +241,13 @@ func StartMap(s StartMapState) ([]byte, error) {
 	if s.LayerChange && s.ExitLayer {
 		return nil, fmt.Errorf("conflicting layer transition modes")
 	}
+	actorSlot := byte(255)
+	if s.PartyActorSlot != nil {
+		if *s.PartyActorSlot < 1 || *s.PartyActorSlot > 3 || !s.ReuseRoom {
+			return nil, fmt.Errorf("party actor requires an occupied noncaptain seat and cached room")
+		}
+		actorSlot = *s.PartyActorSlot
+	}
 	p := append([]byte{}, s.Position[0], s.Position[1], 0)
 	if s.LayerChange || s.ExitLayer {
 		if s.Transition == nil {
@@ -259,7 +269,7 @@ func StartMap(s StartMapState) ([]byte, error) {
 	// Native1452b78f0 skips map/spawn rows for mode0. The constructor at
 	// 145b235b0 then retains the cached map and its one-shot ACT triggers.
 	if s.ReuseRoom {
-		return append(p, 0, 0, 255), nil // mode0, no groups, no other-party actor
+		return append(p, 0, 0, actorSlot), nil // mode0, no groups, optional party actor
 	}
 	p = append(p, 1)
 	p = add32(p, s.Map)

@@ -60,7 +60,7 @@ const primerTransformPayOptionDefault = 1
 // 取值口径（客户端 `.cos` 解析器 `sub_14769EAF0` 直接读 `[group]` 列编号并原样上传）：
 // **1 = 金币那一支、2 = 巡礼之印那一支**。所以这里直接采信 1..2；域外值（理论上不该出现）
 // 回落 `primerTransformPayOptionDefault` 并记日志，便于实机时一眼发现异常。
-// 证据与产物索引见 docs/protocol/primer-transform-20261003.md §4.3。
+// 证据与产物索引见 docs/protocol/upstream/primer-transform-20261003.md §4.3。
 func primerTransformPayOption(r protocol.PrimerTransformRequest) int {
 	if r.WindowKey >= 1 && r.WindowKey <= 2 {
 		return int(r.WindowKey)
@@ -85,6 +85,14 @@ func (w *worldSession) primerTransform(p []byte, event func(map[string]any)) ([]
 		log.Printf("primer transform DECODE-REFUSED: %v", e)
 		if event != nil {
 			event(map[string]any{"kind": "primer_transform_decode_refused", "reason": e.Error()})
+		}
+		return plan, nil
+	}
+	// The current sender writes only payment groups 1 and 2. Unknown values
+	// cannot authorize wallet/vault deductions.
+	if r.WindowKey < 1 || r.WindowKey > 2 {
+		if event != nil {
+			event(map[string]any{"kind": "primer_transform_invalid_payment", "character_id": w.role.ID, "pay_option": r.WindowKey})
 		}
 		return plan, nil
 	}
@@ -135,14 +143,12 @@ func (w *worldSession) primerTransform(p []byte, event func(map[string]any)) ([]
 		}
 		return plan, nil
 	}
-	if applied {
-		w.role = saved
-	}
+	w.role = saved
 	log.Printf("primer transform DONE: pairs=%d gold=%d option=%d materials=%v refunds=%v skipped=%v applied=%t",
 		len(receipt.Pairs), receipt.Gold, receipt.Option, receipt.Materials, receipt.Refunds, receipt.Skipped, applied)
 	if event != nil {
 		event(map[string]any{"kind": "primer_transform_done", "character_id": w.role.ID,
-			"pairs": receipt.Pairs, "gold": receipt.Gold, "option": receipt.Option,
+			"pairs": receipt.Pairs, "gold": receipt.Gold, "vault_gold": receipt.VaultGold, "option": receipt.Option,
 			"materials": receipt.Materials, "refunds": receipt.Refunds,
 			"skipped": receipt.Skipped, "applied": applied, "source": receipt.Source})
 	}
@@ -150,7 +156,7 @@ func (w *worldSession) primerTransform(p []byte, event func(map[string]any)) ([]
 		// 幂等重放：状态没变、也没再扣一次，**不重复刷新**（与 2259 同一条纪律）。
 		return plan, nil
 	}
-	plan = append(plan, w.primerTransformRefresh(ctx, oathCoreChanged(receipt))...)
+	plan = append(plan, w.primerTransformRefresh(ctx)...)
 	// 金币不够时从**账号金库**调取过 ⇒ 必须补发金库金币显示包（与 2259/生成同一条纪律：
 	// 漏发它，金库界面停留旧值，客户端本地校验会把存取卡住）。
 	plan = append(plan, w.vaultGoldRefreshPackets(ctx, receipt.VaultGold)...)
@@ -219,26 +225,12 @@ func entrySlots(entries []protocol.PrimerTransformEntry) []uint32 {
 	return out
 }
 
-// oathCoreChanged 报告这次变换是否换掉了誓约核心（槽 47）。
-//
-// 换了核心就必须补发 NOTI2839（OATH_SYSTEM_INFO，handler 读 15 字节）：oath 选项账本
-// 是**按穿戴核心**存的（storage.character_oath_options 的 core_instance_key），
-// 客户端随后会打开 Oath settings（2144）并按新核心重选。
-func oathCoreChanged(receipt inventory.PrimerTransformReceipt) bool {
-	for _, p := range receipt.Pairs {
-		if p.Slot == inventory.PrimerOathSlot {
-			return true
-		}
-	}
-	return false
-}
-
 // primerTransformRefresh 组变换后的刷新下发。
 //
 // 晶体/核心进的是**穿戴栏**（NOTI14 走 `WornSpaceUpdate`），成本/返还动到账号材料仓
 // （`accountMaterialRefreshPackets` 的 list35 → list42 → list0），被换下去的旧件会改装备库
 // 账本（补 NOTI2610）。handler 自己不回请任何包（**只发这些刷新**），所以这三处缺一不可。
-func (w *worldSession) primerTransformRefresh(ctx context.Context, oathChanged bool) []outboundPacket {
+func (w *worldSession) primerTransformRefresh(ctx context.Context) []outboundPacket {
 	var plan []outboundPacket
 	if wornBody, e := inventory.WornSpaceUpdate(w.role.State); e == nil && len(wornBody) > 0 {
 		plan = append(plan, outboundPacket{"primer_transform_worn_refreshed", 0, 14, wornBody})
@@ -253,18 +245,10 @@ func (w *worldSession) primerTransformRefresh(ctx context.Context, oathChanged b
 	} else if e != nil {
 		log.Printf("primer transform: build journal snapshot: %v", e)
 	}
-	if oathChanged {
-		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-		selection, e := w.store.EquippedOathSelection(ctx, w.account, w.role.ID)
-		if e != nil {
-			log.Printf("primer transform: oath selection after core change: %v", e)
-		} else if info, e := protocol.OathSystemInfo(selection.Level, selection.Option); e != nil {
-			log.Printf("primer transform: oath info after core change: %v", e)
-		} else {
-			plan = append(plan, outboundPacket{"primer_transform_oath_info", 0, 2839, info})
-		}
-	}
+	plan = append(plan, w.oathPointPackets()...)
+	// Crystal-only changes also alter the oath tier. Redraw only after the
+	// native point fields have received their new values.
+	plan = append(plan, w.oathDisplayRefresh(ctx, "primer_transform_oath_info")...)
 	accountRaw, e := w.store.AccountMaterials(ctx, w.role.AccountID)
 	if e != nil {
 		log.Printf("primer transform: read account materials after transform: %v", e)

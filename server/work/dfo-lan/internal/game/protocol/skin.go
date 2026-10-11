@@ -42,6 +42,15 @@ func DecodeMakeSkin(p []byte) (MakeSkinRequest, error) {
 	return r, nil
 }
 
+// CMD1592 is registered with the generic status callback at 144078DC0.
+// Success enters 144079890 -> 14407E020, completing the forge animation and
+// releasing the selected inventory item. No successful reply body is read.
+func MakeSkinSuccess() []byte { return []byte{1} }
+
+// Native 144079890 case 0x74 displays the already-owned weapon-shape error.
+// This does not report consumption or run the successful forge animation.
+func MakeSkinDuplicate() []byte { return []byte{0, 0x74, 0} }
+
 // SkinCargoEntry is one row of NOTI1545's first list. The reader 0x1444eff40
 // takes edx = dword@0 as the skin id and skips the row when that is zero; the
 // second dword becomes the node's extra field. Subtype 4 is the exception: the
@@ -114,6 +123,18 @@ func SkinCargoInfo(subtype byte, entries []SkinCargoEntry, rows [][2]uint32) ([]
 // keeping the last id, which is how an unapply clears the worn row.
 func SkinCargoSelectionInfo(skin uint32) []byte {
 	return add32([]byte{byte(SkinCargoWeaponShape)}, skin)
+}
+
+// WeaponSkinSelectionEcho is the existing successful CMD1565 response. Native
+// 1444EE820 case 4 stores the template through 145D87890 and refreshes only the
+// weapon through 145D1D810. Unlike NOTI2 mode 0, it preserves the dungeon actor.
+// The current PE reads exactly 88 bytes after the command status byte.
+func WeaponSkinSelectionEcho(skin uint32) []byte {
+	p := make([]byte, 1+SelectSkinBodySize)
+	p[0] = 1
+	binary.LittleEndian.PutUint32(p[1:], SkinCargoWeaponShape)
+	binary.LittleEndian.PutUint32(p[9:], skin)
+	return p
 }
 
 // SkinCargoSyncRequest is the body of CMD1565, the one command the skin storage

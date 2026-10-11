@@ -38,6 +38,7 @@ func InstallFameRules(source *FameRules) (func(), error) {
 	r.MemoryRuminations = maps.Clone(source.MemoryRuminations)
 	r.SoleQuality = fameCloneNested(source.SoleQuality)
 	r.SolePenalty = fameCloneNested(source.SolePenalty)
+	r.OathReinforcement = maps.Clone(source.OathReinforcement)
 	validated, err := NewFameRules(r)
 	if err != nil {
 		return nil, err

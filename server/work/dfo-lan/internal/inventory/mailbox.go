@@ -41,7 +41,7 @@ func (m MailItem) Row() ([protocol.CurrentItemRecordSize]byte, error) {
 	if m.Stack.Template < 2 || m.Stack.Amount == 0 {
 		return [protocol.CurrentItemRecordSize]byte{}, fmt.Errorf("邮件堆叠物品无效")
 	}
-	return protocol.OrdinaryItem(m.Stack.Slot, m.Stack.Template, m.Stack.Amount, m.Stack.ExpireTime), nil
+	return m.Stack.Row(), nil
 }
 
 // TakeMailItem 只接受背包中的真实实例；不会读取客户端提供的装备属性。
@@ -219,7 +219,7 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 	for i, row := range b.Items {
 		occupied[row.Slot] = true
 		// 不同期限的堆叠必须分开，永久物品不能继承另一堆的到期时间。
-		if row.Template == item.Template && row.ExpireTime == item.ExpireTime && (r.Quick(row.Slot) || row.Slot >= slots[0] && row.Slot <= slots[1]) && row.Amount < limit {
+		if b.OrdinarySlotUnlocked(row.Slot) && row.Template == item.Template && row.WeaponShape == item.WeaponShape && row.ExpireTime == item.ExpireTime && (r.Quick(row.Slot) || row.Slot >= slots[0] && row.Slot <= slots[1]) && row.Amount < limit {
 			added := min(limit-row.Amount, item.Amount)
 			b.Items[i].Amount += added
 			item.Amount -= added
@@ -229,7 +229,7 @@ func (b Bag) AddMailItem(c catalog.LootCatalog, r BagRules, equipment *Equipment
 		}
 	}
 	for n := uint32(slots[0]); n <= uint32(slots[1]); n++ {
-		if !occupied[uint16(n)] {
+		if b.OrdinarySlotUnlocked(uint16(n)) && !occupied[uint16(n)] {
 			item.Slot = uint16(n)
 			b.Items = append(b.Items, item)
 			return b, nil

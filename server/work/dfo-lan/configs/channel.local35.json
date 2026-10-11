@@ -3,7 +3,7 @@
     {
       "Area": "[elven_guard]",
       "ID": 1,
-      "Name": "LAN 1",
+      "Name": "艾尔文防线",
       "SourceValues": [
         10,
         0,
@@ -22,7 +22,7 @@
     {
       "Area": "[none]",
       "ID": 6,
-      "Name": "LAN 6",
+      "Name": "公共频道",
       "SourceValues": [
         0,
         0,
@@ -41,7 +41,7 @@
     {
       "Area": "[granfloris]",
       "ID": 10,
-      "Name": "LAN Normal",
+      "Name": "普通频道",
       "SourceValues": [
         5,
         0,
@@ -59,27 +59,27 @@
     },
     {
       "ID": 11,
-      "Name": "LAN 11"
+      "Name": "普通11"
     },
     {
       "ID": 12,
-      "Name": "LAN 12"
+      "Name": "普通12"
     },
     {
       "ID": 13,
-      "Name": "LAN 13"
+      "Name": "普通13"
     },
     {
       "ID": 14,
-      "Name": "LAN 14"
+      "Name": "普通14"
     },
     {
       "ID": 15,
-      "Name": "LAN 15"
+      "Name": "普通15"
     },
     {
       "ID": 16,
-      "Name": "LAN 16"
+      "Name": "普通16"
     },
     {
       "Area": "[none]",
@@ -102,7 +102,7 @@
     },
     {
       "ID": 45,
-      "Name": "DNF Tournament",
+      "Name": "决斗大会",
       "Type": 45,
       "Area": "[none]",
       "SourceValues": [
@@ -121,7 +121,7 @@
     },
     {
       "ID": 50,
-      "Name": "Evildom",
+      "Name": "魔界集会",
       "Type": 50,
       "Area": "[none]",
       "SourceValues": [
@@ -140,7 +140,7 @@
     },
     {
       "ID": 67,
-      "Name": "Sirocco",
+      "Name": "希洛克",
       "Type": 67,
       "Area": "[none]",
       "SourceValues": [
@@ -159,7 +159,7 @@
     },
     {
       "ID": 76,
-      "Name": "Ozma",
+      "Name": "奥兹玛",
       "Type": 76,
       "Area": "[none]",
       "SourceValues": [
@@ -179,7 +179,7 @@
     {
       "Area": "[ispins_legion]",
       "ID": 86,
-      "Name": "Ispins",
+      "Name": "伊斯大陆",
       "SourceValues": [
         0,
         0,
@@ -197,7 +197,7 @@
     },
     {
       "ID": 82,
-      "Name": "Machine Revolution",
+      "Name": "机械崛起",
       "Type": 82,
       "Area": "[none]",
       "SourceValues": [
@@ -216,7 +216,7 @@
     },
     {
       "ID": 83,
-      "Name": "Bakal Prelude",
+      "Name": "机械开战",
       "Type": 83,
       "Area": "[none]",
       "SourceValues": [
@@ -235,7 +235,7 @@
     },
     {
       "ID": 84,
-      "Name": "Hall of Dimensions",
+      "Name": "次元回廊",
       "Type": 84,
       "Area": "[none]",
       "SourceValues": [
@@ -254,7 +254,7 @@
     },
     {
       "ID": 85,
-      "Name": "Bakal Raid",
+      "Name": "巴卡尔攻坚",
       "Type": 85,
       "Area": "[none]",
       "SourceValues": [
@@ -274,7 +274,7 @@
     {
       "Area": "[none]",
       "ID": 9,
-      "Name": "Awakening Forest",
+      "Name": "苏醒之森",
       "SourceValues": [
         0,
         0,
@@ -293,7 +293,7 @@
     {
       "Area": "[none]",
       "ID": 29,
-      "Name": "Awakening Forest+",
+      "Name": "极苏醒之森",
       "SourceValues": [
         0,
         0,
@@ -311,7 +311,7 @@
     },
     {
       "ID": 88,
-      "Name": "White Cloud Valley",
+      "Name": "白云溪谷",
       "Type": 88,
       "Area": "[none]",
       "SourceValues": [
@@ -330,7 +330,7 @@
     },
     {
       "ID": 91,
-      "Name": "Dusky Island",
+      "Name": "幽暗岛",
       "Type": 91,
       "Area": "[none]",
       "SourceValues": [
@@ -349,7 +349,7 @@
     },
     {
       "ID": 92,
-      "Name": "Asrahan Prelude",
+      "Name": "雾隐之地",
       "Type": 92,
       "Area": "[none]",
       "SourceValues": [
@@ -368,7 +368,7 @@
     },
     {
       "ID": 93,
-      "Name": "Mist Raid",
+      "Name": "雾神攻坚战",
       "Type": 93,
       "Area": "[none]",
       "SourceValues": [
@@ -387,7 +387,7 @@
     },
     {
       "ID": 94,
-      "Name": "Solidaris",
+      "Name": "索利达里斯",
       "Type": 94,
       "Area": "[none]",
       "SourceValues": [
@@ -406,7 +406,7 @@
     },
     {
       "ID": 95,
-      "Name": "White Cloud",
+      "Name": "白云溪谷",
       "Type": 95,
       "Area": "[none]",
       "SourceValues": [
@@ -425,7 +425,7 @@
     },
     {
       "ID": 96,
-      "Name": "Venus",
+      "Name": "美神维纳斯",
       "Type": 96,
       "Area": "[none]",
       "SourceValues": [
@@ -444,7 +444,7 @@
     },
     {
       "ID": 97,
-      "Name": "Content 97",
+      "Name": "异世界活动",
       "Type": 97,
       "Area": "[none]",
       "SourceValues": [
@@ -463,7 +463,7 @@
     },
     {
       "ID": 98,
-      "Name": "Mist Raid 98",
+      "Name": "人造神纳波尔",
       "Type": 98,
       "Area": "[none]",
       "SourceValues": [
@@ -482,7 +482,7 @@
     },
     {
       "ID": 99,
-      "Name": "Unshackled Night",
+      "Name": "解放之夜",
       "Type": 99,
       "Area": "[none]",
       "SourceValues": [
@@ -501,7 +501,7 @@
     },
     {
       "ID": 100,
-      "Name": "Labyrinth",
+      "Name": "超越挑战",
       "Type": 100,
       "Area": "[none]",
       "SourceValues": [
@@ -520,7 +520,7 @@
     },
     {
       "ID": 101,
-      "Name": "Moon Lake",
+      "Name": "沉月湖",
       "Type": 101,
       "Area": "[none]",
       "SourceValues": [
@@ -539,7 +539,7 @@
     },
     {
       "ID": 102,
-      "Name": "Azure Main",
+      "Name": "蔚蓝号",
       "Type": 102,
       "Area": "[none]",
       "SourceValues": [
@@ -558,7 +558,7 @@
     },
     {
       "ID": 103,
-      "Name": "Temple of Death",
+      "Name": "幽冥之女神殿",
       "Type": 103,
       "Area": "[none]",
       "SourceValues": [
@@ -577,7 +577,7 @@
     },
     {
       "ID": 104,
-      "Name": "Cloud Valley 104",
+      "Name": "白云溪谷梦境",
       "Type": 104,
       "Area": "[none]",
       "SourceValues": [
@@ -596,7 +596,7 @@
     },
     {
       "ID": 105,
-      "Name": "Solidaris 105",
+      "Name": "索利达梦境",
       "Type": 105,
       "Area": "[none]",
       "SourceValues": [
@@ -616,7 +616,7 @@
     {
       "Area": "[none]",
       "ID": 106,
-      "Name": "Bleeding Mines",
+      "Name": "赤红铁矿",
       "SourceValues": [
         0,
         0,
@@ -634,7 +634,7 @@
     },
     {
       "ID": 107,
-      "Name": "Bleeding Guide",
+      "Name": "赤红铁矿指引",
       "Type": 107,
       "Area": "[none]",
       "SourceValues": [
@@ -653,7 +653,7 @@
     },
     {
       "ID": 108,
-      "Name": "Nightmare",
+      "Name": "噩梦循环",
       "Type": 108,
       "Area": "[none]",
       "SourceValues": [
@@ -672,7 +672,7 @@
     },
     {
       "ID": 109,
-      "Name": "Nightmare Trial",
+      "Name": "噩梦循环挑战",
       "Type": 109,
       "Area": "[none]",
       "SourceValues": [
@@ -691,7 +691,7 @@
     },
     {
       "ID": 110,
-      "Name": "Imperial Warfare",
+      "Name": "拍卖行",
       "Type": 110,
       "Area": "[none]",
       "SourceValues": [
@@ -710,7 +710,7 @@
     },
     {
       "ID": 111,
-      "Name": "World Boss",
+      "Name": "雾岚黄昏战",
       "Type": 111,
       "Area": "[none]",
       "SourceValues": [
@@ -729,7 +729,7 @@
     },
     {
       "ID": 112,
-      "Name": "Grand Turtle",
+      "Name": "狄瑞吉攻坚",
       "Type": 112,
       "Area": "[none]",
       "SourceValues": [
@@ -748,7 +748,7 @@
     },
     {
       "ID": 113,
-      "Name": "Castle Apostate",
+      "Name": "领主感染地",
       "Type": 113,
       "Area": "[none]",
       "SourceValues": [
@@ -767,7 +767,7 @@
     },
     {
       "ID": 114,
-      "Name": "Paradox Labyrinth",
+      "Name": "悖论迷宫",
       "Type": 114,
       "Area": "[none]",
       "SourceValues": [
@@ -786,7 +786,7 @@
     },
     {
       "ID": 116,
-      "Name": "Turtle Library",
+      "Name": "灵龟大书库",
       "Type": 116,
       "Area": "[none]",
       "SourceValues": [
@@ -805,7 +805,7 @@
     },
     {
       "ID": 117,
-      "Name": "Apostate Castle",
+      "Name": "叛教者城堡",
       "Type": 117,
       "Area": "[none]",
       "SourceValues": [
@@ -824,7 +824,7 @@
     },
     {
       "ID": 118,
-      "Name": "Content 118",
+      "Name": "佣兵团",
       "Type": 118,
       "Area": "[none]",
       "SourceValues": [
@@ -844,7 +844,7 @@
     {
       "Area": "[apocalypse]",
       "ID": 119,
-      "Name": "Apocalypse",
+      "Name": "启示",
       "SourceValues": [
         0,
         0,
@@ -862,7 +862,7 @@
     },
     {
       "ID": 120,
-      "Name": "Content 120",
+      "Name": "狄瑞吉序幕",
       "Type": 120,
       "Area": "[none]",
       "SourceValues": [
@@ -882,8 +882,8 @@
   ],
   "CompatibilityNote": "PKC 单频道档（2026-10-08 业主：回到「只有一个 PKC 频道」的状态）：**保留 ID 21 = Free PvP / type 13（CHANNEL_INTEGRATED_FREEPVP）** —— 业主实测该频道可以进入（15:47~16:39 各次会话均可）；**已移除 ID 8 = Arena / type 8（CHANNEL_INTEGRATED_PVP）** —— 17:37 只留它时业主进不去。其余频道不变。",
   "DungeonTitles": {
-    "[apocalypse]": "Apocalypse",
-    "[ispins_legion]": "Ispins"
+    "[apocalypse]": "启示",
+    "[ispins_legion]": "伊斯大陆"
   },
   "Dungeons": {
     "[Alfhlyra]": [

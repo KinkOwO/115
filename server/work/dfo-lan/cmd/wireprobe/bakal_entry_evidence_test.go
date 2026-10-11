@@ -55,7 +55,7 @@ func TestBakalFirstPhaseLivePortalThenArena(t *testing.T) {
 	for _, packet := range plan {
 		if packet.ID == 2194 {
 			creates++
-			if packet.Payload[1] != next.Room.X || packet.Payload[2] != next.Room.Y || binary.LittleEndian.Uint32(packet.Payload[7:]) != w.bakalRules.Monsters["bakal"].Template {
+			if packet.Payload[1] != next.Room.X || packet.Payload[2] != next.Room.Y || binary.LittleEndian.Uint32(packet.Payload[7:]) != w.nativeBakalRules.Monsters["bakal"].Template {
 				t.Fatal("boss create does not belong to loaded player room")
 			}
 		}
@@ -63,7 +63,7 @@ func TestBakalFirstPhaseLivePortalThenArena(t *testing.T) {
 	if creates != 1 || len(next.LivingMonsters()) != 1 {
 		t.Fatalf("arena creates=%d living=%d", creates, len(next.LivingMonsters()))
 	}
-	if extra, err := w.bakalLoadedBoss(); err != nil || len(extra) != 0 {
+	if extra, err := w.nativeBakalLoadedBoss(); err != nil || len(extra) != 0 {
 		t.Fatalf("boss duplicated after load: %v", err)
 	}
 }

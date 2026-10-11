@@ -130,7 +130,9 @@ func boostCapsuleRefresh(w *worldSession, role database.Character, r loot.BoostC
 	ack := []byte{1, byte(r.Slot), byte(r.Slot >> 8), 0, 0x51, 1, 0, 0}
 	return append(plan, outboundPacket{"boost_capsule_ack", 1, 507, ack}), nil
 }
-func (w *worldSession) useBoostCapsule(p []byte, event func(map[string]any)) ([]outboundPacket, error) {
+func (w *worldSession) useBoostCapsule(p []byte, events ...func(map[string]any)) ([]outboundPacket, error) {
+var event func(map[string]any)
+if len(events) > 0 { event = events[0] }
 	r, e := protocol.DecodeBoostCapsule115(p)
 	if e != nil {
 		return nil, e
@@ -180,6 +182,15 @@ func (w *worldSession) useBoostCapsule(p []byte, event func(map[string]any)) ([]
 	if !found {
 		return nil, fmt.Errorf("slot %d is not a source boost capsule", r.Slot)
 	}
+	// Resolve external presentation data before the character write transaction.
+	// Profile-frame restoration may initialize rows; calling it from packet
+	// preflight would open a nested SQLite write and roll back capsule use.
+	projection, e := w.characters.WithEntryProjectionSnapshot(w.role)
+	if e != nil {
+		return nil, e
+	}
+	view := *w
+	view.characters = projection
 	var plan []outboundPacket
 	next, receipt, applied, e := (&workflow.LootService{Store: w.store, Loot: w.loot}).UseBoostCapsule(ctx, w.role, w.boostup, r.Slot, capsule.Variant,
 		func(role database.Character, target byte) (database.Character, error) {
@@ -193,14 +204,14 @@ func (w *worldSession) useBoostCapsule(p []byte, event func(map[string]any)) ([]
 			if _, _, err = boostWorldTarget(w.service, w.boostup, event, receipt.Level, w.ordinaryBoostChannel()); err != nil {
 				return err
 			}
-			plan, err = boostCapsuleRefresh(w, role, receipt, roles, false)
+			plan, err = boostCapsuleRefresh(&view, role, receipt, roles, false)
 			return err
 		}, origin)
 	if e != nil {
 		return nil, e
 	}
 	if !applied {
-		plan, e = boostCapsuleRefresh(w, next, receipt, roles, true)
+		plan, e = boostCapsuleRefresh(&view, next, receipt, roles, true)
 		if e != nil {
 			return nil, e
 		}

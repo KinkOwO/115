@@ -14,7 +14,14 @@ func clearSelectedWorld(w *worldSession) {
 		w.odyssey = false
 		w.state = database.WorldState{}
 		w.activeDungeon = nil
+		w.apocalypseNavigation, w.apocalypseRun = nil, nil
+		w.pendingTownArrival = nil
+		w.selectingDungeon, w.completionSent, w.resultSent = false, false, false
+		w.approvedDungeonGate = 0
+		w.completionErr, w.deathSent, w.drops = nil, nil, nil
+		w.resetCards()
 		w.soloPartyReady = false
+		w.ordinarySoloParty = nil
 		w.ispinsRepeatPending = false
 		w.ispinsRetryPending = false
 		w.ispins = nil

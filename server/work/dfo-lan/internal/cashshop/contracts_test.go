@@ -15,6 +15,7 @@ func TestContractForProductResolvesPackageData(t *testing.T) {
 			{Type: 3, Text: "[/package data]"},
 		}},
 	}
+	entry.Contracts = fixtureContractRules(t)
 	typ, duration, ok, err := ContractForProduct(entry)
 	if err != nil || !ok || typ != PremiumCube || duration != 15*86400 {
 		t.Fatalf("contract=%d duration=%d ok=%v err=%v", typ, duration, ok, err)
@@ -23,6 +24,7 @@ func TestContractForProductResolvesPackageData(t *testing.T) {
 
 func TestContractForProductResolvesNeoAliases(t *testing.T) {
 	entry := OrdinaryProduct{Row: []pvf.Token{{Value: 3002837}, {Value: 50002918}}}
+	entry.Contracts = fixtureContractRules(t)
 	typ, duration, ok, err := ContractForProduct(entry)
 	if err != nil || !ok || typ != PremiumNeoPlus || duration != 23*86400 {
 		t.Fatalf("contract=%d duration=%d ok=%v err=%v", typ, duration, ok, err)

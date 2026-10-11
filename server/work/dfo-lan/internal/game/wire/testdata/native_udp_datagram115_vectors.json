@@ -1,0 +1,64 @@
+{
+  "scope": "Native writer+reader vectors with synthetic keys; no game access.",
+  "client_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+  "vectors": [
+    {
+      "type": 0,
+      "slot": 1,
+      "key": 287454020,
+      "sequence": 0,
+      "payload_hex": "000000000000",
+      "raw_hex": "00010600888888888888a715"
+    },
+    {
+      "type": 0,
+      "slot": 1,
+      "key": 287454020,
+      "sequence": 1,
+      "payload_hex": "010000000000",
+      "raw_hex": "00010600a888888888883595"
+    },
+    {
+      "type": 0,
+      "slot": 1,
+      "key": 287454020,
+      "sequence": 258,
+      "payload_hex": "020100000000",
+      "raw_hex": "00010600c8a8888888887c46"
+    },
+    {
+      "type": 1,
+      "slot": 1,
+      "key": 2780219352,
+      "sequence": 0,
+      "payload_hex": "0800014d00010602c600",
+      "raw_hex": "0101000000000a0000a1b1b32bb1b3bdb53cb112b5d2d7"
+    },
+    {
+      "type": 1,
+      "slot": 2,
+      "key": 287454020,
+      "sequence": 1,
+      "payload_hex": "0d0001c000020003000000e621f605",
+      "raw_hex": "0102010000000f00002988a89088c888e888888854ac56280e3678d3"
+    },
+    {
+      "type": 1,
+      "slot": 3,
+      "key": 2780219352,
+      "sequence": 2,
+      "payload_hex": "050002c3000300",
+      "raw_hex": "010302000000070000bbb1b536b1b7b10b7660df"
+    },
+    {
+      "type": 2,
+      "slot": 1,
+      "key": 287454020,
+      "sequence": 0,
+      "payload_hex": "010400010500feff000000000000305555410080014400004643",
+      "raw_hex": "0201000000001a00a80888a8288857778888888888888e2222a08898a800888840e0d8a5d0ae"
+    }
+  ],
+  "native_writer_and_reader": true,
+  "synthetic_keys": true
+}
