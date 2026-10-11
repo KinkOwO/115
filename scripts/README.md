@@ -148,6 +148,8 @@ mod 发现同时检查包目录中的非测试 Go 源码。仅剩 `.modkit-owner
 
 #### 停止环境时的 SQLite 管理租约（2026-10-05）
 
+- `停止游戏环境.cmd` 交给 `storage-route.ps1 stop-environment`，自动以管理员身份运行 Go 停止链，输出留在原窗口，并记录到 `server/work/dfo-lan/runtime/storage/entry-stop-environment.log`。停止后再次检查活动档对应的管理租约：持有进程已退出就清理，仍活着、无法查询或 pid 无效则保留并返回失败。Go 停止器报错时仍检查残留租约；不会删除数据库、WAL 或 SHM。
+- `停止游戏环境.cmd --dry-run` 只列停止计划，不提权、不清租约。离线回归：`powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-stop-environment.ps1`，不操作真实进程或存档。
 - 强杀服务端会留下 `<db>.admin-guard` 租约，60 秒 TTL 内新服务端会被拒（实机：
   「已有 GM 写入正在进行…由进程 13248 持有」）。**停止链自己收**：SQLite 档下
   `dfolauncher stop` 在强杀之后读租约里记录的 pid，
