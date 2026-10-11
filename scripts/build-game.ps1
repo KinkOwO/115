@@ -3,7 +3,10 @@
   编译 Go 启动器和服务端候选，校验程序身份，不启动游戏。
 .DESCRIPTION
   先执行全量 build / vet / test，再分别构建 cmd/dfolauncher 和 cmd/wireprobe。
-  两个产物都通过身份检查后，备份旧文件并安装启动器与源码候选。
+  产物都通过身份检查后，备份旧文件并安装启动器与源码候选。
+  本机已有精锐专用启动器时一并重建，避免该入口继续运行更新前的 profile 校验。
+  按本机已安装的 mod 生成临时 Go overlay，保留仓库加载器原文。
+  完整基础测试使用干净加载器；另行核对本机 mod 的声明与注册，候选编译包含本机 mod。
   默认服务端 wireprobe-pvf.exe、39 归档、存档及客户端均保留。
   需要 Go 1.26；优先使用 PATH，也可使用便携 Go 或已缓存的 Go 1.26 工具链。
   退出码：0 成功；1 工具链、检查、构建或安装失败。
@@ -21,6 +24,47 @@ $OriginalLocation = Get-Location
 $SavedEnvironment = @{}
 foreach ($key in @('GOROOT', 'GOTOOLCHAIN', 'GOPROXY', 'GOPATH', 'GOMODCACHE', 'GOCACHE')) {
     $SavedEnvironment[$key] = [Environment]::GetEnvironmentVariable($key, 'Process')
+}
+
+function New-ServerModBuildOverlay([string]$ModuleRoot, [string]$BuildDir, [switch]$Clean) {
+    $modsDir = Join-Path $ModuleRoot 'mods'
+    $modNames = @()
+    if (-not $Clean -and (Test-Path -LiteralPath $modsDir -PathType Container)) {
+        foreach ($directory in @(Get-ChildItem -LiteralPath $modsDir -Directory | Sort-Object Name)) {
+            # 与 modkit 的安装标记一致；普通源码目录不自动变成已安装 mod。
+            $owned = Test-Path -LiteralPath (Join-Path $directory.FullName '.modkit-owner') -PathType Leaf
+            $manifest = Test-Path -LiteralPath (Join-Path $directory.FullName 'mod.json') -PathType Leaf
+            if (-not $owned -and -not $manifest) { continue }
+            if ($directory.Name -notmatch '^[A-Za-z0-9][A-Za-z0-9_.-]*$') {
+                throw ('已安装 mod 的目录名无法生成 Go import：{0}' -f $directory.Name)
+            }
+            $modNames += $directory.Name
+        }
+    }
+    $lines = @('// Code generated for this local build. DO NOT EDIT.', 'package mods', '')
+    if ($modNames.Count -gt 0) {
+        $lines += 'import ('
+        for ($index = 0; $index -lt $modNames.Count; $index++) {
+            $lines += ('    mod{0} "dfolan/mods/{1}"' -f $index, $modNames[$index])
+        }
+        $lines += ')', ''
+    }
+    $lines += 'func RegisterMods() {'
+    for ($index = 0; $index -lt $modNames.Count; $index++) {
+        $lines += ('    mod{0}.Register()' -f $index)
+    }
+    $lines += '}', ''
+    # overlay 读取内容不要求后缀为 .go；避免 go ./... 扫到 runtime 下的生成物。
+    $name = if ($Clean) { 'mods-clean' } else { 'mods-installed' }
+    $generated = Join-Path $BuildDir ($name + '.go.build')
+    [IO.File]::WriteAllText($generated, ($lines -join "`n"), [Text.UTF8Encoding]::new($false))
+    $replace = @{}
+    $replace[[IO.Path]::GetFullPath((Join-Path $modsDir 'zz_mods_gen.go'))] = [IO.Path]::GetFullPath($generated)
+    $overlay = Join-Path $BuildDir ($name + '-overlay.json')
+    [IO.File]::WriteAllText($overlay, (@{ Replace = $replace } | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
+    if ($Clean) { Write-Host '完整基础测试：干净 mod 加载器（独立核对已安装 mod）。' }
+    else { Write-Host ('本机 mod 编译清单（仓库加载器保持）：{0}' -f $(if ($modNames.Count) { $modNames -join ', ' } else { '无' })) }
+    return $overlay
 }
 
 try {
@@ -71,16 +115,44 @@ try {
     New-Item -ItemType Directory -Path $BuildDir -ErrorAction Stop | Out-Null
     $LogPath = Join-Path $BuildDir 'build.log'
     $Utf8 = New-Object System.Text.UTF8Encoding($false)
+    $ModOverlay = New-ServerModBuildOverlay -ModuleRoot $ModuleRoot -BuildDir $BuildDir
+    $CleanOverlay = New-ServerModBuildOverlay -ModuleRoot $ModuleRoot -BuildDir $BuildDir -Clean
+    # 单独进程核对与候选相同的加载器及运行启用名单，不访问存档或执行 boot 钩子。
+    $registrationTest = @'
+package mods_test
+import (
+    "testing"
+    "dfolan/internal/servermod"
+    "dfolan/mods"
+)
+func TestLocalBuildInstalledModDeclarations(t *testing.T) {
+    servermod.LoadEnabledList(".")
+    mods.RegisterMods()
+    problems, err := servermod.CheckDeclarations(".")
+    if err != nil { t.Fatal(err) }
+    if len(problems) != 0 { t.Fatalf("installed mod declarations differ: %v", problems) }
+    t.Logf("registered mods: %v", servermod.Registered())
+}
+'@
+    $registrationSource = Join-Path $BuildDir 'registration_test.go.build'
+    [IO.File]::WriteAllText($registrationSource, $registrationTest, $Utf8)
+    $registrationReplace = @{}
+    $installedData = [IO.File]::ReadAllText($ModOverlay) | ConvertFrom-Json
+    foreach ($property in $installedData.Replace.PSObject.Properties) { $registrationReplace[$property.Name] = $property.Value }
+    $registrationReplace[(Join-Path $ModuleRoot 'mods/build_installed_mods_test.go')] = $registrationSource
+    $RegistrationOverlay = Join-Path $BuildDir 'mods-registration-overlay.json'
+    [IO.File]::WriteAllText($RegistrationOverlay, (@{ Replace = $registrationReplace } | ConvertTo-Json -Depth 4), $Utf8)
 
-    function Invoke-Go([string[]]$Arguments) {
-        $label = 'go ' + ($Arguments -join ' ')
+    function Invoke-Go([string[]]$Arguments, [string]$Overlay = $ModOverlay) {
+        $remaining = @($Arguments | Select-Object -Skip 1)
+        $label = 'go ' + $Arguments[0] + ' -overlay="' + $Overlay + '" ' + ($remaining -join ' ')
         Write-Host $label -ForegroundColor Cyan
         [IO.File]::AppendAllText($LogPath, $label + "`r`n", $Utf8)
         # PS 5.1 会把原生 stderr 包装成 ErrorRecord；按 Go 退出码判断失败。
         $savedPreference = $ErrorActionPreference
         $ErrorActionPreference = 'Continue'
         try {
-            & $GoExe @Arguments 2>&1 | ForEach-Object {
+            & $GoExe $Arguments[0] "-overlay=$Overlay" @remaining 2>&1 | ForEach-Object {
                 Write-Host $_
                 [IO.File]::AppendAllText($LogPath, $_.ToString() + "`r`n", $Utf8)
             }
@@ -92,11 +164,16 @@ try {
     Set-Location -LiteralPath $ModuleRoot
     Invoke-Go -Arguments @('build', './...')
     Invoke-Go -Arguments @('vet', './...')
-    Invoke-Go -Arguments @('test', './...', '-count=1')
+    Invoke-Go -Arguments @('test', './...', '-count=1') -Overlay $CleanOverlay
+    Invoke-Go -Arguments @('test', './mods', '-run', '^TestLocalBuildInstalledModDeclarations$', '-count=1', '-v') -Overlay $RegistrationOverlay
     $artifacts = @(
         @{ Name = 'dfolauncher.exe'; Package = './cmd/dfolauncher'; Identity = 'dfolan/cmd/dfolauncher' },
         @{ Name = 'wireprobe-handoff-source.exe'; Package = './cmd/wireprobe'; Identity = 'dfolan/cmd/wireprobe' }
     )
+    # 精锐入口使用同一份 Go 源码，但有独立文件名；已有入口必须随源码一起更新。
+    if (Test-Path -LiteralPath (Join-Path $ModuleRoot 'bin\dfolauncher-adventure-elite.exe') -PathType Leaf) {
+        $artifacts += @{ Name = 'dfolauncher-adventure-elite.exe'; Package = './cmd/dfolauncher'; Identity = 'dfolan/cmd/dfolauncher' }
+    }
     foreach ($artifact in $artifacts) {
         $builtPath = Join-Path $BuildDir $artifact.Name
         Invoke-Go -Arguments @('build', '-trimpath', '-o', $builtPath, $artifact.Package)

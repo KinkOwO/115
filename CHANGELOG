@@ -1,3 +1,11 @@
+## 2026-10-11 上游更新后 SQLite 启动链恢复确认
+
+业主确认“确认能启动，可以提交”。修复 `build-game.ps1` 漏更新已有精锐专用启动器的问题，消除旧程序拒绝 `DFO_LOCAL_GM` 的启动失败；按本机 mod 安装标记生成临时 Go overlay，让源码候选包含已安装 mod，同时保持仓库 `mods/zz_mods_gen.go` 原文。完整基础测试使用干净加载器，另行核对本机启用名单下的 mod 声明与注册，两组均为安装候选前的必过检查。
+
+Go1.26.0 全量 build/vet、完整基础测试及已安装 mod 注册专项退出0，失败集合空；候选离线 PVF 检查记录 `storage_accessed=false`、`runtime_started=false`。业主手动会话 `211110_256315_next37` 已生成 ready.json，网关 PID16896；日志确认 `giveaway.random-equipment` 启动自检通过、一个 boot/console 钩子及一份奖励脚本已加载。源码候选 SHA256 `764caa1c77cee71578caf6c10a1ec0a0cecde5cf54e40a9112c983cc18957efa`，启动器 SHA256 `005b6463fd8f5bbdb74d3ce7bd84e47f9628836ae4f9cb47cc28fa6a3ccdfa04`。详见 `server/work/dfo-lan/docs/sqlite-startup-build-confirmed-baseline-20261011.md`。
+
+确认范围仅为本次启动链恢复及上述 mod 注册，不扩大为全部玩法、礼包实际领取或精锐战斗验收。默认服务端、DLL、PVF、SQLite/schema 与玩家存档未由本修复修改；本轮仅提交编译脚本、说明、CHANGELOG 和确认记录，程序、日志、overlay 与其它任务文件不入库。提交前 fetch 实际远端 gud/main，与 HEAD 一致，无待合并更新；本机无 origin/fork，未新增远端。
+
 ## 2026-10-11 客户端 mod 宿主 1.1.0（四项增强）+ 暖暖商城包 3.2.1 + 服务端 catalog 临时摘域
 
 **已完成**：`client-host`（mod id `qol.client-host`）升到 **1.1.0**，`src/client-host.c` 由 182 行扩到 820 行，落地四项增强 —— **A** 无 `ModStart`/`StartLocalization` 入口点的插件不再被判"跳过"，照样登记进插件表（纯记账：`DllMain` 在 `LoadLibrary` 时已跑完，不额外执行任何代码）；**B** 递归 `.115us-mods\**\*.dll`（深度上限 3），子目录只 `LoadLibrary` 不调入口点、且**同步**先加载；**C** 可选清单 `.115us-mods\plugins.json`（`name`/`path`/`enabled`/`entrypoint`/`deps` + 顶层 `autoDiscover`/`recurse`，宿主内建极简 JSON 读取器，只认这几个字段），无清单时行为与 1.0.0 完全一致；**D** 新增导出 `GetPlugin`/`GetPluginCount`/`GetPluginNameAt`/`GetHostVersion`(0x00010001)。实现中补了一个原方案未提的坑：**依赖必须同步加载**，否则依赖与依赖方起跑无顺序保证，`GetPlugin` 会时灵时不灵。配套改 `ChineseLocalization.def`、`HOST-README.md`、`build-mod.py` 版本→1.1.0，重打 `client-host-1.1.0.zip`（DLL 183,808 B / sha256 `a88a6787…`）。
