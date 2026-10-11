@@ -44,8 +44,8 @@ func TestEliteSharedRosterProjectsCurrentRoleWithoutChangingSave(t *testing.T) {
 			human = r
 		}
 	}
-	expectedRow := protocol.AdventureEliteSelection{Mode: 2, Slots: [3]int32{-1, int32(humanSlot), -1}}
-	expectedRow.SkillUsage[1][0] = 19
+	expectedRow := protocol.AdventureEliteSelection{Mode: 2, Slots: [3]int32{int32(humanSlot), -1, -1}}
+	expectedRow.SkillUsage[0][0] = 19
 	wantSettings, err := protocol.AdventureEliteSelections([]protocol.AdventureEliteSelection{expectedRow})
 	require.NoError(t, err)
 	actualSettings, err := w.adventureElitePayload(ctx, profile)

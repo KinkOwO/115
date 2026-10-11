@@ -1,0 +1,464 @@
+[
+  {
+    "type": 3,
+    "value": 200896723,
+    "text": "[event period]"
+  },
+  {
+    "type": 6,
+    "value": 282282859,
+    "text": "2026-09-01 06:00:00"
+  },
+  {
+    "type": 6,
+    "value": 171424865,
+    "text": "2026-10-15 06:00:00"
+  },
+  {
+    "type": 3,
+    "value": 276914687,
+    "text": "[/event period]"
+  },
+  {
+    "type": 3,
+    "value": 278268373,
+    "text": "[db table name]"
+  },
+  {
+    "type": 6,
+    "value": 282282899,
+    "text": "event_2603_daily_attendance"
+  },
+  {
+    "type": 3,
+    "value": 278457999,
+    "text": "[allow accumulate attendance]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 203225437,
+    "text": "[level limit]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 200816123,
+    "text": "[reward mail title]"
+  },
+  {
+    "type": 6,
+    "value": 208539413,
+    "text": "chn_SOS_Attendance_title"
+  },
+  {
+    "type": 3,
+    "value": 279302441,
+    "text": "[reward mail message]"
+  },
+  {
+    "type": 6,
+    "value": 208539523,
+    "text": "chn_SOS_Attendance_mail"
+  },
+  {
+    "type": 3,
+    "value": 203221527,
+    "text": "[ui path]"
+  },
+  {
+    "type": 6,
+    "value": 282282955,
+    "text": "Live/Event/Kor/2026/0326_AttendanceDailyEvent/main.xui"
+  },
+  {
+    "type": 3,
+    "value": 279159913,
+    "text": "[first login open popup]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 282283065,
+    "text": "[reward infos]"
+  },
+  {
+    "type": 3,
+    "value": 200807155,
+    "text": "[reward info]"
+  },
+  {
+    "type": 3,
+    "value": 203779551,
+    "text": "[day]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 278458101,
+    "text": "[reward items]"
+  },
+  {
+    "type": 0,
+    "value": 490043199
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 490043200
+  },
+  {
+    "type": 0,
+    "value": 11
+  },
+  {
+    "type": 3,
+    "value": 278458131,
+    "text": "[/reward items]"
+  },
+  {
+    "type": 3,
+    "value": 200807183,
+    "text": "[/reward info]"
+  },
+  {
+    "type": 3,
+    "value": 200807155,
+    "text": "[reward info]"
+  },
+  {
+    "type": 3,
+    "value": 203779551,
+    "text": "[day]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 278458101,
+    "text": "[reward items]"
+  },
+  {
+    "type": 0,
+    "value": 490043199
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 490043203
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 3,
+    "value": 278458131,
+    "text": "[/reward items]"
+  },
+  {
+    "type": 3,
+    "value": 200807183,
+    "text": "[/reward info]"
+  },
+  {
+    "type": 3,
+    "value": 200807155,
+    "text": "[reward info]"
+  },
+  {
+    "type": 3,
+    "value": 203779551,
+    "text": "[day]"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 3,
+    "value": 278458101,
+    "text": "[reward items]"
+  },
+  {
+    "type": 0,
+    "value": 490043199
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 490043204
+  },
+  {
+    "type": 0,
+    "value": 11
+  },
+  {
+    "type": 3,
+    "value": 278458131,
+    "text": "[/reward items]"
+  },
+  {
+    "type": 3,
+    "value": 200807183,
+    "text": "[/reward info]"
+  },
+  {
+    "type": 3,
+    "value": 200807155,
+    "text": "[reward info]"
+  },
+  {
+    "type": 3,
+    "value": 203779551,
+    "text": "[day]"
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 3,
+    "value": 278458101,
+    "text": "[reward items]"
+  },
+  {
+    "type": 0,
+    "value": 490043199
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 490043205
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 3,
+    "value": 278458131,
+    "text": "[/reward items]"
+  },
+  {
+    "type": 3,
+    "value": 200807183,
+    "text": "[/reward info]"
+  },
+  {
+    "type": 3,
+    "value": 200807155,
+    "text": "[reward info]"
+  },
+  {
+    "type": 3,
+    "value": 203779551,
+    "text": "[day]"
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 3,
+    "value": 278458101,
+    "text": "[reward items]"
+  },
+  {
+    "type": 0,
+    "value": 490043199
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 490043206
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 278458131,
+    "text": "[/reward items]"
+  },
+  {
+    "type": 3,
+    "value": 200807183,
+    "text": "[/reward info]"
+  },
+  {
+    "type": 3,
+    "value": 200807155,
+    "text": "[reward info]"
+  },
+  {
+    "type": 3,
+    "value": 203779551,
+    "text": "[day]"
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 3,
+    "value": 278458101,
+    "text": "[reward items]"
+  },
+  {
+    "type": 0,
+    "value": 490043199
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 490043208
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 278458131,
+    "text": "[/reward items]"
+  },
+  {
+    "type": 3,
+    "value": 200807183,
+    "text": "[/reward info]"
+  },
+  {
+    "type": 3,
+    "value": 200807155,
+    "text": "[reward info]"
+  },
+  {
+    "type": 3,
+    "value": 203779551,
+    "text": "[day]"
+  },
+  {
+    "type": 0,
+    "value": 6
+  },
+  {
+    "type": 3,
+    "value": 278458101,
+    "text": "[reward items]"
+  },
+  {
+    "type": 0,
+    "value": 490043199
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 490043478
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 278458131,
+    "text": "[/reward items]"
+  },
+  {
+    "type": 3,
+    "value": 214970067,
+    "text": "[special reward]"
+  },
+  {
+    "type": 3,
+    "value": 200807183,
+    "text": "[/reward info]"
+  },
+  {
+    "type": 3,
+    "value": 200807155,
+    "text": "[reward info]"
+  },
+  {
+    "type": 3,
+    "value": 203779551,
+    "text": "[day]"
+  },
+  {
+    "type": 0,
+    "value": 7
+  },
+  {
+    "type": 3,
+    "value": 278458101,
+    "text": "[reward items]"
+  },
+  {
+    "type": 0,
+    "value": 490043456
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 490043457
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 278458131,
+    "text": "[/reward items]"
+  },
+  {
+    "type": 3,
+    "value": 200807183,
+    "text": "[/reward info]"
+  },
+  {
+    "type": 3,
+    "value": 282283095,
+    "text": "[/reward infos]"
+  }
+]

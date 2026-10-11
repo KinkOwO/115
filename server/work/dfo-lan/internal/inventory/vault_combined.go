@@ -92,7 +92,7 @@ func (s *VaultService) TransferCombined(role Role, state VaultState, r protocol.
 		if item.IsEquip {
 			gear = append(gear, item)
 		} else {
-			stacks = append(stacks, BagItem{Slot: item.Slot, Template: item.Template, Amount: item.Amount, ExpireTime: item.ExpireTime})
+			stacks = append(stacks, BagItem{Slot: item.Slot, Template: item.Template, Amount: item.Amount, ExpireTime: item.ExpireTime, WeaponShape: item.WeaponShape})
 		}
 	}
 	state.Items, err = json.Marshal(stacks)

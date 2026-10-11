@@ -106,9 +106,12 @@ func (e *childEnv) List() []string {
 // table.
 type gatewayCommandInput struct {
 	Project string // server/work/dfo-lan
-	Session sessionTag
-	Env     *childEnv
-	Probe   func(exe string) map[string]bool
+	// StorageConfig is the actual Start session's sanitized absolute-path config.
+	// Pure command previews leave it empty and continue to name the active file.
+	StorageConfig string
+	Session       sessionTag
+	Env           *childEnv
+	Probe         func(exe string) map[string]bool
 }
 
 // gatewayCommand 是构造结果：参数表加上 Python 会打出去的那些告警。两个切片分开，是因为
@@ -151,8 +154,12 @@ func buildGatewayCommand(in gatewayCommandInput) (gatewayCommand, error) {
 		if skycastle := at("configs", "characters.skycastle-release.json"); regularFile(skycastle) {
 			characterCatalog = skycastle
 		}
+		storageConfig := in.StorageConfig
+		if storageConfig == "" {
+			storageConfig = at("runtime", "storage", "local.json")
+		}
 		command = append(command,
-			"-character-storage", at("runtime", "storage", "local.json"),
+			"-character-storage", storageConfig,
 			"-character-catalog", characterCatalog,
 			"-character-rules", characterRules,
 		)
@@ -381,6 +388,9 @@ func buildGatewayCommand(in gatewayCommandInput) (gatewayCommand, error) {
 	env.Set("DFO_ATTUNEMENT_REWARDS", at("configs", "attunement-rewards.generated.json"))
 	env.Set("DFO_EQUIPMENT_JOURNAL_RULES", at("configs", "equipment-journal.generated.json"))
 	env.Set("DFO_EQUIPMENT_CREATE_COST", at("configs", "equipment-create-cost.generated.json"))
+	// Both the default server cwd and an explicit candidate cwd must read the
+	// calendar paired with this module, regardless of inherited environment.
+	env.Set("DFO_ATTENDANCE_CALENDAR", at("configs", "attendance-calendar.json"))
 	result.Args = command
 	return result, nil
 }

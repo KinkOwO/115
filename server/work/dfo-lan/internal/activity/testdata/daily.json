@@ -1,0 +1,617 @@
+[
+  {
+    "type": 3,
+    "value": 278326829,
+    "text": "[control panel]"
+  },
+  {
+    "type": 6,
+    "value": 280962253,
+    "text": "event_integration_account_once"
+  },
+  {
+    "type": 6,
+    "value": 281034983,
+    "text": "2026-09-08 06:00:00"
+  },
+  {
+    "type": 6,
+    "value": 281035023,
+    "text": "2026-10-09 06:00:00"
+  },
+  {
+    "type": 6,
+    "value": 280962355,
+    "text": "integrate"
+  },
+  {
+    "type": 3,
+    "value": 278326861,
+    "text": "[/control panel]"
+  },
+  {
+    "type": 3,
+    "value": 203225437,
+    "text": "[level limit]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 200765561,
+    "text": "[ui file]"
+  },
+  {
+    "type": 6,
+    "value": 281035063,
+    "text": "Live\\Event\\Chn\\2026\\0922_Nationalday_Attendance\\eventUI.xui"
+  },
+  {
+    "type": 3,
+    "value": 279068399,
+    "text": "[ui date start]"
+  },
+  {
+    "type": 6,
+    "value": 279068205,
+    "text": "2025-09-30 06:00:00"
+  },
+  {
+    "type": 3,
+    "value": 279068431,
+    "text": "[ui date format]"
+  },
+  {
+    "type": 8,
+    "value": 279068465,
+    "reference": "\u003c20::raid_channel_13\u003e"
+  },
+  {
+    "type": 3,
+    "value": 279068509,
+    "text": "[ui date view month]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 279068551,
+    "text": "[proper dungeon count]"
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 3,
+    "value": 279068597,
+    "text": "[today bonus]"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 3,
+    "value": 262970321,
+    "text": "[mission type]"
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 281002663,
+    "text": "[use accumulated reward]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 278446685,
+    "text": "[daily reward]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 0,
+    "value": 490043508
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208481233,
+    "text": "event_365_mail_title"
+  },
+  {
+    "type": 6,
+    "value": 208481335,
+    "text": "event_365_daily_mail_msg_7"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 490043515
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208481233,
+    "text": "event_365_mail_title"
+  },
+  {
+    "type": 6,
+    "value": 208481335,
+    "text": "event_365_daily_mail_msg_7"
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": 490043509
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208481233,
+    "text": "event_365_mail_title"
+  },
+  {
+    "type": 6,
+    "value": 208481335,
+    "text": "event_365_daily_mail_msg_7"
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 0,
+    "value": 490043514
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208481233,
+    "text": "event_365_mail_title"
+  },
+  {
+    "type": 6,
+    "value": 208481335,
+    "text": "event_365_daily_mail_msg_7"
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 0,
+    "value": 490043509
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208481233,
+    "text": "event_365_mail_title"
+  },
+  {
+    "type": 6,
+    "value": 208481335,
+    "text": "event_365_daily_mail_msg_7"
+  },
+  {
+    "type": 0,
+    "value": 6
+  },
+  {
+    "type": 0,
+    "value": 490043508
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208481233,
+    "text": "event_365_mail_title"
+  },
+  {
+    "type": 6,
+    "value": 208481335,
+    "text": "event_365_daily_mail_msg_7"
+  },
+  {
+    "type": 0,
+    "value": 7
+  },
+  {
+    "type": 0,
+    "value": 490043514
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208481233,
+    "text": "event_365_mail_title"
+  },
+  {
+    "type": 6,
+    "value": 208481335,
+    "text": "event_365_daily_mail_msg_7"
+  },
+  {
+    "type": 0,
+    "value": 8
+  },
+  {
+    "type": 0,
+    "value": 490043509
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208481233,
+    "text": "event_365_mail_title"
+  },
+  {
+    "type": 6,
+    "value": 208481335,
+    "text": "event_365_daily_mail_msg_7"
+  },
+  {
+    "type": 0,
+    "value": 9
+  },
+  {
+    "type": 0,
+    "value": 490043515
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208481233,
+    "text": "event_365_mail_title"
+  },
+  {
+    "type": 6,
+    "value": 208481335,
+    "text": "event_365_daily_mail_msg_7"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 0,
+    "value": 490043508
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208481233,
+    "text": "event_365_mail_title"
+  },
+  {
+    "type": 6,
+    "value": 208481335,
+    "text": "event_365_daily_mail_msg_7"
+  },
+  {
+    "type": 3,
+    "value": 278446715,
+    "text": "[/daily reward]"
+  },
+  {
+    "type": 3,
+    "value": 279068625,
+    "text": "[accumulated reward]"
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": 490043516
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208481233,
+    "text": "event_365_mail_title"
+  },
+  {
+    "type": 6,
+    "value": 208481335,
+    "text": "event_365_daily_mail_msg_7"
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 0,
+    "value": 490043517
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208481233,
+    "text": "event_365_mail_title"
+  },
+  {
+    "type": 6,
+    "value": 208481335,
+    "text": "event_365_daily_mail_msg_7"
+  },
+  {
+    "type": 0,
+    "value": 7
+  },
+  {
+    "type": 0,
+    "value": 490043518
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 208481233,
+    "text": "event_365_mail_title"
+  },
+  {
+    "type": 6,
+    "value": 208481335,
+    "text": "event_365_daily_mail_msg_7"
+  },
+  {
+    "type": 3,
+    "value": 279068667,
+    "text": "[/accumulated reward]"
+  },
+  {
+    "type": 3,
+    "value": 280962521,
+    "text": "[count text default color]"
+  },
+  {
+    "type": 0,
+    "value": 255
+  },
+  {
+    "type": 0,
+    "value": 196
+  },
+  {
+    "type": 0,
+    "value": 226
+  },
+  {
+    "type": 3,
+    "value": 280962575,
+    "text": "[count text ongoing color]"
+  },
+  {
+    "type": 0,
+    "value": 255
+  },
+  {
+    "type": 0,
+    "value": 247
+  },
+  {
+    "type": 0,
+    "value": 155
+  },
+  {
+    "type": 3,
+    "value": 280962629,
+    "text": "[count text complete color]"
+  },
+  {
+    "type": 0,
+    "value": 210
+  },
+  {
+    "type": 0,
+    "value": 247
+  },
+  {
+    "type": 0,
+    "value": 255
+  },
+  {
+    "type": 3,
+    "value": 280962685,
+    "text": "[today match text]"
+  },
+  {
+    "type": 8,
+    "value": 280962723,
+    "reference": "\u003c20::Event365_Today_Match\u003e"
+  },
+  {
+    "type": 3,
+    "value": 280962777,
+    "text": "[today miss match text]"
+  },
+  {
+    "type": 8,
+    "value": 280962825,
+    "reference": "\u003c20::Event365_Today_MissMatch\u003e"
+  },
+  {
+    "type": 3,
+    "value": 280962887,
+    "text": "[ongoint text]"
+  },
+  {
+    "type": 8,
+    "value": 280962917,
+    "reference": "\u003c20::Event365_OnGoing\u003e"
+  },
+  {
+    "type": 3,
+    "value": 202122043,
+    "text": "[complete text]"
+  },
+  {
+    "type": 8,
+    "value": 280962963,
+    "reference": "\u003c20::Event365_Complete\u003e"
+  },
+  {
+    "type": 3,
+    "value": 280963011,
+    "text": "[date text]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 8,
+    "value": 280963035,
+    "reference": "\u003c20::Event365_Data_1\u003e"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 8,
+    "value": 280963079,
+    "reference": "\u003c20::Event365_Data_2\u003e"
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 8,
+    "value": 280963123,
+    "reference": "\u003c20::Event365_Data_3\u003e"
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 8,
+    "value": 280963167,
+    "reference": "\u003c20::Event365_Data_4\u003e"
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 8,
+    "value": 280963211,
+    "reference": "\u003c20::Event365_Data_5\u003e"
+  },
+  {
+    "type": 0,
+    "value": 6
+  },
+  {
+    "type": 8,
+    "value": 280963255,
+    "reference": "\u003c20::Event365_Data_6\u003e"
+  },
+  {
+    "type": 0,
+    "value": 7
+  },
+  {
+    "type": 8,
+    "value": 280963299,
+    "reference": "\u003c20::Event365_Data_7\u003e"
+  },
+  {
+    "type": 0,
+    "value": 8
+  },
+  {
+    "type": 8,
+    "value": 280963343,
+    "reference": "\u003c20::Event365_Data_8\u003e"
+  },
+  {
+    "type": 0,
+    "value": 9
+  },
+  {
+    "type": 8,
+    "value": 280963387,
+    "reference": "\u003c20::Event365_Data_9\u003e"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 8,
+    "value": 280963431,
+    "reference": "\u003c20::Event365_Data_10\u003e"
+  },
+  {
+    "type": 3,
+    "value": 280963569,
+    "text": "[/date text]"
+  }
+]

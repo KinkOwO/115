@@ -14,6 +14,7 @@ import (
 	"dfolan/internal/loot"
 	"dfolan/internal/npcpresence"
 	"dfolan/internal/quest"
+	"dfolan/internal/raid"
 	"dfolan/internal/reward"
 	"dfolan/internal/workflow"
 	"dfolan/internal/world"
@@ -25,6 +26,20 @@ import (
 )
 
 type worldSession struct {
+	titleRestoreCharacter int64 // one pending cosmetic replay for the reconstructed local actor
+	raidWaiting           bool  // solo candidate raid room is private to this team
+	raidEntrance          *catalog.RaidEntrance
+	bakalOpening          *raid.BakalOpening
+	bakalRules            *catalog.BakalRaidRules
+	bakalParty            uint32
+	bakalTown             uint32
+	bakalSettledRun       string
+	bakalCardPlan         *workflow.BakalRewardPlan
+	bakalRewardRetryAt    time.Time
+	bakalAuction          *workflow.BakalAuctionPlan
+	bakalAuctionBase      int
+	bakalAuctionListed    bool
+	bakalAuctionRetryAt   time.Time
 	// slotUnlockDirty 记录「本局副本内写入了新的扩展装备槽解锁位」。
 	// 装备栏挂锁只能由 EntryAddition（USERINFO1）投影，而客户端只在登录/选角/进副本那种时机构造装备栏行对象，副本内补发它会把装备栏显示清空（2026-09-22 实测）。
 	// 因此解锁只落库，改在回城时补发一次，让玩家不必重登。见 analysis/tasks/next50-odyssey-expanded-equip-slot.md。
@@ -60,6 +75,7 @@ type worldSession struct {
 	adventureElitePrepared       *adventureElitePreparation
 	adventureEliteEntryProbeUsed bool
 	adventureEliteEntrySerial    uint64
+	adventureIdentitySent        bool
 	// channelWorldIsolated 标记当前连接在特殊征讨频道（towns 表有专属城镇）。
 	// true 时会话内位置不落普通频道共享行；specialTowns 是全部特殊城镇集合，
 	// 用于把共享行里的历史污染位置修回默认落点。
@@ -74,7 +90,9 @@ type worldSession struct {
 	bleedingMineStart   *bleedingMineStart
 	// ispins 是一次伊斯大陆（内容号 101）挑战的会话状态；nil = 无进行中的
 	// 挑战。字节契约见 ispins_flow.go 与 next78 取证文档。
-	ispins *ispinsRun
+	ispins          *ispinsRun
+	lastIspinsOrder [4]byte
+	hasIspinsOrder  bool
 	// venus 是一次美神维纳斯（内容号 106）挑战的会话状态；nil = 无进行中的
 	// 挑战。字节契约见 venus_flow.go、internal/legion/venus.go 与
 	// 包规格/全流程 N2655/2290/2291/1474 规格文档。
@@ -84,7 +102,7 @@ type worldSession struct {
 	// next151 取证文档。
 	bakal                    *legion.BakalOpening
 	bakalRun                 string
-	bakalRecruitment         *protocol.RaidRecruitment
+	bakalRecruitment         *protocol.NativeRaidRecruitment
 	bakalFailureNotified     bool
 	bakalDeathReturnAt       time.Time
 	bakalDeathReturnRun      string
@@ -97,15 +115,15 @@ type worldSession struct {
 	bakalLocation uint32
 	// bakalRules / bakalRewards 由网关构造时注入；nil = 该内容未装载（建团
 	// 被待机区未绑定拒绝，与交接包拒绝实录一致）。
-	bakalRules     *catalog.BakalRaidRules
-	bakalRewards   *workflow.BakalRewardService
-	bakalQuotaRole int64
-	bakalQuotaBody []byte
+	nativeBakalRules   *catalog.NativeBakalRaidRules
+	nativeBakalRewards *workflow.NativeBakalRewardService
+	bakalQuotaRole     int64
+	bakalQuotaBody     []byte
 	// boostup 是一次新手成长胶囊教学（活动 662）的会话状态。
 	boostup               *boostup.Catalog
 	boostAPCSelectionSent bool // native mode3 selection sent on this actor connection
 	// attendance 是每日签到（活动 331）的原生目录；nil = 源读取失败，签到推送与领取都按「活动未开启」处理。
-	attendance *attendance.Catalog
+	nativeAttendance *attendance.Catalog
 	// boostWorldBase / boostOperations / notifyBoostMail 是 Starter Boost 活动
 	// 662 的注入接线：基地世界服务、一次性事件键会话与毕业邮件回调。
 	boostWorldBase  *world.Service
@@ -113,7 +131,14 @@ type worldSession struct {
 	notifyBoostMail func(int64)
 	// 下列字段由 origin 侧的非巴卡尔内容注入：苏醒之森（forest）、维纳斯
 	// （venus）、永夜之城频道刷新与槽位解锁状态。
-	forest          *forestRun
+	forest               *forestRun
+	apocalypseNavigation *dungeon.Session
+	apocalypseRun        *apocalypseRoute
+	// forest 是一次苏醒之森（Forest of Awakening，内容号 104）挑战的会话
+	// 状态；nil = 无进行中的挑战。字节契约见 forest_flow.go 与
+	// internal/legion/forest.go（官服 21:42-21:45 三关完整抓包向量）。
+	// forestPartyHard 记录待机区建队选择的模式（CMD12 类型 0x19 =
+	// Extreme/ForestOfAwakeningHard），开战时带入 forestRun.hard。
 	forestPartyHard bool
 	// forestEntryPending 是「净化开始横幅（N2568）已发、进图帧列待发」的挂起项。
 	// 官服 N2568（22:05:41.514）与真正的进图帧列（22:05:45.580）之间隔着 4.066s
@@ -146,10 +171,11 @@ type worldSession struct {
 	apocalypsePending *apocalypseSettlement
 	// apocalypseGrant 是最近一次末世录终局结算的结果（入库明细 + 完成事件），
 	// 供日志与测试断言。nil = 本连接还没结算过。
-	apocalypseGrant        *apocalypseGrant
-	channelSpawns          map[uint32]database.WorldPosition
-	blackPurgatory         blackPurgatoryState
-	adventureEliteSnapshot [32]byte
+	apocalypseGrant           *apocalypseGrant
+	channelSpawns             map[uint32]database.WorldPosition
+	blackPurgatory            blackPurgatoryState
+	adventureEliteSnapshot    [32]byte
+	boostTrainingAPCRequested bool
 	// odyssey mirrors character.OdysseyRole for this session. It selects which
 	// source level gate the world service applies: an Arad Odyssey character
 	// follows the client's [odyssey enter level] instead of [need level].
@@ -310,6 +336,7 @@ type worldSession struct {
 	communicationUntil time.Time
 	soloPartyBootstrap bool
 	soloPartyReady     bool
+	ordinarySoloParty  *ordinarySoloPartyIdentity
 	specialWarpPending bool
 	// hub and peer publish this actor to the other connected players. Both stay
 	// nil when the gateway runs without a multiplayer hub.
@@ -339,6 +366,17 @@ type worldSession struct {
 
 	// boostup 是「胶囊加速/新手成长」活动 662 的本连接目录视图（nil = 活动关闭）。
 	// 它由 gatewayRuntime 的同一份只读源解析结果按值共享，不在连接上重复解析。
+	attendance         *workflow.AttendanceService
+	attendanceCalendar *character.FatigueService
+	attendanceDay      string
+	weekly             *workflow.RoutineService
+	weeklyClock        time.Time
+	weeklyRole         int64
+	online             *workflow.RoutineService
+	daily              *workflow.RoutineService
+	membership         *workflow.MembershipService
+	onlineClock        time.Time
+	onlineRole         int64
 	// boostWorldBase 记住被胶囊教学城镇替换掉的普通世界服务，毕业/失效后还原。
 	// notifyBoostMail 把活动邮寄写进角色的未读信箱（唤醒 mailChanges 重发提示）。
 	// boostOperations 是活动领奖幂等键的来源（口径同装备线：连接随机数 + 传输帧
@@ -349,9 +387,9 @@ type worldSession struct {
 func (w *worldSession) enter(role database.Character, spawn database.WorldPosition) error {
 	// Recover after character selection and before preparing its inventory.
 	// Preserve the selected scene identity, including on partial recovery.
-	if w.bakalRewards != nil {
+	if w.nativeBakalRewards != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		saved, err := w.bakalRewards.Recover(ctx, role, time.Now())
+		saved, err := w.nativeBakalRewards.Recover(ctx, role, time.Now())
 		cancel()
 		saved.WireID = role.WireID
 		role = saved
@@ -373,7 +411,7 @@ func (w *worldSession) enter(role database.Character, spawn database.WorldPositi
 	// must pass the regular level gates.
 	odyssey := character.OdysseyMember(role)
 	worldType := w.worldStorageType()
-	saved, e := w.service.Enter(ctx, w.account, role.ID, state.Level, odyssey, spawn, worldType)
+	saved, e := w.loadWorldEntry(ctx, role.ID, state.Level, odyssey, spawn, worldType)
 	if e != nil {
 		return e
 	}
@@ -412,6 +450,9 @@ func (w *worldSession) enter(role database.Character, spawn database.WorldPositi
 		saved = boostSaved
 	}
 	w.role, w.level, w.state, w.odyssey = role, state.Level, saved, odyssey
+	if w.raidEntrance != nil && w.raidEntrance.Recruiting != nil {
+		w.raidWaiting = false
+	}
 	w.ispinsRepeatPending = false
 	w.blackPurgatory = blackPurgatoryState{}
 	if w.channelType == 73 {
@@ -465,16 +506,19 @@ func (w *worldSession) enter(role database.Character, spawn database.WorldPositi
 	}
 	w.lastFatigueDay = ""
 	w.adventureSnapshot = [32]byte{}
+	w.adventureIdentitySent = false
 	w.adventureEliteSnapshot = [32]byte{}
 	w.adventureElitePrepared = nil
 	w.adventureEliteEntryProbeUsed = false
 	w.adventureEliteEntrySerial = 0
+	w.boostTrainingAPCRequested = false
 	w.adventureReady = false
 	w.seasonLevelSnapshot = [32]byte{}
 	w.seasonOathSnapshot = [32]byte{}
 	w.activeDungeon = nil
 	w.pilotDeath = nil
 	w.soloPartyReady = false
+	w.ordinarySoloParty = nil
 	w.specialWarpPending = false
 	w.selectingDungeon = false
 	w.approvedDungeonGate = 0
@@ -494,6 +538,9 @@ func (w *worldSession) enter(role database.Character, spawn database.WorldPositi
 // same area never publishes other players. The flag comes from the imported
 // source map's own [is seria room warp] marker.
 func (w *worldSession) privateArea(pos database.WorldPosition) bool {
+	if w.raidWaiting {
+		return true
+	}
 	if w.service == nil || w.service.Catalog.Areas == nil {
 		return false
 	}
@@ -514,6 +561,9 @@ func (w *worldSession) enterArea() {
 	}
 	p := w.state.Position
 	w.joinedPeers = w.hub.publish(w.peer, w.peer.channel, p.Town, p.Area, p.X, p.Y, w.privateArea(p))
+	w.moveTownRobotParty()
+	w.ensureTownRobots()
+	w.joinedPeers = w.hub.shared(w.peer)
 	w.poseRefreshAfter = 1
 }
 
@@ -523,7 +573,15 @@ func (w *worldSession) leaveScene() {
 	if w.hub == nil || w.peer == nil {
 		return
 	}
+	// Unpublish the entering player first. Otherwise retiring its companions
+	// broadcasts N6 back to this still-visible owner and deletes the cached
+	// native actors and party seats required by the dungeon's reuse-room N29.
 	w.hub.retire(w.peer)
+	// Keep robot peers only when the admitted ordinary-entry plan preserved
+	// their native roster. Other scene loaders own their own roster.
+	if w.hub != nil && w.peer != nil && w.hub.townRobots != nil {
+		w.hub.townRobots.enterRobotDungeonOrRelease(w.peer)
+	}
 }
 
 // introducePeers introduces the players already standing in the scene to this
@@ -655,6 +713,10 @@ func (w *worldSession) refreshPeerPoses() int {
 }
 
 func (w *worldSession) departArea() {
+	// Account/channel departure releases all session-only robot peers.
+	if w.hub != nil && w.peer != nil && w.hub.townRobots != nil {
+		w.hub.townRobots.releaseTownParty(w.peer, true)
+	}
 	if w.hub == nil || w.peer == nil {
 		return
 	}
@@ -699,6 +761,12 @@ func previousVillageRequest(old database.WorldPosition, body []byte, inDungeon, 
 }
 
 func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byte) error, event func(map[string]any)) error {
+	return w.handleWithAreaTransition(id, p, send, event, w.areaTransition)
+}
+
+// A content-owned C36 warp reuses the ordinary persistence and scene sequence.
+// C1418 continues to use the normal previous-village authorization.
+func (w *worldSession) handleWithAreaTransition(id uint16, p []byte, send func(byte, uint16, []byte) error, event func(map[string]any), transition func(protocol.AreaChangeRequest) (database.WorldPosition, error)) error {
 	if w.role.ID == 0 {
 		return errors.New("world request before character selection")
 	}
@@ -728,7 +796,7 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 			e = w.validateBlackPurgatoryArea(r)
 		}
 		if e == nil {
-			next, e = w.areaTransition(r)
+			next, e = transition(r)
 		}
 		if e != nil {
 			event(map[string]any{"kind": "area_refused", "town": r.Town, "area": r.Area, "reason": e.Error()})
@@ -772,7 +840,12 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if w.channelType == 106 && next.Town == 218 {
+	if w.raidEntrance != nil && w.raidEntrance.Recruiting != nil {
+		// Raid room placement belongs to a connection-owned team. Persisting a
+		// waiting position would restore an orphan room on the next login.
+		w.state.Position = next
+		event(map[string]any{"kind": "raid_room_position_updated", "character_id": w.role.ID, "position": next, "request": id})
+	} else if w.channelType == 106 && next.Town == 218 {
 		// 矿区位置属于当前频道会话，不能覆盖普通频道的城镇落点。
 		w.state.Position = next
 		event(map[string]any{"kind": "赤红铁矿会话位置更新", "character_id": w.role.ID, "position": next, "request": id})

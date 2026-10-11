@@ -44,8 +44,8 @@ const (
 	AttendanceDailySlots = 28
 )
 
-// AttendanceDailyStatus115 是 NOTI1379 的**语义**输入。
-type AttendanceDailyStatus115 struct {
+// NativeAttendanceDailyStatus115 是 NOTI1379 的**语义**输入。
+type NativeAttendanceDailyStatus115 struct {
 	// Flag 是 p[0]。官服样本全 0；非 0 会把客户端的 +0x48 置 1
 	// （文档 §3.1：强制置红点并影响活动 332）。没有更多样本前一律发 0。
 	Flag byte
@@ -59,7 +59,7 @@ type AttendanceDailyStatus115 struct {
 // AttendanceDailyState115 编码 NOTI1379 的 33 字节载荷。
 //
 // 只在这里做形状校验（day_state 的取值域 0..2），不做业务判断：调用方决定"第几天可领"。
-func AttendanceDailyState115(st AttendanceDailyStatus115) ([]byte, error) {
+func AttendanceDailyState115(st NativeAttendanceDailyStatus115) ([]byte, error) {
 	for i, v := range st.DayState {
 		if v > 2 {
 			return nil, fmt.Errorf("attendance day state [%d]=%d out of range 0..2", i, v)
@@ -87,7 +87,7 @@ func AttendanceDailyState115(st AttendanceDailyStatus115) ([]byte, error) {
 //
 // `[allow accumulate attendance] 1`（漏签不清零）⇒ claimed 单调递增，"今天能不能领"
 // 由**换日**单独决定（客户端按 06:00 UTC 换日，见 cmd/wireprobe/attendance_flow.go）。
-func AttendanceDailyProgress115(claimed int, available bool) AttendanceDailyStatus115 {
+func AttendanceDailyProgress115(claimed int, available bool) NativeAttendanceDailyStatus115 {
 	if claimed < 0 {
 		claimed = 0
 	}
@@ -100,7 +100,7 @@ func AttendanceDailyProgress115(claimed int, available bool) AttendanceDailyStat
 	if claimed >= AttendanceDailyDays {
 		available = false
 	}
-	st := AttendanceDailyStatus115{}
+	st := NativeAttendanceDailyStatus115{}
 	for i := 0; i < AttendanceDailySlots; i++ {
 		switch {
 		case i < claimed:

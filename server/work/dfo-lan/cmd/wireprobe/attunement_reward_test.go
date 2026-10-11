@@ -267,9 +267,9 @@ func TestBorderRewardFrameFollowsTheFrozenGrade(t *testing.T) {
 		slot  uint32
 		none  bool
 	}{
-		{"传说", 43, 41, false},        // LegendaryDrop
-		{"史诗", 44, 42, false},        // EpicDrop
-		{"太初", 45, 43, false},        // PrimevalDrop
+		{"传说", 43, 41, false},          // LegendaryDrop
+		{"史诗", 44, 42, false},          // EpicDrop
+		{"太初", 45, 43, false},          // PrimevalDrop
 		{"独有（四格的最低那格）", 42, 40, false}, // UniqueDrop
 		{"普通（演出表没有这一格）", 40, 0, true},
 		{"稀有（演出表没有这一格）", 41, 0, true},

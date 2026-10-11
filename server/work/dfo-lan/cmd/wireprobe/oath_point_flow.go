@@ -9,7 +9,7 @@ import (
 
 // NOTI2634「每角色一对 Set Point / Oath Point」的组装与推送。
 //
-// 取证与结论（详见 docs/protocol/oath-set-points-20261004.md §7）：
+// 取证与结论（详见 docs/protocol/upstream/oath-set-points-20261004.md §7）：
 //   - 客户端**不自己算总分**：它把服务端推来的这一对值原样写进角色实体
 //     （handler `sub_1452C9840` → `sub_145F06760(实体)` → `sub_147435FF0(实体+128, A, B)`
 //     → `实体+1872 = A`、`实体+1876 = B`），誓约页签显示的就是这两个数；

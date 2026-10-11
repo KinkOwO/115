@@ -26,7 +26,15 @@ func dungeonRequest(id uint16) bool {
 // Implemented commands and explicitly observed features are decoded on every
 // request. Unknown commands retain the existing eight-body sampling limit.
 func observedGameRequest(id uint16) bool {
-	if id == 12 || id == 650 || id == 656 || id == 657 || id == 658 || id == 661 || id == 1353 || id == 2121 || id == 2070 || id == 2071 || id == 2072 || id == 2073 || id == 2074 || id == 2089 {
+	if id == 1430 || id == 1436 || id == 1726 {
+		return true
+	}
+	// Venus operation/phase exit remain unsupported; retain every verified
+	// request for its own protocol audit, including retries after the cap.
+	if id == legion.CmdVenusOperationSelect || id == legion.CmdVenusEndAtPhase4 {
+		return true
+	}
+	if id == 12 || id == 650 || id == 652 || id == 1902 || id == 656 || id == 657 || id == 658 || id == 661 || id == 1353 || id == 2121 || id == 2070 || id == 2071 || id == 2072 || id == 2073 || id == 2074 || id == 2089 {
 		return true
 	}
 	if mailboxRequest(id) || legion.BakalRequests(id) || id >= 2316 && id <= 2328 {
@@ -45,7 +53,7 @@ func observedGameRequest(id uint16) bool {
 	// 所以只登记取证、不伪造应答；拿到实机明文后再定格式。
 	case 173, 191, 201, 205, 206, 256, 260, 272, 295, 305, 306, 307, 308, 393, 430, 433, 449, 450, 451, 467:
 		return true
-	case 469, 483, 495, 500, 502, 507, 527, 623, 627, 637, 649, 681, 684, 777, 795, 806, 848:
+	case 404, 405, 560, 469, 483, 495, 500, 502, 507, 527, 623, 627, 637, 649, 681, 684, 777, 795, 806, 848:
 		return true
 	case 857, 1301, 1395, 1406, 1417, 1418, 1421, 1422, 1426, 1438, 1461, 1462, 1551, 1554, 1565, 1592, 1719:
 		return true
@@ -71,7 +79,7 @@ func observedGameRequest(id uint16) bool {
 		// 2288 = 秘宝精度提升（SOLE_EQUIPMENT_QUALITY）：已实现（见 cmd/wireprobe/sole_flow.go）。
 		// 必须登记：否则第 BodySampleLimit(8) 次之后 verified 不再被计算，请求永远进不了处理器。
 		return true
-	case 2264, 2265, 2276, 2277, 2278, 2284, 2329, 2331, 2333, 2346, 2377, 2381, 2405, 2419:
+	case 2264, 2265, 2276, 2277, 2278, 2284, 2329, 2331, 2333, 2346, 2377, 2381, 2405, 2419, 2420, 2421:
 		// 2381 = ENUM_CMDPACKET_PRIMER_TRANSFORM（装备库誓约/晶体变换）：已实现
 		// （cmd/wireprobe/primer_transform_flow.go）。必须登记，否则第 BodySampleLimit(8)
 		// 次之后 verified 不再被计算、请求永远进不了处理器（2258 的既有教训）。

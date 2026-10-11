@@ -36,7 +36,7 @@ func preparePVFAdventure(c *Catalogs, s *Source, selected map[string]bool, i Cat
 	}
 	c.AdventureRules = direct
 	s.ReleaseReadCaches()
-	log.Printf("PVF adventure prepared: levels=%d shops=%d items=%d; limits, prices, experience and reset rules retained", len(direct.Experience), len(direct.Shops), len(direct.Items))
+	log.Printf("PVF adventure prepared: levels=%d shops=%d items=%d symbols=%d elite_modes=%d; native elite dungeon bindings retained", len(direct.Experience), len(direct.Shops), len(direct.Items), len(direct.Symbols), len(direct.EliteContents))
 	return nil
 }
 
@@ -54,7 +54,24 @@ func auditAdventureRules(old, direct *adventure.Rules) error {
 		}
 		baseline.SourceChecksum = direct.SourceChecksum
 	}
-	return auditPVFCatalog(&baseline, direct)
+	// The legacy projection predates symbols. Compare its original scope only;
+	// the newly imported source map is independently validated by ImportRules.
+	comparison := *direct
+	if len(baseline.Symbols) == 0 {
+		comparison.Symbols = nil
+	}
+	if len(baseline.EliteContents) == 0 {
+		comparison.EliteContents = nil
+	}
+	comparison.Sources = make(map[string]string, len(direct.Sources))
+	for k, v := range direct.Sources {
+		if (k == "etc/airshipcustomobject.etc" && len(baseline.Symbols) == 0) ||
+			(k == adventure.EliteContentsPath && len(baseline.EliteContents) == 0) {
+			continue
+		}
+		comparison.Sources[k] = v
+	}
+	return auditPVFCatalog(&baseline, &comparison)
 }
 
 func (c *Catalogs) InstallAdventureRules() (func(), error) {
@@ -576,6 +593,10 @@ func preparePVFSpecial(c *Catalogs, s *Source, selected map[string]bool, inputs 
 			}
 		}
 		c.Apocalypse = direct
+		c.LegionContents, err = s.LegionContents()
+		if err != nil {
+			return err
+		}
 		log.Printf("PVF apocalypse prepared: records=%d operations=%d phases=%d duty records=%d; positional rewards and operation behavior retained", direct.RecordCount, len(direct.Operations), len(direct.PhaseClock), len(direct.Duties.Records))
 		s.ReleaseReadCaches()
 	}
@@ -586,7 +607,7 @@ func preparePVFSpecial(c *Catalogs, s *Source, selected map[string]bool, inputs 
 		if err != nil {
 			return err
 		}
-		c.Bakal = direct
+		c.NativeBakal = direct
 		log.Printf("PVF bakal raid prepared: dungeons=%d locations=%d bosses=%d anger window=%ds settlement=%ds; raid rules retained", len(direct.Dungeons), len(direct.Locations), len(direct.Bosses), direct.NormalPhase.AngerWindow.Secs, direct.NormalPhase.SettlementTimer.Secs)
 		s.ReleaseReadCaches()
 	}
@@ -646,12 +667,12 @@ func (c *Catalogs) LoadApocalypse(path string) (*catalog.ApocalypseCatalog, erro
 
 // LoadBakalRaid hands the prepared bakal rules to the wire layer; there is no
 // legacy JSON projection for this raid, so unselected profiles are refused.
-func (c *Catalogs) LoadBakalRaid() (*catalog.BakalRaidRules, error) {
-	if err := c.RequireSelected("bakal-raid", c.Bakal != nil); err != nil {
+func (c *Catalogs) LoadBakalRaid() (*catalog.NativeBakalRaidRules, error) {
+	if err := c.RequireSelected("bakal-raid", c.NativeBakal != nil); err != nil {
 		return nil, err
 	}
-	if c.Bakal != nil {
-		return c.Bakal, nil
+	if c.NativeBakal != nil {
+		return c.NativeBakal, nil
 	}
 	return nil, nativeContentRequired("bakal-raid")
 }

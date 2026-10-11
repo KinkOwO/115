@@ -1,0 +1,133 @@
+{
+  "client_script_sha256": "cbd86e6047dbe468cdfb96b3fe8ae1c46ab9fc12a62e64e71e9ad2a31fdf01c1",
+  "client_sk_sha256": "0dda9abb30be5e18397a16564bdf081563596d9478f22fa212942913610ff5f2",
+  "files": [
+    {
+      "path": "stackable/cash/character_slotkit.stk",
+      "kind": 1,
+      "tokens": [
+        [
+          3,
+          "[name]"
+        ],
+        [
+          8,
+          "<13::name_2660239>"
+        ],
+        [
+          3,
+          "[explain]"
+        ],
+        [
+          8,
+          "<13::explain_2660239>"
+        ],
+        [
+          3,
+          "[grade]"
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          3,
+          "[rarity]"
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          3,
+          "[usable job]"
+        ],
+        [
+          6,
+          "[all]"
+        ],
+        [
+          3,
+          "[/usable job]"
+        ],
+        [
+          3,
+          "[attach type]"
+        ],
+        [
+          6,
+          "[account]"
+        ],
+        [
+          3,
+          "[minimum level]"
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          3,
+          "[icon]"
+        ],
+        [
+          6,
+          "Item/stackable/cash.img"
+        ],
+        [
+          0,
+          420
+        ],
+        [
+          3,
+          "[stackable type]"
+        ],
+        [
+          6,
+          "[town and dungeon]"
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          3,
+          "[move wav]"
+        ],
+        [
+          6,
+          "SCRAP_TOUCH"
+        ],
+        [
+          3,
+          "[action usable server type]"
+        ],
+        [
+          6,
+          "[general server]"
+        ],
+        [
+          3,
+          "[/action usable server type]"
+        ],
+        [
+          3,
+          "[int data]"
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          100
+        ],
+        [
+          3,
+          "[/int data]"
+        ]
+      ]
+    }
+  ],
+  "localized": []
+}

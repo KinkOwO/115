@@ -11,6 +11,7 @@ import (
 )
 
 type Service struct {
+	Skip        *catalog.QuestSkip
 	Store       Store
 	Catalog     catalog.QuestCatalog
 	Professions catalog.Characters

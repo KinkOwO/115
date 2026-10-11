@@ -97,6 +97,54 @@ func questRewardCheck(ctx context.Context, s *database.TestFixture, reopened *da
 	if e != nil {
 		return e
 	}
+	// The upstream mainline workflow now tops up EXP for the source-defined
+	// successor. Keep checking the durable receipt instead of disabling that
+	// workflow to satisfy the older 1200 EXP / level-3 fixture expectation.
+	expectedExperience, e := character.GrowthQuestExperience(c, d, state.Level)
+	if e != nil {
+		return e
+	}
+	successor, e := q.Definition(4873)
+	if e != nil {
+		return e
+	}
+	linked := false
+	for _, prerequisite := range successor.Prerequisites {
+		linked = linked || prerequisite == d.ID
+	}
+	if !linked {
+		return fmt.Errorf("quest source successor changed")
+	}
+	if successor.MinimumLevel > uint32(state.Level) {
+		if successor.MinimumLevel < 2 || int(successor.MinimumLevel)-2 >= len(c.Thresholds) {
+			return fmt.Errorf("quest source successor threshold missing")
+		}
+		need := c.Thresholds[int(successor.MinimumLevel)-2]
+		if state.Level >= 2 {
+			if int(state.Level)-2 >= len(c.Thresholds) || need < c.Thresholds[int(state.Level)-2] {
+				return fmt.Errorf("quest source current threshold invalid")
+			}
+			need -= c.Thresholds[int(state.Level)-2]
+		}
+		if need > uint64(expectedExperience) {
+			if need > 1<<32-1 {
+				return fmt.Errorf("quest source successor EXP overflow")
+			}
+			expectedExperience = uint32(need)
+		}
+	}
+	expectedGrowth, e := character.AddGrowthExperience(c, rules, state.Level, state.Experience, uint64(expectedExperience))
+	if e != nil {
+		return e
+	}
+	expectedSkillPoints := state.SkillPoints
+	for i := range expectedSkillPoints {
+		next := uint32(expectedSkillPoints[i]) + expectedGrowth.SkillPointGain
+		if next > 65535 {
+			return fmt.Errorf("quest expected skill point overflow")
+		}
+		expectedSkillPoints[i] = uint16(next)
+	}
 	type result struct {
 		r quest.FinishResult
 		e error
@@ -121,8 +169,8 @@ func questRewardCheck(ctx context.Context, s *database.TestFixture, reopened *da
 		if res.r.Applied {
 			applied++
 		}
-		if res.r.Receipt.Experience != 1200 {
-			return fmt.Errorf("quest source experience mismatch")
+		if res.r.Receipt.Experience != expectedExperience {
+			return fmt.Errorf("quest source experience mismatch: got=%d want=%d", res.r.Receipt.Experience, expectedExperience)
 		}
 		bag, err := inventory.ReadBag(res.r.Role.State)
 		if err != nil || res.r.Receipt.Gold != expectedGold || uint64(bag.Gold) != uint64(beforeBag.Gold)+uint64(expectedGold) || len(res.r.Receipt.Items) != 0 {
@@ -131,7 +179,7 @@ func questRewardCheck(ctx context.Context, s *database.TestFixture, reopened *da
 		if e = json.Unmarshal(res.r.Role.State, &state); e != nil {
 			return e
 		}
-		if state.Experience != 2303 || state.Level != 3 || state.SkillPoints != [2]uint16{60, 60} {
+		if state.Experience != expectedGrowth.Experience || state.Level != expectedGrowth.Level || state.SkillPoints != expectedSkillPoints {
 			return fmt.Errorf("quest retry state mismatch exp=%d level=%d SP=%v", state.Experience, state.Level, state.SkillPoints)
 		}
 	}
@@ -151,7 +199,7 @@ func questRewardCheck(ctx context.Context, s *database.TestFixture, reopened *da
 	if e = json.Unmarshal(rows[0].State, &state); e != nil {
 		return e
 	}
-	if state.Experience != 2303 || state.Level != 3 {
+	if state.Experience != expectedGrowth.Experience || state.Level != expectedGrowth.Level || state.SkillPoints != expectedSkillPoints {
 		return fmt.Errorf("quest reward reopen failed")
 	}
 	active, e := service.Active(ctx, role)

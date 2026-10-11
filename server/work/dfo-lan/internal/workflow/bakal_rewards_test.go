@@ -26,18 +26,18 @@ func (bakalTestBoxes) Container(uint32) bool                   { return false }
 // one channel-slot expected item and the two monster-piece ranks) with one
 // substitution: the item templates use the stackable the configs can actually
 // grant, so the Claim path exercises the real awarder.
-func bakalTestRules() *catalog.BakalRaidRules {
-	return &catalog.BakalRaidRules{
+func bakalTestRules() *catalog.NativeBakalRaidRules {
+	return &catalog.NativeBakalRaidRules{
 		WeeklyClearLimit:         1,
 		WeeklyRewardLimit:        1,
 		MinimalDungeonClearCount: 3,
 		ChannelSlotRewardItems:   []uint32{10418036},
 		MonsterPieceRewards:      []uint32{0, 10418036, 1, 10418036},
-		Rewards:                  []catalog.BakalRewardEntry{{Category: "party_card", Template: 10418036, Amount: 1, Weight: 100}, {Category: "squad_item", Template: 10418036, Amount: 1, Weight: 100}},
+		Rewards:                  []catalog.NativeBakalRewardEntry{{Category: "party_card", Template: 10418036, Amount: 1, Weight: 100}, {Category: "squad_item", Template: 10418036, Amount: 1, Weight: 100}},
 	}
 }
 
-func bakalTestService(t *testing.T, role database.Character) (*BakalRewardService, *equipmentEventFake) {
+func bakalTestService(t *testing.T, role database.Character) (*NativeBakalRewardService, *equipmentEventFake) {
 	t.Helper()
 	c, err := catalog.LoadLoot("../../configs/loot.next25.json")
 	if err != nil {
@@ -57,7 +57,7 @@ func bakalTestService(t *testing.T, role database.Character) (*BakalRewardServic
 	store := &equipmentEventFake{role: role}
 	// The production wiring passes *database.Store; the unit tests exercise the
 	// same two event methods through the in-memory fake.
-	svc := &BakalRewardService{
+	svc := &NativeBakalRewardService{
 		Store:   store,
 		Loot:    &loot.Service{Catalog: c, BagRules: rules, Equipment: gear, RewardBoxes: bakalTestBoxes{}},
 		Rules:   bakalTestRules(),
@@ -69,15 +69,15 @@ func bakalTestService(t *testing.T, role database.Character) (*BakalRewardServic
 func TestBakalRaidAdmissionWeeklyGate(t *testing.T) {
 	now := time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC)
 	rules := bakalTestRules()
-	if err := BakalRaidAdmission(nil, database.Character{}, now); err == nil || err.Error() != "native raid rules missing" {
+	if err := NativeBakalRaidAdmission(nil, database.Character{}, now); err == nil || err.Error() != "native raid rules missing" {
 		t.Fatalf("nil rules: %v", err)
 	}
-	if err := BakalRaidAdmission(rules, database.Character{State: json.RawMessage(`{}`)}, now); err != nil {
+	if err := NativeBakalRaidAdmission(rules, database.Character{State: json.RawMessage(`{}`)}, now); err != nil {
 		t.Fatalf("fresh ledger must admit: %v", err)
 	}
 	sameWeek := json.RawMessage(`{"bakal_raid_rewards":{"week":"` + bakalWeekOf(now) + `","clears":1,"rewards":0,"plans":{}}}`)
-	err := BakalRaidAdmission(rules, database.Character{State: sameWeek}, now)
-	if !errors.Is(err, ErrBakalWeeklyClearLimit) {
+	err := NativeBakalRaidAdmission(rules, database.Character{State: sameWeek}, now)
+	if !errors.Is(err, ErrNativeBakalWeeklyClearLimit) {
 		t.Fatalf("exhausted week: %v", err)
 	}
 	if err.Error() != "普通巴卡尔本周通关次数已用完" {
@@ -86,11 +86,11 @@ func TestBakalRaidAdmissionWeeklyGate(t *testing.T) {
 	// 2026-10-05 is a Monday; the raid week (UTC-9, aligned Tuesday 09:00) of
 	// that moment started 2026-09-29. Anything older is a different week.
 	stale := json.RawMessage(`{"bakal_raid_rewards":{"week":"2026-09-22T09:00:00Z","clears":9,"rewards":9,"plans":{}}}`)
-	if err := BakalRaidAdmission(rules, database.Character{State: stale}, now); err != nil {
+	if err := NativeBakalRaidAdmission(rules, database.Character{State: stale}, now); err != nil {
 		t.Fatalf("stale week must admit: %v", err)
 	}
 	broken := json.RawMessage(`{"bakal_raid_rewards":[1]}`)
-	if err := BakalRaidAdmission(rules, database.Character{State: broken}, now); err == nil || err.Error() != "invalid character state for raid rewards" {
+	if err := NativeBakalRaidAdmission(rules, database.Character{State: broken}, now); err == nil || err.Error() != "invalid character state for raid rewards" {
 		t.Fatalf("broken ledger: %v", err)
 	}
 }
@@ -110,7 +110,7 @@ func TestBakalRewardFreezeClaimRecover(t *testing.T) {
 	if plan.Run != "run-short" || plan.Source != savecontract.Identity() || plan.Content != "contents/2022/bakalraid" || plan.Week != bakalWeekOf(now) {
 		t.Fatalf("plan identity: %+v", plan)
 	}
-	if err := BakalRaidAdmission(svc.Rules, saved, now); !errors.Is(err, ErrBakalWeeklyClearLimit) {
+	if err := NativeBakalRaidAdmission(svc.Rules, saved, now); !errors.Is(err, ErrNativeBakalWeeklyClearLimit) {
 		t.Fatalf("weekly clear limit must trip after the ineligible clear: %v", err)
 	}
 

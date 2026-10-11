@@ -200,6 +200,12 @@ func (client *gameConnection) ispinsPostSelection(roleID int64) {
 	if w == nil {
 		return
 	}
+	if client.output == nil {
+		if w.channelType == 81 {
+			w.pendingLegionEntryInfo = true
+		}
+		return
+	}
 	output := client.output
 	var done <-chan struct{}
 	if client.connection != nil {

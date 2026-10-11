@@ -28,11 +28,11 @@ import (
 // newBakalRewardService wires the raid ledger. A nil rules catalog (content
 // not shipped) disables the service: the raid channel then refuses creation
 // with the captured waiting-room refusal, exactly as B′ recorded.
-func newBakalRewardService(store *database.Store, lootService *loot.Service, rules *catalog.BakalRaidRules) *workflow.BakalRewardService {
+func newBakalRewardService(store *database.Store, lootService *loot.Service, rules *catalog.NativeBakalRaidRules) *workflow.NativeBakalRewardService {
 	if rules == nil || store == nil || lootService == nil {
 		return nil
 	}
-	return &workflow.BakalRewardService{
+	return &workflow.NativeBakalRewardService{
 		Store:   store,
 		Loot:    lootService,
 		Rules:   rules,
@@ -50,6 +50,11 @@ func (client *gameConnection) dispatchBakal(requestData *clientRequest) dispatch
 	w := client.worldState
 	if w.channelType != legion.BakalChannelType {
 		return dispatchNext
+	}
+	if w.nativeBakalRules == nil && client.gatewayRuntime != nil {
+		if _, prepared := client.raidEntrances[w.channelType]; prepared {
+			return dispatchNext
+		}
 	}
 	now := time.Now()
 	// C35 is the native post-scene readiness signal. Restore before the
@@ -76,10 +81,10 @@ func (client *gameConnection) dispatchBakal(requestData *clientRequest) dispatch
 			event["grid"], event["loaded"] = [2]byte{s.Room.X, s.Room.Y}, s.Loaded
 			event["living"] = s.LivingMonsters()
 		}
-		if w.bakalRules != nil && w.bakalRules.WaitingRoom != nil {
-			event["waiting_town"] = w.bakalRules.WaitingRoom.TownID
-			event["waiting_area"] = w.bakalRules.WaitingRoom.AreaID
-			event["waiting_map"] = w.bakalRules.WaitingRoom.MapPath
+		if w.nativeBakalRules != nil && w.nativeBakalRules.WaitingRoom != nil {
+			event["waiting_town"] = w.nativeBakalRules.WaitingRoom.TownID
+			event["waiting_area"] = w.nativeBakalRules.WaitingRoom.AreaID
+			event["waiting_map"] = w.nativeBakalRules.WaitingRoom.MapPath
 		}
 		client.event(event)
 		return dispatchHandled
@@ -104,17 +109,17 @@ func (client *gameConnection) handleBakalRequest(id uint16, p []byte, now time.T
 	case 1353:
 		return client.bakalOwnedInfo(p)
 	case 661:
-		actor, position, err := protocol.DecodeRaidAssignment(p)
+		actor, position, err := protocol.NativeDecodeRaidAssignment(p)
 		if err != nil {
 			return true, nil, err
 		}
-		if w.bakal == nil || w.bakalRecruitment == nil || w.bakalRules == nil || actor != w.role.WireID || actor != w.bakalRecruitment.Leader || position > uint32(w.bakalRules.RaidMemberMax) || position > 255 {
+		if w.bakal == nil || w.bakalRecruitment == nil || w.nativeBakalRules == nil || actor != w.role.WireID || actor != w.bakalRecruitment.Leader || position > uint32(w.nativeBakalRules.RaidMemberMax) || position > 255 {
 			return true, nil, fmt.Errorf("raid assignment outside owned source formation")
 		}
 		next := *w.bakalRecruitment
 		next.MemberPosition = byte(position)
 		next.MemberArea = uint16(w.state.Position.Area)
-		body, err := protocol.RaidAssignmentUpdate(next)
+		body, err := protocol.NativeRaidAssignmentUpdate(next)
 		if err != nil {
 			return true, nil, err
 		}
@@ -123,7 +128,7 @@ func (client *gameConnection) handleBakalRequest(id uint16, p []byte, now time.T
 	case 2121:
 		// Native control handshake; handover client_raid_entrance.go:178..185
 		// validates both control values and sends Kind1/CMD2121/{01}.
-		if _, err := protocol.DecodeRaidUpdateControl(p); err != nil {
+		if _, err := protocol.NativeDecodeRaidUpdateControl(p); err != nil {
 			return true, nil, err
 		}
 		return true, []outboundPacket{{"raid_update_control_ack", 1, 2121, []byte{1}}}, nil
@@ -153,7 +158,7 @@ func (client *gameConnection) handleBakalRequest(id uint16, p []byte, now time.T
 	case legion.CmdBakalCampReturn:
 		return client.bakalCampReturn(p, now)
 	case 2072:
-		if w.bakal == nil || w.bakalRecruitment == nil || w.activeDungeon == nil || !w.activeDungeon.Loaded || w.bakalRecruitment.MemberPosition < 1 || int(w.bakalRecruitment.MemberPosition) > w.bakalRules.RaidMemberMax {
+		if w.bakal == nil || w.bakalRecruitment == nil || w.activeDungeon == nil || !w.activeDungeon.Loaded || w.bakalRecruitment.MemberPosition < 1 || int(w.bakalRecruitment.MemberPosition) > w.nativeBakalRules.RaidMemberMax {
 			return true, nil, fmt.Errorf("commander use outside owned loaded raid party")
 		}
 		slot, err := protocol.DecodeBakalCommanderBuff(p)
@@ -217,37 +222,37 @@ func (client *gameConnection) handleBakalRequest(id uint16, p []byte, now time.T
 // 无 s2c 应答（拒绝除外）；raid id 由服务端铸造（真实派生不透明，见 next151 §6）。
 func (client *gameConnection) bakalCreateRaid(p []byte, now time.Time) (bool, []outboundPacket, error) {
 	w := client.worldState
-	request, err := protocol.DecodeRaidCreateRequest(p)
+	request, err := protocol.NativeDecodeRaidCreateRequest(p)
 	if err != nil {
 		return true, nil, err
 	}
-	if w.bakalRules == nil || w.bakalRewards == nil {
+	if w.nativeBakalRules == nil || w.nativeBakalRewards == nil {
 		// 拒绝文本与 B′ 实录逐字节一致（交接包 raid_entry_refused）。
 		return true, nil, legion.ErrBakalWaitingRoomNotBound
 	}
 	// 建团前先过周清门（A 层 main.bakalRaidAdmission）。
-	if w.role.ID == 0 || w.role.Name == "" || !w.bakalRules.OwnsWaitingRoom(w.state.Position.Town, w.state.Position.Area) {
+	if w.role.ID == 0 || w.role.Name == "" || !w.nativeBakalRules.OwnsWaitingRoom(w.state.Position.Town, w.state.Position.Area) {
 		return true, nil, legion.ErrBakalWaitingRoomNotBound
 	}
 	if w.bakal != nil && w.bakal.Stage() != legion.BakalOpeningEnded && w.bakal.Stage() != legion.BakalOpeningFailed {
 		return true, nil, fmt.Errorf("character already owns a raid")
 	}
-	if request.Kind != byte(w.bakalRules.RaidID) {
+	if request.Kind != byte(w.nativeBakalRules.RaidID) {
 		return true, nil, fmt.Errorf("Bakal create request does not match source raid kind")
 	}
-	if w.bakalRewards != nil {
-		if err := workflow.BakalRaidAdmission(w.bakalRules, w.role, now); err != nil {
+	if w.nativeBakalRewards != nil {
+		if err := workflow.NativeBakalRaidAdmission(w.nativeBakalRules, w.role, now); err != nil {
 			return true, nil, err
 		}
 	}
-	opening, err := legion.PrepareBakalOpening(w.bakalRules, false)
+	opening, err := legion.PrepareBakalOpening(w.nativeBakalRules, false)
 	if err != nil {
 		return true, nil, err
 	}
 	if client.gatewayRuntime == nil {
 		return true, nil, fmt.Errorf("Bakal team registry missing")
 	}
-	teamID, err := protocol.RaidTeamID(w.serverID, w.channelType, client.bakalTeamSequence.Add(1))
+	teamID, err := protocol.NativeRaidTeamID(w.serverID, w.channelType, client.bakalTeamSequence.Add(1))
 	if err != nil {
 		return true, nil, err
 	}
@@ -262,8 +267,8 @@ func (client *gameConnection) bakalCreateRaid(p []byte, now time.Time) (bool, []
 			return true, nil, err
 		}
 	}
-	recruitment := protocol.RaidRecruitment{ID: teamID, Create: request, Leader: w.role.WireID, LeaderName: w.role.Name, LeaderProfession: w.role.Profession, LeaderAdvancement: state.Advancement, LeaderLevel: w.level, MemberCount: 1, MemberPosition: 0, MemberArea: uint16(w.state.Position.Area), MemberMax: uint32(w.bakalRules.RaidMemberMax), LeaderFame: fame}
-	details, err := protocol.RaidOwnedDetails(recruitment)
+	recruitment := protocol.NativeRaidRecruitment{ID: teamID, Create: request, Leader: w.role.WireID, LeaderName: w.role.Name, LeaderProfession: w.role.Profession, LeaderAdvancement: state.Advancement, LeaderLevel: w.level, MemberCount: 1, MemberPosition: 0, MemberArea: uint16(w.state.Position.Area), MemberMax: uint32(w.nativeBakalRules.RaidMemberMax), LeaderFame: fame}
+	details, err := protocol.NativeRaidOwnedDetails(recruitment)
 	if err != nil {
 		return true, nil, err
 	}
@@ -279,7 +284,7 @@ func (client *gameConnection) bakalCreateRaid(p []byte, now time.Time) (bool, []
 
 func (client *gameConnection) bakalOwnedInfo(p []byte) (bool, []outboundPacket, error) {
 	w := client.worldState
-	mode, id, err := protocol.DecodeRaidInfoRequest(p)
+	mode, id, err := protocol.NativeDecodeRaidInfoRequest(p)
 	if err != nil {
 		return true, nil, err
 	}
@@ -289,9 +294,9 @@ func (client *gameConnection) bakalOwnedInfo(p []byte) (bool, []outboundPacket, 
 	var body []byte
 	w.bakalRecruitment.MemberArea = uint16(w.state.Position.Area)
 	if mode == 1 {
-		body, err = protocol.RaidMemberInfoSuccess(*w.bakalRecruitment)
+		body, err = protocol.NativeRaidMemberInfoSuccess(*w.bakalRecruitment)
 	} else {
-		body, err = protocol.RaidFullInfoSuccess(*w.bakalRecruitment)
+		body, err = protocol.NativeRaidFullInfoSuccess(*w.bakalRecruitment)
 	}
 	if err != nil {
 		return true, nil, err
@@ -314,7 +319,7 @@ func (w *worldSession) syncBakalMemberArea(send func(byte, uint16, []byte) error
 	}
 	next := *w.bakalRecruitment
 	next.MemberArea = uint16(area)
-	body, err := protocol.RaidAssignmentUpdate(next)
+	body, err := protocol.NativeRaidAssignmentUpdate(next)
 	if err != nil {
 		return err
 	}
@@ -344,7 +349,7 @@ func (client *gameConnection) bakalStartRaid(p []byte, now time.Time) (bool, []o
 	// Failure ends the run, not membership. Retrying resets source state
 	// and ledger identity while retaining the native leader and formation.
 	if w.bakal.Stage() == legion.BakalOpeningFailed {
-		opening, err := legion.PrepareBakalOpening(w.bakalRules, false)
+		opening, err := legion.PrepareBakalOpening(w.nativeBakalRules, false)
 		if err != nil {
 			return true, nil, err
 		}
@@ -356,7 +361,7 @@ func (client *gameConnection) bakalStartRaid(p []byte, now time.Time) (bool, []o
 		w.bakalDeathReturnAt = time.Time{}
 	}
 	w.bakalRecruitment.MemberArea = uint16(w.state.Position.Area)
-	member, err := protocol.RaidAssignmentUpdate(*w.bakalRecruitment)
+	member, err := protocol.NativeRaidAssignmentUpdate(*w.bakalRecruitment)
 	if err != nil {
 		return true, nil, err
 	}
@@ -420,7 +425,7 @@ func (client *gameConnection) bakalStandbyPartyCreate(p []byte) (bool, []outboun
 // its later six CMD13 samples were unimplemented, not reward confirmations.
 func (client *gameConnection) bakalRewardClaimOrLeave(p []byte, now time.Time) (bool, []outboundPacket, error) {
 	w := client.worldState
-	if w.bakal == nil || w.bakalRewards == nil {
+	if w.bakal == nil || w.nativeBakalRewards == nil {
 		return false, nil, nil
 	}
 	switch w.bakal.Stage() {
@@ -457,7 +462,7 @@ func (client *gameConnection) bakalBattleReport(p []byte, now time.Time) (bool, 
 		return true, nil, fmt.Errorf("Bakal battle report outside owned map")
 	}
 	// Damage reports do not establish a death. CMD39 confirms native entities.
-	plan, err := w.bakalConfirmDefeats(now)
+	plan, err := w.nativeBakalConfirmDefeats(now)
 	return true, plan, err
 }
 
@@ -474,24 +479,24 @@ func (client *gameConnection) bakalScriptWarp(p []byte) (bool, []outboundPacket,
 	if err != nil {
 		return true, nil, err
 	}
-	if w.activeDungeon == nil || w.bakalRules.DungeonCatalog == nil {
+	if w.activeDungeon == nil || w.nativeBakalRules.DungeonCatalog == nil {
 		return true, nil, legion.ErrBakalWarpOutsideCombat
 	}
 	ack := outboundPacket{"bakal_script_warp_ack", 1, legion.CmdBakalScriptWarp, legion.BakalAck()}
-	m := w.bakalRules.Monsters["bakal"]
-	if w.bakalCurrent == uint32(w.bakalRules.NormalPhase.EnterBakalDungeon) && w.bakal.SecondPhase() && r.Grid == m.SecondGrid && [2]byte{w.activeDungeon.Room.X, w.activeDungeon.Room.Y} == m.SecondGrid {
+	m := w.nativeBakalRules.Monsters["bakal"]
+	if w.bakalCurrent == uint32(w.nativeBakalRules.NormalPhase.EnterBakalDungeon) && w.bakal.SecondPhase() && r.Grid == m.SecondGrid && [2]byte{w.activeDungeon.Room.X, w.activeDungeon.Room.Y} == m.SecondGrid {
 		return true, []outboundPacket{ack}, nil
 	}
 	if !w.activeDungeon.Loaded {
 		return true, nil, legion.ErrBakalWarpOutsideCombat
 	}
-	if w.bakalCurrent == uint32(w.bakalRules.NormalPhase.EnterBakalDungeon) && m.SecondTemplate != 0 && r.Grid == m.SecondGrid {
+	if w.bakalCurrent == uint32(w.nativeBakalRules.NormalPhase.EnterBakalDungeon) && m.SecondTemplate != 0 && r.Grid == m.SecondGrid {
 		owned := false
 		for _, actor := range w.activeDungeon.Monsters {
 			owned = owned || actor.Template == m.Template && actor.Rank == 3
 		}
 		arena := false
-		for _, loc := range w.bakalRules.Locations {
+		for _, loc := range w.nativeBakalRules.Locations {
 			if loc.Dungeon == w.bakalCurrent && loc.SpecificX != nil && loc.SpecificY != nil && [2]byte{w.activeDungeon.Room.X, w.activeDungeon.Room.Y} == [2]byte{byte(*loc.SpecificX), byte(*loc.SpecificY)} {
 				arena = true
 			}
@@ -595,7 +600,7 @@ func (client *gameConnection) bakalFinishLoading(p []byte, native bool) (bool, [
 	if err := w.bakal.LoadingDone(w.bakalCurrent); err != nil {
 		return true, nil, err
 	}
-	boss, err := w.bakalLoadedBoss()
+	boss, err := w.nativeBakalLoadedBoss()
 	if err != nil {
 		return true, nil, err
 	}
@@ -603,12 +608,12 @@ func (client *gameConnection) bakalFinishLoading(p []byte, native bool) (bool, [
 	// N27/N28 start a new client scene. Restore the current source-owned
 	// inventory after the first load handshake, never on the duplicate37/2073.
 	packets = append(packets, bakalOutgoing([]legion.BakalFrame{w.bakal.BuffInventorySnapshot()})...)
-	if w.bakalCurrent == uint32(w.bakalRules.NormalPhase.FinalClearDungeon) {
+	if w.bakalCurrent == uint32(w.nativeBakalRules.NormalPhase.FinalClearDungeon) {
 		client.event(map[string]any{"kind": "bakal_final_scene_started", "raid": w.bakalRun,
 			"dungeon": w.bakalCurrent, "map": w.activeDungeon.Room.Map,
 			"settlement_deadline":    w.bakal.FinalDeadline().Unix(),
-			"source_timeout_seconds": w.bakalRules.NormalPhase.SettlementTimer.Secs,
-			"source_movie_times":     w.bakalRules.MovieEndTimes})
+			"source_timeout_seconds": w.nativeBakalRules.NormalPhase.SettlementTimer.Secs,
+			"source_movie_times":     w.nativeBakalRules.MovieEndTimes})
 	}
 	client.event(map[string]any{"kind": "bakal_loaded", "raid": w.bakalRun, "dungeon": w.bakalCurrent, "location": w.bakalLocation, "map": w.activeDungeon.Room.Map, "grid": [2]byte{w.activeDungeon.Room.X, w.activeDungeon.Room.Y}, "placements": w.bakal.MonsterPlacements(), "living": w.activeDungeon.LivingMonsters(), "location_defeated": w.bakal.IsLocationDefeated(w.bakalLocation)})
 	return true, packets, nil
@@ -665,7 +670,7 @@ func (w *worldSession) bakalRetreatPlanAt(now time.Time, cause legion.BakalRetur
 		if !until.IsZero() {
 			next.MemberRecoveryUntil = uint32(until.Unix())
 		}
-		body, err := protocol.RaidAssignmentUpdate(next)
+		body, err := protocol.NativeRaidAssignmentUpdate(next)
 		if err != nil {
 			return nil, err
 		}
@@ -697,7 +702,7 @@ func (client *gameConnection) bakalFinalConfirm(p []byte) (bool, []outboundPacke
 // the source catalog; it never substitutes a different uncleared boss.
 func (client *gameConnection) enterBakalPortal(id uint16, p []byte, now time.Time) (bool, []outboundPacket, error) {
 	w := client.worldState
-	if w.bakal == nil || w.bakalRules == nil {
+	if w.bakal == nil || w.nativeBakalRules == nil {
 		return false, nil, nil
 	}
 	switch w.bakal.Stage() {
@@ -723,11 +728,11 @@ func (client *gameConnection) enterBakalPortal(id uint16, p []byte, now time.Tim
 	// Restore the matching half of raid_bakal_portal.go's source binding;
 	// the boss spawn gate alone leaves dragons in an empty service room.
 	resolved := false
-	for _, loc := range w.bakalRules.Locations {
+	for _, loc := range w.nativeBakalRules.Locations {
 		// A cleared arena's exit is a death ACT, not a fresh-room fixture.
 		// Native UI can keep targeting that arena after its actor is gone;
 		// land on the source normal route until an explicit CREATE revives it.
-		if loc.Dungeon == r.Dungeon && loc.SpecificX != nil && loc.SpecificY != nil && requested == [2]byte{byte(*loc.SpecificX), byte(*loc.SpecificY)} && w.bakal.IsLocationDefeated(uint32(loc.Index)) && loc.Dungeon != uint32(w.bakalRules.NormalPhase.EnterBakalDungeon) {
+		if loc.Dungeon == r.Dungeon && loc.SpecificX != nil && loc.SpecificY != nil && requested == [2]byte{byte(*loc.SpecificX), byte(*loc.SpecificY)} && w.bakal.IsLocationDefeated(uint32(loc.Index)) && loc.Dungeon != uint32(w.nativeBakalRules.NormalPhase.EnterBakalDungeon) {
 			grid = [2]byte{byte(loc.X), byte(loc.Y)}
 			continue
 		}
@@ -742,7 +747,7 @@ func (client *gameConnection) enterBakalPortal(id uint16, p []byte, now time.Tim
 				return true, nil, fmt.Errorf("ambiguous occupied source Bakal portal")
 			}
 			grid = [2]byte{byte(*loc.SpecificX), byte(*loc.SpecificY)}
-			monster := w.bakalRules.Monsters[placement.Name]
+			monster := w.nativeBakalRules.Monsters[placement.Name]
 			if w.bakal.SecondPhase() && monster.SecondTemplate != 0 {
 				grid = monster.SecondGrid
 			}
@@ -758,10 +763,10 @@ func (client *gameConnection) enterBakalPortal(id uint16, p []byte, now time.Tim
 	return true, packets, nil
 }
 
-// tickBakalOpening drives the raid clock from the connection's one-second
+// tickNativeBakalOpening drives the raid clock from the connection's one-second
 // mine ticker: the freeze and the full-bag splice land in the same tick the
 // settlement burst goes out (timeline 237→240), then the burst is delivered.
-func (client *gameConnection) tickBakalOpening(now time.Time) error {
+func (client *gameConnection) tickNativeBakalOpening(now time.Time) error {
 	w := client.worldState
 	if w == nil || w.bakal == nil {
 		return nil
@@ -795,7 +800,7 @@ func (client *gameConnection) tickBakalOpening(now time.Time) error {
 	if w.bakalRecruitment != nil && w.bakalRecruitment.MemberRecoveryUntil != 0 && (w.bakal.Stage() != legion.BakalOpeningActive || !w.bakal.Recovering(now)) {
 		next := *w.bakalRecruitment
 		next.MemberRecoveryUntil = 0
-		body, err := protocol.RaidAssignmentUpdate(next)
+		body, err := protocol.NativeRaidAssignmentUpdate(next)
 		if err != nil {
 			return err
 		}
@@ -804,7 +809,7 @@ func (client *gameConnection) tickBakalOpening(now time.Time) error {
 		client.event(map[string]any{"kind": "bakal_recovery_finished", "raid": w.bakalRun})
 	}
 	if w.bakal.Stage() == legion.BakalOpeningActive && w.activeDungeon != nil && w.activeDungeon.Loaded {
-		boss, err := w.bakalLoadedBoss()
+		boss, err := w.nativeBakalLoadedBoss()
 		if err != nil {
 			return err
 		}
@@ -879,13 +884,13 @@ func (w *worldSession) bakalSettleSplice(now time.Time) error {
 	if !ok {
 		return fmt.Errorf("Bakal settlement identity unavailable")
 	}
-	if w.bakalRewards == nil || w.loot == nil {
+	if w.nativeBakalRewards == nil || w.loot == nil {
 		return fmt.Errorf("Bakal clear requires durable source rewards")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	wireID := w.role.WireID
-	plan, saved, err := w.bakalRewards.Freeze(ctx, w.role, w.bakalRun, id.ClearedCount, now)
+	plan, saved, err := w.nativeBakalRewards.Freeze(ctx, w.role, w.bakalRun, id.ClearedCount, now)
 	if err != nil {
 		return err
 	}
@@ -893,7 +898,7 @@ func (w *worldSession) bakalSettleSplice(now time.Time) error {
 	w.role = saved
 	// Handover raid_bakal_rewards.go:31/39/47: Freeze -> Claim -> Bootstrap.
 	if plan.Eligible {
-		_, saved, err = w.bakalRewards.Claim(ctx, w.role, w.bakalRun, now)
+		_, saved, err = w.nativeBakalRewards.Claim(ctx, w.role, w.bakalRun, now)
 		if err != nil {
 			return err
 		}

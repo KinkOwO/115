@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][ValidateSet('unlimited','weekly')][string]$Mode)
+﻿param([Parameter(Mandatory=$true)][ValidateSet('unlimited','weekly')][string]$Mode)
 $ErrorActionPreference = 'Stop'
 $next79ModuleRoot = Split-Path -Parent $PSScriptRoot
 $next79Profile = Join-Path $next79ModuleRoot 'configs/pvf-default.json'

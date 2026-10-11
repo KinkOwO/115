@@ -185,7 +185,7 @@ func DecodeDimCloisterStageConfirm(p []byte) (party byte, stage uint32, err erro
 //
 // 对照：末世录 = cmd2354 / noti2895,2896；维纳斯 = cmd2290 / noti2655,2656。
 // 三者布局同族，所以次元回廊的应答**照同族布局构造**，不要照官服抓包字节回放
-//（官服那份是新版布局，本机 2.38.2 读不了 —— 实测点开 UI 必 0xC0000005 闪退）。
+// （官服那份是新版布局，本机 2.38.2 读不了 —— 实测点开 UI 必 0xC0000005 闪退）。
 const (
 	// CmdDimCloisterOperationSelect 是难度/关卡选择请求（客户端点右上角 UI）。
 	CmdDimCloisterOperationSelect uint16 = 2080
@@ -289,6 +289,7 @@ func DecodeDimCloisterOperation(p []byte) (DimCloisterOperationRequest, error) {
 	}
 	return req, nil
 }
+
 // N28 的副本号换成该关的目标号。
 //
 // 抓包三关的进图帧列**除 N28 首 4 字节外逐字节相同**，所以保留官服原文、只改

@@ -24,7 +24,7 @@ func (w *worldSession) bakalLifecyclePlan() ([]outboundPacket, error) {
 	if next.State == w.bakalRecruitment.State && next.ActiveStartedAt == w.bakalRecruitment.ActiveStartedAt {
 		return nil, nil
 	}
-	body, e := protocol.RaidOwnedDetails(next)
+	body, e := protocol.NativeRaidOwnedDetails(next)
 	if e != nil {
 		return nil, e
 	}

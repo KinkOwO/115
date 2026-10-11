@@ -14,9 +14,9 @@ import (
 // operator's tuning values.
 const BakalRaidSource = "contents/2022/bakalraid/etc/bakal.etc"
 
-// BakalRaidRules is the server-facing projection of bakal.etc. All field values
+// NativeBakalRaidRules is the server-facing projection of bakal.etc. All field values
 // are copied verbatim from the script; nothing here is a server-side decision.
-type BakalRaidRules struct {
+type NativeBakalRaidRules struct {
 	Source string `json:"source"`
 	SHA256 string `json:"sha256"`
 
@@ -45,21 +45,21 @@ type BakalRaidRules struct {
 	RankDeadCounts           []BakalRankDeadCount `json:"rank_dead_counts"`
 	MinimalDungeonClearCount int                  `json:"minimal_dungeon_clear_count"`
 
-	Bidding     BakalBiddingRules `json:"bidding"`
-	Bosses      []BakalBossReport `json:"bosses"`
-	RewardRoles []string          `json:"reward_roles"`
+	Bidding     NativeBakalBiddingRules `json:"bidding"`
+	Bosses      []BakalBossReport       `json:"bosses"`
+	RewardRoles []string                `json:"reward_roles"`
 
-	Dungeons               []BakalDungeonInfo             `json:"dungeons"`
-	Locations              []BakalLocationInfo            `json:"locations"`
-	Slots                  map[uint32]BakalRaidSlot       `json:"slots"`
-	Monsters               map[string]BakalRaidMonster    `json:"monsters"`
-	BuffDefinitions        map[string]BakalBuffDefinition `json:"buff_definitions"`
-	RaidBuffCooldownMillis int                            `json:"raid_buff_cooldown_millis"`
-	Stage                  BakalStageRule
-	Symbols                map[string]uint32  `json:"symbols"`
-	DungeonCatalog         *DungeonCatalog    `json:"-"`
-	Rewards                []BakalRewardEntry `json:"rewards"`
-	RaidID                 int                `json:"raid_id"`
+	Dungeons               []BakalDungeonInfo                   `json:"dungeons"`
+	Locations              []BakalLocationInfo                  `json:"locations"`
+	Slots                  map[uint32]NativeBakalRaidSlot       `json:"slots"`
+	Monsters               map[string]NativeBakalRaidMonster    `json:"monsters"`
+	BuffDefinitions        map[string]NativeBakalBuffDefinition `json:"buff_definitions"`
+	RaidBuffCooldownMillis int                                  `json:"raid_buff_cooldown_millis"`
+	Stage                  NativeBakalStageRule
+	Symbols                map[string]uint32        `json:"symbols"`
+	DungeonCatalog         *DungeonCatalog          `json:"-"`
+	Rewards                []NativeBakalRewardEntry `json:"rewards"`
+	RaidID                 int                      `json:"raid_id"`
 
 	NormalPhase *BakalPhaseRules `json:"normal_phase"`
 	HardPhase   *BakalPhaseRules `json:"hard_phase"`
@@ -71,13 +71,13 @@ type BakalRaidRules struct {
 	MonsterPieceRewards    []uint32 `json:"monster_piece_rewards"`
 }
 
-// BakalRewardEntry is one row of a frozen reward plan. The handover binary
+// NativeBakalRewardEntry is one row of a frozen reward plan. The handover binary
 // keeps this type in catalog (40 bytes, template at offset 0x18 — the claim
 // fallback converts each row into one unit of the template) next to the
 // per-category weighted reward projection (catalog/bakal_rewards.go, source
 // lost, see next151 §6). Category survives here as the reconstruction's audit
 // tag recording which bakal.etc row the entry was fed from.
-type BakalRewardEntry struct {
+type NativeBakalRewardEntry struct {
 	Category   string `json:"category"`
 	Template   uint32 `json:"template"`
 	Amount     uint32 `json:"amount"`
@@ -92,27 +92,27 @@ type BakalRankDeadCount struct {
 	Rank    int `json:"rank"`
 }
 
-// BakalBiddingRules collects the auction tuning declared by bakal.etc.
-type BakalBiddingRules struct {
-	StartDelaySecs   int                        `json:"start_delay_secs"`
-	BreakSecs        int                        `json:"break_secs"`
-	TimeSecs         int                        `json:"time_secs"`
-	MailPrevDay      int                        `json:"mail_prev_day"`
-	WaitSecs         int                        `json:"wait_secs"`
-	WarningSecs      int                        `json:"warning_secs"`
-	DecreaseBidCount int                        `json:"decrease_bid_count"`
-	DecreasePerBid   float64                    `json:"decrease_per_bid"`
-	LowestTimeSecs   int                        `json:"lowest_time_secs"`
-	Hards            []BakalBiddingHard         `json:"hards"`
-	Items            []BakalRewardEntry         `json:"items,omitempty"`
-	WeeklyCounts     []BakalBiddingHard         `json:"weekly_counts,omitempty"`
-	WeeklyRates      []BakalBiddingRate         `json:"weekly_rates,omitempty"`
-	WeeklyGroups     map[int][]BakalBiddingItem `json:"weekly_groups,omitempty"`
+// NativeBakalBiddingRules collects the auction tuning declared by bakal.etc.
+type NativeBakalBiddingRules struct {
+	StartDelaySecs   int                              `json:"start_delay_secs"`
+	BreakSecs        int                              `json:"break_secs"`
+	TimeSecs         int                              `json:"time_secs"`
+	MailPrevDay      int                              `json:"mail_prev_day"`
+	WaitSecs         int                              `json:"wait_secs"`
+	WarningSecs      int                              `json:"warning_secs"`
+	DecreaseBidCount int                              `json:"decrease_bid_count"`
+	DecreasePerBid   float64                          `json:"decrease_per_bid"`
+	LowestTimeSecs   int                              `json:"lowest_time_secs"`
+	Hards            []BakalBiddingHard               `json:"hards"`
+	Items            []NativeBakalRewardEntry         `json:"items,omitempty"`
+	WeeklyCounts     []BakalBiddingHard               `json:"weekly_counts,omitempty"`
+	WeeklyRates      []BakalBiddingRate               `json:"weekly_rates,omitempty"`
+	WeeklyGroups     map[int][]NativeBakalBiddingItem `json:"weekly_groups,omitempty"`
 }
 
 // The five trailing source values stay explicit; they are not silently
 // interpreted as equipment options without the native auction item contract.
-type BakalBiddingItem struct {
+type NativeBakalBiddingItem struct {
 	Template uint32
 	Weight   int
 	Values   [5]int
@@ -206,12 +206,12 @@ type BakalTriggerRecord struct {
 // BakalPhaseRules is the typed view of one raid phase script: [PHASE] holds the
 // normal rules and [RAID PHASE OF HARDMODE] the hard-mode variant.
 type BakalPhaseRules struct {
-	Events          []BakalScriptEvent    `json:"events"`
-	EnterAwakenings []BakalEnterAwakening `json:"enter_awakenings"`
-	MonsterMaxHP    int                   `json:"monster_max_hp"`
-	BossHP          map[string]int        `json:"boss_hp"`
-	HPUnlockGrade   int                   `json:"hp_unlock_grade"`
-	HPFloors        []BakalHPFloor        `json:"hp_floors"`
+	Events          []NativeBakalScriptEvent `json:"events"`
+	EnterAwakenings []BakalEnterAwakening    `json:"enter_awakenings"`
+	MonsterMaxHP    int                      `json:"monster_max_hp"`
+	BossHP          map[string]int           `json:"boss_hp"`
+	HPUnlockGrade   int                      `json:"hp_unlock_grade"`
+	HPFloors        []BakalHPFloor           `json:"hp_floors"`
 
 	InitMonsters    []BakalMonsterSpawn `json:"init_monsters"`
 	ReserveMonsters []BakalMonsterSpawn `json:"reserve_monsters"` // legacy Location field is the reserve delay in seconds
@@ -250,7 +250,7 @@ type BakalEnterAwakening struct {
 	From, To              int32
 }
 
-func ImportBakalRaid(a *pvf.Archive) (*BakalRaidRules, error) {
+func ImportBakalRaid(a *pvf.Archive) (*NativeBakalRaidRules, error) {
 	if a == nil {
 		return nil, fmt.Errorf("bakal raid import requires a PVF archive")
 	}
@@ -259,7 +259,7 @@ func ImportBakalRaid(a *pvf.Archive) (*BakalRaidRules, error) {
 		return nil, err
 	}
 	cells := script.Cells
-	r := &BakalRaidRules{Source: script.Path, SHA256: script.SHA256}
+	r := &NativeBakalRaidRules{Source: script.Path, SHA256: script.SHA256}
 	var waiting, npcs, movies, revival []int
 	if r.PhaseMax, err = bakalRowInt(cells, "[phase max]"); err != nil {
 		return nil, err
@@ -424,7 +424,7 @@ func ImportBakalRaid(a *pvf.Archive) (*BakalRaidRules, error) {
 	if err := verifyBakalRaidShape(r); err != nil {
 		return nil, err
 	}
-	if err := loadBakalRaidTables(a, r); err != nil {
+	if err := nativeLoadBakalRaidTables(a, r); err != nil {
 		return nil, err
 	}
 	if err := bindBakalWaitingRoom(a, r); err != nil {
@@ -465,8 +465,8 @@ func parseBakalCombatReport(block []pvf.Token) ([]BakalBossReport, []string, err
 // parseBakalBidding reads the auction scalars plus the per-hard [RATE LIST]
 // weighted grades. The source keeps a historical double-i typo in
 // [BIDDIING MAIL PREV DAY]; the label is preserved verbatim.
-func parseBakalBidding(cells, block []pvf.Token) (BakalBiddingRules, error) {
-	b := BakalBiddingRules{}
+func parseBakalBidding(cells, block []pvf.Token) (NativeBakalBiddingRules, error) {
+	b := NativeBakalBiddingRules{}
 	var err error
 	if b.StartDelaySecs, err = bakalRowInt(cells, "[bidding start delay time]"); err != nil {
 		return b, err
@@ -631,15 +631,15 @@ func parseBakalPhaseRules(cells []pvf.Token) (*BakalPhaseRules, error) {
 	var timerKicks []bakalTimerKick
 	for i := range triggers {
 		p.Triggers = append(p.Triggers, BakalTriggerRecord{Trigger: triggers[i], Behavior: behaviors[i]})
-		trigger, err := bakalInstructions(triggers[i])
+		trigger, err := nativeBakalInstructions(triggers[i])
 		if err != nil {
 			return nil, err
 		}
-		behavior, err := bakalInstructions(behaviors[i])
+		behavior, err := nativeBakalInstructions(behaviors[i])
 		if err != nil {
 			return nil, err
 		}
-		p.Events = append(p.Events, BakalScriptEvent{Trigger: trigger, Behavior: behavior})
+		p.Events = append(p.Events, NativeBakalScriptEvent{Trigger: trigger, Behavior: behavior})
 		if err := classifyBakalPair(p, triggers[i], behaviors[i], &timerKicks); err != nil {
 			return nil, err
 		}
@@ -918,7 +918,7 @@ func bakalSetTimers(cells []pvf.Token) []BakalTimerRule {
 	return timers
 }
 
-func verifyBakalRaidShape(r *BakalRaidRules) error {
+func verifyBakalRaidShape(r *NativeBakalRaidRules) error {
 	if len(r.SHA256) != 64 {
 		return fmt.Errorf("bakal raid rules have no source checksum")
 	}

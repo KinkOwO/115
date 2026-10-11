@@ -223,7 +223,7 @@ func TestBoostJournalCapturedConfirmRoutesToTransform(t *testing.T) {
 	r, e := protocol.DecodeEquipmentCraftRequest(p)
 	must115(t, e)
 	slots, templates := r.Wanted()
-	if r.Panel != 46 || r.Action != 0 || len(slots) != 1 || slots[0] != 14 || templates[0] != 100051289 {
+	if r.Panel != 46 || r.Action != 1 || len(slots) != 1 || slots[0] != 14 || templates[0] != 100051289 {
 		t.Fatal("实机向量解析不符", r, slots, templates)
 	}
 	raw, e := boostup.WriteState(json.RawMessage(`{"level":115}`), boostup.State{Version: 1, Activated: true,

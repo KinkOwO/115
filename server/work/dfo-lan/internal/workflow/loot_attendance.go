@@ -8,11 +8,11 @@ import (
 	"fmt"
 )
 
-// AttendanceService 是活动 331（每日签到）的领取服务。
+// NativeAttendanceService 是活动 331（每日签到）的领取服务。
 //
 // 与 `LootService` 分开：领取只依赖「角色存档 + 系统邮件」，不需要掉落/物品目录，
 // 硬凑进 LootService 会让签到无谓地依赖 loot 目录的存在。
-type AttendanceService struct {
+type NativeAttendanceService struct {
 	Store   *database.Store
 	Catalog *attendance.Catalog
 }
@@ -38,7 +38,7 @@ type AttendanceReceipt struct {
 //
 // 校验都在**事务内、角色行加锁之后**做（sendSystemMailWithCharacterUpdate 的 mutate
 // 里），否则两个并发连接可以各自通过校验、各领一次同一天的奖励。
-func (s *AttendanceService) Claim(ctx context.Context, role database.Character, day int, today int64,
+func (s *NativeAttendanceService) Claim(ctx context.Context, role database.Character, day int, today int64,
 	cycleStart int64, sender, text string) (database.Character, AttendanceReceipt, bool, error) {
 	var receipt AttendanceReceipt
 	if s == nil || s.Store == nil || s.Catalog == nil {

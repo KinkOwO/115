@@ -84,7 +84,7 @@ func (q *Queries) NormalizeCharacterIdentity(ctx context.Context, identity strin
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -100,7 +100,7 @@ func (q *Queries) NormalizeEventIdentity(ctx context.Context, identity string) (
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -116,7 +116,7 @@ func (q *Queries) NormalizeMapClearIdentity(ctx context.Context, identity string
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -132,7 +132,7 @@ func (q *Queries) NormalizeQuestIdentity(ctx context.Context, identity string) (
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -148,7 +148,7 @@ func (q *Queries) NormalizeQuestRewardIdentity(ctx context.Context, identity str
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}
@@ -164,7 +164,7 @@ func (q *Queries) NormalizeWorldIdentity(ctx context.Context, identity string) (
 	if err != nil {
 		return 0, err
 	}
-affected, affectedErr := result.RowsAffected()
+	affected, affectedErr := result.RowsAffected()
 	if affectedErr != nil {
 		return 0, affectedErr
 	}

@@ -46,8 +46,8 @@ func ChangedItemRows(before, after Bag) [][protocol.CurrentItemRecordSize]byte {
 	}
 	for slot, it := range afterItems {
 		old, ok := beforeItems[slot]
-		if !ok || old.Template != it.Template || old.Amount != it.Amount || old.ExpireTime != it.ExpireTime {
-			rows = append(rows, protocol.OrdinaryItem(slot, it.Template, it.Amount, it.ExpireTime))
+		if !ok || old.Template != it.Template || old.Amount != it.Amount || old.ExpireTime != it.ExpireTime || old.WeaponShape != it.WeaponShape {
+			rows = append(rows, it.Row())
 		}
 	}
 	for slot := range beforeItems {

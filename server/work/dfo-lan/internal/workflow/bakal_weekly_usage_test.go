@@ -17,12 +17,12 @@ func TestBakalWeeklyProjectionMatchesAdmissionAndPreservesLegacyState(t *testing
 	if err != nil || usage.Clears != 1 || usage.Rewards != 1 {
 		t.Fatalf("legacy projection=%+v err=%v", usage, err)
 	}
-	if !errors.Is(BakalRaidAdmission(bakalTestRules(), role, now), ErrBakalWeeklyClearLimit) {
+	if !errors.Is(NativeBakalRaidAdmission(bakalTestRules(), role, now), ErrNativeBakalWeeklyClearLimit) {
 		t.Fatal("UI exhausted but admission allowed")
 	}
 	nextWeek := now.Add(7 * 24 * time.Hour)
 	usage, err = BakalWeeklyUsage(role, nextWeek)
-	if err != nil || usage != (BakalWeeklyCounters{}) || BakalRaidAdmission(bakalTestRules(), role, nextWeek) != nil {
+	if err != nil || usage != (BakalWeeklyCounters{}) || NativeBakalRaidAdmission(bakalTestRules(), role, nextWeek) != nil {
 		t.Fatal("week rollover did not refresh both UI and admission")
 	}
 	if string(role.State) != before {

@@ -1,0 +1,232 @@
+{
+  "client_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+  "payload_hex": "004100020300000000003216000000000032000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003200000000410000004100000000000000000082420000000000000000090000000000000000",
+  "length": 120,
+  "writes": [
+    {
+      "site": "0x145e28a45",
+      "offset": 0,
+      "size": 1,
+      "value": 0
+    },
+    {
+      "site": "0x145e28ad0",
+      "offset": 1,
+      "size": 2,
+      "value": 65
+    },
+    {
+      "site": "0x145e28af3",
+      "offset": 3,
+      "size": 1,
+      "value": 2
+    },
+    {
+      "site": "0x145e28b59",
+      "offset": 4,
+      "size": 2,
+      "value": 3
+    },
+    {
+      "site": "0x145e28bf1",
+      "offset": 6,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28c62",
+      "offset": 10,
+      "size": 1,
+      "value": 50
+    },
+    {
+      "site": "0x145e28b59",
+      "offset": 11,
+      "size": 2,
+      "value": 22
+    },
+    {
+      "site": "0x145e28bf1",
+      "offset": 13,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28c62",
+      "offset": 17,
+      "size": 1,
+      "value": 50
+    },
+    {
+      "site": "0x145e28cca",
+      "offset": 18,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cda",
+      "offset": 22,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cca",
+      "offset": 26,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cda",
+      "offset": 30,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cca",
+      "offset": 34,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cda",
+      "offset": 38,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cca",
+      "offset": 42,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cda",
+      "offset": 46,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cca",
+      "offset": 50,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cda",
+      "offset": 54,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cca",
+      "offset": 58,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cda",
+      "offset": 62,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cca",
+      "offset": 66,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cda",
+      "offset": 70,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cca",
+      "offset": 74,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cda",
+      "offset": 78,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28cf2",
+      "offset": 82,
+      "size": 1,
+      "value": 50
+    },
+    {
+      "site": "0x145e28d39",
+      "offset": 83,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28dc3",
+      "offset": 87,
+      "size": 4,
+      "value": 65
+    },
+    {
+      "site": "0x145e28ef3",
+      "offset": 91,
+      "size": 4,
+      "value": 65
+    },
+    {
+      "site": "0x145e28f04",
+      "offset": 95,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28f14",
+      "offset": 99,
+      "size": 4,
+      "value": 1115815936
+    },
+    {
+      "site": "0x145e28f23",
+      "offset": 103,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28f32",
+      "offset": 107,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e28fda",
+      "offset": 111,
+      "size": 1,
+      "value": 9
+    },
+    {
+      "site": "0x145e29005",
+      "offset": 112,
+      "size": 4,
+      "value": 0
+    },
+    {
+      "site": "0x145e29014",
+      "offset": 116,
+      "size": 4,
+      "value": 0
+    }
+  ],
+  "actors": [
+    3,
+    22
+  ],
+  "actor_calls": [
+    "0x250000",
+    "0x251000"
+  ],
+  "scope": "current original CMD46 writer; party actor/count accessors and statistics mocked; no game or network execution"
+}

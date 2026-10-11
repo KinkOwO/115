@@ -12,7 +12,7 @@ import (
 
 func TestBakalWeeklySyncBeforeRaidAndAfterLedgerChange(t *testing.T) {
 	now := time.Date(2026, 10, 7, 5, 0, 0, 0, time.UTC)
-	w := &worldSession{channelType: 82, bakalRules: &catalog.BakalRaidRules{RaidID: 8, WeeklyClearLimit: 1, WeeklyRewardLimit: 1}, role: database.Character{ID: 7, State: json.RawMessage(`{}`)}}
+	w := &worldSession{channelType: 82, nativeBakalRules: &catalog.NativeBakalRaidRules{RaidID: 8, WeeklyClearLimit: 1, WeeklyRewardLimit: 1}, role: database.Character{ID: 7, State: json.RawMessage(`{}`)}}
 	var bodies [][]byte
 	failed := true
 	send := func(kind byte, id uint16, body []byte) error {

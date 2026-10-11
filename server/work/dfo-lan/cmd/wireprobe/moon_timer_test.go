@@ -40,6 +40,7 @@ func TestMoonTimerSync(t *testing.T) {
 		t.Fatalf("u32[1] 起始秒 = %d，期望 %d（发帧那一刻）", got, now.Unix())
 	}
 }
+
 // TestMoonTimerLimitOverride 守取证开关 DFO_MOON_TIMER_LIMIT：
 // 默认必须是 3600（口径不能漂），只有显式给正整数时才覆盖（否则忽略）。
 func TestMoonTimerLimitOverride(t *testing.T) {

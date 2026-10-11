@@ -1,0 +1,479 @@
+[
+  {
+    "kind": "town_vitals",
+    "payload_hex": "01feff64000000",
+    "consumed": 7,
+    "native_percent_written": 100,
+    "native_unavailable_written": false,
+    "reads": [
+      {
+        "site": "0x14530bb86",
+        "offset": 0,
+        "size": 1,
+        "hex": "01"
+      },
+      {
+        "site": "0x14530bbbf",
+        "offset": 1,
+        "size": 2,
+        "hex": "feff"
+      },
+      {
+        "site": "0x14530bbce",
+        "offset": 3,
+        "size": 1,
+        "hex": "64"
+      },
+      {
+        "site": "0x14530bbe2",
+        "offset": 4,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x14530bbf6",
+        "offset": 5,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x14530bc36",
+        "offset": 6,
+        "size": 1,
+        "hex": "00"
+      }
+    ],
+    "client_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+    "scope": "Pinned-PE N153 object writes and N29 peer-seat scene dispatch, private memory only.",
+    "substitutions": [
+      "bounded packet copy accessors",
+      "actor/party/map lookups replaced by valid private objects",
+      "game/UI/logging calls omitted; stop at native scene-transfer invocation"
+    ],
+    "live_memory_writes": 0,
+    "ui_acceptance_proven": false
+  },
+  {
+    "kind": "town_vitals",
+    "payload_hex": "03feff64000000fdff64000000fcff64000000",
+    "consumed": 19,
+    "native_percent_written": 100,
+    "native_unavailable_written": false,
+    "reads": [
+      {
+        "site": "0x14530bb86",
+        "offset": 0,
+        "size": 1,
+        "hex": "03"
+      },
+      {
+        "site": "0x14530bbbf",
+        "offset": 1,
+        "size": 2,
+        "hex": "feff"
+      },
+      {
+        "site": "0x14530bbce",
+        "offset": 3,
+        "size": 1,
+        "hex": "64"
+      },
+      {
+        "site": "0x14530bbe2",
+        "offset": 4,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x14530bbf6",
+        "offset": 5,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x14530bc36",
+        "offset": 6,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x14530bbbf",
+        "offset": 7,
+        "size": 2,
+        "hex": "fdff"
+      },
+      {
+        "site": "0x14530bbce",
+        "offset": 9,
+        "size": 1,
+        "hex": "64"
+      },
+      {
+        "site": "0x14530bbe2",
+        "offset": 10,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x14530bbf6",
+        "offset": 11,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x14530bc36",
+        "offset": 12,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x14530bbbf",
+        "offset": 13,
+        "size": 2,
+        "hex": "fcff"
+      },
+      {
+        "site": "0x14530bbce",
+        "offset": 15,
+        "size": 1,
+        "hex": "64"
+      },
+      {
+        "site": "0x14530bbe2",
+        "offset": 16,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x14530bbf6",
+        "offset": 17,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x14530bc36",
+        "offset": 18,
+        "size": 1,
+        "hex": "00"
+      }
+    ],
+    "client_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+    "scope": "Pinned-PE N153 object writes and N29 peer-seat scene dispatch, private memory only.",
+    "substitutions": [
+      "bounded packet copy accessors",
+      "actor/party/map lookups replaced by valid private objects",
+      "game/UI/logging calls omitted; stop at native scene-transfer invocation"
+    ],
+    "live_memory_writes": 0,
+    "ui_acceptance_proven": false
+  },
+  {
+    "kind": "party_room",
+    "slot": 1,
+    "payload_hex": "020300000000000000ffffffff00000000ffffffffffffffff000000000000000001",
+    "consumed": 34,
+    "effects": [
+      {
+        "party_slot": 1
+      },
+      {
+        "room": [
+          2,
+          3
+        ]
+      },
+      {
+        "scene_transfer": true,
+        "controller": 2433024,
+        "old_scene": 2473984,
+        "new_scene": 2465792,
+        "members": [
+          2424832
+        ]
+      }
+    ],
+    "reads": [
+      {
+        "site": "0x1452b7356",
+        "offset": 0,
+        "size": 1,
+        "hex": "02"
+      },
+      {
+        "site": "0x1452b7367",
+        "offset": 1,
+        "size": 1,
+        "hex": "03"
+      },
+      {
+        "site": "0x1452b7376",
+        "offset": 2,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x1452b737f",
+        "offset": 3,
+        "size": 4,
+        "hex": "00000000"
+      },
+      {
+        "site": "0x1452b742b",
+        "offset": 7,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x1452b743c",
+        "offset": 8,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x1452b7445",
+        "offset": 9,
+        "size": 4,
+        "hex": "ffffffff"
+      },
+      {
+        "site": "0x1452b74b5",
+        "offset": 13,
+        "size": 18,
+        "hex": "00000000ffffffffffffffff000000000000"
+      },
+      {
+        "site": "0x1452b74e0",
+        "offset": 31,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x1452b7f10",
+        "offset": 32,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x1452b7fde",
+        "offset": 33,
+        "size": 1,
+        "hex": "01"
+      }
+    ],
+    "client_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+    "scope": "Pinned-PE N153 object writes and N29 peer-seat scene dispatch, private memory only.",
+    "substitutions": [
+      "bounded packet copy accessors",
+      "actor/party/map lookups replaced by valid private objects",
+      "game/UI/logging calls omitted; stop at native scene-transfer invocation"
+    ],
+    "live_memory_writes": 0,
+    "ui_acceptance_proven": false
+  },
+  {
+    "kind": "party_room",
+    "slot": 2,
+    "payload_hex": "020300000000000000ffffffff00000000ffffffffffffffff000000000000000002",
+    "consumed": 34,
+    "effects": [
+      {
+        "party_slot": 2
+      },
+      {
+        "room": [
+          2,
+          3
+        ]
+      },
+      {
+        "scene_transfer": true,
+        "controller": 2433024,
+        "old_scene": 2473984,
+        "new_scene": 2465792,
+        "members": [
+          2424832
+        ]
+      }
+    ],
+    "reads": [
+      {
+        "site": "0x1452b7356",
+        "offset": 0,
+        "size": 1,
+        "hex": "02"
+      },
+      {
+        "site": "0x1452b7367",
+        "offset": 1,
+        "size": 1,
+        "hex": "03"
+      },
+      {
+        "site": "0x1452b7376",
+        "offset": 2,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x1452b737f",
+        "offset": 3,
+        "size": 4,
+        "hex": "00000000"
+      },
+      {
+        "site": "0x1452b742b",
+        "offset": 7,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x1452b743c",
+        "offset": 8,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x1452b7445",
+        "offset": 9,
+        "size": 4,
+        "hex": "ffffffff"
+      },
+      {
+        "site": "0x1452b74b5",
+        "offset": 13,
+        "size": 18,
+        "hex": "00000000ffffffffffffffff000000000000"
+      },
+      {
+        "site": "0x1452b74e0",
+        "offset": 31,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x1452b7f10",
+        "offset": 32,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x1452b7fde",
+        "offset": 33,
+        "size": 1,
+        "hex": "02"
+      }
+    ],
+    "client_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+    "scope": "Pinned-PE N153 object writes and N29 peer-seat scene dispatch, private memory only.",
+    "substitutions": [
+      "bounded packet copy accessors",
+      "actor/party/map lookups replaced by valid private objects",
+      "game/UI/logging calls omitted; stop at native scene-transfer invocation"
+    ],
+    "live_memory_writes": 0,
+    "ui_acceptance_proven": false
+  },
+  {
+    "kind": "party_room",
+    "slot": 3,
+    "payload_hex": "020300000000000000ffffffff00000000ffffffffffffffff000000000000000003",
+    "consumed": 34,
+    "effects": [
+      {
+        "party_slot": 3
+      },
+      {
+        "room": [
+          2,
+          3
+        ]
+      },
+      {
+        "scene_transfer": true,
+        "controller": 2433024,
+        "old_scene": 2473984,
+        "new_scene": 2465792,
+        "members": [
+          2424832
+        ]
+      }
+    ],
+    "reads": [
+      {
+        "site": "0x1452b7356",
+        "offset": 0,
+        "size": 1,
+        "hex": "02"
+      },
+      {
+        "site": "0x1452b7367",
+        "offset": 1,
+        "size": 1,
+        "hex": "03"
+      },
+      {
+        "site": "0x1452b7376",
+        "offset": 2,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x1452b737f",
+        "offset": 3,
+        "size": 4,
+        "hex": "00000000"
+      },
+      {
+        "site": "0x1452b742b",
+        "offset": 7,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x1452b743c",
+        "offset": 8,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x1452b7445",
+        "offset": 9,
+        "size": 4,
+        "hex": "ffffffff"
+      },
+      {
+        "site": "0x1452b74b5",
+        "offset": 13,
+        "size": 18,
+        "hex": "00000000ffffffffffffffff000000000000"
+      },
+      {
+        "site": "0x1452b74e0",
+        "offset": 31,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x1452b7f10",
+        "offset": 32,
+        "size": 1,
+        "hex": "00"
+      },
+      {
+        "site": "0x1452b7fde",
+        "offset": 33,
+        "size": 1,
+        "hex": "03"
+      }
+    ],
+    "client_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+    "scope": "Pinned-PE N153 object writes and N29 peer-seat scene dispatch, private memory only.",
+    "substitutions": [
+      "bounded packet copy accessors",
+      "actor/party/map lookups replaced by valid private objects",
+      "game/UI/logging calls omitted; stop at native scene-transfer invocation"
+    ],
+    "live_memory_writes": 0,
+    "ui_acceptance_proven": false
+  }
+]

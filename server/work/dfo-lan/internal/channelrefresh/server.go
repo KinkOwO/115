@@ -10,12 +10,15 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"strings"
 	"time"
+
+	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
 // Channel 是本地配置里的一个频道行。**配置文件只写 ID 与 Name** ——
@@ -228,6 +231,18 @@ func (c Config) Script() []byte {
 	return []byte(b.String())
 }
 
+// WireScript converts only the channel text transport. Native 144DB0299
+// resolves a quoted name through 144D99AB0 -> 146E90A30, which calls
+// MultiByteToWideChar with the live client codepage 936 (14F0FC530).
+// JSON and Script remain UTF-8; the directory and game session are unchanged.
+func (c Config) WireScript() ([]byte, error) {
+	script, err := simplifiedchinese.GBK.NewEncoder().Bytes(c.Script())
+	if err != nil {
+		return nil, fmt.Errorf("channel script cannot be encoded as client CP936: %w", err)
+	}
+	return script, nil
+}
+
 // ChannelEndpoint is the game endpoint one channel is reachable on.
 //
 // Separate ports are the only way the gateway can tell channels apart: the
@@ -296,6 +311,10 @@ func encrypted(data, key []byte) ([]byte, error) {
 }
 
 func Serve(c Config, endpoints map[uint32]ChannelEndpoint, event func(map[string]any)) (net.Listener, error) {
+	script, e := c.WireScript()
+	if e != nil {
+		return nil, e
+	}
 	directory, e := c.Directory(endpoints)
 	if e != nil {
 		return nil, e
@@ -313,8 +332,15 @@ func Serve(c Config, endpoints map[uint32]ChannelEndpoint, event func(map[string
 			go func() {
 				defer conn.Close()
 				start := time.Now()
-				e := handle(conn, c.Script(), directory)
-				event(map[string]any{"kind": "channel_refresh_finished", "success": e == nil, "elapsed_ms": time.Since(start).Milliseconds(), "error": errorText(e)})
+				e := handle(conn, script, directory)
+				result := map[string]any{"kind": "channel_refresh_finished", "success": e == nil, "elapsed_ms": time.Since(start).Milliseconds(), "error": errorText(e)}
+				if errors.Is(e, errEmptyChannelConnection) {
+					// A port probe can connect and close without requesting a
+					// refresh. Keep success=false: no directory was delivered.
+					result["error"] = ""
+					result["outcome"] = "empty_connection_closed"
+				}
+				event(result)
 			}()
 		}
 	}()
@@ -327,6 +353,8 @@ func errorText(e error) string {
 	return e.Error()
 }
 
+var errEmptyChannelConnection = errors.New("empty channel connection closed")
+
 func handle(conn net.Conn, script, directory []byte) error {
 	conn.SetDeadline(time.Now().Add(5 * time.Second))
 	var seed [16]byte
@@ -337,7 +365,13 @@ func handle(conn net.Conn, script, directory []byte) error {
 	authed := false
 	for i := 0; i < 5; i++ {
 		h := make([]byte, 11)
-		if _, e := io.ReadFull(conn, h); e != nil {
+		if n, e := io.ReadFull(conn, h); e != nil {
+			// Only an orderly close before the first request is a non-error
+			// observation. Partial frames and interrupted handshakes remain
+			// errors, including EOF while reading a declared request body.
+			if i == 0 && n == 0 && e == io.EOF {
+				return errEmptyChannelConnection
+			}
 			return e
 		}
 		n := binary.LittleEndian.Uint32(h[2:])

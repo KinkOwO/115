@@ -4,6 +4,7 @@ import (
 	"context"
 	"dfolan/internal/adventure"
 	"dfolan/internal/database/sqlcgen"
+	"dfolan/internal/social"
 	"encoding/json"
 	"fmt"
 	"golang.org/x/text/encoding/simplifiedchinese"
@@ -43,6 +44,16 @@ func (s *Store) AdventureLevel(ctx context.Context, account, character int64) (u
 // CommitAdventure 将账号资料、背包变化及命令回执作为一次事务提交。
 // 调用方传入会话和原始帧生成的幂等键；成功回包丢失后重试不重复扣款。
 func (s *Store) CommitAdventure(ctx context.Context, account, id int64, key string, apply func(Character, *AccountAdventure) (json.RawMessage, json.RawMessage, error)) (Character, AccountAdventure, json.RawMessage, error) {
+	if apply == nil {
+		return Character{}, AccountAdventure{}, nil, fmt.Errorf("冒险团事务参数无效")
+	}
+	return s.CommitAdventureTx(ctx, account, id, key, func(_ *Tx, role Character, p *AccountAdventure) (json.RawMessage, json.RawMessage, error) {
+		return apply(role, p)
+	})
+}
+
+// CommitAdventureTx commits mail, account progress and claim receipt together.
+func (s *Store) CommitAdventureTx(ctx context.Context, account, id int64, key string, apply func(*Tx, Character, *AccountAdventure) (json.RawMessage, json.RawMessage, error)) (Character, AccountAdventure, json.RawMessage, error) {
 	var role Character
 	var p AccountAdventure
 	var receipt json.RawMessage
@@ -70,12 +81,25 @@ func (s *Store) CommitAdventure(ctx context.Context, account, id int64, key stri
 	if !isNoRows(err) {
 		return role, p, nil, err
 	}
-	state, receipt, err := apply(role, &p)
+	oldName, oldChosen := p.Name, p.Data.NameChosen
+	state, receipt, err := apply(newTx(queries, account, id), role, &p)
 	if err != nil {
 		return role, p, nil, err
 	}
 	if !json.Valid(state) || !json.Valid(receipt) {
 		return role, p, nil, fmt.Errorf("冒险团事务结果无效")
+	}
+	if p.Name != oldName || p.Data.NameChosen != oldChosen {
+		available, e := queries.AdventureNameAvailable(ctx, account, p.Name)
+		if e != nil {
+			return role, p, nil, e
+		}
+		if !available {
+			return role, p, nil, ErrAdventureNameTaken
+		}
+		if e = queries.UpdateAdventureName(ctx, account, p.Name); e != nil {
+			return role, p, nil, e
+		}
 	}
 	if err = saveAdventure(ctx, tx, account, p); err != nil {
 		return role, p, nil, err
@@ -95,6 +119,11 @@ func (s *Store) CommitAdventure(ctx context.Context, account, id int64, key stri
 
 // 账号共享的货币和限购记录不放在单个角色 JSON 中，避免换角色重复兑换。
 type AdventureData struct {
+	Attendance map[string]json.RawMessage `json:"attendance_activities,omitempty"`
+	extra      map[string]json.RawMessage
+	Social     *social.Profile `json:"social,omitempty"`
+	NameChosen bool            `json:"name_chosen,omitempty"`
+	SymbolID   uint32          `json:"symbol_id,omitempty"`
 	// 账号共享的装备登记；缺省为空，保留旧账号的其它成长和货币。
 	CollectionEquipment      map[uint32]bool       `json:"collection_equipment,omitempty"`
 	RecommendedDungeonClears uint32                `json:"recommended_dungeon_clears,omitempty"`
@@ -103,11 +132,15 @@ type AdventureData struct {
 	Purchases                map[uint32]uint32     `json:"purchases,omitempty"`
 	PointExperience          uint64                `json:"point_experience,omitempty"`
 	ExperienceRemainder      uint64                `json:"experience_remainder,omitempty"`
-	Period                   string                `json:"period,omitempty"`
-	LastConnectionDay        string                `json:"last_connection_day,omitempty"`
-	ConnectionDays           uint32                `json:"connection_days,omitempty"`
-	BestHonorCharacter       uint32                `json:"best_honor_character,omitempty"`
-	EliteSelections          map[uint16][3]int64   `json:"elite_selections,omitempty"`
+	// 缺省0沿用老档的十分位；只有源比例需要更高精度时才保存新分母。
+	ExperienceRemainderScale uint64              `json:"experience_remainder_scale,omitempty"`
+	Period                   string              `json:"period,omitempty"`
+	LastConnectionDay        string              `json:"last_connection_day,omitempty"`
+	ConnectionDays           uint32              `json:"connection_days,omitempty"`
+	BestHonorCharacter       uint32              `json:"best_honor_character,omitempty"`
+	EliteSelections          map[uint16][3]int64 `json:"elite_selections,omitempty"`
+	// 设置内容可反复A/B/A切换，不能永远复用第一次相同帧的回执。
+	SettingsRevision uint64 `json:"settings_revision,omitempty"`
 	// 使用稳定角色ID关联技能偏好，避免角色排序或精锐槽位变化后串用。
 	// 老存档没有该字段时保持零值，不迁移或覆盖已有角色技能、装备。
 	EliteSkillUsage map[uint16]map[int64][30]int32 `json:"elite_skill_usage,omitempty"`
@@ -291,14 +324,15 @@ func (s *Store) commitAdventureExperience(ctx context.Context, tx txHandle, role
 	if err != nil {
 		return err
 	}
-	// 源比例 0.3，保留十分位余数，连续小额击杀不丢经验。
-	if rules.ExpRate != float32(0.3) || gain > (math.MaxUint64-p.Data.ExperienceRemainder)/3 {
-		return fmt.Errorf("冒险团经验比例或增量无效")
+	earned, remainder, scale, err := rules.ExperienceGain(gain, p.Data.ExperienceRemainder, p.Data.ExperienceRemainderScale)
+	if err != nil {
+		return err
 	}
-	scaled := gain*3 + p.Data.ExperienceRemainder
-	earned := scaled / 10
-	p.Data.ExperienceRemainder = scaled % 10
-	if earned > math.MaxInt64-p.Experience {
+	p.Data.ExperienceRemainder, p.Data.ExperienceRemainderScale = remainder, scale
+	if scale == 10 {
+		p.Data.ExperienceRemainderScale = 0
+	}
+	if p.Experience > math.MaxInt64 || earned > math.MaxInt64-p.Experience {
 		return fmt.Errorf("冒险团经验溢出")
 	}
 	p.Experience += earned
@@ -318,8 +352,13 @@ func (s *Store) commitAdventureExperience(ctx context.Context, tx txHandle, role
 		return fmt.Errorf("冒险团积分经验溢出")
 	}
 	p.Data.PointExperience += earned
-	points := p.Data.PointExperience / shop.ExpPoints[0] * shop.ExpPoints[1]
+	conversions := p.Data.PointExperience / shop.ExpPoints[0]
 	p.Data.PointExperience %= shop.ExpPoints[0]
-	p.Data.Points[0] = uint32(min(uint64(shop.MaxPoints), uint64(p.Data.Points[0])+points))
+	available := uint64(shop.MaxPoints) - min(uint64(shop.MaxPoints), uint64(p.Data.Points[0]))
+	points := available
+	if shop.ExpPoints[1] == 0 || conversions <= available/shop.ExpPoints[1] {
+		points = conversions * shop.ExpPoints[1]
+	}
+	p.Data.Points[0] = uint32(min(uint64(shop.MaxPoints), uint64(p.Data.Points[0])) + points)
 	return saveAdventure(ctx, tx, role.AccountID, p)
 }

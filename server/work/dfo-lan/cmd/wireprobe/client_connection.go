@@ -4,6 +4,7 @@ import (
 	"context"
 	"dfolan/internal/channelrefresh"
 	"dfolan/internal/character"
+	"dfolan/internal/featurebridge"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"encoding/hex"
@@ -16,6 +17,8 @@ import (
 // gameConnection owns mutable state for exactly one client. Runtime services
 // are shared; characters shadows the shared service when channel context differs.
 type gameConnection struct {
+	gmCalls      chan onlineGMCall
+	featureCalls <-chan featurebridge.Call
 	*gatewayRuntime
 	characters           *character.Service
 	channel              uint32
@@ -34,20 +37,25 @@ type gameConnection struct {
 	keys                 []byte
 	// loginEventFloodSent 选角前的登录事件洪流（next79 §13/§15，
 	// ispins_wiring.go sendLoginFloodOnce）每连接只发一次。
-	loginEventFloodSent bool
-	legionState         legionSession
-	mailAlarmRole       int64
-	mailChanges         chan struct{}
-	mailDeliveryID      int64
-	output              *connectionOutput
-	peer                string
-	purchaseSession     *shopPilotSession
-	selectedAddition    []byte
-	selectedBasic       []byte
-	selectedCharacterID int64
-	skillState          skillSession
-	sortState           sortSession
-	worldState          *worldSession
+	loginEventFloodSent     bool
+	legionState             legionSession
+	mailAlarmRole           int64
+	mailChanges             chan struct{}
+	mailDeliveryID          int64
+	output                  *connectionOutput
+	peer                    string
+	purchaseSession         *shopPilotSession
+	selectedAddition        []byte
+	selectedBasic           []byte
+	selectedCharacterID     int64
+	raidOwnerRole           int64
+	ownedRaidID             uint32
+	skillState              skillSession
+	sortState               sortSession
+	worldState              *worldSession
+	apocalypsePickup        apocalypsePickupOwner
+	apocalypsePendingPortal *apocalypsePendingPortal
+	apocalypsePortalTimer   *time.Timer
 }
 
 type gameGateway struct {
@@ -59,6 +67,7 @@ type gameGateway struct {
 
 func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 	client := &gameConnection{gatewayRuntime: gateway.runtime, characters: gateway.runtime.characters, channel: channel, channelCfg: gateway.channels, channelTypes: gateway.channelTypes, event: gateway.event}
+	defer client.cancelApocalypsePortal()
 	client.peer = ""
 	// Recover after the reader, timers, world membership and socket have closed.
 	// recover() must run in the directly deferred function. Fill the peer at
@@ -68,6 +77,9 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 		client.event(v)
 	})
 	defer c.Close()
+	defer func() {
+		client.releaseOwnedRaid()
+	}()
 	client.peer = c.RemoteAddr().String()
 	if client.config.ChannelIdentity || client.channelCfg.SynchronizeIdentity {
 		ctx, notice, identityErr := channelIdentity(client.channelCfg, client.channel)
@@ -99,6 +111,7 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 	client.legionState.catalog = client.apocalypseCatalog
 	client.legionState.clock = client.apocalypseClock
 	client.legionState.channelType = client.channelTypes[client.channel]
+	client.legionState.contents = client.legionContents
 	if client.worldService != nil {
 		client.worldState = &worldSession{characters: client.characters, service: client.worldService, store: client.gameStore, account: client.developmentAccount, flags: client.townPolicy.Flags, dungeons: client.dungeonCatalog, townArrivalScenes: client.townArrivalScenes, tutorials: client.tutorialRoutes, tutorialDungeons: client.tutorialDungeons, professions: client.characters.Catalog, fatigue: client.fatigueService, quests: client.questService, progression: client.progressionService, rewards: client.rewards, loot: client.lootService, items: client.itemService, shop: client.shopService, selectionBoxes: client.selectionBoxes, vault: client.vaultService, skinCatalog: client.skinCatalog, soloPartyBootstrap: client.config.SoloPartyBootstrap, hub: client.hub, scaleDeathFromHP: client.config.ScaleDeathFromHP, oathGrades: client.oathGradePair, oathTable: client.oathGradeTable, oathFromGear: client.config.OathGradesFromGear, oathProgressClears: client.config.OathProgressClears, oathProgressDungeons: client.oathProgressSet, deferredClearSet: client.deferredClearSet, oathInject: client.oathInjectSpecs, omenHold: client.config.OmenHold, omenState: client.omenState, omenInfo: client.omenInfoBytes, attunementReward: client.attunementRewardSpec}
 		// 启动器自动拾取只对本机回环连接生效，避免把本地便利开关扩散给局域网玩家。
@@ -110,8 +123,11 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 		client.worldState.eliteChannelDirectory = client.gatewayRuntime.channelDirectory
 		client.worldState.eliteChannelInfo = client.gatewayRuntime.channelInfo
 		client.worldState.eliteChannelID = client.channel
-		client.worldState.bakalRules = client.bakalRaidRules
-		client.worldState.bakalRewards = client.bakalRewardService
+		client.worldState.nativeBakalRules = client.nativeBakalRaidRules
+		client.worldState.nativeBakalRewards = client.nativeBakalRewardService
+		if entry, bound := client.raidEntrances[client.worldState.channelType]; bound && entry.Recruiting != nil {
+			client.worldState.raidEntrance = &entry
+		}
 		// 特殊征讨频道（SemiRaid/Legion，towns 表里有专属城镇的）的位置隔离：
 		// 会话内位置不覆盖普通频道的共享行（黑鸦 73 / 矿区 106 既有模式的全频道推广）。
 		if _, isolated := client.gatewayRuntime.channelTowns[client.channelTypes[client.channel]]; isolated {
@@ -132,8 +148,9 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 			client.worldState.moonConfig = client.moonConfig
 		}
 		// Starter Boost 662：会话拿装配层冻结的活动目录；nil = 活动关闭，一切照旧。
+
 		client.worldState.boostup = client.boostCatalog
-		client.worldState.attendance = client.attendanceCatalog
+		client.worldState.nativeAttendance = client.attendanceCatalog
 		// 末世录（频道 Type 119）：CMD2062 直进要在 dungeon 派发层先于通用
 		// 「没有 activeDungeon 就拒绝」的守卫被接管，所以把 legionSession 挂到
 		// worldSession 上；apocalypse 指针在 apocalypseRun() 里随 run 建立同步
@@ -141,6 +158,24 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 		client.worldState.legion = &client.legionState
 		client.legionState.world = client.worldState
 		client.worldState.apocalypse = client.legionState.apocalypse
+		client.worldState.attendance = client.attendance
+		client.worldState.attendanceCalendar = client.attendanceCalendar
+		client.worldState.weekly = client.weekly
+		client.worldState.online = client.online
+		client.worldState.daily = client.daily
+		client.worldState.membership = client.membership
+		if client.attendance != nil || client.weekly != nil || client.online != nil || client.daily != nil || client.membership != nil {
+			client.worldState.notifyBoostMail = func(id int64) {
+				if client.hub != nil {
+					client.hub.notifyMailbox(id)
+					return
+				}
+				select {
+				case client.mailChanges <- struct{}{}:
+				default:
+				}
+			}
+		}
 	}
 	if client.worldState != nil {
 		defer client.worldState.departArea()
@@ -156,17 +191,63 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 	defer client.connection.close()
 	client.frames = clientFrames(c, client.connection.done)
 	client.mailChanges = client.connection.mailChanges
+	if client.onlineGM != nil {
+		client.gmCalls = make(chan onlineGMCall)
+		remove := client.onlineGM.add(client)
+		defer remove()
+	}
+	if (client.itemService != nil && client.itemService.SymbolSockets != nil) || client.weekly != nil || client.online != nil || client.daily != nil || client.membership != nil {
+		calls, stop, bridgeErr := featurebridge.Start(c, client.connection.done)
+		if bridgeErr != nil {
+			client.event(map[string]any{"kind": "feature_bridge_unavailable", "reason": bridgeErr.Error()})
+		} else {
+			client.featureCalls = calls
+			defer stop()
+		}
+	}
 	client.serve()
 }
 
 // serve retains the single connection loop for incoming frames and timers.
 func (client *gameConnection) serve() {
+	defer client.flushWeeklyClock()
 	for {
 		var incoming clientRead
 		select {
+		case call, open := <-client.featureCalls:
+			if !open {
+				client.featureCalls = nil
+				continue
+			}
+			client.featureCall(call, time.Now())
+			continue
+		case call := <-client.gmCalls:
+			client.handleOnlineGM(call)
+			continue
 		case incoming = <-client.frames:
+		case now := <-client.apocalypsePortalTicks():
+			if err := client.releaseApocalypsePortal(now); err != nil {
+				client.event(map[string]any{"kind": "apocalypse_delayed_portal_error", "error": err.Error()})
+				return
+			}
+			continue
 		case now := <-client.connection.mineTicker.C:
 			if client.bootstrapped && client.selectedCharacterID != 0 && client.worldState != nil {
+				resetPackets, resetErr := client.worldState.elvenmereWeekReset(time.Now())
+				if resetErr != nil {
+					client.event(map[string]any{"kind": "elvenmere_week_reset_error", "error": resetErr.Error()})
+				}
+				if client.sendPlan(resetPackets, client.logWorldResponseBody) != nil {
+					return
+				}
+				if err := client.tickNativeBakalOpening(now); err != nil {
+					client.event(map[string]any{"kind": "bakal_tick_error", "error": err.Error()})
+					return
+				}
+				if err := client.tickBakalAuction(now); err != nil {
+					client.event(map[string]any{"kind": "bakal_auction_tick_error", "error": err.Error()})
+					return
+				}
 				cardPackets, cardErr := client.worldState.autoPickSettlementCard(now)
 				if cardErr != nil {
 					client.event(map[string]any{"kind": "黑鸦自动翻牌待重试", "character_id": client.selectedCharacterID, "error": cardErr.Error()})
@@ -178,6 +259,13 @@ func (client *gameConnection) serve() {
 					client.event(map[string]any{"kind": "月湖自动翻牌待重试", "character_id": client.selectedCharacterID, "error": moonCardErr.Error()})
 				}
 				if client.sendPlan(append(cardPackets, moonCardPackets...), client.logCharacterResponseBody) != nil {
+					return
+				}
+				moonPackets, moonErr := client.worldState.autoPickMoonCard(now)
+				if moonErr != nil {
+					client.event(map[string]any{"kind": "moon_auto_pick_pending", "character_id": client.selectedCharacterID, "error": moonErr.Error()})
+				}
+				if client.sendPlan(moonPackets, client.logCharacterResponseBody) != nil {
 					return
 				}
 				quotaPackets, quotaErr := client.worldState.refreshBlackPurgatoryQuota(now)
@@ -354,7 +442,25 @@ func (client *gameConnection) serve() {
 				}
 			}
 			continue
+
 		case now := <-client.connection.dailyTicker.C:
+			if client.bootstrapped && client.selectedCharacterID != 0 && client.worldState != nil {
+				client.observeOnline(now)
+				if client.sendWeeklyStatus(now) != nil {
+					return
+				}
+				w := client.worldState
+				if w.attendance != nil && w.attendanceClock() != nil && w.attendanceDay != w.attendanceClock().Day(now) {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					status, err := w.attendanceStatus(ctx, now)
+					cancel()
+					if err != nil {
+						client.event(map[string]any{"kind": "attendance_daily_error", "reason": err.Error()})
+					} else if status != nil && client.output.send(0, 1379, status) != nil {
+						return
+					}
+				}
+			}
 			if client.bootstrapped && client.selectedCharacterID != 0 && client.worldState != nil {
 				p, e := client.worldState.refreshDailyFatigue(now)
 				if e != nil {
@@ -436,7 +542,7 @@ func (client *gameConnection) serve() {
 // sendPlanBatched 与 sendPlan 同样按顺序编码，但**整批只写一次**（一次 write 系统调用）。
 //
 // 为什么需要它：客户端有个别处理器会从**本次 recv 到的字节**里按固定长度取数据
-//（次元回廊的 N2252 = `sub_1424FDC30` 固定取 0x1E5C=7772 字节）—— 逐帧 write 会让
+// （次元回廊的 N2252 = `sub_1424FDC30` 固定取 0x1E5C=7772 字节）—— 逐帧 write 会让
 // 每次 recv 只拿到本帧的十几个字节，那个处理器就会走空写守卫崩掉（0xC0000005）。
 // 整批一次写出时，客户端一次 recv 就能拿到后面所有帧，读取才有足够的字节。
 //

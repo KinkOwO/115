@@ -47,6 +47,9 @@ func (w *worldSession) useAddSkinStorage(p []byte, event func(map[string]any)) (
 	if !ok {
 		return nil, fmt.Errorf("template %d is not an [add skin storage] item", template)
 	}
+	if entry.Family() == catalog.SkinFamilyWeaponShape {
+		return w.useWeaponShape(slot, template, event)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	saved, receipt, _, e := (&workflow.ItemService{Store: w.store, Items: w.items}).Consume(ctx, w.role, protocol.UseStackableRequest{
@@ -79,7 +82,7 @@ func (w *worldSession) useAddSkinStorage(p []byte, event func(map[string]any)) (
 	}
 	for _, item := range after.Items {
 		if item.Slot == slot {
-			row = protocol.OrdinaryItem(slot, item.Template, item.Amount, item.ExpireTime)
+			row = item.Row()
 		}
 	}
 	update, e := protocol.InventoryUpdate([][protocol.CurrentItemRecordSize]byte{row})

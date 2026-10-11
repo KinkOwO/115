@@ -31,9 +31,17 @@ func (w *worldSession) disjointItem(p []byte, event func(map[string]any)) ([]out
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	saved, receipt, _, e := (&workflow.ItemService{Store: w.store, Items: w.items}).Disjoint(ctx, w.role, r)
+	saved, receipt, applied, e := (&workflow.ItemService{Store: w.store, Items: w.items}).Disjoint(ctx, w.role, r)
 	if e != nil {
 		return nil, e
+	}
+	if event != nil {
+		kind := "disjoint_item_applied"
+		if !applied {
+			kind = "disjoint_item_replayed"
+		}
+		event(map[string]any{"kind": kind, "id": 26, "character_id": saved.ID,
+			"sequence": receipt.Sequence, "items": r.Items, "deleted_slots": receipt.DeletedSlots})
 	}
 	// The disjoint reward templates are account-shared materials; move them
 	// out of the bag into the account storage before any snapshot is built.
@@ -65,7 +73,7 @@ func (w *worldSession) disjointItem(p []byte, event func(map[string]any)) ([]out
 	}
 	// 收录有变化时补发一次 2610：顺序照参考行为，排在「来源/奖励状态」之后。
 	if len(receipt.JournalAdded) > 0 {
-		if event != nil {
+		if applied && event != nil {
 			event(map[string]any{
 				"kind":         "disjoint_journal_added",
 				"id":           26,
@@ -85,7 +93,7 @@ func (w *worldSession) disjointItem(p []byte, event func(map[string]any)) ([]out
 		} else if len(body) > 0 {
 			plan = append(plan, outboundPacket{"equipment_journal_restored", 0, protocol.EquipmentJournalOpcode, body})
 		}
-	} else if len(receipt.JournalSkipped) > 0 && event != nil {
+	} else if applied && len(receipt.JournalSkipped) > 0 && event != nil {
 		// 一件都没登记上时也要留痕：这正是"分解了但图鉴没进"的排查入口。
 		event(map[string]any{"kind": "disjoint_journal_skipped", "id": 26,
 			"character_id": saved.ID, "skipped": len(receipt.JournalSkipped)})
@@ -96,7 +104,7 @@ func (w *worldSession) disjointItem(p []byte, event func(map[string]any)) ([]out
 	// 任务面板因此永远不刷新（玩家报告「分解成功后没有刷新任务完成状态」）——
 	// 推进不能等客户端来问，与第一/二关穿戴(CMD19)、第三关技能(CMD29)同一口径。
 	// 判定只认**这次事务真删了装备**；失败一律只记日志，已经提交的分解不得被事件层回滚。
-	if w.boostup != nil && w.account == w.role.AccountID && len(receipt.DeletedSlots) > 0 {
+	if applied && w.boostup != nil && w.account == w.role.AccountID && len(receipt.DeletedSlots) > 0 {
 		prior := w.role
 		next, advanced, bErr := (&workflow.LootService{Store: w.store, Loot: w.loot}).ReconcileBoostDisjoint(ctx, prior, w.boostup, true)
 		if bErr != nil {

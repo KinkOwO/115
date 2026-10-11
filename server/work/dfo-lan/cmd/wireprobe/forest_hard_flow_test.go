@@ -6,12 +6,19 @@ import (
 	"testing"
 	"time"
 
+	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
+	"dfolan/internal/inventory"
 	"dfolan/internal/legion"
+	"dfolan/internal/loot"
+	"encoding/json"
+	"path/filepath"
+	"strings"
 )
 
 func forestHardEnterRequest(content uint32, stage uint32) []byte {
@@ -106,16 +113,43 @@ func TestForestHardNonTerminalClearSendsBannerOnly(t *testing.T) {
 func TestForestHardTerminalClearSendsFullChain(t *testing.T) {
 	s := &dungeon.Session{Definition: catalog.DungeonDefinition{ID: legion.ForestHardStageDungeons[2]}}
 	s.MarkCompleted()
-	w := &worldSession{
-		role:          database.Character{ID: 7, WireID: 7},
-		activeDungeon: s,
-		forest:        &forestRun{hard: true, cleared: [3]bool{true, true, false}},
+	ctx := context.Background()
+	store, err := database.Open(ctx, database.Config{Driver: database.DriverSQLite, SQLitePath: filepath.Join(t.TempDir(), "forest-reward.sqlite")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	for _, migrate := range []func(context.Context) error{store.Migrate, store.MigrateCharacterEvents, store.MigrateGrants, store.MigratePremiums} {
+		if err := migrate(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	account, err := store.DevelopmentAccount(ctx, "forest-reward-merge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := pvf.ArchiveSnapshot{Checksum: strings.Repeat("a", 64)}
+	role, err := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: "ForestReward", ConfigVersion: source.SaveIdentity(), State: json.RawMessage(`{"level":115,"opaque":{"keep":17}}`), Request: []byte{0, 255}}, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	role.WireID = 7
+	items := map[uint32]catalog.LootItem{}
+	expected := map[uint32]uint32{}
+	for _, row := range append(legion.ForestHardFinalBasic(), legion.ForestHardFinalAdditional()...) {
+		items[row.Template] = catalog.LootItem{Kind: "stackable", StackableType: "[etc]", StackLimit: 1000}
+		expected[row.Template] += row.Amount
+	}
+	s.RunID = "forest-hard-merge-fixture"
+	w := &worldSession{store: store, account: account, role: role, activeDungeon: s,
+		loot:   &loot.Service{Catalog: catalog.LootCatalog{Source: source, Items: items}, BagRules: inventory.BagRules{Source: source.Checksum, Slots: map[string][2]uint16{"[etc]": {68, 100}}}},
+		forest: &forestRun{hard: true, cleared: [3]bool{true, true, false}},
 	}
 	plan, err := w.completeForestStage()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(plan) != 5 {
+	if len(plan) != 6 {
 		t.Fatalf("terminal clear plan = %d frames: %+v", len(plan), plan)
 	}
 	if plan[0].ID != legion.NotiForestHardPhaseTick {
@@ -127,8 +161,8 @@ func TestForestHardTerminalClearSendsFullChain(t *testing.T) {
 	if plan[2].ID != legion.NotiIspinsBasicClearReward || len(plan[2].Payload) != 7772 {
 		t.Fatalf("third frame = id %d %dB, want the 7772B N2252", plan[2].ID, len(plan[2].Payload))
 	}
-	if plan[3].ID != legion.NotiIspinsAdditionalClearReward || len(plan[3].Payload) != 2405 {
-		t.Fatalf("fourth frame = id %d %dB, want the 2405B N2253", plan[3].ID, len(plan[3].Payload))
+	if plan[3].ID != 14 || plan[4].ID != legion.NotiIspinsAdditionalClearReward || len(plan[4].Payload) != 2405 {
+		t.Fatalf("fourth frame = id %d %dB, want the 2405B N2253", plan[4].ID, len(plan[4].Payload))
 	}
 	token, err := legion.ForestHardStageToken(2)
 	if err != nil {
@@ -139,6 +173,34 @@ func TestForestHardTerminalClearSendsFullChain(t *testing.T) {
 	}
 	if !w.forest.cleared[2] {
 		t.Fatal("terminal stage was not marked cleared")
+	}
+	saved, err := store.AdminCharacter(ctx, role.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bag, err := inventory.ReadBag(saved.State)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual := map[uint32]uint32{}
+	for _, item := range bag.Items {
+		actual[item.Template] += item.Amount
+	}
+	if len(actual) != len(expected) {
+		t.Fatal("reward display differs from committed inventory", actual, expected)
+	}
+	for template, amount := range expected {
+		if actual[template] != amount {
+			t.Fatal("reward amount not durably granted", template, actual[template], amount)
+		}
+	}
+	before := string(saved.State)
+	if _, err := w.completeForestStage(); err != nil {
+		t.Fatal("settlement replay", err)
+	}
+	saved, err = store.AdminCharacter(ctx, role.ID)
+	if err != nil || string(saved.State) != before || !strings.Contains(before, `"keep":17`) {
+		t.Fatal("replay duplicated rewards or altered unrelated save", err)
 	}
 }
 

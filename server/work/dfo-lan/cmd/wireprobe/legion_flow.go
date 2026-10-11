@@ -2,40 +2,33 @@ package main
 
 import (
 	"dfolan/internal/catalog"
+	"dfolan/internal/dungeon"
 	"dfolan/internal/legion"
 	"fmt"
 	"time"
 )
 
-// legionSession carries the per-connection legion state.
-//
-// The state itself lives in internal/legion; the two standing decisions behind
-// it (solo party, no persistence) and every compromise they cost are recorded
-// in analysis/tasks/next64-legion-apocalypse-plan.md §6.1 and §6.2. Read those
-// before adding behaviour here.
-//
-// Implemented so far: CMD2043 (enter the channel), CMD2354 (operation screen),
-// CMD2045 (confirm an operation), CMD2355 (announce a role change). The rest of
-// the family is routed here as well but refused explicitly: an unimplemented
-// packet must show up in the log as a refusal rather than be silently swallowed,
-// and the server must not answer with invented data just to clear the client's
-// pending-response latch.
+// legionSession tracks the Apocalypse UI, validated difficulty and local party.
+// Navigation map ownership is adopted by worldSession after entry delivery;
+// Source combat progression, retreat and normal full-clear settlement use the
+// owned worldSession run; failure/continue still need their own executor.
 type legionSession struct {
-	session *legion.Session
+	session  *legion.Session
+	contents catalog.LegionContents
+	party    *apocalypseParty
 
-	// catalog is the compiled apocalypse table (configs/apocalypse.generated.json).
-	// It is optional only so a server started without the config still serves
-	// the rest of the family; when it is missing every confirmation logs an
-	// explicit `legion_catalog_missing` event instead of pretending the
-	// operation was validated.
+	// catalog/clock come from the prepared native PVF source. Missing rules
+	// refuse difficulty confirmation instead of falling back to UI defaults.
 	catalog *catalog.ApocalypseCatalog
 	clock   *legion.ApocalypseClock
 
-	// plan is the compiled description of the confirmed operation, kept so the
-	// end-of-run packets (P5) can report the reward tuple the table declares
-	// next to what the client announced. It is nil when no operation was
-	// confirmed or the catalog is not loaded.
+	// plan describes the source-confirmed operation. It does not establish a
+	// server-owned run or authorize failure/reward completion.
 	plan *legion.RunPlan
+
+	// Last completely delivered native N2895 projection. Incremental updates
+	// preserve every unrelated field instead of rebuilding constructor defaults.
+	projection []byte
 
 	// channelType is the Type of the directory row this connection arrived on,
 	// or 0 when no channel directory is configured. The game connection never
@@ -94,8 +87,12 @@ type legionSession struct {
 // legionResult is one handled command: the packets to send plus the events that
 // describe what the compiled table says about the request.
 type legionResult struct {
-	Packets []outboundPacket
-	Events  []map[string]any
+	Packets       []outboundPacket
+	Events        []map[string]any
+	Navigation    *dungeon.Session // adopted only after the complete entry plan is delivered
+	Combat        *dungeon.Session
+	Route         *apocalypseRoute
+	ReturnWaiting bool
 }
 
 // side reports which side of the dungeon boundary an opcode belongs to. The
@@ -104,13 +101,12 @@ type legionResult struct {
 //   - CMD2043 / CMD2354 are town-side: the entry gate (0x1406afcc0) accepts the
 //     request only while world state == 1, and the operation screen is a town
 //     screen. CMD2045 is sent from that screen, before the run starts.
-//   - CMD2355 is dungeon-side. Its only caller (sub_14069B4E0) returns early
+//   - CMD2355 is dungeon-side. Current callers 14069B4E0 and140697C30 return early
 //     unless world state == 3, and the packet is how a role change is announced
 //     while the run is in progress.
-//   - CMD2044 / CMD2046 are end-of-run signals and their call sites have not
-//     been read yet, so their side stays unestablished. They are accepted on
-//     either side and the arriving side is logged, which turns the first live
-//     run into the evidence instead of encoding a guess as a guard.
+//   - CMD2044 retains an unestablished side and no failure executor.
+//     CMD2046's Apocalypse delegate is closed, but acceptance requires the
+//     owned delivered full-clear result and durable reward receipts.
 //
 // Refusing a packet on the wrong side keeps a mid-run request from silently
 // interleaving with the town screens, and — because the reason is logged — makes
@@ -196,24 +192,30 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 		if err != nil {
 			return legionResult{}, err
 		}
+		if request.Argument != uint32(legion.ApocalypseContent) {
+			return legionResult{}, fmt.Errorf("legion content %d has no bound executor; apocalypse content is %d", request.Argument, legion.ApocalypseContent)
+		}
+		if w.apocalypseRun != nil && w.apocalypseRun.Paused {
+			if _, err := s.validateApocalypsePaused(w); err != nil {
+				return legionResult{}, err
+			}
+			return legionResult{Packets: []outboundPacket{{"apocalypse_continue_ui_ack", 1, legion.CmdStart, legion.StartAck()}, {"apocalypse_paused_route_restored", 0, legion.NotiLegionInfo, append([]byte(nil), w.apocalypseRun.ResumeProjection...)}}}, nil
+		}
 		if s.session == nil || s.session.CharacterID != w.role.ID {
 			s.session = legion.NewSession(w.role.ID)
+			s.plan = nil
+			s.projection = nil
 		}
 		s.session.Begin(w.role.ID, request.Argument)
-		// StartAck is exactly the four bytes the client reads; the handler
-		// discards them and rebuilds its own screen state.
-		//
-		// NOTI2895 follows it, and that is new: the client's entry flow reads
-		// this packet into the content object it has just raised, and the server
-		// had never sent one, so the object only ever held the values the
-		// client's own constructor wrote. The body is that constructor's triple
-		// verbatim (see internal/legion/legion_info.go for the byte map and for
-		// why the three variable fields must not be invented): @3/@7/@11 are
-		// handed to the content object and their meaning is still unresolved, so
-		// a packet built from this server's guesses would be indistinguishable
-		// from real data in the log. Order and lengths are pinned by the flow
-		// test, because a short body kills the client's reader.
-		return legionResult{
+		recovery, recoveryEvents := w.recoverApocalypseRewards()
+		state := legion.WaitingLegionInfoState()
+		if s.plan != nil {
+			state.OperationChoice = byte(s.plan.OperationID - 1)
+			state.Stage = uint32(s.session.Phase)
+		}
+		// FD900 reads the four-byte result after the generic success byte;
+		// FDDB0 then reads content+204B and publishes the waiting state.
+		result := legionResult{
 			Packets: []outboundPacket{
 				{
 					Name:    "legion_start_ack",
@@ -226,7 +228,7 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 					Kind: 0,
 					ID:   legion.NotiLegionInfo,
 					// 补丁：起始状态改发「等待区」状态（State2/Outcome0/Stage0），不是客户端构造初值 14。
-					Payload: legion.LegionInfo(legion.ApocalypseContent, legion.WaitingLegionInfoState()),
+					Payload: legion.LegionInfo(legion.ApocalypseContent, state),
 				},
 			},
 			Events: []map[string]any{{
@@ -234,9 +236,12 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 				"character_id": w.role.ID,
 				"argument":     request.Argument,
 				"channel_type": s.channelType,
-				"info_values":  "client initializer defaults; @3/@7/@11 semantics unresolved",
+				"info_values":  state,
 			}},
-		}, nil
+		}
+		result.Packets = append(result.Packets[:1], append(recovery, result.Packets[1:]...)...)
+		result.Events = append(result.Events, recoveryEvents...)
+		return result, nil
 	case legion.CmdOperationSelect:
 		request, err := legion.DecodeOperationSelect(p)
 		if err != nil {
@@ -251,15 +256,48 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 		// CMD2354 only exists after the operation screen was opened, which
 		// requires CMD2043 first. Requiring the session keeps that ordering
 		// visible in the log rather than papering over it.
-		if s.session == nil {
+		if s.session == nil || !s.session.Entered || s.session.CharacterID != w.role.ID {
 			return legionResult{}, fmt.Errorf("legion operation selected before entering (no CMD2043 yet)")
 		}
+		if w.apocalypseRun != nil && w.apocalypseRun.Paused {
+			return legionResult{}, fmt.Errorf("paused apocalypse difficulty is locked; abandon before selecting another operation")
+		}
+		switch request.Action {
+		case 1:
+			// 14069B580 refreshes with FF; this is not a difficulty choice.
+			if request.Auxiliary != 255 {
+				return legionResult{}, fmt.Errorf("legion refresh requires unset choice")
+			}
+		case 2:
+			plan, err := legion.PlanForChoice(s.catalog, s.clock, request.Auxiliary)
+			if err != nil {
+				return legionResult{}, fmt.Errorf("legion difficulty refused: %w", err)
+			}
+			s.plan = plan
+			s.session.Operation = plan.OperationID
+		default:
+			return legionResult{}, fmt.Errorf("legion operation action %d is not supported", request.Action)
+		}
 		s.session.SelectOperation(request.Action, request.Auxiliary)
-		return legionResult{Packets: []outboundPacket{{
+		packets := []outboundPacket{}
+		if request.Action == 2 {
+			// FDDB0 -> A4D0 copies body+2 to manager+6A. Publish before the
+			// action-2 ACK, whose A360 consumer sends CMD2045 from manager+73.
+			state := legion.WaitingLegionInfoState()
+			state.OperationChoice = request.Auxiliary
+			state.Stage = uint32(s.session.Phase)
+			packets = append(packets, outboundPacket{"legion_difficulty_selected", 0, legion.NotiLegionInfo, legion.LegionInfo(legion.ApocalypseContent, state)})
+		}
+		packets = append(packets, outboundPacket{
 			Name:    "legion_operation_ack",
 			Kind:    1,
 			ID:      legion.CmdOperationSelect,
 			Payload: legion.OperationAck(request.Action),
+		})
+		return legionResult{Packets: packets, Events: []map[string]any{{
+			"kind": "legion_operation_recorded", "action": request.Action,
+			"choice": request.Auxiliary, "operation": s.session.Operation,
+			"character_id": w.role.ID,
 		}}}, nil
 	case legion.CmdEnterDungeon:
 		request, err := legion.DecodeEnterDungeon(p)
@@ -272,52 +310,26 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 		if s.session == nil {
 			return legionResult{}, fmt.Errorf("legion enter before entering the channel (no CMD2043 yet)")
 		}
-		// The operation id is read from the client's own screen state when it
-		// sends the confirmation, so it is the first place the server learns
-		// which of the four declared operations the player picked. Validate it
-		// against the compiled table rather than accepting any number.
-		plan, err := s.runPlan(request.Stage)
-		if err != nil {
-			return legionResult{}, err
+		// CMD2045 carries a stage; difficulty was confirmed by CMD2354.
+		if !s.session.Entered || s.session.CharacterID != w.role.ID || s.plan == nil || s.session.Operation != s.plan.OperationID {
+			return legionResult{}, fmt.Errorf("legion enter requires a confirmed source difficulty")
 		}
-		s.session.EnterDungeon(request.Stage)
-		s.plan = plan
-		result := legionResult{Packets: []outboundPacket{{
-			Name: "legion_enter_ack",
-			// A zero result code is the client's "accepted": its handler only
-			// reacts to 252 and 380, which are its two failure messages.
-			Kind:    1,
-			ID:      legion.CmdEnterDungeon,
-			Payload: legion.EnterDungeonAck(),
-		}}}
-		if plan == nil {
-			result.Events = append(result.Events, map[string]any{
-				"kind":         "legion_catalog_missing",
-				"operation":    request.Stage,
-				"reason":       "apocalypse catalog is not loaded; the operation was not validated",
-				"character_id": w.role.ID,
-			})
-			return result, nil
+		if s.clock == nil {
+			return legionResult{}, fmt.Errorf("legion phase clock unavailable")
 		}
-		result.Events = append(result.Events, map[string]any{
-			"kind":               "legion_run_planned",
-			"character_id":       w.role.ID,
-			"operation":          plan.OperationID,
-			"operation_row":      plan.Row,
-			"phase_order":        plan.PhaseOrder,
-			"phase_seconds":      plan.PhaseSeconds,
-			"total_seconds":      plan.TotalSeconds,
-			"allow_coin":         plan.AllowCoinConfigured,
-			"allow_coin_values":  plan.AllowCoin,
-			"gate_schedule":      plan.GateSchedule,
-			"gate_flow":          plan.GateFlow,
-			"reward_label":       plan.RewardLabel,
-			"reward_values":      plan.RewardValues,
-			"recommend_fame":     plan.RecommendFame,
-			"card_symbol_index":  plan.CardSymbolIndex,
-			"member_limit_class": plan.MemberLimitClass,
-		})
-		return result, nil
+		if _, ok := s.clock.Seconds(int64(request.Stage)); !ok {
+			return legionResult{}, fmt.Errorf("legion stage %d is not declared by the source clock", request.Stage)
+		}
+		if request.Stage != uint32(s.session.Phase) {
+			return legionResult{}, fmt.Errorf("legion stage %d is not the active stage %d", request.Stage, s.session.Phase)
+		}
+		// FD160 consumes its 13B ACK but success does not initiate loading.
+		// Prepare a source navigation map, not an ACK-only UI transition.
+		if w.apocalypseRun != nil && w.apocalypseRun.Paused {
+			return s.prepareApocalypseResume(w, request.Stage)
+		}
+		return s.prepareNavigationEntry(w, request.Stage)
+
 	case legion.CmdRoleSelect:
 		request, err := legion.DecodeRoleSelect(p)
 		if err != nil {
@@ -326,97 +338,38 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 		if request.Channel != legion.OperationChannelCode {
 			return legionResult{}, fmt.Errorf("legion role channel %d, want %d", request.Channel, legion.OperationChannelCode)
 		}
-		if s.session == nil {
-			return legionResult{}, fmt.Errorf("legion role change before entering the channel (no CMD2043 yet)")
+		if s.session == nil || !s.session.Entered || s.session.Failed || s.session.CharacterID != w.role.ID || s.plan == nil {
+			return legionResult{}, fmt.Errorf("legion role requires a confirmed apocalypse difficulty and active tracker for the selected character")
 		}
-		s.session.SelectRole(request.Role)
-		// The client handler forwards to the screen object without reading the
-		// body, so only the opcode matters.
-		return legionResult{
-			Packets: []outboundPacket{{
-				Name:    "legion_role_ack",
-				Kind:    1,
-				ID:      legion.CmdRoleSelect,
-				Payload: legion.RoleSelectAck(),
-			}},
-			Events: []map[string]any{{
-				"kind":         "legion_role_recorded",
-				"character_id": w.role.ID,
-				"role":         request.Role,
-			}},
-		}, nil
+		if request.Role > 2 {
+			return legionResult{}, fmt.Errorf("apocalypse role %d has no native executor", request.Role)
+		}
+		limits, err := s.catalog.CompileRoleLimits()
+		if err != nil {
+			return legionResult{}, err
+		}
+		return s.prepareNavigationRole(w, request.Role, limits)
 	case legion.CmdFail:
 		request, err := legion.DecodeFail(p)
 		if err != nil {
 			return legionResult{}, err
 		}
-		if s.session == nil {
-			return legionResult{}, fmt.Errorf("legion fail before entering the channel (no CMD2043 yet)")
+		if s.session == nil || !s.session.Entered || s.session.CharacterID != w.role.ID {
+			return legionResult{}, fmt.Errorf("legion fail requires the current character's open UI session")
 		}
-		s.session.Fail(request.Argument)
-		// 8 bytes is what the client reads; its handler discards them.
-		return resultWithEvents(legionResult{Packets: []outboundPacket{{
-			Name:    "legion_fail_ack",
-			Kind:    1,
-			ID:      legion.CmdFail,
-			Payload: legion.FailAck(),
-		}}}, map[string]any{
-			"kind":          "legion_run_failed",
-			"character_id":  w.role.ID,
-			"argument":      request.Argument,
-			"arriving_side": arrivingSide,
-			"operation":     s.session.Operation,
-		}), nil
+		return s.prepareApocalypseAbandon(w, request.Argument)
 	case legion.CmdRewardEnd:
 		request, err := legion.DecodeRewardEnd(p)
 		if err != nil {
 			return legionResult{}, err
 		}
-		if s.session == nil {
-			return legionResult{}, fmt.Errorf("legion reward end before entering the channel (no CMD2043 yet)")
+		if s.session == nil || !s.session.Entered || s.session.CharacterID != w.role.ID {
+			return legionResult{}, fmt.Errorf("legion reward end requires the current character's open UI session")
 		}
-		note := map[string]any{
-			"kind":          "legion_run_reward_end",
-			"character_id":  w.role.ID,
-			"first":         request.First,
-			"second":        request.Second,
-			"flag":          request.Flag,
-			"arriving_side": arrivingSide,
-			"operation":     s.session.Operation,
-			"failed":        s.session.Failed,
-		}
-		// The table's own reward tuple is reported next to the client's signal
-		// so a live run shows both sides at once. It is not turned into granted
-		// items yet: the reward notification's payload layout (40x40 + 140x44
-		// bytes) is unresolved, which is registered as T5 in next64 §6.2.
-		if s.plan != nil {
-			note["table_reward_label"] = s.plan.RewardLabel
-			note["table_reward_values"] = s.plan.RewardValues
-			note["table_phase_seconds"] = s.plan.PhaseSeconds
-			note["table_total_seconds"] = s.plan.TotalSeconds
-		} else {
-			note["table_reward_label"] = nil
-			note["table_reward_values"] = nil
-		}
-		s.session.EndReward()
-		s.plan = nil
-		return resultWithEvents(legionResult{Packets: []outboundPacket{{
-			Name:    "legion_reward_end_ack",
-			Kind:    1,
-			ID:      legion.CmdRewardEnd,
-			Payload: legion.RewardEndAck(),
-		}}}, note), nil
+		return s.prepareApocalypseRewardEnd(w, request, w.apocalypseRewardService())
 	default:
 		return legionResult{}, fmt.Errorf("legion opcode %d is not implemented yet", id)
 	}
-}
-
-// resultWithEvents attaches one event to a result. It exists so the packet
-// cases above read as "ack plus one note" instead of repeating the slice
-// literal.
-func resultWithEvents(result legionResult, note map[string]any) legionResult {
-	result.Events = append(result.Events, note)
-	return result
 }
 
 // abandonOnLeave closes a legion run when the player leaves the dungeon it was
@@ -442,21 +395,8 @@ func (s *legionSession) abandonOnLeave(reason string, characterID int64) (map[st
 	}
 	s.session.Reset()
 	s.plan = nil
+	s.projection = nil
 	return note, true
-}
-
-// runPlan describes the confirmed operation from the compiled table. A nil plan
-// with a nil error means the catalog is not loaded, which the caller reports as
-// an explicit event instead of silently skipping validation.
-func (s *legionSession) runPlan(operation uint32) (*legion.RunPlan, error) {
-	if s.catalog == nil || s.clock == nil {
-		return nil, nil
-	}
-	plan, err := legion.BuildRunPlan(s.catalog, s.clock, operation)
-	if err != nil {
-		return nil, fmt.Errorf("legion operation refused: %w", err)
-	}
-	return plan, nil
 }
 
 // legionRequestBody renders the raw request for the log. The first live run
@@ -466,4 +406,10 @@ func (s *legionSession) runPlan(operation uint32) (*legion.RunPlan, error) {
 // taken before any formatting so the two can be compared directly.
 func legionRequestBody(p []byte) (int, string) {
 	return len(p), fmt.Sprintf("%x", p)
+}
+
+// Keep upstream event annotations on the shared legion result.
+func resultWithEvents(result legionResult, note map[string]any) legionResult {
+	result.Events = append(result.Events, note)
+	return result
 }

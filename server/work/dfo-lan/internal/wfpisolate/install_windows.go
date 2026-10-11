@@ -130,15 +130,17 @@ const (
 	conditionMatch   = 16
 	conditionValueAt = 24
 
-	// FWPM_ACTION0（fwpmtypes.h L452-L461）：type(4) [4 填充] guid(16)。
-	actionSize = 24
+	// FWPM_ACTION0: type(4) + GUID(16), aligned to 4 bytes.
+	actionSize = 20
 	actionType = 0
 
 	// FWPM_FILTER0（fwpmtypes.h L486-L507）。
 	// filterKey(16) displayData(16) flags(4) [4 填充] providerKey(8) providerData(16)
 	// layerKey(16) subLayerKey(16) weight(16) numConditions(4) [4 填充]
-	// filterCondition(8) action(24) rawContext(8) reserved(8) filterId(8) effectiveWeight(16)
-	filterSize          = 192
+	// filterCondition(8) action(20) padding(4), then a 16-byte union
+	// (rawContext UINT64 / providerContextKey GUID), reserved(8), filterId(8),
+	// effectiveWeight(16). The GUID union arm is present even when rawContext is used.
+	filterSize          = 200
 	filterKeyOff        = 0
 	filterDisplayOff    = 16
 	filterFlagsOff      = 32
@@ -151,9 +153,9 @@ const (
 	filterConditionsOff = 120
 	filterActionOff     = 128
 	filterRawContextOff = 152
-	filterReservedOff   = 160
-	filterIdOff         = 168
-	filterEffectiveOff  = 176
+	filterReservedOff   = 168
+	filterIdOff         = 176
+	filterEffectiveOff  = 184
 )
 
 // guidSize 是 GUID 的字节数（Data1/Data2/Data3/Data4）。

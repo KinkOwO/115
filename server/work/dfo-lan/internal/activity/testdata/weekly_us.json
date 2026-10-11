@@ -1,0 +1,564 @@
+[
+  {
+    "type": 3,
+    "value": 295816213,
+    "text": "[db table name]"
+  },
+  {
+    "type": 6,
+    "value": 297613945,
+    "text": "event_1912_period_connection_keeping_event"
+  },
+  {
+    "type": 3,
+    "value": 210454987,
+    "text": "[event period]"
+  },
+  {
+    "type": 6,
+    "value": 297614031,
+    "text": "2099-01-17 08:59:00"
+  },
+  {
+    "type": 6,
+    "value": 297053415,
+    "text": "2099-04-04 09:00:00"
+  },
+  {
+    "type": 3,
+    "value": 294238571,
+    "text": "[/event period]"
+  },
+  {
+    "type": 3,
+    "value": 297614071,
+    "text": "[keeping connection info as period]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 6,
+    "value": 297334953,
+    "text": "2099-01-17 09:00:00"
+  },
+  {
+    "type": 6,
+    "value": 297614143,
+    "text": "2099-01-24 09:00:00"
+  },
+  {
+    "type": 0,
+    "value": 7200
+  },
+  {
+    "type": 0,
+    "value": 590005967
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 8,
+    "value": 218751939,
+    "reference": "\u003c23::event_387_mail_title_1\u003e"
+  },
+  {
+    "type": 8,
+    "value": 218752351,
+    "reference": "\u003c23::event_387_mail_msg_1\u003e"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 6,
+    "value": 297614143,
+    "text": "2099-01-24 09:00:00"
+  },
+  {
+    "type": 6,
+    "value": 297614183,
+    "text": "2099-01-31 09:00:00"
+  },
+  {
+    "type": 0,
+    "value": 7200
+  },
+  {
+    "type": 0,
+    "value": 590005967
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 8,
+    "value": 218751939,
+    "reference": "\u003c23::event_387_mail_title_1\u003e"
+  },
+  {
+    "type": 8,
+    "value": 218752351,
+    "reference": "\u003c23::event_387_mail_msg_1\u003e"
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 6,
+    "value": 297614183,
+    "text": "2099-01-31 09:00:00"
+  },
+  {
+    "type": 6,
+    "value": 297614251,
+    "text": "2099-02-07 09:00:00"
+  },
+  {
+    "type": 0,
+    "value": 7200
+  },
+  {
+    "type": 0,
+    "value": 590005967
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 8,
+    "value": 218751939,
+    "reference": "\u003c23::event_387_mail_title_1\u003e"
+  },
+  {
+    "type": 8,
+    "value": 218752351,
+    "reference": "\u003c23::event_387_mail_msg_1\u003e"
+  },
+  {
+    "type": 0,
+    "value": 4
+  },
+  {
+    "type": 6,
+    "value": 297614251,
+    "text": "2099-02-07 09:00:00"
+  },
+  {
+    "type": 6,
+    "value": 297614291,
+    "text": "2099-02-14 09:00:00"
+  },
+  {
+    "type": 0,
+    "value": 7200
+  },
+  {
+    "type": 0,
+    "value": 590005967
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 8,
+    "value": 218751939,
+    "reference": "\u003c23::event_387_mail_title_1\u003e"
+  },
+  {
+    "type": 8,
+    "value": 218752351,
+    "reference": "\u003c23::event_387_mail_msg_1\u003e"
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 6,
+    "value": 297614291,
+    "text": "2099-02-14 09:00:00"
+  },
+  {
+    "type": 6,
+    "value": 297614331,
+    "text": "2099-02-21 09:00:00"
+  },
+  {
+    "type": 0,
+    "value": 7200
+  },
+  {
+    "type": 0,
+    "value": 590005967
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 8,
+    "value": 218751939,
+    "reference": "\u003c23::event_387_mail_title_1\u003e"
+  },
+  {
+    "type": 8,
+    "value": 218752351,
+    "reference": "\u003c23::event_387_mail_msg_1\u003e"
+  },
+  {
+    "type": 0,
+    "value": 6
+  },
+  {
+    "type": 6,
+    "value": 297614331,
+    "text": "2099-02-21 09:00:00"
+  },
+  {
+    "type": 6,
+    "value": 297614371,
+    "text": "2099-02-28 09:00:00"
+  },
+  {
+    "type": 0,
+    "value": 7200
+  },
+  {
+    "type": 0,
+    "value": 590005967
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 8,
+    "value": 218751939,
+    "reference": "\u003c23::event_387_mail_title_1\u003e"
+  },
+  {
+    "type": 8,
+    "value": 218752351,
+    "reference": "\u003c23::event_387_mail_msg_1\u003e"
+  },
+  {
+    "type": 0,
+    "value": 7
+  },
+  {
+    "type": 6,
+    "value": 297614371,
+    "text": "2099-02-28 09:00:00"
+  },
+  {
+    "type": 6,
+    "value": 297183303,
+    "text": "2099-03-07 09:00:00"
+  },
+  {
+    "type": 0,
+    "value": 7200
+  },
+  {
+    "type": 0,
+    "value": 590005967
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 8,
+    "value": 218751939,
+    "reference": "\u003c23::event_387_mail_title_1\u003e"
+  },
+  {
+    "type": 8,
+    "value": 218752351,
+    "reference": "\u003c23::event_387_mail_msg_1\u003e"
+  },
+  {
+    "type": 0,
+    "value": 8
+  },
+  {
+    "type": 6,
+    "value": 297183303,
+    "text": "2099-03-07 09:00:00"
+  },
+  {
+    "type": 6,
+    "value": 297051467,
+    "text": "2099-03-14 09:00:00"
+  },
+  {
+    "type": 0,
+    "value": 7200
+  },
+  {
+    "type": 0,
+    "value": 590005967
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 8,
+    "value": 218751939,
+    "reference": "\u003c23::event_387_mail_title_1\u003e"
+  },
+  {
+    "type": 8,
+    "value": 218752351,
+    "reference": "\u003c23::event_387_mail_msg_1\u003e"
+  },
+  {
+    "type": 0,
+    "value": 9
+  },
+  {
+    "type": 6,
+    "value": 297051467,
+    "text": "2099-03-14 09:00:00"
+  },
+  {
+    "type": 6,
+    "value": 297052209,
+    "text": "2099-03-21 09:00:00"
+  },
+  {
+    "type": 0,
+    "value": 7200
+  },
+  {
+    "type": 0,
+    "value": 590005967
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 8,
+    "value": 218751939,
+    "reference": "\u003c23::event_387_mail_title_1\u003e"
+  },
+  {
+    "type": 8,
+    "value": 218752351,
+    "reference": "\u003c23::event_387_mail_msg_1\u003e"
+  },
+  {
+    "type": 0,
+    "value": 10
+  },
+  {
+    "type": 6,
+    "value": 297052209,
+    "text": "2099-03-21 09:00:00"
+  },
+  {
+    "type": 6,
+    "value": 297052855,
+    "text": "2099-03-28 09:00:00"
+  },
+  {
+    "type": 0,
+    "value": 7200
+  },
+  {
+    "type": 0,
+    "value": 590005967
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 8,
+    "value": 218751939,
+    "reference": "\u003c23::event_387_mail_title_1\u003e"
+  },
+  {
+    "type": 8,
+    "value": 218752351,
+    "reference": "\u003c23::event_387_mail_msg_1\u003e"
+  },
+  {
+    "type": 0,
+    "value": 11
+  },
+  {
+    "type": 6,
+    "value": 297052855,
+    "text": "2099-03-28 09:00:00"
+  },
+  {
+    "type": 6,
+    "value": 297053415,
+    "text": "2099-04-04 09:00:00"
+  },
+  {
+    "type": 0,
+    "value": 7200
+  },
+  {
+    "type": 0,
+    "value": 590005967
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 8,
+    "value": 218751939,
+    "reference": "\u003c23::event_387_mail_title_1\u003e"
+  },
+  {
+    "type": 8,
+    "value": 218752351,
+    "reference": "\u003c23::event_387_mail_msg_1\u003e"
+  },
+  {
+    "type": 3,
+    "value": 297614411,
+    "text": "[/keeping connection info as period]"
+  },
+  {
+    "type": 3,
+    "value": 296550087,
+    "text": "[accu reward info]"
+  },
+  {
+    "type": 0,
+    "value": 2
+  },
+  {
+    "type": 0,
+    "value": 590005968
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 8,
+    "value": 218751939,
+    "reference": "\u003c23::event_387_mail_title_1\u003e"
+  },
+  {
+    "type": 8,
+    "value": 218752447,
+    "reference": "\u003c23::event_387_mail_msg_2\u003e"
+  },
+  {
+    "type": 0,
+    "value": 3
+  },
+  {
+    "type": 0,
+    "value": 590005969
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 8,
+    "value": 218751939,
+    "reference": "\u003c23::event_387_mail_title_1\u003e"
+  },
+  {
+    "type": 8,
+    "value": 218752447,
+    "reference": "\u003c23::event_387_mail_msg_2\u003e"
+  },
+  {
+    "type": 0,
+    "value": 5
+  },
+  {
+    "type": 0,
+    "value": 590005970
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 8,
+    "value": 218751939,
+    "reference": "\u003c23::event_387_mail_title_1\u003e"
+  },
+  {
+    "type": 8,
+    "value": 218752447,
+    "reference": "\u003c23::event_387_mail_msg_2\u003e"
+  },
+  {
+    "type": 3,
+    "value": 297193299,
+    "text": "[/accu reward info]"
+  },
+  {
+    "type": 3,
+    "value": 297614485,
+    "text": "[click button on accu reward]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 297614545,
+    "text": "[add sec on proper dungeon clear]"
+  },
+  {
+    "type": 0,
+    "value": 60
+  },
+  {
+    "type": 3,
+    "value": 214386871,
+    "text": "[level limit]"
+  },
+  {
+    "type": 0,
+    "value": 1
+  },
+  {
+    "type": 3,
+    "value": 297008449,
+    "text": "[question icon tooltip]"
+  },
+  {
+    "type": 8,
+    "value": 297614613,
+    "reference": "\u003c23::event_387_question_msg\u003e"
+  },
+  {
+    "type": 0,
+    "value": -125
+  },
+  {
+    "type": 0,
+    "value": 0
+  },
+  {
+    "type": 3,
+    "value": 297008555,
+    "text": "[/question icon tooltip]"
+  }
+]

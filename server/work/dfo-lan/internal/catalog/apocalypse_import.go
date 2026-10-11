@@ -22,6 +22,17 @@ func ImportApocalypse(a *pvf.Archive) (*ApocalypseCatalog, error) {
 	if err := verifyNativeApocalypseShape(doc); err != nil {
 		return nil, err
 	}
+	if _, err := doc.CompileRoleLimits(); err != nil {
+		return nil, err
+	}
+	doc.Doors, err = importApocalypseDoors(a)
+	if err != nil {
+		return nil, err
+	}
+	doc.BossMoves, err = importApocalypseBossMoves(a)
+	if err != nil {
+		return nil, err
+	}
 	return ValidateApocalypseCatalog(doc)
 }
 
