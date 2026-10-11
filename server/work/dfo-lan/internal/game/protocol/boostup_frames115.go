@@ -295,17 +295,28 @@ type BoostChallengeRequest115 struct {
 	Action uint32
 }
 
-// DecodeBoostChallengeRequest115 读 680 的挑战领奖请求：事件号 + 挑战索引 + 动作，
-// 即 A 类事件请求三包（第一格必须是 665，调用方已用 isBoostChallengeRequest 分流）。
+// DecodeBoostChallengeRequest115 读 680 的挑战领奖请求：事件号 + 挑战索引 + 奖励种类，
+// 即 A 类事件请求的四格正文（第一格必须是 665，调用方已用 isBoostChallengeRequest 分流）。
+//
+// 第二格是索引、第三格是奖励种类，由三处证据共同定：
+//   - 官服 cap43 21:30:16.042 `99020000 00000000 00000000 00000000`，235 ms 后的 2722 只把
+//     槽 0 的「解锁奖励已领」由 0 翻成 1（`7300 01 01|01|…`）⇒ 领的是**第 0 行的解锁奖励**。
+//   - 事件请求信封的第二格一直是"哪一行"：662 的 680 是 `96020000 <关卡号>`，
+//     官服 885 的 680 是 `75030000 <序号> 00000000…`。
+//   - 实机 2026-10-11 17:45:19（会话 `…_20261011_174423_800898_next37`）业主在
+//     `Clear Endkeeper of Order 10/10` 那一行点「Get」，发的是
+//     `99020000 |00000000| 01000000 00000000`，而库里该行 `unlocked=true progress=10 claims=0`。
+//     按旧顺序（第三格当索引）会解成「第 1 行的解锁奖励」——第 1 行门槛是名望 55,950，
+//     面板上带着锁，客户端不会为它发领奖 ⇒ 整笔被拒成 `challenge is locked`。
 func DecodeBoostChallengeRequest115(p []byte) (BoostChallengeRequest115, error) {
 	r, e := DecodeEventRequest115(p, true)
 	if e != nil {
 		return BoostChallengeRequest115{}, e
 	}
-	if r.Parameter > 32 {
-		return BoostChallengeRequest115{}, fmt.Errorf("challenge index %d out of source range", r.Parameter)
+	if r.Sub > 32 {
+		return BoostChallengeRequest115{}, fmt.Errorf("challenge index %d out of source range", r.Sub)
 	}
-	return BoostChallengeRequest115{Index: byte(r.Parameter), Action: r.Sub}, nil
+	return BoostChallengeRequest115{Index: byte(r.Sub), Action: r.Parameter}, nil
 }
 
 // BoostCapsuleRequest115 是胶囊在 CMD507 上的使用请求。
