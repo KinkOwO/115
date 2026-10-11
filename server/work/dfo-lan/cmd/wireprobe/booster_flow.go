@@ -323,7 +323,7 @@ func (w *worldSession) openBoosterItem(
 				// 不拒绝——严格校验会拒掉客户端合法给出的选择。
 				log.Printf("selection box %d: pick(s) %v outside the exported source range for category %v (client PVF may differ); granting anyway", boxItem.Template, missing, category)
 			default:
-				log.Printf("selection box %d: %d pick(s) matched the exported source range in category %v", boxItem.Template, len(items), category)
+				log.Printf("selection box %d: %d pick(s) matched the exported source range in category %v: %v", boxItem.Template, len(items), category, items)
 			}
 		}
 	}

@@ -13,6 +13,14 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-11 选择箱 `[stackable]` 内容段建模（每日礼包选 x45 只到 1 个）
+
+**已修复 / 已完成**：`[booster select category]` 的内容段此前只建模 `[equipment]`，把 `[stackable]` 与 `[avatar]/[etc]/[cera]` 一起当「未建模段」跳过 ⇒ `Resolve` 的件数表为空 ⇒ `openBoosterItem` 发放回落到**礼盒自身数量**。实机表现：Royal Pass 每日礼包 `590722589` 选 `Radiant Harmonious Crystal (x45)`，进背包只有 **1** 个（`gateway.err`：`selection box 590722589: category [0 0] has no exported item set … the pick goes down the generic path`）。现按与 `[equipment]` 同口径建模 `(模板, 数量)` 成对形态；`hasUnmodelledSection` 放行 `[stackable]`。
+
+**未修复 / 未闭环**：源里另有 33 个 `[stackable]` 块是 **5 个数字一条**的记录（`模板 数量 ? ? ?`，如 10404663 的 `10404771 1 2 115 108 …`），形状未定 ⇒ 整块不建模并在 `Sections` 记 `selectionSectionStackableUnparsed`，语义与改动前完全一致。
+
+**bug 测试取证**：全量审计 16757 个 `[booster selection]` 候选 —— 带 `[stackable]` 的盒子 3178 个、块成对 17660 / 奇数 33；分类计数改前改后均为 `boxes=16749 fixed=2 unparsed=3 rejected=3`；目标箱分类 `[0 0]` 的 items 由 0 变 3（`10327284×90`、`10327285×45`、`10362432×50`）。用例 `TestParseSelectionStackablePairs`、`TestParseSelectionStackableRecordShapeStaysUnmodelled`、`TestSelectionBoxGrantsTheSourceStackableCount`（钉在下发帧 `booster_open_ack` 的 count=45）。记录 `analysis/tasks/next58-selection-box-import.md §3.7`。
+
 ## 2026-10-11 战令（阿拉德通行证，活动 516 / 10005）完整移植
 
 **已修复 / 已完成**：面板 / 领取 / ROYAL 轨 / 每日登录礼包 / 任务记账全链路打通，源驱动直读 `newaradpassevent.evt`。

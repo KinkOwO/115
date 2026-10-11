@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"dfolan/internal/catalog"
+	"dfolan/internal/catalog/pvf"
 	"dfolan/internal/database"
 	"dfolan/internal/inventory"
+	"dfolan/internal/loot"
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
@@ -200,4 +202,107 @@ func TestSelectionBoxWithoutAPickGrantsNothing(t *testing.T) {
 	if len(resBag.Equipment) != 0 || len(resBag.Items) != 1 || resBag.Items[0].Template != boxTemplate {
 		t.Fatalf("an unanswered box must not change the bag: %+v", resBag)
 	}
+}
+
+// ★ 2026-10-11：Royal Pass 每日登录礼包 590722589 的**真实形态** —— 分类块里写的
+// 是 `[stackable]`（不是 [equipment]），三选一与件数全在那里：
+//
+//	[booster select category] 0 0
+//	[stackable] 10327284 90 10327285 45 10362432 50 [/stackable]
+//
+// 解析器原本把 `[stackable]` 当"未建模段"跳过 ⇒ `Resolve` 的件数表为空 ⇒ 发放回落
+// 到**礼盒自身数量**（源 `[daily reward list]` 写的是 1）⇒ 实机表现是
+// 「tooltip 写 x45，进背包只有 1 个」。
+//
+// 断言落在**下发帧**上：客户端背包里的数量取自 `booster_open_ack` 的 count 字段，
+// 只看存档会漏掉"存档对了但帧里还是 1"这一类。
+func TestSelectionBoxGrantsTheSourceStackableCount(t *testing.T) {
+	boxes, err := catalog.NewSelectionBoxes(catalog.SelectionBoxes{
+		Model:  catalog.SelectionBoxModel,
+		Source: pvf.ArchiveSnapshot{Checksum: "7ef2db59331f7e5b18b2f250b8b907526bf2c94b17a7312036cf599644d88e80"},
+		Boxes: map[string]catalog.SelectionBox{
+			"590722589": {
+				Template: 590722589,
+				Path:     "stackable/cash/590722589.stk",
+				SHA256:   "0000000000000000000000000000000000000000000000000000000000000001",
+				Categories: []catalog.SelectionCategory{{
+					Category: [2]byte{0, 0},
+					Items: []catalog.SelectionItem{
+						{Template: 10327284, Count: 90},
+						{Template: 10327285, Count: 45},
+						{Template: 10362432, Count: 50},
+					},
+					Sections: []string{"[stackable]"},
+				}},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 件数表非空 = 这条路径才有"按源发放"的能力；为空就是又回落到礼盒自身数量。
+	if items, _, checked := boxes.Resolve(590722589, [2]byte{0, 0}, []uint32{10327285}); !checked ||
+		len(items) != 1 || items[0].Count != 45 {
+		t.Fatalf("resolve = %+v checked=%v", items, checked)
+	}
+
+	rules := inventory.BagRules{
+		Source:            "test",
+		EquipmentSlots:    [2]uint16{9, 64},
+		Slots:             map[string][2]uint16{"[booster]": {65, 120}, "[material]": {121, 176}},
+		MissingStackLimit: 1000,
+	}
+	lootSvc := &loot.Service{
+		BagRules: rules,
+		Catalog: catalog.LootCatalog{
+			Source: pvf.ArchiveSnapshot{Checksum: "test"},
+			Items: map[uint32]catalog.LootItem{
+				10327285: {ID: 10327285, Kind: "stackable", StackableType: "[material]", StackLimit: 1000},
+			},
+		},
+	}
+	w, store := selectionBoxSession(t, boxes, 590722589)
+
+	req := selectionBoxRequest(65, 0, 10327285)
+	plan, err := w.openBoosterItem(context.Background(), store, nil, lootSvc, nil, odysseyWeaponChoices{}, req, req)
+	if err != nil {
+		t.Fatal("open the daily reward box failed:", err)
+	}
+	var ack []byte
+	for _, p := range plan {
+		if p.Name == "booster_open_ack" {
+			ack = p.Payload
+		}
+	}
+	if ack == nil {
+		t.Fatalf("no booster_open_ack in %+v", plan)
+	}
+	// BoosterOpenSuccess 布局：u8 1 | u16 0 | u32 盒 | u16 槽 | u32 0 | u16 条数
+	// | 每条 u32 模板 + u32 数量 + 7B。
+	if len(ack) < 15+15 {
+		t.Fatalf("ack 太短：%d", len(ack))
+	}
+	if n := binary.LittleEndian.Uint16(ack[13:15]); n != 1 {
+		t.Fatalf("granted rows = %d", n)
+	}
+	if tmpl := binary.LittleEndian.Uint32(ack[15:19]); tmpl != 10327285 {
+		t.Fatalf("granted template = %d", tmpl)
+	}
+	if got := binary.LittleEndian.Uint32(ack[19:23]); got != 45 {
+		t.Fatalf("下发数量 = %d，应为 45（源 `10327285 45`）", got)
+	}
+	// 存档次之：材料确实以 45 落包。
+	resBag, err := inventory.ReadBag(w.role.State)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range resBag.Items {
+		if it.Template == 10327285 {
+			if it.Amount != 45 {
+				t.Fatalf("背包数量 = %d，应为 45", it.Amount)
+			}
+			return
+		}
+	}
+	t.Fatalf("材料没进包：%+v", resBag.Items)
 }
