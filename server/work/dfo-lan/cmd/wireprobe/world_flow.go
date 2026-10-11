@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"dfolan/internal/attendance"
+	"dfolan/internal/aradpass"
 	"dfolan/internal/boostup"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
@@ -106,6 +107,9 @@ type worldSession struct {
 	boostAPCSelectionSent bool // native mode3 selection sent on this actor connection
 	// attendance 是每日签到（活动 331）的原生目录；nil = 源读取失败，签到推送与领取都按「活动未开启」处理。
 	attendance *attendance.Catalog
+	// aradPass 是战令（阿拉德通行证，活动 516/10005）的原生目录；nil = 源读取失败，
+	// 2209/2210 推送与 680 领奖都按「活动未开启」处理。见 aradpass_flow.go。
+	aradPass *aradpass.Catalog
 	// boostWorldBase / boostOperations / notifyBoostMail 是 Starter Boost 活动
 	// 662 的注入接线：基地世界服务、一次性事件键会话与毕业邮件回调。
 	boostWorldBase  *world.Service

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"dfolan/internal/attendance"
+	"dfolan/internal/aradpass"
 	"dfolan/internal/boostup"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
@@ -44,6 +45,10 @@ type gatewayRuntime struct {
 	boosterCatalog        *BoosterCatalog
 	boostCatalog          *boostup.Catalog
 	attendanceCatalog     *attendance.Catalog
+	// aradPassCatalog 是战令（阿拉德通行证）的源目录：等级表/奖励表/任务表全部
+	// 来自 PVF 里的 `newaradpassevent.evt`（见 internal/aradpass + gamedata）。
+	// nil = 该活动未装配，2209/2210 推送与 680 领奖都按「活动未开启」处理。
+	aradPassCatalog       *aradpass.Catalog
 	boostEventInfo        []byte
 	characters            *character.Service
 	channelDirectory      *catalog.ChannelDirectory
@@ -1757,6 +1762,7 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		boosterCatalog:        boosterCatalog,
 		boostCatalog:          boostCatalog,
 		attendanceCatalog:     pvfCatalogs.Attendance,
+		aradPassCatalog:       pvfCatalogs.AradPass,
 		boostEventInfo:        boostEventInfo,
 		characters:            characters,
 		channelDirectory:      pvfCatalogs.ChannelDirectory,

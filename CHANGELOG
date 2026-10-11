@@ -13,6 +13,21 @@
 >    未经业主收口（`AGENTS.md` §0 第 7 条）不得把候选写成「已确认」。
 > 4. 阶段级改动仍走 `AGENTS.md` §0.3（提交前门禁 + 二次确认）。
 
+## 2026-10-11 战令（阿拉德通行证，活动 516 / 10005）完整移植
+
+**已修复 / 已完成**：面板 / 领取 / ROYAL 轨 / 每日登录礼包 / 任务记账全链路打通，源驱动直读 `newaradpassevent.evt`。
+
+- 两帧：`0x08A1`（账号级 760B）与 `0x08A2`（每角色 1104B）。**ROYAL 轨解锁 = 0x08A1 正文 u32 头 == 2**（判定函数 `sub_14229FF90` 反证），`0x08A2` 正文头同样必须是 2。
+- `CMD680` 第 3 个 u32 = **奖励等级**（皇家偶数级 / 普通奇数级）；`0` = Receive All；`3` = 每日登录礼包（8 字节帧）。
+- 已领标记是**每档 1 字节**（非位图）：普通轨 `0x1C2`、皇家轨 `0x28A`（各 25 字节，实机两轮对照定案，两条轨基址不相邻）。
+- 每日礼包「已领」= 正文 **`0x1C0`** 的 u16（实机 + IDA 双证，饱和值 `0xFFFF` 表达已领，09:00 UTC 换日）。
+- 任务进度按角色落库，每日 06:00 UTC 归零并设每日经验上限；沉月湖 / 蔚蓝号通关记账分别挂到各自**结算点**。
+- `NOTI108` 追加构造活动行（516 / 10005），`activityEventInfoCount` 与正文实际行数同口径。
+
+**未修复 / 未闭环**：`NOTI2318 NEW_ARAD_PASS_CHARAC_DETAIL_INFO` 从未实现（不在三个注册助手的覆盖内，需另开一轮定位 handler）；`NOTI2855` 仍从不发送。
+
+**bug 测试取证**：`go test ./internal/aradpass/ ./cmd/wireprobe/ -run AradPass`；实机会话 `runtime/roles_persist_*172342*`（`arad pass royal daily role=2 day=2026-10-11 applied=true items=1 slots=1`）。记录 `analysis/tasks/next195-战令移植-20261010.md`（§20 结案、§21 任务字段、§23 沉月湖、§25 每日礼包、§27 已领位）。
+
 ## 2026-10-11 活动帧通用读法抽出（331 / 662 / 战令共用）
 
 **已修复 / 已完成**：`CMD680`（领奖）与 `CMD681`（查询）是**多个活动共用**的帧 —— 331 签到、313 HoneyTime、662/665、战令 516/10005 的载荷都是「u32 活动号 + …」，判据只有首 u32。**已修复**「662 的 `dispatchBoostEvent` 拿自己的校验去拒别人的请求」这一类误判（2026-10-10 实测：点 HoneyTime 的 Get 发来 `680`（313,0），我们回了 662 的 `event reward request carries no parameter`）。做法：新增 `protocol.EventRequestEventID115`（`internal/game/protocol/attendance_claim115.go`），662 与战令的 `680/681` 分流都先读它、非本活动的帧原样放行。

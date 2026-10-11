@@ -6,6 +6,7 @@ import (
 	"dfolan/internal/boostup"
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
+	"dfolan/internal/aradpass"
 	"dfolan/internal/character"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
@@ -65,6 +66,7 @@ type Catalogs struct {
 	Bakal                        *catalog.BakalRaidRules
 	BoostUp                      *boostup.Catalog
 	Attendance                   *attendance.Catalog
+	AradPass                     *aradpass.Catalog
 	RaidEntrances                map[uint32]catalog.RaidEntrance
 	MazeRates                    *catalog.MazeChanceOverlay
 	HellMaps                     *catalog.SourceMapOverlay
@@ -107,6 +109,8 @@ type Catalogs struct {
 	// BoostUp 是活动 662（新手成长胶囊）的原生目录；nil = 该直读域未选中。
 	// Attendance 是活动 331（每日签到）的原生目录；nil = 源读取失败（只降级，不熔断，
 	// 见 catalogs_attendance.go）。
+	// AradPass 是战令（活动 516，阿拉德通行证）的原生目录；nil 的语义同上
+	// （见 catalogs_aradpass.go —— 只有"当前赛季那一份脚本"会被装配）。
 }
 
 type CatalogInputs struct {
@@ -578,6 +582,7 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 		return &result, err
 	}
 	preparePVFAttendance(&result, source)
+	preparePVFAradPass(&result, source)
 	if err := preparePVFBoostUp(&result, source, selected, inputs); err != nil {
 		return &result, err
 	}
