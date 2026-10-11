@@ -177,6 +177,9 @@ type entryPayloads struct {
 	// 并调它的 vtbl+552，窗口对象在 124 之前还不存在时那一步是空转。
 	// 活动未打开（NOTI108 表里没有 331）时为 nil，进城序列逐字节不变。
 	AttendanceDaily []byte
+	// HoneyTimeState 是 NOTI1294（活动 313 每日在线奖励的状态帧，80 字节）。与 1379 同理：
+	// handler 结尾会取**窗口对象**刷新它，所以要排在 124 之后。活动未打开时为 nil。
+	HoneyTimeState []byte
 	// AradPassCharac / AradPassEvent 是战令（阿拉德通行证，活动 516/10005）的两帧状态：
 	// NOTI2210（角色槽级，正文 1104B）与 NOTI2209（账号级，正文 760B）。两者都是纯 S2C，
 	// 登录不下发面板就是空白（抓包登录期各下发 21 / 18 次）。与 1379/1294 同一道栅栏
@@ -389,6 +392,8 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"boost_challenge_progress_restored", 0, 2722, p.BoostChallenge},
 		// 活动 331 每日签到的状态帧，同样排在 124 之后（handler 要取窗口 77 的对象）。
 		outboundPacket{"attendance_daily_state_sent", 0, 1379, p.AttendanceDaily},
+		// 活动 313 HoneyTime 的状态帧（当前发中性态，见 honey_time_flow.go）。
+		outboundPacket{"honey_time_state_sent", 0, honeyTimeNotiID, p.HoneyTimeState},
 		// 战令（阿拉德通行证）：先 2210（角色槽级）后 2209（账号级），与抓包的登录序一致。
 		outboundPacket{"arad_pass_charac_info_sent", 0, aradPassCharacInfoNotiID, p.AradPassCharac},
 		outboundPacket{"arad_pass_event_info_sent", 0, aradPassEventInfoNotiID, p.AradPassEvent},
