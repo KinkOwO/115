@@ -242,3 +242,38 @@ func TestSortItemsCollapsesTheBagWithCapturedPermutation(t *testing.T) {
 		t.Fatalf("arranged slots = %v, want %v", slots, want)
 	}
 }
+
+// The current PVF policy aliases [throw] and [etc] to the same physical
+// consumable range (65..120). Sorting must compact that physical range only
+// once; a second pass treats the slots written by the first pass as occupied
+// and pushes every consumable down by one full item count.
+func TestSortItemsCompactsAliasedConsumableRangeOnlyOnce(t *testing.T) {
+	rules := sortRules()
+	rules.Slots["[etc]"] = [2]uint16{65, 120}
+	b := Bag{}
+	for _, slot := range []uint16{65, 66} {
+		b.Items = append(b.Items, BagItem{Slot: slot, Template: uint32(1000 + slot), Amount: 1})
+	}
+	for slot := uint16(90); slot <= 114; slot++ {
+		b.Items = append(b.Items, BagItem{Slot: slot, Template: uint32(1000 + slot), Amount: 1})
+	}
+
+	got, err := SortItems(b, rules, protocol.SortItemRequest{List: 0, Slots: permutation(380)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	slots := make([]uint16, 0, len(got.Items))
+	for _, item := range got.Items {
+		if item.Slot >= 65 && item.Slot <= 120 {
+			slots = append(slots, item.Slot)
+		}
+	}
+	sort.Slice(slots, func(i, j int) bool { return slots[i] < slots[j] })
+	want := make([]uint16, 27)
+	for i := range want {
+		want[i] = uint16(65 + i)
+	}
+	if !reflect.DeepEqual(slots, want) {
+		t.Fatalf("consumable slots = %v, want contiguous 65..91", slots)
+	}
+}
