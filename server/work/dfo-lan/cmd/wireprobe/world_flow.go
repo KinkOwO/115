@@ -728,6 +728,20 @@ func (w *worldSession) handle(id uint16, p []byte, send func(byte, uint16, []byt
 		if e = w.service.ValidateRestoredPosition(w.level, w.odyssey, next); e != nil {
 			return e
 		}
+	case 623:
+		// Motion reports are the position producer in personal town rooms:
+		// same seven-byte position prefix as CMD35 plus action fields the
+		// server does not own, so only the position segment is consumed.
+		r, e := protocol.DecodeUserStateMotionRequest(p)
+		if e != nil {
+			return e
+		}
+		w.lastMotion, w.lastSpeed = r.Motion, r.Speed
+		w.notePositionReport(event)
+		next.X, next.Y = r.X, r.Y
+		if e = w.service.ValidateRestoredPosition(w.level, w.odyssey, next); e != nil {
+			return e
+		}
 	case 36:
 		r, e := protocol.DecodeAreaChangeRequest(p)
 		if e != nil {

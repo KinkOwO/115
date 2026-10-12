@@ -245,6 +245,38 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 	}
 	id := binary.LittleEndian.Uint16(p[2:])
 	if w.activeDungeon != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if scene, ok := w.townArrivalScenes[w.activeDungeon.Definition.ID]; ok && scene.QuestID == uint32(id) {
+			definition, ok := w.quests.Catalog.Quests[uint32(id)]
+			_, model, err := quest.InitialProgress(definition)
+			if ok && err == nil && model == quest.LookCinematic {
+				active, err := w.quests.Active(ctx, w.role)
+				if err != nil {
+					return nil, err
+				}
+				for _, q := range active {
+					if q.ID != id {
+						continue
+					}
+					if q.Progress != 0 {
+						return nil, fmt.Errorf("town arrival cinematic is unfinished")
+					}
+					plan, err := w.completeTownArrivalCinematic(q)
+					if err != nil {
+						return nil, err
+					}
+					ack, err := protocol.QuestTriggerUpdated(q)
+					if err != nil {
+						return nil, err
+					}
+					return append(plan, outboundPacket{"quest_interaction_accepted", 1, 33, ack}), nil
+				}
+				return nil, fmt.Errorf("town arrival cinematic quest is not owned")
+			}
+		}
+	}
+	if w.activeDungeon != nil {
 		// A story scene ends with SET_QUEST_TRIGGER from its final layer map
 		// instead of a boss check (quest 3191, live 2026-09-22): settle the
 		// [clear map] objective against the owned run and sync triggers.
@@ -343,7 +375,16 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
-	return []outboundPacket{{"quest_npc_objective", 0, 291, body}}, nil
+	for _, q := range active {
+		if q.ID == id {
+			ack, err := protocol.QuestTriggerUpdated(q)
+			if err != nil {
+				return nil, err
+			}
+			return []outboundPacket{{"quest_interaction_accepted", 1, 33, ack}, {"quest_npc_objective", 0, 291, body}}, nil
+		}
+	}
+	return nil, fmt.Errorf("quest interaction is not owned")
 }
 
 // Prey_01 (6200) declares NPC 8000 both as its objective and in two
