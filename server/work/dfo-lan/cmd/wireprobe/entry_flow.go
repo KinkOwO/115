@@ -180,6 +180,19 @@ type entryPayloads struct {
 	// HoneyTimeState 是 NOTI1294（活动 313 每日在线奖励的状态帧，80 字节）。与 1379 同理：
 	// handler 结尾会取**窗口对象**刷新它，所以要排在 124 之后。活动未打开时为 nil。
 	HoneyTimeState []byte
+	// ExtraDropInfo 是 NOTI2880（活动 1093 额外掉落奖励的状态帧，8 字节）。与 1294 同理：
+	// handler 结尾取窗口对象刷新它，所以要排在 124 之后。活动未打开时为 nil。
+	ExtraDropInfo []byte
+	// SimResearchEtc / SimResearchCreationBoard 是活动 685「奥拉蔻的装备模块研究」面板的
+	// NOTI2806（21 B）与 NOTI2809（50 B）。与 1294 同理：2806 handler 结尾取**窗口 3956**
+	// 刷新它，所以要排在 124 之后。活动未打开时为 nil。
+	SimResearchEtc           []byte
+	SimResearchCreationBoard []byte
+	// SimResearchInvenAll 是 NOTI2807（模块整份清单：u16 条数 + 每条 7 B）。
+	// ★ 它是「客户端知道玩家拥有哪些模块」的**唯一来源** ⇒ 登录也要推，否则右侧
+	// Set Module / Part Module 格子计数全 0、图鉴空白（实机 2026-10-12 登录没推即如此）。
+	// 未装配 685 或读背包失败时为 nil。
+	SimResearchInvenAll []byte
 	// AradPassCharac / AradPassEvent 是战令（阿拉德通行证，活动 516/10005）的两帧状态：
 	// NOTI2210（角色槽级，正文 1104B）与 NOTI2209（账号级，正文 760B）。两者都是纯 S2C，
 	// 登录不下发面板就是空白（抓包登录期各下发 21 / 18 次）。与 1379/1294 同一道栅栏
@@ -394,6 +407,13 @@ func (p entryPayloads) packets() []outboundPacket {
 		outboundPacket{"attendance_daily_state_sent", 0, 1379, p.AttendanceDaily},
 		// 活动 313 HoneyTime 的状态帧（当前发中性态，见 honey_time_flow.go）。
 		outboundPacket{"honey_time_state_sent", 0, honeyTimeNotiID, p.HoneyTimeState},
+		// 活动 1093 额外掉落奖励的状态帧（NOTI2880）。
+		outboundPacket{"extradrop_info_sent", 0, extraDropInfoNotiID, p.ExtraDropInfo},
+		// 活动 685 面板的三帧（ETC 先 → 模块清单 → 创建板）。
+		// 2807 放在 2806 之后：两帧都要窗口 3956 的对象，顺序与生产后的推送保持一致。
+		outboundPacket{"sim_research_etc_sent", 0, simResearchEtcNotiID, p.SimResearchEtc},
+		outboundPacket{"sim_research_inven_all_sent", 0, simResearchInvenAllNotiID, p.SimResearchInvenAll},
+		outboundPacket{"sim_research_creation_board_sent", 0, simResearchCreationBoardNotiID, p.SimResearchCreationBoard},
 		// 战令（阿拉德通行证）：先 2210（角色槽级）后 2209（账号级），与抓包的登录序一致。
 		outboundPacket{"arad_pass_charac_info_sent", 0, aradPassCharacInfoNotiID, p.AradPassCharac},
 		outboundPacket{"arad_pass_event_info_sent", 0, aradPassEventInfoNotiID, p.AradPassEvent},

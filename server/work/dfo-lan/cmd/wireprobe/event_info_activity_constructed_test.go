@@ -8,21 +8,28 @@ import (
 // TestConstructedActivityRowShapes 钉住**构造行**（313 与战令 516/10005）的形状。
 //
 // 构造行没有官服字节可对照（抓包里没有这几个 id），所以只能守两件事：
-//  ① 行长/字段顺序与官方行**完全一致**（用同一个解析器走一遍，且每条都必须恰好吃掉整行）；
-//  ② 我们填进去的值就是打算填的那些（id/名/窗口/四个串/flag）。
+//
+//	① 行长/字段顺序与官方行**完全一致**（用同一个解析器走一遍，且每条都必须恰好吃掉整行）；
+//	② 我们填进去的值就是打算填的那些（id/名/窗口/四个串/flag）。
+//
 // 「客户端认不认」这件事只能靠实机（`[event on]` 里出现该 id）—— 用例不假装能证明它。
 func TestConstructedActivityRowShapes(t *testing.T) {
 	rows := constructedActivityEventRows()
 	if len(rows) == 0 {
 		t.Fatal("构造行是空的")
 	}
+	// calendar 逐行声明：默认必须为空（探针阶段不引资源），**1093 是有意例外** ——
+	// 它要 cal.xui 才有 HUD 图标，取值来自同族官服行 295，且该资源在本机 PVF 里存在
+	// （331 的官服行也带 calendar，同一前提）。见 next200。
 	want := map[uint16]struct {
 		name       string
 		start, end uint32
+		calendar   string
 	}{
-		honeyTimeEventID:    {"Honey Time", honeyTimeEventStart, honeyTimeEventEnd},
-		aradPassEventID:     {"Arad Pass", aradPassEventStart, aradPassEventEnd},
-		aradPassAltEventID:  {"Arad Pass", aradPassEventStart, aradPassEventEnd},
+		honeyTimeEventID:   {"Honey Time", honeyTimeEventStart, honeyTimeEventEnd, ""},
+		extraDropEventID:   {"Oracle's Module Research!", extraDropEventStart, extraDropEventEnd, extraDropCalendar},
+		aradPassEventID:    {"Arad Pass", aradPassEventStart, aradPassEventEnd, ""},
+		aradPassAltEventID: {"Arad Pass", aradPassEventStart, aradPassEventEnd, ""},
 	}
 	if len(want) != len(constructedActivityEventIDs) {
 		t.Fatalf("期望表 %d 条与 constructedActivityEventIDs %d 条不一致",
@@ -63,8 +70,8 @@ func TestConstructedActivityRowShapes(t *testing.T) {
 		if start, end := u32(), u32(); start != exp.start || end != exp.end {
 			t.Fatalf("id=%d 窗口 %d~%d, want %d~%d", id, start, end, exp.start, exp.end)
 		}
-		if cal := str(); cal != "" {
-			t.Fatalf("id=%d calendar=%q, want 空（探针阶段不引资源）", id, cal)
+		if cal := str(); cal != exp.calendar {
+			t.Fatalf("id=%d calendar=%q, want %q", id, cal, exp.calendar)
 		}
 		if extra := str(); extra != "" {
 			t.Fatalf("id=%d extra=%q, want 空", id, extra)

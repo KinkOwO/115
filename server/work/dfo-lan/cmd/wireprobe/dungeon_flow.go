@@ -659,7 +659,7 @@ func dungeonSelectionHead() []outboundPacket {
 }
 
 // dungeonSelectionHeadFor 组装这次进本的「选图 UI 层」；relay 为真 = 无缝再次挑战
-//（CMD72 选项 5，见 card_flow.go 的 restartDungeon）。
+// （CMD72 选项 5，见 card_flow.go 的 restartDungeon）。
 //
 // ⚠️ relay 时**只发 NOTI27**：连门应答（NOTI15）也不发 —— 对齐官服。那一轮服务端的帧列里
 // 既没有 15 也没有 16（analysis/tasks/next178 §14），客户端那一轮也没发 CMD15/CMD16；
@@ -1486,6 +1486,16 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 			w.drops.BlackPurgatory = w.loot.BlackPurgatory
 			w.drops.BlackPurgatoryPlan = w.cardPlan
 			rows, err := w.drops.Death(w.activeDungeon, uint16(r.Entity))
+			// ★ 活动 1093「额外掉落奖励」的可观测性：结算结果写在 `SkippedKinds` 里
+			// （`extradrop1093_energy_awarded:<总量>`），但此前**没有任何地方**把它记进日志
+			// ⇒ 加了挂钩也看不出生效没有。只在**目标副本**（Endkeeper of Order）里每次确认死亡
+			// 记一条，带上掉了几件 + skipped 明细；不在目标副本里完全不记，免得淹掉会话日志。
+			if w.drops.ExtraDrop != nil && w.drops.ExtraDrop.Enabled() && w.activeDungeon != nil &&
+				w.drops.ExtraDrop.Matches(w.activeDungeon.Definition) {
+				event(map[string]any{"kind": "extradrop1093_death", "entity": r.Entity,
+					"map": w.activeDungeon.Room.Map, "entity_confirmed": confirmed,
+					"drops": len(rows), "skipped": w.drops.Skipped[uint16(r.Entity)]})
+			}
 			if actor, known := w.activeDungeon.HellPartyReward(uint16(r.Entity)); known && confirmed {
 				errText := ""
 				if err != nil {

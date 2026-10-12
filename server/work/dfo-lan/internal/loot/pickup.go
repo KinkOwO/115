@@ -42,6 +42,9 @@ type Service struct {
 	InstantlyOpenBoxes RewardBoxSource
 	// Omen 是千海之空深渊的征兆系统累积账（见 omen.go）。为 nil 时通关不推进。
 	Omen *OmenLedger
+	// ExtraDrop 是活动 1093「额外掉落奖励」：在 ENDKEEPER OF ORDER 副本里按掉落装备的
+	// 品质额外给 Mystical Energy（见 extradrop.go）。为 nil 时整段跳过。
+	ExtraDrop *ExtraDropRewards
 }
 type PickupReceipt struct {
 	Run         string

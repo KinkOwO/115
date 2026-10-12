@@ -79,6 +79,8 @@ var commandDispatch = [...]clientDispatchStage{
 	// dispatchAradPass 再挨一站：CMD680/681 上活动号 == 516/10005 的是战令
 	// （阿拉德通行证）的领奖/查询（见 aradpass_flow.go）。
 	(*gameConnection).dispatchAradPass,
+	// dispatchSimResearchAction 处理活动 685 的三条动作命令（2412/2413/2414 = 生产/组装/分解）。
+	(*gameConnection).dispatchSimResearchAction,
 	(*gameConnection).dispatchBoostEvent,
 	// dispatchAvatarCloset 处理衣柜（寄存衣柜）的 cmd1102/1103。
 	(*gameConnection).dispatchAvatarCloset,

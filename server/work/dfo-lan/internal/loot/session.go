@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync"
 )
 
@@ -29,10 +30,26 @@ type Session struct {
 	Currency             *OdysseyCurrency
 	ChapterDrop          *OdysseyChapterDrop
 	Attunement           *AttunementRewards
+	// ExtraDrop 是活动 1093 的能量掉落（见 extradrop.go）。为 nil 时整段跳过。
+	ExtraDrop            *ExtraDropRewards
 	RewardBoxes          RewardBoxSource
 	// Omen 是征兆系统的按角色累积账（见 omen.go）。为 nil 时这条线完全不推进。
 	Omen                  *OmenLedger
 	QuestDropBonusPercent int
+	// extraDropFixedPaid 记「本局已经发过固定能量」——Session 就是「一局」，天然每局归零。
+	extraDropFixedPaid bool
+	// attuneTier 是**调律（深渊）表**的 (模板 -> 档位名) 投影（惰性算一次）。
+	//
+	// 为什么还要这一份：深渊发的那批装备（10416xxx）**不在装备目录里**
+	//（`configs/equipment*.json` 里一件都没有）⇒ 查不到稀有度；
+	// 而源自己带档位（rare/unique/legendary/epic/primeval），与能量表同源。
+	attuneTier map[uint32]string
+	// equipRarity 是**装备目录**的 (模板 -> 稀有度) 投影（建会话时算一次）。
+	//
+	// 为什么不能查掉落目录：`LootCatalog.Items` 里放的都是 `Kind: "stackable"` 的东西
+	//（见 catalog/loot.go 与 catalog/item_index.go）⇒ 拿它判装备**永远为假**，
+	// 2026-10-13 之前 1093 的能量就是因为这个一件都没发出去。
+	equipRarity map[uint32]int32
 	// OathTier 是本场天平下发的 oath 档位（40..45；0 = 未知/非深渊）。
 	//
 	// 天平档位与征兆是**两条平行的线**（业主 2026-10-01 定调）：这里按档位发对应的
@@ -73,7 +90,13 @@ type Session struct {
 }
 
 func NewSession(c catalog.LootCatalog, t Tables, r Rules, equipment *inventory.EquipmentCatalog, run string, account, character int64, actor uint16) *Session {
-	return &Session{Catalog: c, Tables: t, Rules: r, Equipment: equipment, Run: run, Account: account, Character: character, Actor: actor, next: 1, seeds: map[uint32]uint32{}, deaths: map[uint16][]protocol.SceneDrop{}, Objects: map[uint32]Drop{}, Skipped: map[uint16][]string{}}
+	equipRarity := map[uint32]int32{}
+	if equipment != nil {
+		for _, d := range equipment.DropPool() {
+			equipRarity[d.ID] = d.Rarity
+		}
+	}
+	return &Session{Catalog: c, Tables: t, Rules: r, Equipment: equipment, Run: run, Account: account, Character: character, Actor: actor, next: 1, seeds: map[uint32]uint32{}, deaths: map[uint16][]protocol.SceneDrop{}, Objects: map[uint32]Drop{}, Skipped: map[uint16][]string{}, equipRarity: equipRarity}
 }
 
 func preserveAbyssDrops(c catalog.LootCatalog, attunement *AttunementRewards, dungeonID uint32) bool {
@@ -417,6 +440,76 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 			result.Awards = opened
 			result.NextSeed = next
 			result.SkippedKinds = append(result.SkippedKinds, unresolved...)
+		}
+	}
+	// ★★ 活动 1093「额外掉落奖励」：把**最终**的掉落装备按品质折算成 Mystical Energy。
+	//
+	// ⚠️ 位置是 2026-10-12 修出来的，三个坑叠在一起：
+	//   1) 原先在 `Death` 的**前半段**就算 —— 而 **Endkeeper of Order 是深渊副本**
+	//      （`preserveAbyssDrops` 为真 ⇒ 通用掉落整段跳过），它的装备是后面
+	//      `s.Attunement.Roll/RollPlanned` 才产出的 ⇒ 那时 result.Awards 里没有装备，一件都不给；
+	//   2) 原先还在 `OpenRewardBoxes` **之前** —— 源写着「以开封状态发放」，
+	//      真正落地的是盒子里开出来的装备 ⇒ 连普通副本这条也拿盒子算，同样算不出；
+	//   3) 组还要用 `get item`（官方帮助 "upon Equipment Drop"），不是 `drop item`
+	//      （那是 "upon Observing Rarity Beam"，且**表里没有 rare**）。
+	// ⇒ 所以放在**礼盒展开之后**：这里的 result.Awards 已经是最终装备清单。
+	//
+	// ★ 还有一条**硬约束**：必须**在展开之后**追加 —— `OpenRewardBoxes` 会把
+	// 「不是盒子、不是容器、也不在礼盒目录物品表里」的奖励**直接丢掉**
+	//（标记 `attunement_empty_prize_<模板>`）。能量 `590015808` 不在那张表里，
+	// 若追加到展开之前，它会被那个 walker 吃掉，表现为「代码看着发了、地上什么都没有」。
+	if s.ExtraDrop.Enabled() && s.ExtraDrop.Matches(d.Definition) {
+		if fixed := s.ExtraDrop.FixedPerRun; fixed > 0 {
+			// ★ 固定模式（业主 2026-10-13 定案）：**每局固定给一次**，不打稀有度表。
+			//
+			// 触发点 = **深渊（调律/天平）的结算那一步**，而不是「第一只掉出东西的怪」。
+			// 后者只是个**代理信号**（本局第一次非空 `result.Awards`）：它在当前副本里
+			// 恰好落在源领主身上，但语义上不稳定 —— 一旦副本里有别的怪先掉东西、
+			// 或将来掉落顺序变了，能量就会挂到错误的对象上。
+			//
+			// 判据 `attunementPending` 在本文件里**只**于「源领主死亡 ⇒ 调律/征兆/天平一起结算」
+			// 那一处被置真（声明 / 结算分支 / 回写 rolled，共三处引用）
+			// ⇒ 它天然等价于「这一帧就是深渊结算」。用它当门禁无需新增标志、也不会被别的怪误触。
+			//
+			// 这段是**独立于结算的附加处理**：不改动结算自己算出的奖励清单，
+			// 只在「结算已完成」这个事实上再追加一份能量。
+			// 位置硬约束：必须在 `bossStart := len(result.Awards)` **之前** ——
+			// 黑鸦的 `bossIndices` 是按 `awardIndex-bossStart` 对齐的，能量排在其后会串位。
+			if attunementPending && !s.extraDropFixedPaid {
+				s.extraDropFixedPaid = true
+				if item := s.ExtraDrop.Catalog.EnergyItem(); item != 0 {
+					result.Awards = append(result.Awards, Award{Template: item, Amount: fixed})
+					result.SkippedKinds = append(result.SkippedKinds,
+						"extradrop1093_fixed:"+strconv.Itoa(int(fixed)))
+				}
+			}
+		} else {
+			if s.attuneTier == nil && s.Attunement != nil {
+				// 会话内单线程 ⇒ 惰性建一次即可（不放进 NewSession 是因为 Attunement 是后灌的）。
+				s.attuneTier = s.Attunement.RarityByItem()
+			}
+			extra, total := s.ExtraDrop.AwardsFor(s.Catalog.Items, s.equipRarity, s.attuneTier, result.Awards, false)
+			if len(extra) > 0 {
+				result.Awards = append(result.Awards, extra...)
+				result.SkippedKinds = append(result.SkippedKinds,
+					"extradrop1093_energy_awarded:"+strconv.Itoa(int(total)))
+			}
+			// ★ 诊断：本副本匹配、但没给的时候，把「看到了什么」记下来 ——
+			// 否则现场是一片黑（2026-10-12 那轮就是因为只有 awarded 标记、没有 awarded 时静默）。
+			eq, stack, unknown := 0, 0, 0
+			for _, a := range result.Awards {
+				if _, isEquip := s.equipRarity[a.Template]; isEquip {
+					eq++
+					continue
+				}
+				if it, ok := s.Catalog.Items[a.Template]; ok && it.Kind == "stackable" {
+					stack++
+					continue
+				}
+				unknown++
+			}
+			result.SkippedKinds = append(result.SkippedKinds, fmt.Sprintf(
+				"extradrop1093_scan:eq=%d,stack=%d,unknown=%d,awarded=%d", eq, stack, unknown, total))
 		}
 	}
 	bossStart := len(result.Awards)

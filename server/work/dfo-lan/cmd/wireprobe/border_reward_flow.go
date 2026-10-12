@@ -30,6 +30,8 @@ func (w *worldSession) ensureDropSession() {
 		w.drops.ChapterDrop = w.loot.ChapterDrop
 	}
 	w.drops.Attunement = w.loot.Attunement
+	// 活动 1093：能量掉落表随会话带下去（nil = 未装配，那一段整块跳过）。
+	w.drops.ExtraDrop = w.loot.ExtraDrop
 	w.drops.RewardBoxes = w.loot.RewardBoxes
 	// 调律之边界：改用「只拆 [instantly open]」的包装源（源标记判据）。
 	// 其它玩法（含小深渊/终末之边界）**保持旧行为** —— 这条规则先在一个玩法上验证，
