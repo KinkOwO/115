@@ -261,6 +261,7 @@ func TestVenusRunFlowGuards(t *testing.T) {
 	// 通关视频由它触发），会话保持、finalDone 置位（客户端留在副本播视频）。
 	w.venus.cleared[1] = true
 	w.venus.cleared[2] = true
+	w.venus.rewardSent = true
 	w.venus.stage = 2
 	reward = venusEnvelopeWithContent(2, 0, 0, 0)
 	plan, _, err = w.handleVenusRequest(reward, legion.CmdRewardEnd)
@@ -1168,7 +1169,7 @@ func TestVenusDirectMoveStageTransition(t *testing.T) {
 		role:          database.Character{ID: 7, WireID: 7, Name: "001", State: []byte(`{"level":115,"advancement":5,"source_sha256":"fixture","attributes":{"[hp max]":100,"[mp max]":100}}`)},
 		state:         database.WorldState{Position: database.WorldPosition{Town: 204, Area: 0, X: 700, Y: 300}},
 		dungeons:      c,
-		venus:         &venusRun{choice: 2, stage: 3, cleared: [4]bool{true, true, true, true}},
+		venus:         &venusRun{choice: 2, stage: 3, rewardSent: true, cleared: [4]bool{true, true, true, true}},
 		activeDungeon: &dungeon.Session{Definition: catalog.DungeonDefinition{ID: legion.VenusStageDungeons[3]}},
 	}
 	pending, plan, err = end.enterVenusStageDirectMove(directMove(legion.VenusStageDungeons[3]))

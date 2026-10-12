@@ -14,9 +14,9 @@ import (
 	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/inventory"
 	"dfolan/internal/legion"
 	"dfolan/internal/loot"
+	"dfolan/internal/workflow"
 )
 
 // 维纳斯军团（频道 Type 99 / 内容 106）在重构后分发架构上的挂接层。
@@ -35,8 +35,8 @@ import (
 // 第 4 关 900 秒（VenusPhaseLimits，不得超过客户端 DGN 源上限，见 venus.go
 // 第四十四轮注释）。
 //
-// 仍显式拒绝（不回构造包）：CMD2293（降临中止领奖）、CMD2046 之后的终局
-// 结算分支。家族命令必须在 dispatchLegion 之前拦截——CMD2043/2045/2046 与
+// CMD2293 降临中止走专家档源奖励，CMD2046 在持久化发奖后收尾。
+// 家族命令必须在 dispatchLegion 之前拦截——CMD2043/2045/2046 与
 // 末世录（内容 107）共用信封，放行会把内容 107 的状态包灌进频道 99 的
 // 客户端（N2895/N2655 不通用）。
 //
@@ -96,6 +96,10 @@ type venusRun struct {
 	// 选（action4 重开三卡窗，13:33 会话实机路径），进图后锁定（用户口径：
 	// 已选择的难度无法在中途变更）。撤退/超时的进度保留路径置回 true。
 	entered bool
+	// A confirmed phase-four stop owns a phase-three expert reward, not a boss kill.
+	downshift    bool
+	rewardSent   bool
+	clearElapsed [4]time.Duration
 }
 
 // resetRun 把 run 复位成「已开战、未选难度」的全新状态（choice FF、stage 0、
@@ -112,6 +116,12 @@ func (r *venusRun) resetRun() {
 	r.stageClock = [4]time.Time{}
 	r.windowDeadline = time.Time{}
 	r.entered = false
+	r.finalDone = false
+	r.storyFinished = false
+	r.potionUsed = [4]int{}
+	r.downshift = false
+	r.rewardSent = false
+	r.clearElapsed = [4]time.Duration{}
 }
 
 // clearedCount 返回已通关阶段数，即下一个待进阶段的序号。
@@ -209,6 +219,8 @@ func (w *worldSession) handleVenusRequest(p []byte, id uint16) ([]outboundPacket
 		return w.venusFail(p)
 	case legion.CmdVenusRelic:
 		return w.venusRelic(p)
+	case legion.CmdVenusEndAtPhase4:
+		return w.venusEndAtPhase4(p)
 	}
 	return nil, nil, fmt.Errorf("venus opcode %d is not implemented (content 106)", id)
 }
@@ -597,6 +609,9 @@ func (w *worldSession) venusStageEntryShared(stage int, ackName string, ackID ui
 	if run == nil {
 		return nil, nil, fmt.Errorf("venus enter before start (no CMD2043 yet)")
 	}
+	if run.downshift {
+		return nil, nil, fmt.Errorf("Venus phase-four stop is awaiting settlement")
+	}
 	if run.choice == 0xff {
 		return nil, nil, fmt.Errorf("venus enter before a difficulty was confirmed (no CMD2290 action2)")
 	}
@@ -723,7 +738,7 @@ func (w *worldSession) enterVenusStage(p []byte) ([]outboundPacket, []map[string
 // "reward done" signal. The shared family ACK is 01+13B; the reply also
 // publishes the next waiting state so the native confirm path takes the next
 // stage from manager+6B. Clearing the endpoint stage ends the run state
-// client-side; the final settlement branch stays unimplemented and refuses.
+// client-side only after the source settlement has committed.
 // 阶段推进的权威信号已前移到清怪投影（venusStageProjection，2026-10-04 14:41
 // 实机：转阶段走 CMD2062，客户端不发 2046）——2046 若对已通关阶段补报，
 // 幂等回 ACK 不再重复推进。
@@ -739,6 +754,9 @@ func (w *worldSession) venusRewardEnd(p []byte) ([]outboundPacket, []map[string]
 	stage := int(req.Stage)
 	if stage < 0 || stage > 3 {
 		return nil, nil, fmt.Errorf("venus reward end stage %d out of range", stage)
+	}
+	if stage == legion.VenusEndpoint(run.choice) && !run.rewardSent {
+		return nil, nil, fmt.Errorf("Venus terminal reward has not committed")
 	}
 	// 终局翻牌结束（终点关已在 boss 死亡时记账+翻牌链发出）：官方口径（国服
 	// 视频 2026-10-05）——是否继续面板出现、通关过场动画播放、动画结束后右上
@@ -867,6 +885,9 @@ func (w *worldSession) venusStageProjection(event func(map[string]any)) []outbou
 		return nil
 	}
 	run := w.venus
+	if run.downshift {
+		return nil
+	}
 	// 阶段号取自当前会话的副本号（不是 run.stage——投影推进后 run.stage 已
 	// 指向下一阶段，同一会话的后续死亡上报不能再二次投影）。
 	stage, err := legion.VenusStageOfDungeon(w.activeDungeon.Definition.ID)
@@ -874,6 +895,9 @@ func (w *worldSession) venusStageProjection(event func(map[string]any)) []outbou
 		return nil
 	}
 	run.cleared[stage] = true
+	if !w.activeDungeon.StartedAt.IsZero() {
+		run.clearElapsed[stage] = time.Since(w.activeDungeon.StartedAt)
+	}
 	note := map[string]any{"kind": "venus_stage_cleared", "character_id": w.role.ID, "stage": stage}
 	next := stage + 1
 	if next > legion.VenusEndpoint(run.choice) {
@@ -907,12 +931,11 @@ func (w *worldSession) venusStageProjection(event func(map[string]any)) []outbou
 //	N2252（基础奖励翻牌界面，第一段发放）→ N2（角色信息）→
 //	N2253（追加奖励，第二段发放）→ N9（队伍稳态）
 //
-// 物品在发链前通过 Awarder 实际入库（2026-10-04 用户方案：第一排 5 随机
-// 装备 + 3 难度材料 + 第二排 5 固定材料，共 13 项），N2252/N2253 只负责
-// 展示。绝不走通用结算链（CMD46→N34/N35/N261+8张牌），
+// 物品来自同一 PVF 的 COS/作战奖励与礼包展开，经 Freeze/Claim 原子入库。
+// N2252/N2253 展示持久化的同一奖单。绝不走通用结算链（CMD46→N34/N35/N261+8张牌），
 // 那是普通副本的结算面板（图5/图6），团本里不存在。
 func (w *worldSession) completeVenusStage() ([]outboundPacket, error) {
-	if !w.activeDungeon.Completed() || w.completionSent {
+	if w.activeDungeon == nil || w.venus == nil || (!w.activeDungeon.Completed() && !w.venus.downshift) || (w.completionSent && w.venus.rewardSent) {
 		return nil, nil
 	}
 	run := w.venus
@@ -923,55 +946,26 @@ func (w *worldSession) completeVenusStage() ([]outboundPacket, error) {
 	if err != nil {
 		return nil, err
 	}
+	if run.downshift {
+		stage = 2
+	}
 	// 只在终点关触发终局翻牌链；非终点关走转阶段（CMD2062），不结算。
-	if stage != legion.VenusEndpoint(run.choice) {
+	if !run.downshift && stage != legion.VenusEndpoint(run.choice) {
 		return nil, nil
 	}
 
-	var plan []outboundPacket
-
-	// 第一排随机装备位：从池子 roll 5 件（会话级，展示/入库/cardPlan 共用）。
-	run.flipGear = legion.VenusRollFlipGear(venusFlipGearPool, legion.VenusFlipGearCount)
-	if len(run.flipGear) != legion.VenusFlipGearCount {
-		log.Printf("venus flip gear pool unavailable: rolled %d of %d slots", len(run.flipGear), legion.VenusFlipGearCount)
+	basic, additional, err := w.venusSourceRewardPayloads(stage)
+	if err != nil {
+		return nil, err
 	}
-
-	// 物品入库：用 Awarder 把 13 项翻牌奖励（第一排 5 随机装备 + 3 难度
-	// 材料 + 第二排 5 固定材料）发进背包。
-	if w.loot != nil {
-		awarder := &inventory.Awarder{
-			Catalog:   w.loot.Catalog,
-			Rules:     w.loot.BagRules,
-			Equipment: w.loot.Equipment,
-		}
-		before, _ := inventory.ReadBag(w.role.State)
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		for _, item := range venusRewardItems(run.choice, run.flipGear) {
-			updated, _, gErr := awarder.Grant(w.role.State, item.Template, item.Amount)
-			if gErr != nil {
-				log.Printf("venus terminal award failed: template=%d amount=%d error=%v", item.Template, item.Amount, gErr)
-				continue
-			}
-			w.role.State = updated
-		}
-		// 持久化到角色存档（幂等事件键）。
-		if w.store != nil {
-			key := "venus-terminal:" + w.activeDungeon.RunID
-			_, _, _ = w.store.CommitCharacterEvent(ctx, w.account, w.role.ID, w.role.ConfigVersion,
-				key, "venus-terminal-v2", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
-					proof, _ := json.Marshal(map[string]any{"choice": run.choice, "stage": stage, "flip_gear": run.flipGear})
-					return w.role.State, proof, nil
-				})
-		}
-		cancel()
-		// N14 物品台账刷新：让客户端即时看到背包里的奖励盒子。
-		if after, rErr := inventory.ReadBag(w.role.State); rErr == nil {
-			if updatePayload, uErr := protocol.InventoryUpdate(inventory.ChangedItemRows(before, after)); uErr == nil {
-				plan = append(plan, outboundPacket{"venus_terminal_inventory_updated", 0, 14, updatePayload})
-			}
-		}
+	snapshot, err := w.loot.Bootstrap(workflow.LootRole(w.role))
+	if err != nil {
+		return nil, err
 	}
-
+	plan := []outboundPacket{{"venus_terminal_inventory_updated", 0, 13, snapshot}}
+	if run.downshift {
+		plan = append(plan, outboundPacket{"venus_phase4_expert_result", 0, legion.NotiVenusInfo, legion.VenusInfo(legion.VenusInfoState{Choice: 1, State: 2, Outcome: 3, Stage: 2, Targets: [4]byte{0, 1, 2, 0xff}, RelicMask: run.relicMask})})
+	}
 	// N31 通关横幅（图1）：包名必须是 dungeon_clear_enabled，dispatch 的发送
 	// 监视器按它置 completionSent。阶段 token 与 N2252 尾 @7760 呼应。
 	plan = append(plan, outboundPacket{
@@ -979,11 +973,7 @@ func (w *worldSession) completeVenusStage() ([]outboundPacket, error) {
 	})
 
 	// N2252 基础奖励翻牌界面（第一排）：7772B 原生布局，@1600 起第一排
-	// 8 条（5 随机装备 + 3 难度材料），@7760 阶段token。
-	basic, err := legion.VenusBasicClearReward(run.choice, stage, run.flipGear)
-	if err != nil {
-		return nil, err
-	}
+	// 源基础奖励行，@7760 为本局耗时。
 	plan = append(plan, outboundPacket{
 		"venus_basic_clear_reward", 0, legion.NotiIspinsBasicClearReward, basic,
 	})
@@ -1005,12 +995,7 @@ func (w *worldSession) completeVenusStage() ([]outboundPacket, error) {
 		)
 	}
 
-	// N2253 追加奖励第二排发放：2405B，40B 记录步长，固定 5 件材料各 1
-	// （融合石礼盒/竞拍券/眼泪×2/花瓣），全部置展示位（flag=01）。
-	additional, err := legion.VenusAdditionalClearReward()
-	if err != nil {
-		return nil, err
-	}
+	// N2253：2405B，40B 记录步长，展示已提交的源作战奖励。
 	plan = append(plan, outboundPacket{
 		"venus_additional_clear_reward", 0, legion.NotiIspinsAdditionalClearReward, additional,
 	})
@@ -1023,6 +1008,10 @@ func (w *worldSession) completeVenusStage() ([]outboundPacket, error) {
 	plan = append(plan, outboundPacket{"venus_settlement_party_steady", 0, 9, party})
 
 	run.cleared[stage] = true
+	run.rewardSent = true
+	if run.downshift {
+		run.choice, run.stage = 1, 2
+	}
 	return plan, nil
 }
 
@@ -1064,6 +1053,9 @@ func (w *worldSession) enterVenusStageDirectMove(r protocol.DungeonDirectMove) (
 		}
 	}
 	if run.cleared[stage] && stage == legion.VenusEndpoint(run.choice) {
+		if !run.rewardSent {
+			return nil, nil, fmt.Errorf("Venus terminal reward has not committed")
+		}
 		route, err := w.leaveDungeon()
 		if err != nil {
 			return nil, nil, err
