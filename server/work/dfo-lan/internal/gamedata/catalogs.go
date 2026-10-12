@@ -8,6 +8,8 @@ import (
 	"dfolan/internal/cashshop"
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
+	"dfolan/internal/extradrop"
+	"dfolan/internal/oracleresearch"
 	"dfolan/internal/honeytime"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
@@ -68,6 +70,11 @@ type Catalogs struct {
 	BoostUp                      *boostup.Catalog
 	Attendance                   *attendance.Catalog
 	HoneyTime                    *honeytime.Catalog
+	// ExtraDrop 是活动 1093（额外掉落奖励）的原生目录；nil 的语义同 HoneyTime
+	// （见 catalogs_extradrop.go）。
+	ExtraDrop                    *extradrop.Catalog
+	// Oracle685 是活动 685「奥拉蔻的装备模块研究」的原生目录（生产/组装/分解）；nil 的语义同 HoneyTime。
+	Oracle685                    *oracleresearch.Catalog
 	AradPass                     *aradpass.Catalog
 	RaidEntrances                map[uint32]catalog.RaidEntrance
 	MazeRates                    *catalog.MazeChanceOverlay
@@ -587,6 +594,8 @@ func PrepareCatalogs(inputs CatalogInputs, adapters CatalogAdapters) (*Catalogs,
 	}
 	preparePVFAttendance(&result, source)
 	preparePVFHoneyTime(&result, source)
+	preparePVFExtraDrop(&result, source)
+	preparePVFOracle685(&result, source)
 	preparePVFAradPass(&result, source)
 	if err := preparePVFBoostUp(&result, source, selected, inputs); err != nil {
 		return &result, err

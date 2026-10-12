@@ -7,10 +7,13 @@ import (
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
+	"dfolan/internal/oracleresearch"
 	"dfolan/internal/workflow"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -497,6 +500,64 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				client.logHoneyTimeState(role.ID, honeyState, honey)
 			}
 		}
+		// 活动 1093「额外掉落奖励」的状态帧（NOTI2880，8 B）：与 313 同一个门禁
+		// （108 表里有 1093 这条行才推）。两个 u32 的语义未证 ⇒ 取值走 extraDropInfoPayload，
+		// 可用 DFO_EXTRADROP_INFO 覆盖做实机 A/B。
+		if activityEventInfoRows() != nil && client.worldState != nil && client.worldState.extradrop != nil {
+			info := extraDropInfoPayload(client.worldState.extradrop)
+			plan.ExtraDropInfo = info
+			client.event(map[string]any{"kind": "extradrop_info_local", "character_id": role.ID, "bytes": len(info)})
+		}
+		// 活动 685「奥拉蔻的装备模块研究」面板的两帧（NOTI2806 / 2809）：与 313/1093 同一个门禁。
+		// 2806 的字段语义未证 ⇒ 取值见 simresearch_flow.go 的 simResearchEtcPayload
+		//（只允许用 DFO_ORACLE_PRODUCED 覆盖「已产次数」这一个数，禁整块覆盖）。
+		// 2809 送"空格子"（照抄客户端 handler 自己的默认 10×(02 00 00 00 00)）。
+		// ★ 2026-10-12 定案：那句 "Please try again later." 的元凶是**应答自己的第 1 个 u16**
+		// （见 simresearch_actions.go 的门禁注释），与这两条**无关** ⇒ 恢复为登录必推。
+		// 而且 2806 是面板"下次生产费用"的**唯一来源**（业主截图 10010 = 10×(1000+1)，
+		// 那个 1000 正是我们此前在 2806 里硬编码的"已产次数"）⇒ **不推就没有费用显示**。
+		// 要关掉做 A/B 用 `DFO_ORACLE_ENTRY=off`。
+		if activityEventInfoRows() != nil && !strings.EqualFold(strings.TrimSpace(os.Getenv("DFO_ORACLE_ENTRY")), "off") {
+			// ★ 读角色的真实"本周已产次数"（跨周自动归零）—— 面板按钮上的费用就是客户端
+			// 按这个次数算出来的（`10 × (n+1)`），所以必须填真值，不能硬编码。
+			var produced uint32
+			if st, e := oracleresearch.ReadState(role.State); e == nil {
+				st = st.Normalize(oracleresearch.WeekStartOf(time.Now()))
+				produced = st.Produced
+			}
+			etc := simResearchEtcPayload(produced)
+			// 组装板（2809）：结果格 = (是否本自然周已用, 解锁所需已产次数)。
+			// 两者分别来自角色存档（RowsUsed，按周归零）与脚本（`[combine]` 的 result [args]）。
+			var boardUsed [3]bool
+			if st, serr := oracleresearch.ReadState(role.State); serr == nil {
+				st = st.Normalize(oracleresearch.WeekStartOf(time.Now()))
+				boardUsed = st.RowsUsed
+			}
+			var boardUnlock []uint32
+			if client.worldState != nil && client.worldState.oracle685 != nil {
+				boardUnlock = client.worldState.oracle685.CombineUnlock
+			}
+			board := simResearchCreationBoardPayload(boardUsed, boardUnlock)
+			plan.SimResearchEtc = etc
+			plan.SimResearchCreationBoard = board
+			// ★ 2807（模块整份清单）**登录也要推**：它是「客户端知道玩家拥有哪些模块」的
+			// 唯一来源，不推的话右侧 Set Module / Part Module 格子计数全 0、图鉴空白
+			// （实机 2026-10-12 登录没推 ⇒ 业主看到格子全 0）。
+			// 此前只在生产成功后推，所以「要生产过一次面板才亮」，这是个坑。
+			var invenAll []byte
+			if client.worldState != nil && client.worldState.oracle685 != nil {
+				if bag, berr := inventory.ReadBag(role.State); berr == nil {
+					invenAll = protocol.SimulationResearchInvenAll115(
+						simResearchModuleEntries(client.worldState.oracle685, bag))
+				}
+			}
+			plan.SimResearchInvenAll = invenAll
+			// ★ ★ ★ 把 21 字节原文打进事件日志：本次事故里"送出去的到底是什么"查了很久，
+			// 根因是环境变量把载荷整块换掉了。留 hex 以后一眼可见，别再靠推理。
+			client.event(map[string]any{"kind": "sim_research_frames_local", "character_id": role.ID,
+				"produced": produced, "etc_hex": hex.EncodeToString(etc),
+				"etc_bytes": len(etc), "board_bytes": len(board), "inven_all_bytes": len(invenAll)})
+		}
 		// 战令（阿拉德通行证）：0x08A1 / 0x08A2 都是纯 S2C 状态，登录必须下发，
 		// 否则客户端的通行证面板是空白（抓包：登录期各下发 18 / 21 次）。
 		// 与 331/313 不同，**不额外按 108 表门禁**：抓包里这两帧与活动表无关，
@@ -543,10 +604,10 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 				// 2026-10-11 那次"锁没开"排查里最费时间的就是"日志里看不到发出去的字节"。
 				client.event(map[string]any{
 					"kind": "arad_pass_state_bytes", "character_id": role.ID,
-					"event_head_hex":   hex.EncodeToString(passEvent[:24]),
-					"charac_head_hex":  hex.EncodeToString(passCharac[:24]),
-					"charac_bytes":     len(passCharac),
-					"event_bytes":      len(passEvent),
+					"event_head_hex":  hex.EncodeToString(passEvent[:24]),
+					"charac_head_hex": hex.EncodeToString(passCharac[:24]),
+					"charac_bytes":    len(passCharac),
+					"event_bytes":     len(passEvent),
 				})
 			}
 		}

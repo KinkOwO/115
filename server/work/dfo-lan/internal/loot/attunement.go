@@ -497,3 +497,51 @@ func pickAttunementBranch(rng *RNG, list []attunementAdditional) (attunementAddi
 	}
 	return list[len(list)-1], nil
 }
+
+// RarityByItem 返回 (物品 -> 档位名) 的投影，把各表里出现过的条目都收进来。
+//
+// 为什么需要它：调律（深渊）发的那批装备**不在装备目录里**
+// （`configs/equipment*.json` 里 10416xxx 一件都没有）⇒ 拿装备目录查不到稀有度；
+// 而**源自己就带档位**（`[reward table]` 的 tier 列）⇒ 直接用它，不猜、也不引第二套映射。
+//
+// 档位名与 ctp `get item` 组的稀有度名同源（rare / unique / legendary / epic / primeval），
+// 所以可以直接拿去查能量表；像 `normal` 这种表里没有的档自然查不到 ⇒ 不给（符合设计）。
+func (a *AttunementRewards) RarityByItem() map[uint32]string {
+	out := map[uint32]string{}
+	if a == nil {
+		return out
+	}
+	put := func(entries []attunementEntry) {
+		for _, e := range entries {
+			if e.Item == 0 || e.Tier == "" {
+				continue
+			}
+			if _, seen := out[e.Item]; !seen {
+				out[e.Item] = e.Tier
+			}
+		}
+	}
+	for i := range a.Tables {
+		t := &a.Tables[i]
+		for _, f := range t.Fixed {
+			put(f.Entries)
+		}
+		for _, ad := range t.Additional {
+			put(ad.Entries)
+		}
+		for _, h := range t.Hidden {
+			for _, e := range h.Entries {
+				if e.Item == 0 || e.Tier == "" {
+					continue
+				}
+				if _, seen := out[e.Item]; !seen {
+					out[e.Item] = e.Tier
+				}
+			}
+		}
+		for _, c := range t.Coupons {
+			put(c.Entries)
+		}
+	}
+	return out
+}

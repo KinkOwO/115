@@ -9,6 +9,7 @@ import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/character"
 	"dfolan/internal/database"
+	"dfolan/internal/extradrop"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/game/wire"
 	"dfolan/internal/gamedata"
@@ -16,6 +17,7 @@ import (
 	"dfolan/internal/inventory"
 	"dfolan/internal/legion"
 	"dfolan/internal/loot"
+	"dfolan/internal/oracleresearch"
 	"dfolan/internal/quest"
 	"dfolan/internal/reward"
 	"dfolan/internal/workflow"
@@ -47,6 +49,10 @@ type gatewayRuntime struct {
 	boostCatalog          *boostup.Catalog
 	attendanceCatalog     *attendance.Catalog
 	honeyTimeCatalog      *honeytime.Catalog
+	// extraDropCatalog 是活动 1093（额外掉落奖励）的原生目录；nil = 未装配。
+	extraDropCatalog *extradrop.Catalog
+	// oracle685Catalog 是活动 685（装备模块研究）的原生目录；nil = 未装配。
+	oracle685Catalog *oracleresearch.Catalog
 	// aradPassCatalog 是战令（阿拉德通行证）的源目录：等级表/奖励表/任务表全部
 	// 来自 PVF 里的 `newaradpassevent.evt`（见 internal/aradpass + gamedata）。
 	// nil = 该活动未装配，2209/2210 推送与 680 领奖都按「活动未开启」处理。
@@ -121,6 +127,9 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	if err := startup.validate(); err != nil {
 		return nil, nil, err
 	}
+	// ★ 把生效的 DFO_* 调试开关喊出来（见 debug_env.go 的事故记录）：
+	// 10-12 那次「修复不生效」就是一个遗留环境变量把真值整块盖掉造成的。
+	logDebugEnvAudit()
 	resources := new(runtimeCleanup)
 	defer func() {
 		if prepared == nil {
@@ -1562,6 +1571,20 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 			log.Printf("warning: attunement rewards name %d box(es) this build cannot open; they will not be paid: %v", len(unopenable), unopenable)
 		}
 		lootService.Attunement = attunement
+		// 活动 1093「额外掉落奖励」：装配了目录才启用（源读失败时为 nil ⇒ 整段跳过）。
+		if pvfCatalogs.ExtraDrop != nil {
+			lootService.ExtraDrop = &loot.ExtraDropRewards{
+				Catalog: pvfCatalogs.ExtraDrop,
+				// ★ 固定掉落模式（业主 2026-10-13 定案）：**每局固定 10 个**，方便玩家刷取。
+				// 触发点是**深渊（调律/天平）结算那一步** —— 见 `loot.ExtraDropRewards.FixedPerRun`
+				// 与 `internal/loot/session.go` 里 `attunementPending` 的用法；
+				// 它是一段**独立于结算的附加处理**：不改动结算自己算出的奖励，只在结算已成的事实上追加。
+				// 官方口径是按装备稀有度给（Rare1/Unique2/Legendary3/Epic4/Primeval5，
+				// 出稀有度光柱时 5/10/15/20）—— 那条路已实现且保留。
+				// 数字与开关走 `DFO_EXTRADROP_FIXED`（未设 ⇒ 10；`off`/`0` ⇒ 切回稀有度表；N ⇒ 每局 N 个）。
+				FixedPerRun: extraDropFixedPerRun(),
+			}
+		}
 		lootService.RewardBoxes = boxes
 		lootService.InstantlyOpenBoxes = instantlyOpenBoxes
 		// 征兆系统（omen）：**默认生效**，无开关 —— 它是玩法本身。
@@ -1765,6 +1788,8 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 		boostCatalog:          boostCatalog,
 		attendanceCatalog:     pvfCatalogs.Attendance,
 		honeyTimeCatalog:      pvfCatalogs.HoneyTime,
+		extraDropCatalog:      pvfCatalogs.ExtraDrop,
+		oracle685Catalog:      pvfCatalogs.Oracle685,
 		aradPassCatalog:       pvfCatalogs.AradPass,
 		boostEventInfo:        boostEventInfo,
 		characters:            characters,

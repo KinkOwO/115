@@ -49,7 +49,7 @@ const honeyTimeEventID uint16 = 313
 const (
 	// honeyTimeEventStart 不手抄数字：它与 `internal/honeytime.CycleStart` 必须是同一个值
 	// （那边是唯一定义，网关的 Normalize 与 `dfo-tool honeytime` 都引它）。
-	honeyTimeEventStart = uint32(honeytime.CycleStart)
+	honeyTimeEventStart        = uint32(honeytime.CycleStart)
 	honeyTimeEventEnd   uint32 = 1785801600 // 2026-08-04 09:00 KST = 2026-08-04 00:00 UTC
 )
 
@@ -74,8 +74,42 @@ const (
 	aradPassEventEnd   uint32 = 1792454400 // 2026-10-20 00:00 UTC
 )
 
+// dropsLuckyBoxEventID 是「掉落幸运箱」的活动号。
+//
+// 来源：list/event.lst 的 766 → Live/Event/Kor/2026/0326_DropsLuckyBox/DropsLuckyBox.evt。
+// 它**不在官服那 77 条抓包里** ⇒ 这一行只能按客户端行长自拼（同 313/516）。
+// 显示名取自客户端字符串表（`drops lucky box`）。
+//
+// ⚠️ 2026-10-11 封存：**入口已关闭**（不下发 op108 行），因为该活动只有韩文文案。
+const dropsLuckyBoxEventID uint16 = 766
+
+// dropsLuckyBoxEventStart / End 取自该脚本自己的 `[event period]`：
+// `2026-03-26 06:00:00` → `2026-04-26 06:00:00`（KST）⇒ UTC `2026-03-25 21:00` → `2026-04-25 21:00`。
+// ⚠️ 与 313 同一条换算纪律；客户端不比较该窗口（`[event on]` 只看 present）。
+const (
+	dropsLuckyBoxEventStart uint32 = 1774472400 // 2026-03-25 21:00 UTC
+	dropsLuckyBoxEventEnd   uint32 = 1777150800 // 2026-04-25 21:00 UTC
+)
+
+// extraDropEventID / 窗口 / 名字**逐字取自官服 1093 那行**（`event_info_official.plain`，59 B）：
+// 它本身 calendar 为空、没有 HUD 图标 ⇒ 这里改用构造行补上 calendar（见下面那段注释）。
+const extraDropEventID uint16 = 1093
+
+const (
+	extraDropEventStart uint32 = 1785801600 // 2026-08-04 00:00 UTC（官服行原值）
+	extraDropEventEnd   uint32 = 1791277194 // 官服行原值
+)
+
+// extraDropCalendar 取自**同族另一条官服行 295 的 calendar**（同一份抓包、同一个活动家族）。
+// 只借用这一个字段：295 那条还带 url/[show_item_index] extra，那属于「选角屏崩」风险面，不用。
+// 该资源在本机 PVF 里存在（pvf 导出 4982 B），与 331 的 cal.xui 同一前提。
+const extraDropCalendar = "Live/Event/Kor/2026/0326_OracleResearch/cal.xui/0/0"
+
 // constructedActivityEventIDs 是本文件里**构造**出来的活动行 id（表头 count 要算上它们）。
-var constructedActivityEventIDs = []uint16{honeyTimeEventID, aradPassEventID, aradPassAltEventID}
+// ⚠️ 766 已**封存**（2026-10-11）：它的 op108 行不再下发 —— 该活动的 UI 文案在英文表
+// `String/UI.uv.str` 里是空的，客户端回落成韩文（详见 next199 §9）。
+// 要重开：把 dropsLuckyBoxEventID 加回下面的切片，并恢复 constructedActivityEventRows 里那段。
+var constructedActivityEventIDs = []uint16{honeyTimeEventID, extraDropEventID, aradPassEventID, aradPassAltEventID}
 
 // constructedActivityEventRows 返回构造行的字节（顺序与 constructedActivityEventIDs 一致）。
 func constructedActivityEventRows() []byte {
@@ -91,6 +125,24 @@ func constructedActivityEventRows() []byte {
 		// 记录是「选角屏崩」的风险面。探针阶段只开开关、不引资源；要开面板再逐步加 calendar。
 		Flag: 1,
 	})
+	// 1093 额外掉落奖励：字段沿用官服那行，**只补 calendar**（HUD 图标；空 calendar 就没图标）。
+	out = appendActivityEventInfoRow(out, activityEventInfoRow{
+		ID:       extraDropEventID,
+		A:        2,
+		B:        4,
+		Name:     "Oracle's Module Research!",
+		Start:    extraDropEventStart,
+		End:      extraDropEventEnd,
+		Calendar: extraDropCalendar,
+		// 官服 1093 那行是 0，但**能显示且有图标的 331 是 1**，我们所有构造行也都是 1
+		// （军团那 19 条 flag=0 也能显示，说明它不像是"可见性"门；取 1 与 331 同档最稳）。
+		Flag: 1,
+	})
+	// 766 掉落幸运箱**封存**，不再下发（原因见上面的 IDs 注释）。恢复用的那段在这里留档：
+	//	out = appendActivityEventInfoRow(out, activityEventInfoRow{
+	//		ID: dropsLuckyBoxEventID, A: 2, B: 4, Name: "Drops Lucky Box",
+	//		Start: dropsLuckyBoxEventStart, End: dropsLuckyBoxEventEnd, Flag: 1,
+	//	})
 	// 战令：与 313 同一取舍（A/B 取 2/4、URL/s2/calendar/extra 全空）。
 	out = appendActivityEventInfoRow(out, activityEventInfoRow{
 		ID:    aradPassEventID,

@@ -9,12 +9,14 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/database"
 	"dfolan/internal/dungeon"
+	"dfolan/internal/extradrop"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/honeytime"
 	"dfolan/internal/inventory"
 	"dfolan/internal/legion"
 	"dfolan/internal/loot"
 	"dfolan/internal/npcpresence"
+	"dfolan/internal/oracleresearch"
 	"dfolan/internal/quest"
 	"dfolan/internal/reward"
 	"dfolan/internal/workflow"
@@ -110,6 +112,10 @@ type worldSession struct {
 	attendance *attendance.Catalog
 	// honeyTime 是 HoneyTime（活动 313）的原生目录；nil = 源读取失败，1294 推送与 680 领奖都按「活动未开启」处理。
 	honeyTime *honeytime.Catalog
+	// extradrop 是活动 1093（额外掉落奖励）的目录；nil = 未装配（那一站整个跳过）。
+	extradrop *extradrop.Catalog
+	// oracle685 是活动 685（装备模块研究）的目录；nil = 未装配（生产那一站整个拒绝）。
+	oracle685 *oracleresearch.Catalog
 	// honeyTimeAnchor 是上次结算在线时长的时刻（登录时设、每次 tick 推进）。
 	// 活动 313 的在线秒数按 now-anchor 累计，见 honey_time_flow.go。
 	honeyTimeAnchor time.Time

@@ -135,6 +135,8 @@ func (gateway *gameGateway) handleClient(c net.Conn, channel uint32) {
 		client.worldState.boostup = client.boostCatalog
 		client.worldState.attendance = client.attendanceCatalog
 		client.worldState.honeyTime = client.honeyTimeCatalog
+		client.worldState.extradrop = client.extraDropCatalog
+		client.worldState.oracle685 = client.oracle685Catalog
 		// 期间轨的轮数来自源脚本（`[loop]`），要放进 1294 的 `@47` 才会被客户端迭代。
 		if client.honeyTimeCatalog != nil {
 			SetHoneyTimePeriodLoop(client.honeyTimeCatalog.PeriodLoop)
