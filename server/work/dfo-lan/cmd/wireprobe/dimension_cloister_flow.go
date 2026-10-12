@@ -411,6 +411,8 @@ func (client *gameConnection) dimCloisterEventsDue(now time.Time) ([]outboundPac
 		events = append(events, ev.events...)
 		// 自动确认（B 帧）之后就不该再有关窗兜底了：窗口已经按官服节奏确认过。
 		if ev.kind == dimCloisterAutoChoiceKind {
+			s.dimCloisterWindowAcked = false
+			s.dimCloisterWindowDeadline = time.Time{}
 			keep := rest[:0]
 			for _, pend := range rest {
 				if pend.kind == dimCloisterTimeoutCloseKind {
@@ -787,25 +789,25 @@ func (s *legionSession) dimCloisterSelect(w *worldSession, p []byte) (legionResu
 	if err != nil {
 		return legionResult{}, err
 	}
-	// 截止值沿用同族口径记账（客户端侧不读它，但服务端到点要兜底关窗）。
-	if !req.Close {
-		s.dimCloisterWindowDeadline = time.Now().Add(legion.DimCloisterSelectionWindow)
-	} else {
-		s.dimCloisterWindowDeadline = time.Time{}
+	// C2080 action comes from the native writer, not the number of requests.
+	// Reopening an already open window must not confirm an operation.
+	if req.Action != 1 && req.Action != 2 {
+		return legionResult{}, fmt.Errorf("次元回廊不支持作战动作 %d", req.Action)
 	}
-
+	if req.Action == 2 && (!s.dimCloisterWindowAcked || req.Index < 0) {
+		return legionResult{}, fmt.Errorf("次元回廊作战选择没有活动窗口或有效操作号")
+	}
 	plan := make([]outboundPacket, 0, 4)
-	if !req.Close {
-		// 同族 A/B 口径（见 dimCloisterOperationOpenPackets 的注释）：
-		// 窗口还没开 → 本界进度态 + A（开窗，把选择权交给玩家）；
-		// 窗口已经开着 → 这一条就是玩家的选择 → 只回 B（已选），并撤掉兜底关窗。
-		if s.dimCloisterWindowAcked {
-			plan = append(plan, dimCloisterOperationChoicePackets(s.dimCloisterCleared)...)
-			s.dimCloisterWindowAcked = false
-			s.dimCloisterWindowDeadline = time.Time{}
-			s.dimCloisterDropWindowEvents()
-		} else {
-			// The captured dungeonN frame describes the clear of zero-based stage N.
+	stage := "open"
+	if req.Action == 2 {
+		// Preserve the owner's existing highest-difficulty policy.
+		plan = append(plan, dimCloisterOperationChoicePackets(s.dimCloisterCleared)...)
+		s.dimCloisterWindowAcked = false
+		s.dimCloisterWindowDeadline = time.Time{}
+		s.dimCloisterDropWindowEvents()
+		stage = "choice"
+	} else {
+		if !s.dimCloisterWindowAcked {
 			if s.dimCloisterCleared > 0 {
 				if progress, _, err := dimCloisterProgressPackets(s.dimCloisterMemoryRecords(), s.dimCloisterCleared-1); err == nil {
 					plan = append(plan, progress...)
@@ -814,31 +816,17 @@ func (s *legionSession) dimCloisterSelect(w *worldSession, p []byte) (legionResu
 				plan = append(plan, picked...)
 			}
 			s.dimCloisterWindowAcked = true
-			plan = append(plan, dimCloisterOperationOpenPackets(s.dimCloisterCleared)...)
-			// 到点由同一条待发队列兜底关窗（维纳斯同款：客户端自己对截止值不做任何事）。
-			// 玩家若先选好了关卡，进图后这条事件会在 dimCloisterEventsDue 里被跳过。
+			s.dimCloisterWindowDeadline = time.Now().Add(legion.DimCloisterSelectionWindow)
 			s.dimCloisterQueueWindowClose()
-			// 空卡兜底：照官服 s30 的 3.7 秒节奏自动按下本界选择值（B 帧），
-			// 否则选择窗会一直停在那里、按钮又按不动，玩家进不了图（业主 2026-10-10 实机）。
 			s.dimCloisterQueueChoice()
 		}
-	} else {
-		// 关窗（CMD2081 / 兜底）仍走同族口径的 40B close 帧（这一支尚未在实机单独验证）。
-		s.dimCloisterWindowAcked = false
+		// Native reader 1420a5390 consumes the absolute deadline at body+12.
 		plan = append(plan, outboundPacket{
-			Name: "dim_cloister_operation_ack", Kind: 1, ID: legion.CmdDimCloisterOperationSelect,
-			Payload: legion.DimCloisterOperationAck(byte(req.Action), legion.DimCloisterOperationTicket),
+			Name: "dim_cloister_operation_open_ack", Kind: 1, ID: legion.CmdDimCloisterOperationSelect,
+			Payload: legion.DimCloisterOperationOpenFrame(s.dimCloisterCleared, uint32(s.dimCloisterWindowDeadline.Unix())),
 		})
 	}
 
-	stage := "close"
-	if !req.Close {
-		if s.dimCloisterWindowAcked {
-			stage = "open"
-		} else {
-			stage = "choice"
-		}
-	}
 	return legionResult{
 		Packets: plan,
 		Events: []map[string]any{{
@@ -859,6 +847,9 @@ func (s *legionSession) dimCloisterOperationClear(w *worldSession, p []byte) (le
 	if w == nil || w.role.ID == 0 {
 		return legionResult{}, fmt.Errorf("次元回廊关窗需要已选定角色")
 	}
+	s.dimCloisterWindowAcked = false
+	s.dimCloisterWindowDeadline = time.Time{}
+	s.dimCloisterDropWindowEvents()
 	ack := legion.DimCloisterOperationClose()
 	return legionResult{
 		Packets: []outboundPacket{{

@@ -128,46 +128,29 @@ func DimCloisterStartAck(req DimCloisterStartRequest) []byte {
 	return body
 }
 
-// DimCloisterEnterAckSize 是 CMD2045（客户端进图确认）应答体的长度。
-//
-// 官服抓包 #789 明文 40 字节（网头 16B + size=40）：
-//
-//	01 | 00 00 00 00 | 66 00 00 00 | 00 00 00 00 | 00 00 | 2b 72 24 ff 39 …
-//
-// 与家族共享的 14B EnterDungeonAck 不同，所以单独给长度。
-const DimCloisterEnterAckSize = 40
+// Current C2045 reader 1424fd160 consumes 13 bytes after the success byte:
+// error:u32, content:u32, phase:u32, flag:u8. Captured padding is not payload.
+const DimCloisterEnterAckSize = 14
 
-// DimCloisterStageAck 构造 CMD2045 的应答，按官服抓包的字节位置放字段。
-//
-// 抓包 #789 原文与字段位置（0-based 正文下标）：
-//
-//	01 00 00 00 00 66 00 00 00 00 00 00 00 2b 72 24 ff 39 …
-//	             ^@5 队伍字节    ^@10 阶段
-//
-// 尾部 nonce 是**服务端自己的**（请求同位置是客户端时间戳），本仓没有来源，写 0。
-// 客户端读的是长度与成功字节，不要把尾巴当需要复刻的常量。
 func DimCloisterStageAck(party byte, stage uint32) []byte {
 	body := make([]byte, DimCloisterEnterAckSize)
 	body[0] = 1
-	body[5] = party
-	binary.LittleEndian.PutUint32(body[10:], stage)
+	binary.LittleEndian.PutUint32(body[5:], uint32(party))
+	binary.LittleEndian.PutUint32(body[9:], stage)
 	return body
 }
 
-// DecodeDimCloisterStageConfirm 读次元回廊 CMD2045 请求里的队伍字节与阶段。
-//
-// 逐字节对照抓包 #476（24B = 13B 家族信封 + 11B 正文）：
-//
-//	02 00 00 00 06 00 00 00 02 00 00 00 00 66 00 00 00 00 00 00 00 00 00 00
-//	                                     @13 队伍 0x66  @16 阶段
-//
-// 与 CMD2043 同形（队伍在 @13、阶段在 @16）。
+// Native writer 1424fe290 sends envelope[13], content:u32, phase:u32.
+// Reading phase at 16 only worked for phase zero; phase one became 256.
 func DecodeDimCloisterStageConfirm(p []byte) (party byte, stage uint32, err error) {
-	const want = EnvelopeSize + 11
-	if len(p) < want {
-		return 0, 0, fmt.Errorf("次元回廊进图确认载荷 %d 字节，至少需要 %d", len(p), want)
+	if len(p) < EnvelopeSize+8 {
+		return 0, 0, fmt.Errorf("Cloister entry request needs 21 bytes")
 	}
-	return p[EnvelopeSize], binary.LittleEndian.Uint32(p[EnvelopeSize+3:]), nil
+	content := binary.LittleEndian.Uint32(p[EnvelopeSize:])
+	if content != uint32(DimCloisterPartyType) {
+		return 0, 0, fmt.Errorf("foreign Cloister entry content %d", content)
+	}
+	return byte(content), binary.LittleEndian.Uint32(p[EnvelopeSize+4:]), nil
 }
 
 // 次元回廊的操作选择族（与末世录 CMD2354 / 维纳斯 CMD2290 **完全同构**）。
@@ -248,13 +231,14 @@ func DimCloisterOperationAck(action byte, ticket [5]byte) []byte {
 // （低版本 110 抓包同一位置是 `2f 4a c9 6a` —— 逐连接/逐次不同，语义未回收）。
 var DimCloisterOperationTicket = [5]byte{0x2b, 0x72, 0x24, 0xff, 0x39}
 
-// DimCloisterOperationClose 构造关窗响应：同族形状 + 关闭位（正文 @3）。
-//
-// 关窗的判据沿用同族口径（维纳斯/末世录的 reader 看「Action 段 + 关闭位」），
-// 但**长度与形状必须先是这一族要的 40 字节**，否则客户端连窗口记录都拿不到。
+// Current C2080 reader 1420a5390 consumes 19 bytes after success.
+// Close is record+6/body+7; body+3 corrupts the action into 65537.
 func DimCloisterOperationClose() []byte {
-	p := DimCloisterOperationAck(1, DimCloisterOperationTicket)
-	p[3] = 1
+	p := make([]byte, 20)
+	p[0] = 1
+	binary.LittleEndian.PutUint32(p[1:], 1)
+	binary.LittleEndian.PutUint16(p[5:], 0xffff)
+	p[7] = 1
 	return p
 }
 

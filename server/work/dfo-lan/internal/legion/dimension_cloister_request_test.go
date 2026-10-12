@@ -1,6 +1,7 @@
 package legion
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"testing"
 )
@@ -23,5 +24,24 @@ func TestDimCloisterOperationUsesNativeEnvelopeBoundary(t *testing.T) {
 		if _, err = DecodeDimCloisterOperation(body[:18]); err == nil {
 			t.Fatal("truncated operation accepted")
 		}
+	}
+}
+
+func TestCloisterNativeEntryNonzeroPhases(t *testing.T) {
+	for _, phase := range []uint32{0, 1, 2, 0x01020304} {
+		p := make([]byte, 21)
+		binary.LittleEndian.PutUint32(p[13:], uint32(DimCloisterPartyType))
+		binary.LittleEndian.PutUint32(p[17:], phase)
+		_, got, err := DecodeDimCloisterStageConfirm(p)
+		if err != nil || got != phase {
+			t.Fatal(phase, got, err)
+		}
+		p[16] = 1
+		if _, _, err = DecodeDimCloisterStageConfirm(p); err == nil {
+			t.Fatal("truncated foreign content accepted")
+		}
+	}
+	if _, _, err := DecodeDimCloisterStageConfirm(make([]byte, 20)); err == nil {
+		t.Fatal("truncated entry accepted")
 	}
 }
