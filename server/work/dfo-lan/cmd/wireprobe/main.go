@@ -51,6 +51,11 @@ func runGateway(startup Config) error {
 	// 上游的复活用例与默认放行用例都因此失败。
 	modpolicy.Reset()
 	defer modpolicy.Reset()
+	// servermod 的注册表（钩子 / mod 清单 / 奖励规则脚本）与 modpolicy 同理，跟着这一次实例走。
+	// 实测：本机装了带规则脚本的 mod 后，跑过网关的测试进程里，之后构造的奖励管线仍会看到
+	// 那份脚本，"磁盘同名脚本盖住内置"的门禁断言因此多出的一笔金币而失败。
+	servermod.Reset()
+	defer servermod.Reset()
 	// —— 服务端层 mod：注册阶段（必须在 prepareRuntime **之前**）——
 	//
 	// 为什么这么早：奖励管线是在 prepareRuntime 内部构造的

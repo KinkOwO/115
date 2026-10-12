@@ -9,25 +9,7 @@ import (
 // reset 清空包级注册状态，让每个用例从零开始（这些状态是进程级单例）。
 func reset(t *testing.T) {
 	t.Helper()
-	mu.Lock()
-	boots = nil
-	consoles = nil
-	responses = nil
-	requests = nil
-	registeredIDs = map[string]bool{}
-	modValues = map[string]string{}
-	configKeys = map[string]string{}
-	contentClaims = nil
-	mu.Unlock()
-	// 脚本注册表与启用清单各有自己的锁与状态，一并清掉，保证用例互不串味。
-	scriptMu.Lock()
-	modScripts = nil
-	scriptMu.Unlock()
-	enabledMu.Lock()
-	enabledPath = ""
-	disabledSet = map[string]bool{}
-	enabledLoadNote = ""
-	enabledMu.Unlock()
+	Reset()
 }
 
 func TestRegisterAndBootRunsInOrder(t *testing.T) {
