@@ -262,7 +262,7 @@ func run() error {
 		return e
 	}
 	fmt.Println("WORLD_QUEST_STORAGE_PASS ownership=true stale_write_refused=true reopen=true quest_retry_idempotent=true prerequisite_enforced=true")
-	b, e := json.MarshalIndent(map[string]any{"status": "POSTGRES_CHARACTER_CHECK_PASS", "concurrent_slot_limit": true, "global_name_unique": true, "reopen_persistence": true, "current_naming_packet_replay": true, "source_attributes_preserved": true, "vault_contents_preserved": true, "fatigue_reconnect_and_rollover": true, "quest_pending_restore_and_audited_repair": true, "world_quest_ownership_and_revision": true, "list_payload_bytes": len(payload), "temporary_schema_only": true, "real_client_character_created": false}, "", "  ")
+	b, e := json.MarshalIndent(map[string]any{"status": "SQLITE_CHARACTER_CHECK_PASS", "concurrent_slot_limit": true, "global_name_unique": true, "reopen_persistence": true, "current_naming_packet_replay": true, "source_attributes_preserved": true, "vault_contents_preserved": true, "fatigue_reconnect_and_rollover": true, "quest_pending_restore_and_audited_repair": true, "world_quest_ownership_and_revision": true, "list_payload_bytes": len(payload), "temporary_schema_only": true, "real_client_character_created": false}, "", "  ")
 	if e != nil {
 		return e
 	}

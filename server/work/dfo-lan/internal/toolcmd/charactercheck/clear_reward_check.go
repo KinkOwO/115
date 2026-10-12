@@ -62,6 +62,14 @@ func clearRewardCheck(ctx context.Context, s *database.TestFixture, reopened *da
 	if _, _, _, e = service.Clear(ctx, foreign, run, 50, now); e == nil {
 		return fmt.Errorf("clear reward crossed owner")
 	}
+	beforeRaw, e := s.CharacterState(ctx, role.ID)
+	if e != nil {
+		return e
+	}
+	var beforeState character.State
+	if e = json.Unmarshal(beforeRaw, &beforeState); e != nil {
+		return e
+	}
 	type result struct {
 		r       database.Character
 		c       character.ClearReceipt
@@ -95,7 +103,7 @@ func clearRewardCheck(ctx context.Context, s *database.TestFixture, reopened *da
 		if e = json.Unmarshal(res.r.State, &state); e != nil {
 			return e
 		}
-		if state.Experience != 2490 || state.Level != 3 {
+		if state.Experience != beforeState.Experience+uint64(res.c.Base)+uint64(res.c.Score)+uint64(res.c.MonsterExperience) {
 			return fmt.Errorf("duplicate clear experience: %d", state.Experience)
 		}
 	}
@@ -114,7 +122,7 @@ func clearRewardCheck(ctx context.Context, s *database.TestFixture, reopened *da
 	if e = json.Unmarshal(saved.State, &state); e != nil {
 		return e
 	}
-	if state.Experience != 2490 {
+	if state.Experience != beforeState.Experience+uint64(163+24) {
 		return fmt.Errorf("clear persistence mismatch")
 	}
 	var recordState struct {
