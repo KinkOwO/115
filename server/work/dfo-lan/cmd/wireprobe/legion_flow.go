@@ -22,6 +22,13 @@ import (
 // pending-response latch.
 type legionSession struct {
 	session *legion.Session
+	// nativeRun owns source-defined Cloister/Dusky progress. The connection
+	// loop is its sole writer; world keeps the legionSession pointer.
+	nativeRun          *legion.NativeRun
+	nativeOwnerID      int64
+	nativeSettlement   nativeLegionSettlement
+	nativeAcknowledged [3]bool
+	nativePartyName    []byte
 
 	// catalog is the compiled apocalypse table (configs/apocalypse.generated.json).
 	// It is optional only so a server started without the config still serves
@@ -155,15 +162,8 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 	if w == nil || w.role.ID == 0 {
 		return legionResult{}, fmt.Errorf("legion requires a selected character")
 	}
-	// Dusky owns content103 and C2143. Until its lifecycle is bound, never
-	// manufacture an Apocalypse session or N2895 for this native N2467 client.
-	if legion.DuskyRequest(id, p) {
-		if id == legion.CmdDuskyOperationSelect {
-			if _, err := legion.DecodeDuskySelection(p); err != nil {
-				return legionResult{}, err
-			}
-		}
-		return legionResult{}, fmt.Errorf("幽暗岛 content103/C2143 已识别；N2467 开战、阶段结算运行链尚未完成，拒绝转入末世录处理器")
+	if result, handled, err := s.handleNativeLegion(w, p, id); handled {
+		return result, err
 	}
 	inDungeon := w.activeDungeon != nil
 	side := sideOf(id)
@@ -440,6 +440,12 @@ func resultWithEvents(result legionResult, note map[string]any) legionResult {
 // thing that wastes a live session. Returns false when there is nothing to
 // close, so the caller does not emit an event about a run that never started.
 func (s *legionSession) abandonOnLeave(reason string, characterID int64) (map[string]any, bool) {
+	if s.nativeRun != nil && s.nativeOwnerID == characterID && s.nativeRun.State != legion.NativeComplete && s.nativeRun.State != legion.NativeAbandoned && reason != "settlement_exit_ack" {
+		s.nativeRun.Abandon()
+		s.nativeSettlement = nativeLegionSettlement{}
+		s.dimCloisterEvents = nil
+		return map[string]any{"kind": "native_legion_abandoned_on_leave", "character_id": characterID, "reason": reason}, true
+	}
 	if s.session == nil || !s.session.Entered {
 		return nil, false
 	}

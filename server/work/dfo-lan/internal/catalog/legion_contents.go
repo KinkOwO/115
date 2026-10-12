@@ -42,9 +42,12 @@ type LegionContent struct {
 	Waiting          LegionAreaPoint         `json:"waiting_area"`
 	MovieTime        int64                   `json:"movie_time"`
 	SelectLimit      int64                   `json:"operation_select_limit_seconds"`
+	RetryCount       *int64                  `json:"dungeon_retry_count,omitempty"`
+	ReselectCount    *int64                  `json:"operation_reselect_count,omitempty"`
 	QuestIndex       []int64                 `json:"quest_index"`
 	Dungeons         []LegionDungeon         `json:"dungeon_info_data"`
 	WeeklyEnter      int64                   `json:"weekly_enter_count"`
+	ProbabilityRate  int64                   `json:"total_probability_rate"`
 	PhaseReward      int64                   `json:"phase_reward_count"`
 	EnterData        []LegionEnterRow        `json:"enter_data"`
 	InCountIndex     int64                   `json:"incount_dungeon_index"`
@@ -207,6 +210,29 @@ func parseLegionContent(set *legionBlock) (LegionContent, error) {
 	}
 	if c.SelectLimit, err = set.optionalIntField("operation select limit time"); err != nil {
 		return c, err
+	}
+	for _, spec := range []struct {
+		field string
+		into  **int64
+	}{
+		{"dungeon retry count", &c.RetryCount}, {"operation reselect count", &c.ReselectCount},
+	} {
+		if set.has(spec.field) {
+			v, e := set.intField(spec.field)
+			if e != nil {
+				return c, e
+			}
+			if v < -1 {
+				return c, fmt.Errorf("invalid %s", spec.field)
+			}
+			*spec.into = &v
+		}
+	}
+	if c.ProbabilityRate, err = set.optionalIntField("total probability rate"); err != nil {
+		return c, err
+	}
+	if c.ProbabilityRate < 0 || c.ProbabilityRate > 4294967295 {
+		return c, fmt.Errorf("invalid total probability rate")
 	}
 	if c.InCountIndex, err = set.optionalIntField("incount dungeon index"); err != nil {
 		return c, err

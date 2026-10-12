@@ -284,10 +284,10 @@ func DecodeRewardEnd(p []byte) (RewardEndRequest, error) {
 
 // RewardEndAckSize is the body size the client reads for CMD2046: its handler
 // sub_1424FD3A0 calls sub_146EA0BE0(v50, 13). Again only the length is
-// contract. G0380 re-located the current handler via the2046 registration at
-// 1424FEEDE:1424FDB60 still reads13B, then invokes client reward/UI cleanup.
-// The older1424FD3A0 address is not this handler in2.38.3.25. Length evidence
-// alone does not authorize a successful reply before durable own rewards.
+// contract. Current PE 515fefa1 registers 1424fd3a0 at 1424fe725 for 2046;
+// it reads13B then invokes reward/UI cleanup. 1424fdb60 is N2253 (2405B),
+// not this ACK reader. Length evidence alone does not authorize a successful
+// reply before durable owned rewards.
 const RewardEndAckSize = 1 + 13
 
 // RewardEndAck builds the CMD2046 response body.

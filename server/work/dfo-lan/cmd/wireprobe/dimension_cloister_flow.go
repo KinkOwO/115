@@ -389,6 +389,14 @@ func (client *gameConnection) dimCloisterEventsDue(now time.Time) ([]outboundPac
 	if client == nil || client.worldState == nil {
 		return nil, nil
 	}
+	if client.worldState.ownsNativeLegion() {
+		packets, err := client.worldState.nativeLegionTick(now)
+		client.scheduleNativeLegion()
+		if err != nil {
+			return nil, []map[string]any{{"kind": "native_legion_timer_failed", "error": err.Error()}}
+		}
+		return packets, nil
+	}
 	s := &client.legionState
 	if len(s.dimCloisterEvents) == 0 {
 		return nil, nil

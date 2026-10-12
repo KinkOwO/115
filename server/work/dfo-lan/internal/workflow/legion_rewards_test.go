@@ -133,3 +133,50 @@ func (s legionWrapperSource) RewardBox(id uint32) (loot.RewardBox, bool) {
 }
 func (s legionWrapperSource) Item(id uint32) bool      { return id == 21 || id == 22 }
 func (s legionWrapperSource) Container(id uint32) bool { return id == 11 || id == 12 || id == 13 }
+
+func TestLegionSourceProbabilityIncludesNoRewardInterval(t *testing.T) {
+	for _, draw := range []uint64{0, 9999, 10000, 999999} {
+		s, store, r := legionRewardFixture()
+		r.ProbabilityRate = 1000000
+		r.Basic[0].Weight = r.ProbabilityRate
+		r.Additional[0].Weight = r.ProbabilityRate
+		r.GlobalClear = []catalog.LegionOperationReward{{Template: 11, Amount: 1, Weight: 10000}}
+		s.Draw = func(limit uint64) (uint64, error) {
+			if limit != 1000000 {
+				t.Fatalf("wrong denominator %d", limit)
+			}
+			return draw, nil
+		}
+		ctx := context.Background()
+		saved, plan, e := s.Freeze(ctx, store.role, r, fmt.Sprint("draw-", draw), time.Now())
+		if e != nil {
+			t.Fatal(e)
+		}
+		want := 1
+		if draw < 10000 {
+			want = 2
+		}
+		if len(plan.Basic) != want {
+			t.Fatalf("draw=%d products=%+v", draw, plan.Basic)
+		}
+		s.Draw = func(uint64) (uint64, error) { t.Fatal("replayed lottery"); return 0, nil }
+		again, frozen, e := s.Freeze(ctx, saved, r, plan.Run, time.Now())
+		if e != nil || !reflect.DeepEqual(plan, frozen) {
+			t.Fatal("frozen lottery changed", e)
+		}
+		paid, _, e := s.Claim(ctx, again, plan.Run)
+		if e != nil {
+			t.Fatal(e)
+		}
+		replay, _, e := s.Claim(ctx, paid, plan.Run)
+		if e != nil || string(replay.State) != string(paid.State) {
+			t.Fatal("extra reward repeated", e)
+		}
+	}
+	s, _, r := legionRewardFixture()
+	r.ProbabilityRate = 1
+	r.Basic[0].Weight = 2
+	if _, _, e := s.resolve(r.Basic, r.ProbabilityRate); e == nil {
+		t.Fatal("source probability overflow")
+	}
+}

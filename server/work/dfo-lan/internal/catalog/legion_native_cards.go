@@ -14,11 +14,47 @@ type NativeLegionCard struct {
 	Pool       uint32
 	Parameter  float64
 	FixedValue *float64
+	// FormulaBound means the native effect and tooltip consume operation
+	// formula, not the integer magnitude in the network operation record.
+	FormulaBound bool
 }
 
 // DrawCard consumes the mode's own source index list and weights. Pools are
 // explicit because their presentation differs per content and per phase.
 func (s *NativeLegionOperations) DrawCard(mode, party, rangeMode string, pool uint32, draw func(int64) (int64, error)) (NativeLegionCard, error) {
+	return s.drawCard(mode, party, pool, draw, func(d NativeLegionOperation) (float64, bool, error) {
+		v, err := d.DrawNativeParameter(party, rangeMode, draw)
+		return v, false, err
+	})
+}
+
+// DrawDuskyCard binds the current US type4/type7 vtables: effect +0x28 and
+// tooltip +0x78 consume definition+0x110's formula vector. Their network+0x108
+// value is unused. Keep the source formula intact; do not truncate floats or
+// invent a sampler for the unused step0 range. Other types retain strict draws.
+func (s *NativeLegionOperations) DrawDuskyCard(mode, party, rangeMode string, pool uint32, draw func(int64) (int64, error)) (NativeLegionCard, error) {
+	return s.drawCard(mode, party, pool, draw, func(d NativeLegionOperation) (float64, bool, error) {
+		if d.Type == 4 || d.Type == 7 {
+			formula := d.Fields["[operation formula]"]
+			if len(formula) == 0 || len(formula)%2 != 0 {
+				return 0, false, fmt.Errorf("Dusky formula missing or incomplete")
+			}
+			for i := 0; i < len(formula); i += 2 {
+				if formula[i].Type != 6 || formula[i].Text == "" {
+					return 0, false, fmt.Errorf("Dusky formula variable missing")
+				}
+				if _, err := nativeOperationNumber(formula[i+1]); err != nil {
+					return 0, false, err
+				}
+			}
+			return 0, true, nil
+		}
+		v, err := d.DrawNativeParameter(party, rangeMode, draw)
+		return v, false, err
+	})
+}
+
+func (s *NativeLegionOperations) drawCard(mode, party string, pool uint32, draw func(int64) (int64, error), parameter func(NativeLegionOperation) (float64, bool, error)) (NativeLegionCard, error) {
 	var card NativeLegionCard
 	if s == nil || draw == nil {
 		return card, fmt.Errorf("native operation source/entropy missing")
@@ -58,11 +94,11 @@ func (s *NativeLegionOperations) DrawCard(mode, party, rangeMode string, pool ui
 			n -= int64(d.Probability)
 			continue
 		}
-		parameter, err := d.DrawNativeParameter(party, rangeMode, draw)
+		value, formulaBound, err := parameter(d)
 		if err != nil {
 			return card, fmt.Errorf("operation%d: %w", index, err)
 		}
-		card = NativeLegionCard{Index: index, Pool: pool, Parameter: parameter}
+		card = NativeLegionCard{Index: index, Pool: pool, Parameter: value, FormulaBound: formulaBound}
 		if d.FixedValue != nil {
 			v := *d.FixedValue
 			card.FixedValue = &v

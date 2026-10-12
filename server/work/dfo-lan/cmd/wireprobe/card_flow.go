@@ -145,6 +145,9 @@ func (w *worldSession) cardPick(p []byte) ([]outboundPacket, error) {
 	return packets, nil
 }
 func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPacket, error) {
+	if w.ownsNativeLegion() {
+		return w.exitNativeLegion(p, time.Now())
+	}
 	r, e := protocol.DecodeSettlementExit(p)
 	if e != nil {
 		return nil, nil, e

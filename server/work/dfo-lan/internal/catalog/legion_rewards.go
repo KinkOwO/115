@@ -12,6 +12,8 @@ type LegionPhaseRewards struct {
 	Dungeon           uint32
 	WeeklyLimit       uint32
 	Basic, Additional []LegionOperationReward
+	ProbabilityRate   uint32
+	GlobalClear       []LegionOperationReward
 }
 
 // The caller supplies the capture-proven default UI ordinal. Dungeon IDs

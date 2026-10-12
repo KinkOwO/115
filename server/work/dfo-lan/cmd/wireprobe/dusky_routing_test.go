@@ -3,7 +3,6 @@ package main
 import (
 	"dfolan/internal/legion"
 	"encoding/binary"
-	"strings"
 	"testing"
 )
 
@@ -14,7 +13,7 @@ func TestDuskyCannotCreateApocalypseSession(t *testing.T) {
 		binary.LittleEndian.PutUint32(p[13:], legion.DuskyContentID)
 		for _, id := range []uint16{legion.CmdStart, legion.CmdEnterDungeon, legion.CmdRewardEnd, legion.CmdFail} {
 			r, err := s.handle(townSession(7), p, id)
-			if err == nil || !strings.Contains(err.Error(), "幽暗岛") || len(r.Packets) != 0 || s.apocalypse != nil || s.session != nil {
+			if err == nil || len(r.Packets) != 0 || s.apocalypse != nil || s.session != nil || s.nativeRun != nil {
 				t.Fatalf("Dusky fell through channel%d opcode%d: %+v %v", channel, id, r, err)
 			}
 		}

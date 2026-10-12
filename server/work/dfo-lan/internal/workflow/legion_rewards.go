@@ -32,6 +32,8 @@ type LegionRewardService struct {
 	Boxes   loot.RewardBoxSource
 	// Explicit operator policy; source quantities and pools still apply.
 	Unlimited bool
+	// Draw allows deterministic boundary verification. Production uses crypto/rand.
+	Draw func(uint64) (uint64, error)
 }
 
 func readLegionRewards(raw json.RawMessage) (map[string]json.RawMessage, legionRewardProgress, error) {
@@ -61,7 +63,7 @@ func saveLegionRewards(state map[string]json.RawMessage, p legionRewardProgress)
 	state["legion_phase_rewards"] = b
 	return json.Marshal(state)
 }
-func (s *LegionRewardService) resolve(pool []catalog.LegionOperationReward) (catalog.LegionOperationReward, []loot.Award, error) {
+func (s *LegionRewardService) resolve(pool []catalog.LegionOperationReward, denominator uint32) (catalog.LegionOperationReward, []loot.Award, error) {
 	var zero catalog.LegionOperationReward
 	var total uint64
 	for _, row := range pool {
@@ -73,11 +75,33 @@ func (s *LegionRewardService) resolve(pool []catalog.LegionOperationReward) (cat
 	if total == 0 {
 		return zero, nil, fmt.Errorf("empty source phase pool")
 	}
-	draw, err := rand.Int(rand.Reader, new(big.Int).SetUint64(total))
+	limit := total
+	if denominator != 0 {
+		limit = uint64(denominator)
+	}
+	if total > limit {
+		return zero, nil, fmt.Errorf("legion weights exceed source probability rate")
+	}
+	var value uint64
+	var err error
+	if s.Draw != nil {
+		value, err = s.Draw(limit)
+	} else {
+		var draw *big.Int
+		draw, err = rand.Int(rand.Reader, new(big.Int).SetUint64(limit))
+		if err == nil {
+			value = draw.Uint64()
+		}
+	}
 	if err != nil {
 		return zero, nil, err
 	}
-	value := draw.Uint64()
+	if value >= limit {
+		return zero, nil, fmt.Errorf("legion lottery outside source range")
+	}
+	if value >= total {
+		return zero, nil, nil
+	}
 	for _, row := range pool {
 		if value >= uint64(row.Weight) {
 			value -= uint64(row.Weight)
@@ -125,18 +149,32 @@ func (s *LegionRewardService) Freeze(ctx context.Context, role database.Characte
 		key := fmt.Sprintf("%s:%d", r.Content, r.Dungeon)
 		plan := LegionRewardPlan{Run: run, Source: current.ConfigVersion, ContentChecksum: r.Checksum, Content: r.Content, Dungeon: r.Dungeon, Week: week, Eligible: s.Unlimited || p.Counts[key] < r.WeeklyLimit}
 		if plan.Eligible {
-			root, products, err := s.resolve(r.Basic)
+			root, products, err := s.resolve(r.Basic, r.ProbabilityRate)
 			if err != nil {
 				return nil, empty, err
 			}
-			plan.Roots = append(plan.Roots, root)
+			if root.Template != 0 {
+				plan.Roots = append(plan.Roots, root)
+			}
 			plan.Basic = products
-			root, products, err = s.resolve(r.Additional)
+			root, products, err = s.resolve(r.Additional, r.ProbabilityRate)
 			if err != nil {
 				return nil, empty, err
 			}
-			plan.Roots = append(plan.Roots, root)
+			if root.Template != 0 {
+				plan.Roots = append(plan.Roots, root)
+			}
 			plan.Additional = products
+			if len(r.GlobalClear) > 0 {
+				root, products, err = s.resolve(r.GlobalClear, r.ProbabilityRate)
+				if err != nil {
+					return nil, empty, err
+				}
+				if root.Template != 0 {
+					plan.Roots = append(plan.Roots, root)
+				}
+				plan.Basic = append(plan.Basic, products...)
+			}
 			// Current native consumers: 35 basic and 15 additional records per owner.
 			if len(plan.Basic) > 35 || len(plan.Additional) > 15 {
 				return nil, empty, fmt.Errorf("legion rewards exceed native display capacity")

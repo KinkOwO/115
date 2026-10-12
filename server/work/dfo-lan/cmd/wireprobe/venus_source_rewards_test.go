@@ -16,7 +16,7 @@ func venusSourceRewardFixture(t *testing.T) *worldSession {
 	w.venus = &venusRun{choice: 1, stage: 2, entered: true, cleared: [4]bool{true, true, true, false}}
 	w.activeDungeon.Definition.ID = legion.VenusStageDungeons[2]
 	w.loot.RewardBoxes = apocalypseTestBoxes{77: {Pools: []loot.RewardBoxPool{{Candidates: []loot.RewardBoxCandidate{{Template: 21, Count: 8, Weight: 1}}}}}, 78: {Pools: []loot.RewardBoxPool{{Candidates: []loot.RewardBoxCandidate{{Template: 22, Count: 3, Weight: 1}}}}}}
-	w.dungeons.LegionContents.Contents["Venus Legion"] = catalog.LegionContent{Name: "Venus Legion", PhaseReward: 1, Dungeons: []catalog.LegionDungeon{{Dungeon: legion.VenusStageDungeons[2]}}, Rewards: []catalog.LegionRewardRow{{PartyType: "solo", Difficulty: "expert", Kind: "basic", Values: []int64{1, 77, 1}}}, NativeOperations: &catalog.NativeLegionOperations{Definitions: map[uint16]catalog.NativeLegionOperation{2: {Rewards: []catalog.NativeLegionReward{{Difficulty: "expert", Template: 78, Amount: 1, Weight: 1}}}}}}
+	w.dungeons.LegionContents.Contents["Venus Legion"] = catalog.LegionContent{Name: "Venus Legion", ProbabilityRate: 1, PhaseReward: 1, Dungeons: []catalog.LegionDungeon{{Dungeon: legion.VenusStageDungeons[2]}}, Rewards: []catalog.LegionRewardRow{{PartyType: "solo", Difficulty: "expert", Kind: "basic", Values: []int64{1, 77, 1}}}, NativeOperations: &catalog.NativeLegionOperations{Definitions: map[uint16]catalog.NativeLegionOperation{2: {Rewards: []catalog.NativeLegionReward{{Difficulty: "expert", Template: 78, Amount: 1, Weight: 1}}}}}}
 	return w
 }
 

@@ -1468,7 +1468,7 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 		// （`client_trace`：`recv item - [ 108030760 : 0 ]`），放进 N38 死亡应答下发；
 		// 职业完全对不上（玩家是剑士）⇒ 客户端「击杀 BOSS 后」当场 `exit=0xC0000005`。
 		// 官服这条内容的地面掉落本来就是空的，排除它才是同族口径。
-		if w.loot != nil && (!unowned || blackBoss) && w.venus == nil && w.ispins == nil && w.forest == nil && w.apocalypse == nil && !w.isDimCloisterChannel() {
+		if w.loot != nil && (!unowned || blackBoss) && w.venus == nil && w.ispins == nil && w.forest == nil && w.apocalypse == nil && !w.isDimCloisterChannel() && !w.ownsNativeLegion() {
 			// 掉落会话的创建只有一处（ensureDropSession，见 border_reward_flow.go）：
 			// 调律之边界在**加载应答阶段**就要用它冻结奖单，所以这里通常是取回同一实例。
 			w.ensureDropSession()
@@ -1654,7 +1654,7 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 	// 这一句是「补上闸门」而不是「绕过闸门」：`Completed()` 一旦为真，接下来那句
 	// `completeDungeon()` 就会走次元回廊分支发出横幅，翻牌界面才有依据出现。
 	// 幂等：MarkCompleted 只是置一个 bool，重复调用无害。
-	if w.activeDungeon != nil && confirmed {
+	if w.activeDungeon != nil && confirmed && !w.ownsNativeLegion() {
 		if _, ok := legion.IsDimCloisterStageDungeon(w.activeDungeon.Definition.ID); ok &&
 			w.activeDungeon.LegionArenaBossDown() {
 			w.activeDungeon.MarkCompleted()
@@ -1708,6 +1708,15 @@ func (w *worldSession) bossCheck(p []byte, event func(map[string]any)) ([]outbou
 }
 
 func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
+	if w == nil || w.activeDungeon == nil {
+		return nil, nil
+	}
+	if w.ownsNativeLegion() {
+		if !w.activeDungeon.Completed() || w.completionSent {
+			return nil, nil
+		}
+		return w.completeNativeLegionStage()
+	}
 	if w.bakal != nil {
 		return nil, nil
 	} // raid phase owns completion and rewards

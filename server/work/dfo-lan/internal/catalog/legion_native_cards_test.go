@@ -69,7 +69,7 @@ func TestStagedLegionSourceRotation(t *testing.T) {
 
 func TestNativePhaseRewardsFollowSourceAndMode(t *testing.T) {
 	s := &LegionContents{Source: pvf.ArchiveSnapshot{Checksum: "fixture"}, Contents: map[string]LegionContent{"DuskyIsland": {
-		PhaseReward: 1, Dungeons: []LegionDungeon{{Dungeon: 10}}, Rewards: []LegionRewardRow{{PartyType: "solo", Difficulty: "normal", Kind: "basic", Values: []int64{100, 20, 2}}}, NativeOperations: &NativeLegionOperations{Definitions: map[uint16]NativeLegionOperation{9: {Rewards: []NativeLegionReward{{Difficulty: "normal", Template: 30, Amount: 3, Weight: 50, Tier: 2, Account: 1}}}}},
+		ProbabilityRate: 100, PhaseReward: 1, Dungeons: []LegionDungeon{{Dungeon: 10}}, Rewards: []LegionRewardRow{{PartyType: "solo", Difficulty: "normal", Kind: "basic", Values: []int64{100, 20, 2}}}, NativeOperations: &NativeLegionOperations{Definitions: map[uint16]NativeLegionOperation{9: {Rewards: []NativeLegionReward{{Difficulty: "normal", Template: 30, Amount: 3, Weight: 50, Tier: 2, Account: 1}}}}},
 	}}}
 	r, err := NativePhaseRewards(s, "DuskyIsland", 10, 9, "normal", "normal")
 	if err != nil || r.Basic[0].Amount != 2 || r.Additional[0].Amount != 3 || r.Additional[0].Grade != 2 || r.Additional[0].Extra != 1 {
