@@ -76,3 +76,29 @@ documented above. Optional equipment, skills, rewards and unknown fixed-prefix
 fields remain incomplete. No original EXE or PVF change was made for this fix.
 Live14 includes the corrected mode1, vault initialization, USER_AREA23,
 AREA_USERS24 and final FATIGUE36. Client verification is pending.
+
+## Ordinary worn objects and the equipment guide (2026-10-12)
+
+Mode 0 binds appearance indices; mode 1 restores actual worn item objects.
+The equipment guide `playguide_5.co` checks `equipment slot / empty / weapon`:
+native `145364F50` resolves weapon to slot12 and calls the player virtual
+getter at +0x1F08. It does not inspect the mode-0 appearance index.
+
+`14563D6CB` invokes `1452C1540`, whose final 48-slot pass deletes omitted
+worn objects (except slot31) through virtual +0x1F30. Filtering ordinary
+slots12..25 from the mode-1 snapshot therefore removes real owned objects
+before the Seria-room guide checks them. Later inventory/window notifications
+do not substitute for this complete initial snapshot.
+
+Ordinary slots12..25 now use the native plain row: 40-byte header and 87-byte
+tail, with no avatar blobs or type26 creature extension. The service projects
+the persisted worn slot/template/durability and leaves rich instance records
+to the existing NOTI13/14 channel. A weapon solely in the bag remains unworn.
+Avatar/creature layouts and the disabled optional-detail profile are unchanged.
+
+The finished GF115 capture20261006-165615, stream63/wire380, carries a real
+weapon row in its mode-1 snapshot (slot12, template101010912, durability44).
+Its fixed prefix and packed-stat length differ from US; only the ownership
+semantics are used here, not cross-region fixed offsets. Tests pin ordinary
+US row boundaries, actual worn restoration and bag-only/empty-slot cases.
+Compilation and packet tests do not establish client UI acceptance.

@@ -304,7 +304,8 @@ func StartMap(s StartMapState) ([]byte, error) {
 }
 func DungeonLoaded() []byte { return []byte{0, 0, 0, 0, 0} }
 
-// NOTI132, native1452aee40, normal solo return-to-town branch.
+// NOTI132, native1452aee40, changes the selection object's state to 5/6.
+// It is not the bodyless C132 cancel response; that path starts with N23/N24.
 func DungeonSelectionReturn() []byte { return []byte{0} }
 
 // NOTI 2193 (0x0891, ENUM_NOTIPACKET_ELVENMERE_INFO), native 142223F70 -> 14222B360.

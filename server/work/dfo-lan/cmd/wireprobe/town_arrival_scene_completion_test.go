@@ -199,7 +199,16 @@ func TestTownArrivalCinematicCompletionReachesOwnedSettlementAndTown(t *testing.
 	require.Error(t, err, "CMD72 before clear remains refused")
 	request, err := hex.DecodeString("21002552000000000000000000000000")
 	require.NoError(t, err)
+	confirmationStart := len(*events)
 	require.Equal(t, dispatchHandled, client.dispatchWorldAndQuests(&clientRequest{frame: wire.Frame{Type: 1, ID: 33}, plaintext: request, verified: true}))
+	for _, event := range (*events)[confirmationStart:] {
+		require.NotEqual(t, "quest_interaction_refused", event["kind"], event)
+	}
+	require.True(t, w.activeDungeon.Completed())
+	require.True(t, w.completionSent)
+	activeAfterConfirmation, err := w.quests.Active(context.Background(), w.role)
+	require.NoError(t, err)
+	require.Equal(t, []protocol.ActiveQuest{{ID: 21029, Progress: 0}}, activeAfterConfirmation)
 	_, _, err = w.settlementExit(exit)
 	require.Error(t, err, "CMD72 must still await CMD46 and its card plan")
 	start := len(*events)
