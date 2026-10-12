@@ -1,0 +1,351 @@
+{
+  "stage": "live-failed-native-birth-success-then-position-zero",
+  "version": "0.3.18",
+  "authorization": [
+    "进图APC卡在天上了，出生坐标不对",
+    "已退出"
+  ],
+  "session": "server/work/dfo-lan/runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_002204_186005_next37",
+  "failedLive": {
+    "pid": 21080,
+    "runTick": 34960640,
+    "dllVersion": "0.3.17",
+    "pathQueryCount": 0,
+    "reasons": {
+      "started": 1,
+      "owner-not-armed": 16,
+      "world-mode-ineligible": 95,
+      "registration-anchored": 6,
+      "path-query-disabled": 318
+    },
+    "registeredAPCCoordinates": {
+      "6683506944:slot0": {
+        "(0, 0)": 33
+      },
+      "6683506944:slot1": {
+        "(0, 0)": 33
+      },
+      "6683506944:slot2": {
+        "(0, 0)": 33
+      },
+      "6707973888:slot0": {
+        "(790, 394)": 3,
+        "(823, 409)": 1,
+        "(865, 354)": 1,
+        "(525, 333)": 1,
+        "(478, 333)": 4,
+        "(506, 352)": 1
+      },
+      "6707973888:slot1": {
+        "(826, 394)": 1,
+        "(564, 403)": 1,
+        "(490, 385)": 1,
+        "(552, 429)": 1,
+        "(565, 429)": 1,
+        "(577, 395)": 4,
+        "(539, 348)": 2
+      },
+      "6707973888:slot2": {
+        "(725, 300)": 1,
+        "(618, 287)": 2,
+        "(569, 399)": 1,
+        "(695, 399)": 1,
+        "(525, 334)": 6
+      },
+      "6707972096:slot0": {
+        "(1157, 329)": 1,
+        "(906, 329)": 1,
+        "(686, 260)": 2,
+        "(815, 282)": 1,
+        "(721, 289)": 1
+      },
+      "6707972096:slot1": {
+        "(1198, 269)": 1,
+        "(842, 253)": 1,
+        "(564, 261)": 1,
+        "(592, 273)": 1,
+        "(640, 273)": 1,
+        "(640, 275)": 1
+      },
+      "6707972096:slot2": {
+        "(1145, 330)": 1,
+        "(800, 329)": 2,
+        "(666, 266)": 1,
+        "(809, 249)": 1,
+        "(682, 250)": 1
+      },
+      "6768600064:slot0": {
+        "(218, 339)": 1,
+        "(443, 296)": 1,
+        "(649, 289)": 3,
+        "(601, 225)": 1,
+        "(676, 224)": 1
+      },
+      "6768600064:slot1": {
+        "(149, 352)": 1,
+        "(593, 259)": 1,
+        "(769, 237)": 1,
+        "(709, 254)": 1,
+        "(798, 259)": 1,
+        "(856, 254)": 1,
+        "(641, 203)": 1
+      },
+      "6768600064:slot2": {
+        "(184, 328)": 1,
+        "(547, 258)": 1,
+        "(840, 249)": 1,
+        "(1084, 247)": 1,
+        "(1012, 250)": 1,
+        "(1010, 250)": 1,
+        "(1136, 250)": 1
+      },
+      "6768591104:slot0": {
+        "(149, 340)": 1,
+        "(359, 325)": 2,
+        "(329, 240)": 1,
+        "(467, 280)": 1,
+        "(686, 280)": 1
+      },
+      "6768591104:slot1": {
+        "(149, 310)": 1,
+        "(588, 251)": 1,
+        "(629, 259)": 1,
+        "(412, 288)": 1,
+        "(448, 271)": 1,
+        "(624, 267)": 1
+      },
+      "6768591104:slot2": {
+        "(123, 264)": 1,
+        "(450, 235)": 1,
+        "(492, 266)": 1,
+        "(462, 266)": 1,
+        "(571, 226)": 1,
+        "(587, 226)": 1
+      },
+      "6707975680:slot0": {
+        "(225, 373)": 1,
+        "(429, 373)": 2,
+        "(927, 331)": 1,
+        "(766, 286)": 1,
+        "(723, 286)": 1
+      },
+      "6707975680:slot1": {
+        "(134, 295)": 1,
+        "(362, 249)": 1,
+        "(367, 249)": 2,
+        "(706, 264)": 2
+      },
+      "6707975680:slot2": {
+        "(267, 249)": 1,
+        "(542, 249)": 3,
+        "(601, 296)": 1,
+        "(790, 349)": 1
+      },
+      "7386082048:slot0": {
+        "(75, 279)": 1,
+        "(487, 231)": 1,
+        "(389, 278)": 1,
+        "(456, 293)": 1
+      },
+      "7386082048:slot1": {
+        "(75, 279)": 1,
+        "(83, 269)": 1,
+        "(240, 314)": 1,
+        "(509, 356)": 1
+      },
+      "7386082048:slot2": {
+        "(75, 279)": 1,
+        "(168, 237)": 1,
+        "(353, 295)": 1,
+        "(495, 331)": 1
+      },
+      "7468797696:slot0": {
+        "(399, 315)": 1,
+        "(610, 238)": 1,
+        "(679, 238)": 1,
+        "(587, 238)": 1
+      },
+      "7468797696:slot1": {
+        "(478, 321)": 1,
+        "(267, 258)": 1,
+        "(360, 307)": 1,
+        "(617, 307)": 1
+      },
+      "7468797696:slot2": {
+        "(769, 287)": 3,
+        "(637, 287)": 1
+      },
+      "7156942848:slot0": {
+        "(930, 290)": 1,
+        "(845, 286)": 1,
+        "(737, 318)": 1
+      },
+      "7156942848:slot1": {
+        "(922, 285)": 1,
+        "(809, 269)": 1,
+        "(590, 197)": 1
+      },
+      "7156942848:slot2": {
+        "(840, 292)": 1,
+        "(756, 245)": 2
+      },
+      "7156944640:slot0": {
+        "(1221, 254)": 1,
+        "(527, 308)": 1,
+        "(436, 309)": 2
+      },
+      "7156944640:slot1": {
+        "(1185, 210)": 1,
+        "(632, 241)": 1,
+        "(666, 240)": 1,
+        "(610, 378)": 1
+      },
+      "7156944640:slot2": {
+        "(1250, 280)": 1,
+        "(739, 241)": 1,
+        "(587, 236)": 1,
+        "(548, 313)": 1
+      },
+      "7156946432:slot0": {
+        "(908, 298)": 1,
+        "(730, 253)": 1,
+        "(759, 253)": 1,
+        "(525, 265)": 1
+      },
+      "7156946432:slot1": {
+        "(897, 300)": 1,
+        "(674, 263)": 1,
+        "(495, 218)": 1,
+        "(433, 293)": 1
+      },
+      "7156946432:slot2": {
+        "(892, 300)": 1,
+        "(811, 300)": 1,
+        "(750, 271)": 1,
+        "(480, 221)": 1
+      },
+      "7156948224:slot0": {
+        "(1866, 266)": 1,
+        "(1841, 278)": 1,
+        "(1774, 312)": 1,
+        "(1239, 253)": 1,
+        "(1062, 253)": 1,
+        "(1016, 253)": 3,
+        "(960, 253)": 1,
+        "(802, 291)": 1,
+        "(797, 338)": 1,
+        "(814, 291)": 1,
+        "(744, 274)": 2,
+        "(705, 240)": 1,
+        "(665, 239)": 3
+      },
+      "7156948224:slot1": {
+        "(1897, 292)": 1,
+        "(1866, 280)": 1,
+        "(1251, 330)": 1,
+        "(1217, 339)": 1,
+        "(1206, 317)": 1,
+        "(1179, 311)": 3,
+        "(1124, 267)": 1,
+        "(780, 308)": 1,
+        "(790, 320)": 1,
+        "(767, 288)": 1,
+        "(805, 229)": 1,
+        "(720, 250)": 1,
+        "(750, 285)": 4
+      },
+      "7156948224:slot2": {
+        "(1866, 269)": 1,
+        "(1840, 256)": 1,
+        "(1359, 328)": 1,
+        "(950, 255)": 6,
+        "(871, 293)": 1,
+        "(828, 371)": 1,
+        "(845, 322)": 1,
+        "(773, 310)": 2,
+        "(703, 241)": 1,
+        "(661, 236)": 3
+      }
+    },
+    "height": "not captured by 0.3.17; screenshot does not establish numeric Z",
+    "captureLog": ".tmp/adventure-elite/spawn-zero-collect.log",
+    "scope": "Only first scene6683506944 remains (0,0) for99 coordinate samples; later scene samples contain normal varying XY. Entire session must not be described as constant zero.",
+    "ownedSourceAssignmentsBySlot": {
+      "0": 18,
+      "1": 20,
+      "2": 112
+    },
+    "combatScope": "Native source-assignment rows identify three APC slots in later rooms; complete attack/AI acceptance still requires user confirmation. No assertion extra A* is sole cause."
+  },
+  "native": {
+    "authority": "client/DFO.exe.i64",
+    "usedDatabase": ".tmp/adventure-elite/apc-path-ida/DFO.exe.i64",
+    "session": "6929e98d; closed without saving",
+    "loaderVirtualCall": "145B2531F virtual408, return145B25325, original target XYZ from native map discovery, Z0",
+    "conditionalWrapper": "145B98210",
+    "conditionalPosition": "145E0EC50 checks component636/593 or live ownerRef248/256 + virtual1408 before coordinate writes",
+    "unconditionalSetter": "145B960D0 virtual432 ->145E0CD40 -> component virtual16 (float XYZ)",
+    "scope": "only extension-permitted exact native first-entry call, stable current owner/manager/dungeon, live owned and controller-bound unique APC, exactly one scene membership and guarded actual virtual408/432"
+  },
+  "change": {
+    "pathQueryDefault": false,
+    "spawnFallback": "complete mismatched original native XYZ through existing native setter, no sampled player offset",
+    "capture": "birth before/target/after XY plus beforeZ/afterZ/heightKnown; periodic APC/player Z; initialization flag; reject malformed or failed birth evidence",
+    "aiFlagsWritten": false,
+    "schemaChanged": false,
+    "pvfChanged": false,
+    "goChanged": false,
+    "exeChanged": false
+  },
+  "validation": {
+    "firstBuild": "exit0 all14 mechanism executables including copied native conditional early exit and exact-callsite correction/refusals",
+    "actualClientBytes": "exit0 final registration-startup-test.exe F:/wip/dof/115US/DFO.exe; no client launched",
+    "finalBuild": "exit0 MSVC /W4 /WX and all14 mechanism executables including native birth conditional early exit, exact native request completion and 10 scope refusals",
+    "captureTests": "exit0 all78 original fixtures and existing extensions plus7 birth evidence cases and6 path isolation cases",
+    "preflight": "exit0 collect-adventure-elite.ps1 -CheckOnly; all3 artifact hashes match; previous0.3.17 status is not new live acceptance",
+    "diffCheck": "exit0 git diff --check",
+    "goBuildVetTest": "not rerun: no Go source or executable changed"
+  },
+  "remaining": [
+    "manual born XYZ and render",
+    "susu/sab attack recovery",
+    "door/reentry consistency",
+    "no claim additional A* caused all regressions",
+    "modkit installation/uninstallation not run"
+  ],
+  "confirmed": false,
+  "committed": false,
+  "delivery": {
+    "dll": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+    "bytes": 249856,
+    "sha256": "b1c5a0c8b4ac4f435c932e753bb02320f4ced4c381968c269f57b829db64524b",
+    "backup": ".tmp/adventure-elite/birth-position-backup-0317",
+    "serverSha256Unchanged": "11dbb61118d1e4ad7d98f86037e2509e43891c81121a5bbc744482cebfd036c8",
+    "launcherSha256Unchanged": "c331eb0ccb5020aee0628e478bbe03d4957114279dcc418b11e415f27594de01",
+    "clientProcessAbsentBeforeCopy": true,
+    "manual": "same roster; inspect first-room birth + attacks, one door, one town/reentry; no save-list repetition"
+  },
+  "live0318": {
+    "pid": 18240,
+    "runTick": 36306953,
+    "session": "server/work/dfo-lan/runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_004416_831212_next37",
+    "birthXYZ": [
+      1193,
+      242,
+      0
+    ],
+    "birthPhase": "all3 birth-native-position-ok; no correction needed",
+    "laterXYZ": [
+      0,
+      0,
+      0
+    ],
+    "playerFirstXYZ": [
+      1093,
+      242,
+      0
+    ],
+    "pathCalls": 0,
+    "conclusion": "conditional birth early-exit hypothesis excluded for this live reproduction; track post-birth reset, no claim successful delivery"
+  }
+}

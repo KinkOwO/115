@@ -17,7 +17,10 @@ func dungeonRequest(id uint16) bool {
 	// 2059 = ENUM_CMDPACKET_PLAYER_REVIVE_WHEN_PHASE_CHANGE：维纳斯 boss 的
 	// 形态转换技能把玩家 phase-change 击杀后的免费复活请求，venusPhaseRevive
 	// 应答（静默会让客户端复活流程挂起——角色抽搐/技能锁/不能跳）。
-	case 1654, 1722, 16, 37, 38, 39, 40, 42, 43, 45, 46, 69, 70, 71, 72, 117, 132, 449, 450, 1461, 1852, 2015, 2059, 2062, 2319, 2320, 2321, 2322, 2323, 2325, 2327, 2329:
+	// 2406 = BOUNDARY_OF_ATTUNEMENT_HIDDEN_SELECT：大深渊/调律之边界的「选套装·部位」
+	// 确认窗回信。客户端的 OK 按钮只发不关，关掉窗口类 3843 的唯一入口是注册在 CMD 表
+	// 上的同号处理器 ⇒ 不登这里就永远进不了 switch，又是一帧静默丢弃。
+	case 1654, 1722, 16, 37, 38, 39, 40, 42, 43, 45, 46, 69, 70, 71, 72, 117, 132, 449, 450, 1461, 1852, 2015, 2059, 2062, 2319, 2320, 2321, 2322, 2323, 2325, 2327, 2329, 2406:
 		return true
 	}
 	return false
@@ -71,10 +74,11 @@ func observedGameRequest(id uint16) bool {
 		// 2288 = 秘宝精度提升（SOLE_EQUIPMENT_QUALITY）：已实现（见 cmd/wireprobe/sole_flow.go）。
 		// 必须登记：否则第 BodySampleLimit(8) 次之后 verified 不再被计算，请求永远进不了处理器。
 		return true
-	case 2264, 2265, 2276, 2277, 2278, 2284, 2329, 2331, 2333, 2346, 2377, 2381, 2405, 2419:
+	case 2264, 2265, 2276, 2277, 2278, 2284, 2329, 2331, 2333, 2346, 2377, 2381, 2405, 2406, 2419:
 		// 2381 = ENUM_CMDPACKET_PRIMER_TRANSFORM（装备库誓约/晶体变换）：已实现
 		// （cmd/wireprobe/primer_transform_flow.go）。必须登记，否则第 BodySampleLimit(8)
 		// 次之后 verified 不再被计算、请求永远进不了处理器（2258 的既有教训）。
+		// 2406 同理：已实现（answerAttuneConfirm），不登记就会被采样门掐掉。
 		return true
 	}
 	return false

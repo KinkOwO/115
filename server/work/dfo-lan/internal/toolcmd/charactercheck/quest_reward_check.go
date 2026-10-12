@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 )
 
 func questRewardCheck(ctx context.Context, s *database.TestFixture, reopened *database.Store, role database.Character, other int64) error {
@@ -97,6 +98,28 @@ func questRewardCheck(ctx context.Context, s *database.TestFixture, reopened *da
 	if e != nil {
 		return e
 	}
+	expectedExperience, e := workflow.QuestExperience(q, c, d, state.Level)
+	if e != nil {
+		return e
+	}
+	growth, e := s.HasActivePremium(ctx, role.AccountID, database.PremiumGrowth, time.Now())
+	if e != nil {
+		return e
+	}
+	if growth {
+		expectedExperience += expectedExperience * 20 / 100
+	}
+	baseline := rows[0]
+	baseline.State = saved
+	expectedRole, _, e := p.ApplyGain(baseline, uint64(expectedExperience))
+	if e != nil {
+		return e
+	}
+	var expectedState character.State
+	if e = json.Unmarshal(expectedRole.State, &expectedState); e != nil {
+		return e
+	}
+	fmt.Printf("QUEST_REWARD_EXPECTATION quest=%d gain=%d before_level=%d after_level=%d after_exp=%d\n", req.ID, expectedExperience, state.Level, expectedState.Level, expectedState.Experience)
 	type result struct {
 		r quest.FinishResult
 		e error
@@ -121,8 +144,8 @@ func questRewardCheck(ctx context.Context, s *database.TestFixture, reopened *da
 		if res.r.Applied {
 			applied++
 		}
-		if res.r.Receipt.Experience != 1200 {
-			return fmt.Errorf("quest source experience mismatch")
+		if res.r.Receipt.Experience != expectedExperience {
+			return fmt.Errorf("quest source experience mismatch: quest=%d actual=%d expected=%d", req.ID, res.r.Receipt.Experience, expectedExperience)
 		}
 		bag, err := inventory.ReadBag(res.r.Role.State)
 		if err != nil || res.r.Receipt.Gold != expectedGold || uint64(bag.Gold) != uint64(beforeBag.Gold)+uint64(expectedGold) || len(res.r.Receipt.Items) != 0 {
@@ -131,7 +154,7 @@ func questRewardCheck(ctx context.Context, s *database.TestFixture, reopened *da
 		if e = json.Unmarshal(res.r.Role.State, &state); e != nil {
 			return e
 		}
-		if state.Experience != 2303 || state.Level != 3 || state.SkillPoints != [2]uint16{60, 60} {
+		if state.Experience != expectedState.Experience || state.Level != expectedState.Level || state.SkillPoints != expectedState.SkillPoints {
 			return fmt.Errorf("quest retry state mismatch exp=%d level=%d SP=%v", state.Experience, state.Level, state.SkillPoints)
 		}
 	}
@@ -151,7 +174,7 @@ func questRewardCheck(ctx context.Context, s *database.TestFixture, reopened *da
 	if e = json.Unmarshal(rows[0].State, &state); e != nil {
 		return e
 	}
-	if state.Experience != 2303 || state.Level != 3 {
+	if state.Experience != expectedState.Experience || state.Level != expectedState.Level {
 		return fmt.Errorf("quest reward reopen failed")
 	}
 	active, e := service.Active(ctx, role)

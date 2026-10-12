@@ -42,6 +42,27 @@ func RestoreRuntimeDungeons(a *pvf.Archive, c DungeonCatalog) (DungeonCatalog, e
 	if err != nil {
 		return c, err
 	}
+	// Reward rules are not serialized in the projection. Reattach them from
+	// the same verified archive on a warm start, including operation rewards.
+	if len(c.IspinsOperations) > 0 {
+		operations, err := ResolveScript(a, IspinsOperationsPath)
+		if err != nil {
+			return c, err
+		}
+		c.IspinsOperations, err = ParseIspinsOperations(operations.Cells)
+		if err != nil {
+			return c, err
+		}
+		contents, err := ImportLegionContents(a)
+		if err != nil {
+			return c, err
+		}
+		c.LegionContents = &contents
+		c.StackableLimits, err = importStackableDungeonLimits(a)
+		if err != nil {
+			return c, err
+		}
+	}
 	if err = c.attachMapScripts(a); err != nil {
 		return c, err
 	}

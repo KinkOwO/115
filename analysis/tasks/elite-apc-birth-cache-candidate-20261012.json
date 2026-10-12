@@ -1,0 +1,101 @@
+{
+  "stage": "live-failed-stationary-at-birth-position",
+  "version": "0.3.20",
+  "authorization": "持续授权DLL排障；本次用户明确回复已退出",
+  "evidence": {
+    "liveSession": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_011544_883614_next37",
+    "pid": 19816,
+    "runTick": 38190140,
+    "nativeBirthXYZ": [
+      1193,
+      242,
+      0
+    ],
+    "zeroWrites": 6,
+    "zeroCallRvas": [
+      "0x5C7710F",
+      "0x5C7712F"
+    ],
+    "nativeChain": "145C76FB0 -> actor virtual400 ->145B98200 ->145E0EC50",
+    "cacheRead": "actor+100888 context+5408/+5412；两个原生回退参数0由live确认",
+    "cacheSave": "145C6AE80 virtual5688读取原生X/Y写这两项，然后145C0FB80将actor25180设-1",
+    "cacheInit": "145C68860原生初始化为两项-1；145C6AE80/145C76FB0均有后续写入。0的前序写入尚未动态确认。",
+    "positionPermission": "145C70E90 ->145C70E00地图状态门禁 ->145CF68D0 actor74372/74376/74380/74384边界；候选不修改或额外调用这些门禁",
+    "currentVtables": [
+      "14AD21370",
+      "14A59DDC0",
+      "14AD105F0"
+    ],
+    "cacheVtableValues": "三者virtual5688均145C6AE80，IDA已读取",
+    "guards": "原生缓存完整71字节及尾函数11字节；现有出生/坐标getter字节门禁。当前EXE离线执行复制代码核验。",
+    "database": ".tmp/adventure-elite/apc-path-ida/DFO.exe.i64"
+  },
+  "hypothesis": "成功出生后缓存仍为0导致更新回退到原点；仅在已确认出生点同步原生缓存。不是取消位置许可。",
+  "implementation": {
+    "source": "client-patchs/adventure-elite/src/birth-position-adapter.h",
+    "scope": "精确出生返回145B25325、首房/许可/主人线程与冻结身份、原生主人CRef、管理器精锐身份与绑定、唯一场景成员、无重复objectID、存活、XYZ完全等于原生目标且Z0、virtual5688匹配；只有双0缓存且出生点非原点才调用原生缓存函数",
+    "nativeBehavior": "不再补出生坐标、不改变移动/碰撞门禁、不增加A*、保留原始调用参数/次数/LastError/异常。非零/哨兵缓存保持。",
+    "diagnostics": "catchup schema2增加cacheContext/cacheBefore/cacheAfter/cacheKnown；birth-cache-synchronized/preserved/unavailable/sync-failed；position只读schema1增同一缓存前后及原生bounds，保留stack和战斗日志",
+    "rollback": ".tmp/adventure-elite/birth-cache-backup-0319"
+  },
+  "validation": {
+    "build": "scripts/build-adventure-elite.ps1 -CandidateDirectory .../birth-cache-0320 -ClientExe F:/wip/dof/115US/DFO.exe exit0；MSVC /W4 /WX /O2 /MT；全部14组机制程序，.tmp/adventure-elite/birth-cache-build-delivery-0320.log",
+    "nativeCacheExecution": "直接执行当前EXE的145C6AE80及145C0FB80，原生getter依赖接测试XYZ；证明缓存同步、actor25180变化而XYZ不变；非零/-1/陌生槽/无许可保留；A*计数不变",
+    "scopeRegression": ".tmp/adventure-elite/birth-cache-scope-tests-0320.log exit0：9种身份拒绝分别在原生出生失败与成功时验证不改缓存；错误/SEH透传；完整注册/重进/派生许可原有回归",
+    "capture": "scripts/test-adventure-elite-capture.ps1 exit0：78基准夹具与历次扩展，新增9个0.3.20缓存案例；.tmp/adventure-elite/birth-cache-capture-tests-0320.log",
+    "fixtureCorrection": "新增成功出生身份拒绝测试后遗留Z0，原有Z拒绝测试先重置夹具Z71再验证，最终通过；生产逻辑未因该测试状态问题更改",
+    "goBuildVetTest": "未执行：没有Go源码变更",
+    "modkit": "工具不可用，verify/plan/install/uninstall未执行；保留既有脚本注入路径，schema2包已生成",
+    "live": "failed: PID15144/runTick39925500同步成功，但128次原生回退保持出生点，用户反馈卡在地图右侧；不是位置修复验收",
+    "preflight": "scripts/collect-adventure-elite.ps1 -CheckOnly exit0；DLL/服务端/启动器三产物身份匹配，输入资源身份匹配；上次状态仍0.3.19属于旧会话，不当作新候选实机",
+    "sourceChecks": "git diff --check exit0；PS1 UTF8 BOM/CRLF；分析JSON解析通过；没有git add/commit，候选待用户验收"
+  },
+  "delivery": {
+    "candidateDirectory": "client-patchs/adventure-elite/dist/birth-cache-0320",
+    "dllBytes": 258560,
+    "dllSHA256": "95ecc0857dca8ffb0cadecafedc663f284a29ca35c30cb7ba70711127a0a5f20",
+    "exesUnchanged": true,
+    "gameLaunched": false,
+    "status": "用户已退出且替换时无DFO进程；旧DLL/包/清单独立备份；部署后哈希一致",
+    "manifest": "client-patchs/adventure-elite/dist/adventure-elite-build.json"
+  },
+  "unclosed": [
+    "缓存0前序写入时点",
+    "出生位置许可拒绝具体分支",
+    "实机落地、普通攻击/技能、跟随过门及重进连续性"
+  ],
+  "untouched": [
+    "DFO.exe/服务端与启动器EXE",
+    "PVF/sk.dat",
+    "SQLite/schema/存档",
+    "CHANGELOG/confirmed baseline",
+    "其它agent工作区文件"
+  ],
+  "nextManual": "一次会话：原角色/名单/失败普通图；先观察三名出生落地10秒；正常才让APC攻击第一波并过门，再回城重进一次；异常立即结束，不重复刷图。",
+  "liveFailure": {
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_014445_086037_next37",
+    "pid": 15144,
+    "runTick": 39925500,
+    "birthCacheSync": 3,
+    "positionRows": 137,
+    "nativeRollbackWrites": 128,
+    "APCXYZ": [
+      1193,
+      242,
+      0
+    ],
+    "playerInitialXYZ": [
+      1093,
+      242,
+      0
+    ],
+    "bounds": [
+      -1,
+      -1,
+      -1,
+      -1
+    ],
+    "conclusion": "缓存同步成功但三APC反复回退到同一出生点；用户反馈卡在地图右侧，本候选未解决移动与攻击。",
+    "next": "只读跟踪原生virtual5680 ->地图格/virtual632 ->附着物/状态/碰撞调用的实际结果；不额外调用检查函数或试探出生点。"
+  }
+}

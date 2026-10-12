@@ -271,12 +271,54 @@ function Clear-AdminGuard() {
         # 删了会让两个写者同时进。等 TTL，或由业主确认后手工删除。
         throw ("租约里没有可用的 pid（内容 '{0}'）：不自动删除。等 60 秒 TTL 后再试，或确认无人写入后手工删除 {1}" -f $pidText, $lease)
     }
-    $live = Get-Process -Id ([int]$pidText) -ErrorAction SilentlyContinue
+    try {
+        $live = Get-Process -Id ([int]$pidText) -ErrorAction Stop
+    }
+    catch {
+        if ($_.FullyQualifiedErrorId -notlike 'NoProcessFoundForGivenId*') {
+            throw ("无法确认租约持有者 pid {0} 是否已退出，保留租约：{1}" -f $pidText, $_.Exception.Message)
+        }
+        $live = $null
+    }
     if ($live) {
         throw ("持有者 pid {0}（{1}）仍在运行，可能正在写存档：拒绝删除租约。确认它已退出（或等 60 秒 TTL）后再试。" -f $pidText, $live.ProcessName)
     }
     Remove-Item -LiteralPath $lease -Force
     Write-Host '[完成] 已删除过期管理租约（记录的进程已不存在），现在可以启动服务端了。' -ForegroundColor Green
+}
+
+function Invoke-StopLauncher([string[]]$Arguments) {
+    $stopLauncher = Join-Path $RepoRoot 'server\work\dfo-lan\bin\dfolauncher.exe'
+    if (-not (Test-Path -LiteralPath $stopLauncher -PathType Leaf)) {
+        throw "Go 启动器不存在：$stopLauncher；请先运行 scripts\build-game.ps1。"
+    }
+    $savedEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $stopLauncher stop --root $RepoRoot @Arguments 2>&1 | ForEach-Object {
+            if ($script:EntryVerb) { Write-EntryLog 'stop-environment' ([string]$_) }
+            else { Write-Host ([string]$_) }
+        }
+        return $LASTEXITCODE
+    }
+    finally { $ErrorActionPreference = $savedEap }
+}
+
+function Invoke-EnvironmentStop([string[]]$Arguments) {
+    # PS 5.1 的条件表达式不输出空数组；无参数入口经位置绑定可能得到一个空字符串。
+    $Arguments = @($Arguments | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    foreach ($argument in $Arguments) {
+        if ($argument -ne '--dry-run') { throw "停止环境不支持参数 '$argument'，只接受 --dry-run。" }
+    }
+    $stopCode = Invoke-StopLauncher $Arguments
+    if ($Arguments -contains '--dry-run') {
+        if ($stopCode -ne 0) { throw "停止预检失败，退出码 $stopCode。" }
+        return
+    }
+    # 即使 Go 停止链报错，也尝试清理已退出持有者的租约；活进程/查询失败一律保留。
+    Clear-AdminGuard
+    if ($stopCode -ne 0) { throw "停止链未完成，退出码 $stopCode；已检查管理租约，请查看上方输出。" }
+    Write-EntryLog 'stop-environment' '[完成] 停止链已执行，SQLite 管理租约检查通过。'
 }
 
 function Stop-Postgres() {
@@ -669,6 +711,7 @@ function Show-Help() {
     Write-Host '    scripts\storage-route.cmd stop-postgres     停掉 pgdata 上的 PostgreSQL'
     Write-Host '    scripts\storage-route.cmd preflight-postgres 只做起库预检（清残留锁 + 有上限地拉起 PG）'
     Write-Host '    scripts\storage-route.cmd clear-guard        清理过期 SQLite 管理租约（上次会话被强杀后起不来时用）'
+    Write-Host '    scripts\停止游戏环境.cmd                  自动提权停止服务并检查、清理残留管理租约（支持 --dry-run）'
     Write-Host '    scripts\storage-route.cmd selftest          自检（临时目录，不碰真实配置）'
     Write-Host ''
     Write-Host '  说明见 server\work\dfo-lan\docs\sqlite-operations.md §1.2。' -ForegroundColor DarkGray
@@ -789,9 +832,10 @@ function Write-EntryLog([string]$verb, [string]$text) {
 try {
     $verb = if ($Rest.Count -ge 1) { $Rest[0].Trim().ToLower() } else { 'help' }
     $extra = if ($Rest.Count -ge 2) { @($Rest[1..($Rest.Count - 1)]) } else { @() }
-    # 需要管理员的只有「真启动游戏」；--dry-run/--check 是只读，不提权（方便排查）。
+    # 游戏启动和停止环境都需要管理员；只读预检不提权。
     $isEntryLaunch = $verb -in @('game-sqlite', 'game-postgres', 'game-current')
-    $isChainRun = $isEntryLaunch -or ($verb -in @('server-sqlite', 'server-postgres'))
+    $isEntryStop = $verb -eq 'stop-environment'
+    $isChainRun = $isEntryLaunch -or $isEntryStop -or ($verb -in @('server-sqlite', 'server-postgres'))
     $readOnly = @($extra | Where-Object { $_ -in @('--dry-run', '--check', '-h', '--help') }).Count -gt 0
     # 日志文件名按动作走：父进程（非管理员，提权前）与提升后的子进程共用同一个文件，
     # 父进程负责把新增行显示在自己的窗口里（业主要求：不要再弹额外窗口）。
@@ -801,9 +845,10 @@ try {
         # 管理员 = 提升后的子进程（或业主右键以管理员运行）：**不要**清空，否则父进程的
         # 行号计数会错位、前几行被吞掉（2026-10-05 排查时踩到）。
         if (-not (Test-IsAdmin)) { Reset-EntryLog $verb }
-        Write-EntryLog $verb ("[{0}] {1} 启动链开始（{2}）" -f (Get-Date -Format 'HH:mm:ss'), $verb, (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
+        $entryLabel = if ($isEntryStop) { '停止链' } else { '启动链' }
+        Write-EntryLog $verb ("[{0}] {1} {2}开始（{3}）" -f (Get-Date -Format 'HH:mm:ss'), $verb, $entryLabel, (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
     }
-    if ($isEntryLaunch -and -not $readOnly -and -not (Test-IsAdmin)) {
+    if (($isEntryLaunch -or $isEntryStop) -and -not $readOnly -and -not (Test-IsAdmin)) {
         Invoke-ElevatedSelf $verb $extra
     }
     switch ($verb) {
@@ -815,6 +860,7 @@ try {
         'stop-postgres' { Stop-Postgres }
         'preflight-postgres' { Start-PostgresBounded 60 }
         'clear-guard' { Clear-AdminGuard }
+        'stop-environment' { Invoke-EnvironmentStop $extra }
         'chain-info' { Show-ChainInfo }
         'selftest' {
             if (-not (Invoke-SelfTest)) { exit 1 }

@@ -32,12 +32,18 @@ import (
 //
 // 所以 mod 的"发东西"= **追加一条事件规则脚本**，复用既有的发放与存档语义。
 //
-// # 启用/禁用怎么生效
+// # 启用/禁用怎么生效（两个方向代价不同）
 //
-// 脚本在**奖励服务构造时**一次性加载（服务端启动阶段）。所以：
-//   - 禁用的 mod 不让它的脚本进注册表（Register() 里先问 Enabled()）；
-//   - 改启用状态后需要**重启服务端**（脚本已加载进 LState，无法热摘）。
-// 这是明确的边界，写进启动段文档。
+//   - **停用是热的**：脚本按名字归属到 mod，派发事件前问一次 Live()（见
+//     RewardScriptEnabled），关掉就不再跑它注册的规则，不用重启。
+//   - **打开不是热的**：脚本要在奖励服务构造时编译进那个唯一的 LState，运行中
+//     没法补编译一份。所以启动时被禁用的 mod，它的脚本**根本不会被装载**
+//     （见下面的 Enabled 门禁），运行中把它打开只会让钩子恢复，规则仍缺席，
+//     并由 Reconcile 在 note 里写明"奖励脚本需重启"。
+//
+// 为什么装载点要卡在 `Enabled` 而不是全量装载再靠谓词过滤：奖励服务对
+// "任何一份脚本编译失败"的处置是整条管线不启用（只 warning）。要是停用的 mod
+// 也进装载列表，一份带语法错的脚本就会连带关掉内置规则集——"关了它"反而弄坏了别的。
 
 var (
 	scriptMu sync.RWMutex
@@ -57,10 +63,10 @@ type NamedScript struct {
 
 // RegisterRewardScript 登记一份 mod 规则脚本。
 //
-// mod 在自己的 Register() 里调用（并且应当已经先判断 Enabled()）：
+// mod 在自己的 Register() 里调用，**不需要**自己判断启用状态：被禁用的 mod 的脚本
+// 由这里挡在装载之外（理由见文件头"为什么装载点要卡在 Enabled"）。
 //
 //	func Register() {
-//	    if !servermod.Enabled(modID) { return }
 //	    _ = servermod.RegisterRewardScript(modID, "my-rule.lua", body)
 //	}
 //
@@ -79,6 +85,11 @@ func RegisterRewardScript(modID, name string, body []byte) error {
 	if len(body) == 0 {
 		return errEmptyScript(name)
 	}
+	// 停用 = 不装载。运行中把它打开只会让钩子恢复，脚本仍缺席，由 Reconcile 记"需重启"。
+	if !Enabled(modID) {
+		return nil
+	}
+	// 锁序约定：scriptMu → mu（本函数与 RewardScriptEnabled 都按这个顺序，不得反过来）。
 	scriptMu.Lock()
 	defer scriptMu.Unlock()
 	for _, s := range modScripts {
@@ -98,8 +109,61 @@ func RegisterRewardScript(modID, name string, body []byte) error {
 		return errDuplicateScript(name, s.ModID)
 	}
 	modScripts = append(modScripts, NamedScript{ModID: modID, Name: name, Body: append([]byte(nil), body...)})
-	registeredIDs[modID] = true
+	markModRegistered(modID)
 	return nil
+}
+
+// markModRegistered 记录"这个 mod 在本进程里存在"，并按清单初始化它的 live 状态。
+//
+// 先问清单（enabledMu）再拿 mu，免得出现 mu→enabledMu 与 Reconcile 的
+// enabledMu→mu 交叉。
+func markModRegistered(modID string) {
+	on := Enabled(modID)
+	mu.Lock()
+	defer mu.Unlock()
+	registeredIDs[modID] = true
+	if live == nil {
+		live = map[string]bool{}
+	}
+	if _, seen := live[modID]; !seen {
+		live[modID] = on
+	}
+}
+
+// RewardScriptEnabled 是奖励管线的事件门禁：这份脚本现在该不该跑。
+//
+// 只有 mod 提供的脚本受管；内置规则集（internal/reward/scripts）不认识 mod 开关，
+// 查不到归属一律放行。归属按脚本文件名反查（NamedScript.ModID）。
+func RewardScriptEnabled(name string) bool {
+	scriptMu.RLock()
+	owner := ""
+	for _, s := range modScripts {
+		if s.Name == name {
+			owner = s.ModID
+			break
+		}
+	}
+	scriptMu.RUnlock()
+	if owner == "" {
+		return true
+	}
+	mu.RLock()
+	defer mu.RUnlock()
+	return live[owner]
+}
+
+// RewardScriptsByMod 返回某个 mod 已装载的脚本名（状态文件与 note 用）。
+func RewardScriptsByMod(modID string) []string {
+	scriptMu.RLock()
+	defer scriptMu.RUnlock()
+	out := make([]string, 0, 1)
+	for _, s := range modScripts {
+		if s.ModID == modID {
+			out = append(out, s.Name)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // RewardScripts 返回已登记的 mod 脚本（稳定顺序：按名字）。

@@ -1,0 +1,5 @@
+{
+  "Archive": "C:\\game\\server\\work\\client-build\\Script.inner.pvf",
+  "ArchiveSHA256": "replace-with-the-verified-sha256-of-your-inner-archive",
+  "GoExecutable": "C:\\tools\\go\\bin\\go.exe"
+}

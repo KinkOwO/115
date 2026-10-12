@@ -14,6 +14,11 @@ func reset(t *testing.T) {
 	consoles = nil
 	responses = nil
 	requests = nil
+	shutdowns = nil
+	live = map[string]bool{}
+	dirtyBoot = map[string]bool{}
+	lastNote = map[string]string{}
+	consoleHelp = nil
 	registeredIDs = map[string]bool{}
 	modValues = map[string]string{}
 	configKeys = map[string]string{}
@@ -25,6 +30,9 @@ func reset(t *testing.T) {
 	scriptMu.Unlock()
 	enabledMu.Lock()
 	enabledPath = ""
+	enabledDir = ""
+	enabledLoaded = false
+	enabledStamp = fileStamp{}
 	disabledSet = map[string]bool{}
 	enabledLoadNote = ""
 	enabledMu.Unlock()
@@ -174,7 +182,7 @@ func TestDescriptionEmptyAndNonEmpty(t *testing.T) {
 	RegisterBoot("m1", func(*BootContext) error { return nil })
 	RegisterResponse("m1", func(string, uint16, []byte) {})
 	d := Description()
-	if !strings.Contains(d, "m1") || !strings.Contains(d, "boot 钩子 1 个") {
+	if !strings.Contains(d, "m1") || !strings.Contains(d, "生效钩子：boot 1、console 0、response 1") {
 		t.Fatalf("描述不对：%q", d)
 	}
 }
@@ -271,7 +279,7 @@ func TestRequestHookZeroCostWhenNone(t *testing.T) {
 	if !HasRequestHooks() {
 		t.Fatal("登记后 HasRequestHooks 必须为真")
 	}
-	if !strings.Contains(Description(), "request 钩子 1 个") {
+	if !strings.Contains(Description(), "生效钩子：boot 0、console 0、response 0、request 1") {
 		t.Fatalf("Description 应报出 request 钩子数：%q", Description())
 	}
 }

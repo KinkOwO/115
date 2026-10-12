@@ -42,11 +42,7 @@ func (s *QuestService) Finish(ctx context.Context, role database.Character, r pr
 		}, quest.FinishRewards{
 			Items: questItemRewards,
 			Experience: func(d catalog.QuestDefinition, level byte) (uint32, error) {
-				base, err := character.GrowthQuestExperience(s.Quest.Progression.Catalog, d, level)
-				if err != nil {
-					return 0, err
-				}
-				return growthTopUpExperience(s.Quest.Catalog, s.Quest.Progression.Catalog.Thresholds, d, level, base)
+				return QuestExperience(s.Quest.Catalog, s.Quest.Progression.Catalog, d, level)
 			},
 			Gold: func(d catalog.QuestDefinition, level byte) (uint32, error) {
 				return character.GrowthQuestGold(s.Quest.Progression.Catalog, d, level)
@@ -169,6 +165,16 @@ func mainlineNextLevels(cat catalog.QuestCatalog) map[uint32]uint32 {
 	mainNextBySrc[key] = m
 	mainNextMu.Unlock()
 	return m
+}
+
+// QuestExperience is the source reward plus the established mainline admission
+// policy. Storage checks must use this contract instead of a historical amount.
+func QuestExperience(quests catalog.QuestCatalog, progression catalog.Progression, definition catalog.QuestDefinition, level byte) (uint32, error) {
+	base, err := character.GrowthQuestExperience(progression, definition, level)
+	if err != nil {
+		return 0, err
+	}
+	return growthTopUpExperience(quests, progression.Thresholds, definition, level, base)
 }
 
 // growthTopUpExperience returns the top-up amount needed for a just-finished

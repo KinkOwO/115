@@ -1,0 +1,79 @@
+{
+  "stage": "candidate-unverified",
+  "date": "2026-10-12",
+  "hypothesis": "额外 A* 查询或相关 hook 干扰原生 APC AI；先隔离，不将其写为已证实根因。",
+  "userObserved": "同一组 susu/sab 合并前能攻击，现仅站立/跑动/辅助。业主指出 DLL 新增寻路检查传送可能导致。",
+  "failedSession": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261011_233347_523876_next37",
+  "failedCapture": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261011_233347_523876_next37/summary.json",
+  "failedArtifacts": {
+    "dll": "549aee68f70392a65bb4bd97f296e758279e3a7d88ce262821d813f405107d0c",
+    "server": "11dbb61118d1e4ad7d98f86037e2509e43891c81121a5bbc744482cebfd036c8",
+    "serverManifestMatches": false
+  },
+  "observed": {
+    "nativeCloneAlive": 2,
+    "apcAttributedAttackSources": 0,
+    "ordinaryEntryRuns": 3,
+    "pathReachable": 325,
+    "pathUnreachable": 4,
+    "pathUnknown": 7,
+    "pathTeleports": 2,
+    "registrationRestores": 0
+  },
+  "staticEvidence": [
+    {
+      "function": "146D64820",
+      "finding": "A* 使用传入 arena 的节点/open/closed list。",
+      "decompilation": "__int64 __fastcall sub_146D64820(__int64 a1, int a2, int a3, int a4, int a5, int a6, char a7, __int64 a8)\n{\n  unsigned int v13; // edi\n  unsigned int v14; // ebx\n  __int64 v15; // rax\n  int v16; // r15d\n  __int64 result; // rax\n  int v18; // [rsp+90h] [rbp+28h]\n\n  v13 = abs32(a2 - a4); /*0x146d6485f*/\n  v14 = abs32(a3 - a5); /*0x146d64866*/\n  v18 = *(_DWORD *)(a1 + 114924) * (v13 + 1) + *(_DWORD *)(a1 + 114928) * (v14 + 1); /*0x146d64882*/\n  v15 = sub_146D642C0(a1); /*0x146d64889*/\n  v16 = 0; /*0x146d64891*/\n  *(_DWORD *)(v15 + 12) = a2; /*0x146d648a3*/\n  *(_DWORD *)(v15 + 16) = a3; /*0x146d648ae*/\n  *(_QWORD *)(v15 + 4) = v14 + v13; /*0x146d648bc*/\n  *(_DWORD *)v15 = v14 + v13; /*0x146d648bf*/\n  *(_QWORD *)(a1 + 112) = v15; /*0x146d648c1*/\n  do /*0x146d64922*/\n  {\n    result = *(_QWORD *)(a1 + 112); /*0x146d648c5*/\n    if ( result == 0 ) /*0x146d648cc*/\n      break; /*0x146d648cc*/\n    if ( v18 < *(_DWORD *)(result + 8) || *(_DWORD *)(result + 12) == a4 && *(_DWORD *)(result + 16) == a5 ) /*0x146d648dd*/\n      return result; /*0x146d648dd*/\n    *(_QWORD *)(a1 + 112) = *(_QWORD *)(result + 96); /*0x146d648e6*/\n    *(_QWORD *)(result + 96) = *(_QWORD *)(a1 + 216); /*0x146d648f7*/\n    *(_QWORD *)(a1 + 216) = result; /*0x146d64908*/\n    sub_146D64B70(a1, a2: result, a3: a4, a4: a5, a5: a6, a6: a7, a7: a8); /*0x146d64913*/\n    ++v16; /*0x146d64918*/\n  }\n  while ( v16 < 500 ); /*0x146d64922*/\n  return 0; /*0x146d64926*/\n}"
+    },
+    {
+      "function": "146D64330",
+      "finding": "格子查询除 arena 外仍消费 actor virtual4272 与全局 world/scene；私有 arena 不构成整个调用链纯只读证明。",
+      "decompilation": "_BOOL8 __fastcall sub_146D64330(__int64 a1, int a2, int a3, int a4, char a5, __int64 a6)\n{\n  __int64 v7; // rdx\n  int v10; // eax\n  char v11; // bl\n  __int64 v12; // rax\n  bool v14; // zf\n\n  v7 = *(_QWORD *)(a1 + 114936); /*0x146d64351*/\n  if ( v7 == 0 ) /*0x146d64361*/\n    return false; /*0x146d64361*/\n  if ( a2 < 0 ) /*0x146d6436a*/\n    return false; /*0x146d6436a*/\n  if ( a3 < 0 ) /*0x146d64373*/\n    return false; /*0x146d64373*/\n  v10 = *(_DWORD *)(a1 + 114924); /*0x146d64379*/\n  if ( a2 >= v10 ) /*0x146d64382*/\n    return false; /*0x146d64382*/\n  if ( a3 >= *(_DWORD *)(a1 + 114928) ) /*0x146d6438f*/\n    return false; /*0x146d6438f*/\n  v11 = *(_BYTE *)(a2 + a3 * v10 + v7); /*0x146d6439d*/\n  if ( v11 == 2 /*0x146d643cf*/\n    || a6 != 0\n    && (*(unsigned __int8 (__fastcall **)(__int64))(*(_QWORD *)a6 + 4272LL))(a1: a6) == 0\n    && (unsigned int)(a4 - 100) <= 1\n    && v11 == 7 )\n  {\n    return false; /*0x146d643cf*/\n  }\n  switch ( v11 ) /*0x146d643d4*/\n  {\n    case 11: /*0x146d643d4*/\n      v12 = sub_1459A9240(a1: qword_14E66C090, a2: v7); /*0x146d643dd*/\n      return v12 != 0 && (unsigned __int8)sub_144D10A50(a1: v12, a2, a3, a4, a5, a6) != 0; /*0x146d64404*/\n    case 1: /*0x146d643d4*/\n      return a5 != 0; /*0x146d64415*/\n    case 4: /*0x146d643d4*/\n      return true; /*0x146d64426*/\n    case 3: /*0x146d643d4*/\n      return true; /*0x146d6442b*/\n    case 5: /*0x146d643d4*/\n      v14 = a4 == 0; /*0x146d64439*/\n      break;\n    case 6: /*0x146d643d4*/\n      v14 = a4 == 100; /*0x146d64442*/\n      break;\n    default:\n      return true; /*0x146d64440*/\n  }\n  return v14; /*0x146d64449*/\n}"
+    },
+    {
+      "function": "144D10A50",
+      "finding": "动态碰撞分支调用演员虚函数与 AI target 查询；本轮未证明这些运行时调用没有副作用。",
+      "decompilation": "char __fastcall sub_144D10A50(_QWORD *a1, int a2, int a3, __int64 a4, int a5, __int64 a6)\n{\n  __int64 v9; // rax\n  int v10; // r9d\n  __int64 v11; // rdx\n  _QWORD *v12; // rcx\n  unsigned __int64 v13; // r8\n  __int64 v14; // rdi\n  int v15; // ebx\n  int v16; // r13d\n  int v17; // esi\n  int v18; // r15d\n  _QWORD *v19; // rbx\n  __int64 v20; // rax\n  __int64 v21; // rax\n  __int64 v22; // rbp\n  __int64 v23; // rax\n  __int64 v24; // r8\n  double v25; // xmm0_8\n  float v26; // xmm6_4\n  float v27; // xmm0_4\n  float v28; // xmm6_4\n  __m128i v30; // [rsp+30h] [rbp-68h]\n  __int64 v31; // [rsp+50h] [rbp-48h]\n\n  if ( a1[2016] != 0 )\n  {\n    v9 = sub_140D66C20(); /*0x144d10a87*/\n    if ( (unsigned __int8)sub_140440AB0(a1: v9, a2: a6) != 0 )\n    {\n      v10 = sub_145B8B0A0(a1: a6); /*0x144d10aaf*/\n      v11 = a1[2017]; /*0x144d10ae3*/\n      v12 = (_QWORD *)a1[2015]; /*0x144d10b0b*/\n      v13 = 0x100000001B3LL /*0x144d10b12*/\n          * (HIBYTE(v10)\n           ^ (0x100000001B3LL\n            * (BYTE2(v10)\n             ^ (0x100000001B3LL * (BYTE1(v10) ^ (0x100000001B3LL * ((unsigned __int8)v10 ^ 0xCBF29CE484222325uLL)))))));\n      v14 = *(_QWORD *)(v11 + 16 * (v13 & a1[2020]) + 8); /*0x144d10b1c*/\n      if ( (_QWORD *)v14 != v12 )\n      {\n        if ( v10 == *(_DWORD *)(v14 + 16) )\n        {\nLABEL_7:\n          if ( v14 == 0 ) /*0x144d10b4a*/\n            v14 = a1[2015]; /*0x144d10b4a*/\n          if ( (_QWORD *)v14 != v12 )\n          {\n            v15 = a2 - HIDWORD(*(_QWORD *)(v14 + 40)); /*0x144d10b6d*/\n            v30 = *(__m128i *)(v14 + 24); /*0x144d10b74*/\n            v16 = v15 + v30.m128i_i32[2]; /*0x144d10b83*/\n            v17 = a3 - *(_DWORD *)(v14 + 48); /*0x144d10b95*/\n            v18 = v15 + _mm_cvtsi128_si32(v30); /*0x144d10b9b*/\n            v19 = (_QWORD *)*v12; /*0x144d10ba0*/\n            if ( (_QWORD *)*v12 == v12 ) /*0x144d10bb0*/\n              return 1; /*0x144d10cd8*/\n            v31 = *(_QWORD *)(v14 + 56); /*0x144d10b8f*/\n            while ( 1 )\n            {\n              v20 = sub_140D66C20(); /*0x144d10bc0*/\n              if ( (unsigned __int8)sub_140440AB0(a1: v20, a2: v31) == 1\n                && (*(__int64 (__fastcall **)(__int64))(*(_QWORD *)v31 + 1680LL))(a1: v31) != 0 )\n              {\n                v21 = sub_140D66C20(); /*0x144d10bed*/\n                v22 = v19[7]; /*0x144d10bf2*/\n                if ( (unsigned __int8)sub_140440AB0(a1: v21, a2: v22) != 0 && v31 != v22 )\n                {\n                  if ( (unsigned __int8)sub_145D70950(a1: v31) != 1\n                    || (v23 = (*(__int64 (__fastcall **)(__int64))(*(_QWORD *)v31 + 1680LL))(a1: v31),\n                        sub_145E6EB00(a1: v23) != v19[7]) )\n                  {\n                    if ( sub_145D6D1C0(a1: v19[7]) != 0 )\n                    {\n                      if ( *(_DWORD *)(sub_145D6D1C0(a1: v19[7]) + 32) == 1 ) /*0x144d10c57*/\n                        return 1; /*0x144d10c57*/\n                      if ( v16 >= *((_DWORD *)v19 + 6)\n                        && *((_DWORD *)v19 + 8) >= v18\n                        && v17 + v30.m128i_i32[3] >= *((_DWORD *)v19 + 7)\n                        && *((_DWORD *)v19 + 9) >= v17 + v30.m128i_i32[1] )\n                      {\n                        LOBYTE(v24) = 1; /*0x144d10c7f*/\n                        v25 = (*(double (__fastcall **)(__int64, _QWORD, __int64))(*(_QWORD *)a6 + 24LL))( /*0x144d10c8d*/\n                                a1: a6,\n                                a2: v19[7],\n                                a3: v24);\n                        v26 = *(float *)&v25; /*0x144d10c94*/\n                        sub_145B89240( /*0x144d10ca6*/\n                          a1: *(_DWORD *)(v14 + 44),\n                          a2: *(_DWORD *)(v14 + 48),\n                          a3: *((_DWORD *)v19 + 11),\n                          a4: *((_DWORD *)v19 + 12),\n                          a5: 1);\n                        v28 = v26 <= v27 ? v27 - v26 : v26 - v27;\n                        if ( (int)v28 <= 60 ) /*0x144d10cc4*/\n                          break; /*0x144d10cc4*/\n                      }\n                    }\n                  }\n                }\n              }\n              v19 = (_QWORD *)*v19; /*0x144d10cc6*/\n              if ( v19 == (_QWORD *)a1[2015] ) /*0x144d10cd0*/\n                return 1; /*0x144d10cd0*/\n            }\n          }\n        }\n        else\n        {\n          while ( v14 != *(_QWORD *)(v11 + 16 * (v13 & a1[2020])) ) /*0x144d10b37*/\n          {\n            v14 = *(_QWORD *)(v14 + 8); /*0x144d10b3d*/\n            if ( v10 == *(_DWORD *)(v14 + 16) ) /*0x144d10b45*/\n              goto LABEL_7; /*0x144d10b45*/\n          }\n        }\n      }\n    }\n  }\n  return 0; /*0x144d10cdc*/\n}"
+    }
+  ],
+  "change": "DLL0.3.17 默认不安装路径分配器 hook、不调用额外 A*、不执行基于无路的传送；同一场景丢登记补救仍保留。诊断可用 DFO_ADVENTURE_ELITE_PATH_CATCHUP=1显式恢复旧检查；非日常默认。",
+  "unchanged": [
+    "Go服务端",
+    "DFO.exe",
+    "PVF/sk.dat",
+    "SQLite结构和玩家存档",
+    "技能使用偏好",
+    "原生APC入场/重入和过门登记适配"
+  ],
+  "validation": {
+    "dllBuild": "scripts/build-adventure-elite.ps1 -CandidateDirectory <dist/path-isolation-0317>：退出0；MSVC /W4 /WX，14个机制程序全部通过。",
+    "actualClientBytes": "registration-startup-test.exe F:/wip/dof/115US/DFO.exe：退出0；只在夹具进程执行复制代码，没有启动游戏。",
+    "captureFixtures": "scripts/test-adventure-elite-capture.ps1：退出0；既有全部夹具与新增6种寻路隔离证据夹具通过。",
+    "preflight": "scripts/collect-adventure-elite.ps1 -CheckOnly：退出0；候选清单匹配。最近实机状态仍是0.3.16，不作为0.3.17验收。",
+    "gitDiffCheck": "git diff --check：退出0。",
+    "goGates": "Go代码与服务端程序未改，本轮未重新执行Go build/vet/test。",
+    "liveAI": "pending"
+  },
+  "manualBatch": [
+    "保持 susu/sab 与现有名单，不重新保存",
+    "普通已解锁图首房先观察攻击；若恢复，继续过一扇门并观察",
+    "正常回城重进一次检查攻击；可在同一会话转到之前复现的特殊副本",
+    "首次异常结束会话并正常退出；采集所有原生、生命周期、登记、战斗和补救日志"
+  ],
+  "limitations": [
+    "隔离候选并未证明寻路调用是唯一根因",
+    "关闭无路传送可能使障碍物处的追随行为回到原生",
+    "旧源测试和正常退出不能替代当前AI实机验收"
+  ],
+  "delivery": {
+    "dllVersion": "0.3.17",
+    "dllBytes": 246272,
+    "dllSHA256": "67d457dd86a80409454602f00c1a76825d610928a144afdcd220f468142db722",
+    "path": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+    "backup": ".tmp/adventure-elite/path-isolation-delivery-backup-20261012",
+    "serverUntouched": true,
+    "launcherUntouched": true
+  },
+  "analysisHandling": "曾误直接打开权威IDB作查询，已关闭且未保存；自身生成的解包缓存移到.tmp/adventure-elite/ida-query-cache-20261012，未改IDB/EXE。后续须沿用受控副本查询。"
+}

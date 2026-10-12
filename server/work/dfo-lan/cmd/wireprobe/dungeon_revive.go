@@ -44,6 +44,9 @@ func (w *worldSession) lifeTokenReviveAllowed(p []byte) error {
 	if w.dungeons == nil {
 		return fmt.Errorf("missing map revive rules")
 	}
+	if err := w.checkIspinsCoinUse(); err != nil {
+		return err
+	}
 	script, err := w.dungeons.MapScript(w.activeDungeon.Room.Map)
 	if err != nil {
 		return err
@@ -116,6 +119,9 @@ func (w *worldSession) lifeTokenRevive(ctx context.Context, store dungeonReviveS
 	if w.pilotDeath.Revives == nil {
 		w.pilotDeath.Revives = map[[32]byte]bool{}
 	}
+	if w.ispins != nil {
+		w.ispins.coinsUsed++
+	}
 	w.pilotDeath.Dead = false
 	w.pilotDeath.Revives[hash] = true
 	return []outboundPacket{
@@ -160,6 +166,9 @@ func (w *worldSession) ceraRevive(ctx context.Context, store ceraReviveStore, p,
 	}
 	if w.pilotDeath.Revives == nil {
 		w.pilotDeath.Revives = map[[32]byte]bool{}
+	}
+	if w.ispins != nil {
+		w.ispins.coinsUsed++
 	}
 	w.pilotDeath.Dead = false
 	w.pilotDeath.Revives[hash] = true

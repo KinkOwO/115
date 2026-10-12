@@ -1,10 +1,13 @@
 package main
 
 import (
+	"dfolan/internal/catalog"
 	"dfolan/internal/dungeon"
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/legion"
+	"dfolan/internal/loot"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -23,7 +26,11 @@ import (
 // 与服务端加载的副本会不一致，此限制待官服向量补解后再放开。
 type ispinsRun struct {
 	// stage 是当前进入（或下一个待进）的阶段号 0..3。
-	stage int
+	stage                              int
+	sourceCards                        bool
+	cards                              [4][3]catalog.IspinsCard
+	cardsOwned                         [4]bool
+	potionLimit, potionUsed, coinsUsed uint32
 	// cleared 记录已通关阶段。
 	cleared [4]bool
 	// confirmed 表示 CMD2047 变体 B（确认操作）已到达。
@@ -240,12 +247,18 @@ func (w *worldSession) startIspins(p []byte) ([]outboundPacket, []map[string]any
 	if err := w.checkIspinsWeeklyAdmission(); err != nil {
 		return nil, nil, err
 	}
-	w.ispins = &ispinsRun{}
+	w.ispins = &ispinsRun{sourceCards: w.dungeons != nil && w.dungeons.LegionContents != nil}
+	if w.ispins.sourceCards {
+		if err := w.ensureIspinsCards(0); err != nil {
+			w.ispins = nil
+			return nil, nil, err
+		}
+	}
 	entry, err := legion.IspinsEntryCharacterInfo(false, [4]bool{}, [5]byte{})
 	if err != nil {
 		return nil, nil, err
 	}
-	info, err := legion.IspinsInfoPayload("initial", [5]byte{})
+	info, err := w.ispinsInfoPayload("initial", [5]byte{})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -262,7 +275,7 @@ func (w *worldSession) startIspins(p []byte) ([]outboundPacket, []map[string]any
 
 // ispinsWaitInfo builds the N2255 waiting-state body for the next stage.
 func (w *worldSession) ispinsWaitInfo() ([]byte, error) {
-	return legion.IspinsInfoPayload(fmt.Sprintf("wait%d", w.ispinsClearedCount()), [5]byte{})
+	return w.ispinsInfoPayload(fmt.Sprintf("wait%d", w.ispinsClearedCount()), [5]byte{})
 }
 
 // ispinsOperation handles CMD2047. Variant A selects an operation (official
@@ -280,11 +293,14 @@ func (w *worldSession) ispinsOperation(p []byte) ([]outboundPacket, []map[string
 		return nil, nil, fmt.Errorf("ispins operation inside a dungeon")
 	}
 	count := w.ispinsClearedCount()
+	if count >= 4 {
+		return nil, nil, fmt.Errorf("Ispins operation after final clear")
+	}
 	switch req.Variant {
 	case 1:
 		w.ispins.confirmed = false
 		w.ispins.operationIndex = 0
-		info, err := legion.IspinsInfoPayload(fmt.Sprintf("chosen%d", count), [5]byte{})
+		info, err := w.ispinsInfoPayload(fmt.Sprintf("chosen%d", count), [5]byte{})
 		if err != nil {
 			return nil, nil, err
 		}
@@ -298,6 +314,18 @@ func (w *worldSession) ispinsOperation(p []byte) ([]outboundPacket, []map[string
 				"token":        fmt.Sprintf("%x", req.Token),
 			}}, nil
 	case 2:
+		if w.ispins.sourceCards {
+			if err := w.ensureIspinsCards(count); err != nil {
+				return nil, nil, err
+			}
+			found := false
+			for _, card := range w.ispins.cards[count] {
+				found = found || card.Index == req.OperationIndex
+			}
+			if !found {
+				return nil, nil, fmt.Errorf("Ispins selected card was not offered")
+			}
+		}
 		if w.dungeons != nil {
 			if _, ok := w.dungeons.IspinsOperations[req.OperationIndex]; !ok {
 				return nil, nil, fmt.Errorf("ispins operation%d absent from source", req.OperationIndex)
@@ -357,7 +385,19 @@ func (w *worldSession) enterIspinsStage(p []byte) ([]outboundPacket, []map[strin
 	if w.activeDungeon != nil {
 		return nil, nil, fmt.Errorf("ispins enter while a dungeon is active")
 	}
-	sel := protocol.DungeonSelection{ID: legion.IspinsStageDungeons[stage], Party: 65535}
+	dungeonID := legion.IspinsStageDungeons[stage]
+	if run.sourceCards {
+		var err error
+		dungeonID, err = catalog.IspinsDefaultStageDungeon(w.dungeons.LegionContents, int(legion.IspinsStageDungeonIndex[stage]))
+		if err != nil {
+			return nil, nil, err
+		}
+		op, ok := w.dungeons.IspinsOperations[run.operationIndex]
+		if !ok || !catalog.IspinsOperationKindSupported(op.Type) {
+			return nil, nil, fmt.Errorf("Ispins unsupported source operation")
+		}
+	}
+	sel := protocol.DungeonSelection{ID: dungeonID, Party: 65535}
 	s, err := dungeon.Select(*w.dungeons, sel, w.level, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ispins stage %d entry unavailable: %w", stage, err)
@@ -419,15 +459,20 @@ func (w *worldSession) enterIspinsStage(p []byte) ([]outboundPacket, []map[strin
 	if err != nil {
 		return nil, nil, err
 	}
-	info, err := legion.IspinsInfoPayload(fmt.Sprintf("dungeon%d", stage), [5]byte{})
+	info, err := w.ispinsInfoPayload(fmt.Sprintf("dungeon%d", stage), [5]byte{})
 	if err != nil {
 		return nil, nil, err
 	}
 	plan = append(plan, outboundPacket{"ispins_info_dungeon", 0, legion.NotiIspinsInfo, info})
-	plan, err = appendIspinsReplays(plan, "fatigue_acceleration", "stackable_dungeon_limit")
+	plan, err = appendIspinsReplays(plan, "fatigue_acceleration")
 	if err != nil {
 		return nil, nil, err
 	}
+	potionLimit, err := w.ispinsPotionLimit(stage, sel.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	plan = append(plan, outboundPacket{"ispins_source_potion_limit", 0, 1584, binary.LittleEndian.AppendUint32(nil, potionLimit)})
 	// N28/N29 携带真实迷宫数据（副本 id / 地图 id / boss）。
 	plan = append(plan, outboundPacket{"dungeon_info_sent", 0, 28, protocol.DungeonInfo(protocol.DungeonInfoState{ID: sel.ID, Difficulty: sel.Difficulty, Maze: s.Maze.Index, Boss: s.Maze.Boss})})
 	plan, err = appendIspinsReplays(plan, "linked_dungeon_info")
@@ -473,6 +518,7 @@ func (w *worldSession) enterIspinsStage(p []byte) ([]outboundPacket, []map[strin
 	w.resultSent = false
 	w.leaveScene()
 	run.stage = stage
+	run.potionLimit, run.potionUsed, run.coinsUsed = potionLimit, 0, 0
 	return plan, []map[string]any{{
 		"kind":            "ispins_stage_entered",
 		"character_id":    w.role.ID,
@@ -509,6 +555,9 @@ func decodeHexOrDie(s string) []byte {
 
 func appendIspinsAux(plan []outboundPacket, aux []ispinsAuxPacket) []outboundPacket {
 	for _, a := range aux {
+		if a.ID == 14 {
+			continue
+		} // Captured inventory belongs to another player.
 		plan = append(plan, outboundPacket{a.Name, 0, a.ID, a.Body})
 	}
 	return plan
@@ -616,12 +665,12 @@ var ispinsAuxPre115 = [4][]ispinsAuxPacket{
 // aux(2168) → N115 (stage0/3 only). The official N2/N9 bodies embed
 // official-session actor/role names and the new-client NOTI9 layout, so both
 // are locally rebuilt (protocol.IspinsSettlementCharacterInfo / SoloPartyInfo);
-// the reward items in the N14 echoes are not persisted in v1.
+// Reward displays come from frozen PVF plans; inventory is rebuilt after commit.
 func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 	if w.ispins != nil && !w.ispins.deadline.IsZero() && !time.Now().Before(w.ispins.deadline) {
 		return w.ispinsTimeout(time.Now())
 	}
-	if !w.activeDungeon.Completed() || w.completionSent {
+	if w.activeDungeon == nil || !w.activeDungeon.Completed() || w.completionSent {
 		return nil, nil
 	}
 	run := w.ispins
@@ -629,25 +678,36 @@ func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 		return nil, nil
 	}
 	stage := run.stage
-	basic, err := legion.IspinsBasicClearReward(stage)
+	if stage < 0 || stage >= len(run.cleared) {
+		return nil, fmt.Errorf("Ispins settlement stage out of range: %d", stage)
+	}
+	now := time.Now()
+	rewardService, rewardPlan, err := w.freezeIspinsRewards(now)
 	if err != nil {
 		return nil, err
 	}
-	additional, err := legion.IspinsAdditionalClearReward(stage)
-	if err != nil {
-		return nil, err
+	elapsed := time.Duration(0)
+	if !w.activeDungeon.StartedAt.IsZero() {
+		elapsed = now.Sub(w.activeDungeon.StartedAt)
 	}
-	clearInfo, err := legion.IspinsInfoPayload(fmt.Sprintf("clear%d", stage), [5]byte{})
-	if err != nil {
-		return nil, err
-	}
-	if stage == 3 {
-		if err := w.recordIspinsFullClear(); err != nil {
-			return nil, err
+	project := func(items []loot.Award) []legion.IspinsRewardItem {
+		out := make([]legion.IspinsRewardItem, 0, len(items))
+		for _, item := range items {
+			out = append(out, legion.IspinsRewardItem{Template: item.Template, Amount: item.Amount})
 		}
+		return out
 	}
-	run.cleared[stage] = true
-	entry, err := legion.IspinsEntryCharacterInfo(false, run.cleared, [5]byte{})
+	basic, additional, err := legion.IspinsSourceRewardPayloads(project(rewardPlan.Basic), project(rewardPlan.Additional), elapsed, rewardPlan.Eligible)
+	if err != nil {
+		return nil, err
+	}
+	clearInfo, err := w.ispinsInfoPayload(fmt.Sprintf("clear%d", stage), [5]byte{})
+	if err != nil {
+		return nil, err
+	}
+	cleared := run.cleared
+	cleared[stage] = true
+	entry, err := legion.IspinsEntryCharacterInfo(false, cleared, [5]byte{})
 	if err != nil {
 		return nil, err
 	}
@@ -659,7 +719,13 @@ func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 	// 主循环按这个名字置 completionSent（与通用 N31 同名）。
 	plan = append(plan, outboundPacket{"dungeon_clear_enabled", 0, 31, legion.IspinsDungeonClearEnabled(stage)})
 	// 官服 N2256 只在 stage 0/1/3 出现，stage2 直接 2168（帧 656→657）。
-	if stage != 2 {
+	if run.operationIndex != 0 {
+		notice, err := legion.IspinsSelectedOperationNotice(run.operationIndex, true)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"ispins_operation_notice", 0, legion.NotiIspinsOperation, notice})
+	} else if !run.sourceCards && stage != 2 {
 		plan = append(plan, outboundPacket{"ispins_operation_notice", 0, legion.NotiIspinsOperation, legion.IspinsOperationNotice()})
 	}
 	plan = appendIspinsAux(plan, ispinsAuxPre2252[stage])
@@ -670,6 +736,13 @@ func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 	// next79 §30 stack proves it reads beyond that body. Refresh through the
 	// same native basic/detail encoders already accepted at party creation
 	// and dungeon entry, using this role's persisted data.
+	if w.loot != nil {
+		body, err := w.loot.Bootstrap(workflow.LootRole(w.role))
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"ispins_saved_inventory_refreshed", 0, 13, body})
+	}
 	if w.characters != nil {
 		basicInfo, err := w.characters.EntryBasicProbe(w.role, w.characters.ChannelContext)
 		if err != nil {
@@ -722,6 +795,15 @@ func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 			}
 		}
 	}
+	if err := w.claimIspinsRewards(rewardService, rewardPlan, plan); err != nil {
+		return nil, err
+	}
+	if stage == 3 {
+		if err := w.recordIspinsFullClear(); err != nil {
+			return nil, err
+		}
+	}
+	run.cleared = cleared
 	return plan, nil
 }
 
@@ -754,7 +836,7 @@ func (w *worldSession) ispinsRewardEnd(p []byte) ([]outboundPacket, []map[string
 	}
 	if stage == 3 && all {
 		run.finalDone = true
-		final, err := legion.IspinsInfoPayload("final", [5]byte{})
+		final, err := w.ispinsInfoPayload("final", [5]byte{})
 		if err != nil {
 			return nil, nil, err
 		}
@@ -795,7 +877,7 @@ func (w *worldSession) ispinsStoryPause(p []byte) ([]outboundPacket, []map[strin
 	}
 	plan := []outboundPacket{{"ispins_story_pause", 0, 170, legion.IspinsStoryPause(resumed, nonce)}}
 	if resumed {
-		leave, err := legion.IspinsInfoPayload("leave", [5]byte{})
+		leave, err := w.ispinsInfoPayload("leave", [5]byte{})
 		if err != nil {
 			return nil, nil, err
 		}

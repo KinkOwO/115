@@ -384,13 +384,9 @@ func (s *Service) Select(ctx context.Context, account int64, p []byte) (Characte
 // EntryBasicProbe uses the persisted character identity and state. This is a
 // packet experiment only; world placement and actor allocation are separate.
 //
-// The worn set is projected into the native 0x145639840 block. The block is
-// the only place the client learns an explicit per-slot model binding, and
-// AppearanceProbe below carries it. The entry-time packet keeps the explicit
-// block empty on purpose: with count=0 the client fills every slot's model
-// from the worn item objects (live-verified 2026-09-18: weapon, armour and
-// title all render correctly on first entry). The post-move refresh is the
-// path that does need explicit rows - see AppearanceProbe.
+// The worn set uses the same native 0x145639840 model bindings as the
+// post-move refresh. This packet also rebuilds the actor at the end of entry,
+// so it must preserve the weapon binding installed before NOTI24.
 func (s *Service) EntryBasicProbe(role Character, channelContext [2]byte) ([]byte, error) {
 	if s.ChannelContext != [2]byte{} {
 		channelContext = s.ChannelContext
@@ -407,19 +403,16 @@ func (s *Service) EntryBasicProbe(role Character, channelContext [2]byte) ([]byt
 	if err != nil {
 		return nil, err
 	}
-	// The entry-time block is built from the list-row equipment projection
-	// (protocol.UserInfoBasicProbe falls back to EquipmentAppearance(r.Equipment)).
-	// The roster channel proves the value shape live: the same rows render the
-	// select-screen model correctly. An empty block leaves every slot's
-	// 0x405 binding at zero and the client reports "no weapon equipped"
-	// (user report 20260918). Cosmetic only: an undecorable worn row must
-	// never refuse entry (user ruling 20260918).
-	equipment, err := wornAppearance(role.State)
+	// Len=0 names a piece but clears its model index. Reusing those roster
+	// rows for the final actor rebuild undoes the weapon-toast prelude.
+	// Keep entry's existing cosmetic-error policy while projecting the real
+	// worn set through the same binding producer as AppearanceProbe.
+	appearance, err := s.wornAppearance(role.State)
 	if err != nil {
-		equipment = nil
+		appearance = nil
 	}
 	if s.DisableActorAppearance {
-		equipment = nil
+		appearance = nil
 	}
 	// The mode-0 creature segment is the town-follower display path
 	// (docs/宠物显示实现-G0198 §2.1): u32 slot-26 template + dstr name + u8
@@ -444,16 +437,8 @@ func (s *Service) EntryBasicProbe(role Character, channelContext [2]byte) ([]byt
 		BasePercent:   entryBasePercent,
 		SkillTreeType: state.SkillTreeType,
 		ActorServerID: role.WireID, Context: channelContext,
-		Character: protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, Equipment: equipment, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags, GrowthEffectFlags: effectFlags},
-		// The explicit per-slot block must stay empty on the entry path. A
-		// block holding a client-rejected slot is worse than an empty one:
-		// the reader replaces the projection wholesale, so a knight wearing
-		// a [support weapon] would ship a block whose only row is slot 24 -
-		// which the client's cosmetic-layer slot set rejects - and slot 12
-		// (the weapon/held-visual row the client does accept) would never
-		// reach it. Slots 14..25 are template-driven from the id13/id14 item
-		// rows and must not be sent as binding rows.
-		Appearance: nil,
+		Character:  protocol.CharacterRow{Name: role.Name, Profession: role.Profession, Advancement: advancement, Level: state.Level, Odyssey: odyssey, CreatureItemID: creatureItemID, CreatureName: creatureName, ContentClearFlags: contentFlags, GrowthEffectFlags: effectFlags},
+		Appearance: appearance,
 	})
 }
 

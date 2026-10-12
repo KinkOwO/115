@@ -38,6 +38,11 @@ func (w *worldSession) canRechallenge(ctx context.Context) bool {
 }
 
 func (w *worldSession) dungeonResult(p []byte) ([]outboundPacket, error) {
+	if w.ownsNativeLegion() {
+		// C46 can retry a failed durable grant, but must never open ordinary
+		// dungeon cards or repeat the native result after it has been sent.
+		return w.completeNativeLegionStage()
+	}
 	// 次元回廊：**不走通用结算**（业主 2026-10-10 定调：「取消普通翻牌，直接用
 	// 刚刚出现的横幅和翻牌，这才是原本的东西」）。
 	//

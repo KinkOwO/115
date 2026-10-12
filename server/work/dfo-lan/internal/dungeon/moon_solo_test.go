@@ -3,7 +3,6 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"os"
 	"testing"
 	"time"
 )
@@ -11,14 +10,7 @@ import (
 // Real-source offline route test. No game launch or database access.
 // The input is supplied explicitly, never a developer's private path.
 func TestMoonSoloSourceLifecycle(t *testing.T) {
-	path := os.Getenv("MOON_TEST_DUNGEONS")
-	if path == "" {
-		t.Skip("set MOON_TEST_DUNGEONS to a same-client complete export")
-	}
-	c, e := catalog.LoadDungeons(path)
-	if e != nil {
-		t.Fatal(e)
-	}
+	c := catalog.LoadNativeDungeons(t, 100004136, 100004137)
 	now := time.Unix(1800000000, 0)
 	r, e := NewMoonSolo(c, 115, 7, 0, now)
 	if e != nil {

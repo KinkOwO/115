@@ -1,0 +1,52 @@
+[
+  {
+    "operation_index": 3,
+    "reference": "<20::DCMission_Content_003>",
+    "original": "对%s进行属性攻击时， 增加%d%%伤害",
+    "native_argument_order": [
+      "int32",
+      "wchar_t*"
+    ],
+    "native_fault": "exception: access violation reading 0x000000000000001E"
+  },
+  {
+    "operation_index": 5,
+    "reference": "<20::DCMission_Content_005>",
+    "original": "%s攻击力增加%d%%",
+    "native_argument_order": [
+      "int32",
+      "wchar_t*"
+    ],
+    "native_fault": "exception: access violation reading 0x000000000000001E"
+  },
+  {
+    "operation_index": 7,
+    "reference": "<20::DCMission_Content_007>",
+    "original": "%s的韧性条上限 + %d%%",
+    "native_argument_order": [
+      "int32",
+      "wchar_t*"
+    ],
+    "native_fault": "exception: access violation reading 0x000000000000001E"
+  },
+  {
+    "operation_index": 1,
+    "reference": "<20::DCMission_Content_001>",
+    "original": "可使用2个复活币\\n 属性攻击%s时， 伤害 +<tst::glow_font::Legion_Beginner>%d%% <tst::default>",
+    "native_argument_order": [
+      "int32",
+      "wchar_t*"
+    ],
+    "native_fault": "exception: access violation reading 0x000000000000001E"
+  },
+  {
+    "operation_index": 1,
+    "reference": "<20::DCMission_Conten_Karon_001>",
+    "original": "在冒险家的墓碑上\\n灵魂永不枯竭。 属性攻击%s时， 伤害增加<tst::glow_font::Legion_Beginner>%d%% <tst::default>。",
+    "native_argument_order": [
+      "int32",
+      "wchar_t*"
+    ],
+    "native_fault": "exception: access violation reading 0x000000000000001E"
+  }
+]

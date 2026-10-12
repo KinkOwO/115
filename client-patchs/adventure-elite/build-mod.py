@@ -1,5 +1,6 @@
 """Package the opt-in eligibility candidate. Does not install or start a client."""
 import hashlib
+import argparse
 import json
 from pathlib import Path
 import zipfile
@@ -7,18 +8,23 @@ import zipfile
 HERE = Path(__file__).resolve().parent
 DIST = HERE / "dist"
 DLL = DIST / "AdventureElite.dll"
-VERSION = "0.3.10"
+VERSION = "0.3.25"
 
 
 def main():
-    data = DLL.read_bytes()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dist", type=Path, default=DIST)
+    output = parser.parse_args().dist.resolve()
+    if not output.is_relative_to(DIST.resolve()):
+        raise ValueError("candidate output must stay inside ignored dist directory")
+    data = (output / "AdventureElite.dll").read_bytes()
     manifest = {
         "schema": 2,
         "id": "qol.adventure-elite-eligibility",
         "version": VERSION,
         "name": "精锐角色资格候选",
         "author": "DFO 115us",
-        "description": "取消资格门槛，保留真实属性；普通单人通关已验证；回城后重新入场登记修复候选；剧情及奥德赛战斗待验收。",
+        "description": "取消资格门槛，保留真实属性；普通单人通关已验证；默认关闭额外A*查询与无路传送；保留同一场景丢登记持续3秒的补救；只读记录出生后坐标写入和调用栈；定位与AI回归待实机。",
         "permissions": ["client.file.write"],
         "requires": ["qol.client-host"],
         "layers": {"client": {"ops": [{
@@ -28,7 +34,7 @@ def main():
             "note": "仅DFO_ADVENTURE_ELITE=1启用；日志及状态均写DLL目录；退出客户端后卸载。",
         }]}},
     }
-    archive = DIST / f"adventure-elite-eligibility-{VERSION}.zip"
+    archive = output / f"adventure-elite-eligibility-{VERSION}.zip"
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("mod.json", json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
         z.writestr("client/AdventureElite.dll", data)

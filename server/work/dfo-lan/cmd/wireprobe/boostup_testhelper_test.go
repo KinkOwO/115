@@ -52,19 +52,17 @@ func boostReloadCharacter(t *testing.T, ctx context.Context, store *database.Sto
 	return database.Character{}
 }
 
-// [GAP] boostFixtureBaselines：donor 基线的世界/副本 SQL 夹具读的是重构前的两份
-// JSON 导出（configs/world.generated.json、configs/dungeons.full.json），新树已改为
-// PVF 原生目录，这两份导出不在仓库里。缺文件时明确跳过并指名待办，避免把「导出
-// 文件缺失」误报成 662 活动回归。把这几个夹具改挂到 gamedata 原生目录（与
-// unseal_flow_test.go 同一口径：DFO_TEST_STORAGE_CONFIG + DFO_PVF_CORE_TEST_ARCHIVE）
-// 是独立的后续任务，不代表实机未测的功能坏了。
-func boostFixtureBaselines(t *testing.T, paths ...string) {
+// Current native source; no retired JSON exports or player database are needed.
+func boostFixtureArchive(t *testing.T) *pvf.Archive {
 	t.Helper()
-	for _, p := range paths {
-		if _, e := os.Stat(p); e != nil {
-			t.Skipf("pre-refactor JSON catalog export absent (%s): re-target this fixture to native PVF", p)
-		}
+	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
+	if path == "" {
+		t.Skip("set DFO_PVF_CORE_TEST_ARCHIVE for native boost fixture")
 	}
+	a, err := catalog.OpenTestArchiveCached(path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
+	must115(t, err)
+	t.Cleanup(func() { must115(t, a.Close()) })
+	return a
 }
 
 // deathBody 组装一条最小可解码的怪物死亡请求（与实机捕获同布局，见
@@ -93,14 +91,10 @@ func writePartyPackets(t *testing.T, plan []outboundPacket) {
 }
 
 // moonWorlds 构造 n 个「满月湖事件城镇」的完整 worldSession（donor 基线测试夹具，
-// 本树按真实配置重建）：真实角色目录 + 规则 + 副本目录 + 世界目录 + 独立存储 schema。
-// 与仓库其它 SQL 测试一致：未设 US115_TEST_STORAGE 时整个跳过。
+// 本树按当前 PVF 重建）：角色目录 + 规则 + 副本目录 + 世界目录 + 临时 SQLite。
 func moonWorlds(t *testing.T, n int) []*worldSession {
 	t.Helper()
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("explicit isolated database required")
-	}
-	boostFixtureBaselines(t, "../../configs/world.generated.json", "../../configs/dungeons.full.json")
+	a := boostFixtureArchive(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 	fixture, e := database.OpenTestFixture(ctx)
@@ -115,7 +109,7 @@ func moonWorlds(t *testing.T, n int) []*worldSession {
 	must115(t, store.MigrateCharacterEvents(ctx))
 	must115(t, store.MigrateWorld(ctx))
 
-	professions, e := catalog.LoadCharacters("../../configs/characters.next25.json")
+	professions, e := catalog.ImportCharacters(a)
 	must115(t, e)
 	rulesRaw, e := os.ReadFile("../../configs/character-probe.json")
 	must115(t, e)
@@ -124,7 +118,7 @@ func moonWorlds(t *testing.T, n int) []*worldSession {
 	characters, e := character.New(store, professions, charRules)
 	must115(t, e)
 
-	worldCatalog, e := catalog.LoadWorld("../../configs/world.generated.json")
+	worldCatalog, e := catalog.ImportWorldRuntime(a)
 	must115(t, e)
 	rulesRaw, e = os.ReadFile("../../configs/world-probe.json")
 	must115(t, e)
@@ -132,16 +126,20 @@ func moonWorlds(t *testing.T, n int) []*worldSession {
 	must115(t, json.Unmarshal(rulesRaw, &worldRules))
 	worldService := &world.Service{Store: store, Catalog: worldCatalog, Rules: worldRules}
 
-	dungeons, e := catalog.LoadDungeons("../../configs/dungeons.full.json")
+	// These tests exercise the existing map engine through the lake guide.
+	dungeons, e := catalog.ImportDungeons(a, []uint32{100004136})
 	must115(t, e)
 
 	account, e := store.DevelopmentAccount(ctx, "moon-fixture")
 	must115(t, e)
 	out := make([]*worldSession, 0, n)
 	for i := 0; i < n; i++ {
-		raw, e := inventory.SaveBag(json.RawMessage(`{"level":115,"advancement":0}`), inventory.Bag{Version: "ordinary-bag-v1"})
+		prof := professions.Professions[0]
+		state, e := json.Marshal(character.State{Level: 115, Attributes: prof.InitialAttributes, AllJobsPilot: true, SourcePath: prof.Path, SourceSHA256: prof.RawSHA256, InitialSkills: prof.InitialSkills})
 		must115(t, e)
-		role, e := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: fmt.Sprintf("MoonFixture%d", i), Profession: 0, Request: []byte{0}, ConfigVersion: professions.Source.Checksum, State: raw}, 100)
+		raw, e := inventory.SaveBag(state, inventory.Bag{Version: "ordinary-bag-v1"})
+		must115(t, e)
+		role, e := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: fmt.Sprintf("MoonFixture%d", i), Profession: 0, Request: []byte{0}, ConfigVersion: professions.Source.SaveIdentity(), State: raw}, 100)
 		must115(t, e)
 		ls := &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: professions.Source.Checksum}}}
 		out = append(out, &worldSession{

@@ -10,18 +10,14 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
+	"dfolan/internal/savecontract"
 	"encoding/binary"
 	"encoding/json"
-	"os"
-	"strings"
 	"testing"
 	"time"
 )
 
 func TestBoostChallengeSQLRealEntry(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("explicit isolated database required")
-	}
 	ctx, done := context.WithTimeout(context.Background(), 30*time.Second)
 	defer done()
 	fixture, e := database.OpenTestFixture(ctx)
@@ -42,7 +38,7 @@ func assertBoostChallengeSQL(t *testing.T, ctx context.Context, store *database.
 	t.Helper()
 	a, e := store.DevelopmentAccount(ctx, "boost-challenge")
 	must115(t, e)
-	version := strings.Repeat("a", 64)
+	version := savecontract.Identity()
 	c := &boostup.Catalog{GoalLevel: 115, Town: 222, Steps: []boostup.Step{{Number: 1, Area: 0, Guide: "normal", Mission: "none", Rewards: []boostup.Reward{{Item: 6001, Count: 1}}}}, Challenges: []boostup.ChallengeDefinition{{Index: 0, UnlockKind: "level", UnlockValue: 115, Kind: "clear endkeeper of order", GuideDungeon: 100005014, Goal: 10, Repeat: 1, UnlockMail: true, ClearMail: true, UnlockRewards: []boostup.Reward{{Item: 6001, Count: 3}}, ClearRewards: []boostup.Reward{{Item: 6001, Count: 5}}}}}
 	ls := &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: version}, Items: map[uint32]catalog.LootItem{6001: {ID: 6001, Kind: "stackable", StackableType: "[booster]", StackLimit: 100}}}, BagRules: inventory.BagRules{Source: version, Slots: map[string][2]uint16{"[booster]": {65, 67}}, MissingStackLimit: 100}}
 	raw, e := boostup.WriteState(json.RawMessage(`{"level":115,"untouched":42}`), boostup.State{Version: 1, Activated: true, Training: boostup.Training{Step: 1, Phase: 1}})

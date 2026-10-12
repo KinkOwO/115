@@ -244,6 +244,9 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 		}
 	}
 	id := binary.LittleEndian.Uint16(p[2:])
+	if plan, handled, err := w.townArrivalCinematicInteraction(id); handled {
+		return plan, err
+	}
 	if w.activeDungeon != nil {
 		// A story scene ends with SET_QUEST_TRIGGER from its final layer map
 		// instead of a boss check (quest 3191, live 2026-09-22): settle the
@@ -343,7 +346,16 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 	if e != nil {
 		return nil, e
 	}
-	return []outboundPacket{{"quest_npc_objective", 0, 291, body}}, nil
+	for _, q := range active {
+		if q.ID == id {
+			ack, err := protocol.QuestTriggerUpdated(q)
+			if err != nil {
+				return nil, err
+			}
+			return []outboundPacket{{"quest_interaction_accepted", 1, 33, ack}, {"quest_npc_objective", 0, 291, body}}, nil
+		}
+	}
+	return nil, fmt.Errorf("quest interaction is not owned")
 }
 
 // Prey_01 (6200) declares NPC 8000 both as its objective and in two

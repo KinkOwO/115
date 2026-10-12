@@ -9,7 +9,7 @@ import (
 	"os"
 )
 
-// WriteEntryCopy replaces one existing script in a NEW current-format inner
+// WriteEntryCopy replaces one existing script or UTF-16 text table in a NEW current-format inner
 // archive. Paths/string pools/hash indexes are unchanged. Append within the
 // owning chunk, retaining every other entry's original bytes and offsets.
 // It never overwrites a file and never mutates the loaded source archive.
@@ -17,12 +17,24 @@ func (a *Archive) WriteEntryCopy(output, path string, replacement []byte) error 
 	if a == nil || a.readOnlyView {
 		return fmt.Errorf("cannot rewrite a read-only PVF view")
 	}
-	if a.format != FormatDFO20260901 || len(replacement) == 0 || len(replacement)%5 != 0 || len(replacement) > 1024*1024 {
-		return fmt.Errorf("unsupported script replacement")
+	if a.format != FormatDFO20260901 || len(replacement) == 0 || len(replacement) > 32*1024*1024 {
+		return fmt.Errorf("unsupported entry replacement")
 	}
 	f, ok := a.FindFile(path)
-	if !ok || f.DataType != 1 {
-		return fmt.Errorf("existing script required")
+	if !ok {
+		return fmt.Errorf("existing entry required")
+	}
+	switch f.DataType {
+	case 1:
+		if len(replacement)%5 != 0 || len(replacement) > 1024*1024 {
+			return fmt.Errorf("script replacement requires five-byte cells")
+		}
+	case 3:
+		if len(replacement)%2 != 0 {
+			return fmt.Errorf("text replacement requires UTF-16 code units")
+		}
+	default:
+		return fmt.Errorf("existing script or text table required")
 	}
 	item := a.items[f.Index]
 	oldChunk, e := a.chunk(item.chunkIndex)

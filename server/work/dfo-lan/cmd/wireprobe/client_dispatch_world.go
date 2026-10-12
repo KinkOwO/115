@@ -551,6 +551,10 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 				}
 			case 2062:
 				pending, plan, e = client.worldState.directMoveDungeon(requestData.plaintext)
+			case 2406:
+				// 大深渊/调律之边界「选套装·部位」确认窗的 OK。必须回一帧同号、
+				// kind=1 的包，否则弹窗关不掉（取证见 attunement_reward.go）。
+				plan = client.worldState.answerAttuneConfirm(requestData.plaintext)
 			}
 		}
 		client.worldState.noteEliteCombatRequest(requestData.frame.ID, requestData.plaintext, eliteBefore, pending, plan, e, client.event)
@@ -855,7 +859,7 @@ func (client *gameConnection) dispatchWorldAndQuests(requestData *clientRequest)
 		client.event(map[string]any{"kind": "story_pause_restored", "character_id": client.worldState.role.ID, "state": r.State, "story_kind": r.Kind})
 		return dispatchHandled
 	}
-	if client.worldState != nil && client.bootstrapped && (requestData.frame.ID == 35 || requestData.frame.ID == 36 || requestData.frame.ID == 1418) {
+	if client.worldState != nil && client.bootstrapped && (requestData.frame.ID == 35 || requestData.frame.ID == 36 || requestData.frame.ID == 1418 || (requestData.frame.ID == 623 && client.worldState.activeDungeon == nil && (!client.worldState.selectingDungeon || client.worldState.pendingTownArrival != nil))) {
 		if client.worldState.activeDungeon != nil {
 			client.event(map[string]any{"kind": "dungeon_world_request_pending", "id": requestData.frame.ID, "origin_preserved": true})
 			return dispatchHandled
@@ -867,13 +871,22 @@ func (client *gameConnection) dispatchWorldAndQuests(requestData *clientRequest)
 		if client.worldState.pendingTownArrival != nil {
 			if client.worldState.isTownArrivalOriginSync(requestData.frame.ID, requestData.plaintext) {
 				client.event(map[string]any{"kind": "town_arrival_scene_origin_sync", "dungeon": client.worldState.pendingTownArrival.Definition.ID, "id": requestData.frame.ID})
-			} else {
-				client.event(map[string]any{"kind": "town_arrival_scene_remains_town", "dungeon": client.worldState.pendingTownArrival.Definition.ID, "id": requestData.frame.ID})
-				client.worldState.pendingTownArrival = nil
 			}
 		}
 		if e := client.worldState.handle(requestData.frame.ID, requestData.plaintext, client.output.send, client.event); e != nil {
 			client.event(map[string]any{"kind": "world_error", "id": requestData.frame.ID, "error": e.Error()})
+		}
+		if pending := client.worldState.pendingTownArrival; pending != nil {
+			// Native town-arrival scenes can queue CMD35/623 before NOTI29
+			// reaches the client (quest 21029's official capture does so).
+			// Position/motion alone cannot cancel the owned loading session:
+			// only an actual town/area transition invalidates its origin.
+			scene := client.worldState.townArrivalScenes[pending.Definition.ID]
+			pos := client.worldState.state.Position
+			if pos.Town != scene.Town || pos.Area != scene.Area {
+				client.event(map[string]any{"kind": "town_arrival_scene_remains_town", "dungeon": pending.Definition.ID, "id": requestData.frame.ID})
+				client.worldState.pendingTownArrival = nil
+			}
 		}
 		return dispatchHandled
 	}

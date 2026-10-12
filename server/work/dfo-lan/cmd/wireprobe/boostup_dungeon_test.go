@@ -49,12 +49,15 @@ func TestBoostGuideActualGateAndSelectionUseExistingMapEngine(t *testing.T) {
 		must115(t, os.WriteFile(output, plan[1].Payload, 0600))
 	}
 	w.selectingDungeon = true
+	w.approvedDungeonGate = source.ID // C15 dispatcher records the successful gate.
 	run, plan, e := w.selectDungeon(selectBody)
 	must115(t, e)
 	if run.Definition.ID != source.ID || !run.Definition.Tutorial || w.inTutorial || countPacket(plan, 28) != 1 || countPacket(plan, 29) != 1 {
 		t.Fatal("boost confused with birth/ordinary run")
 	}
-	if run.RunID == "" || len(run.Monsters) == 0 {
+	// The current source's starting room may be empty; the map and its entry
+	// frames still have to come from the existing dungeon engine.
+	if run.RunID == "" || run.Room.Map == 0 || len(run.Maze.Rooms) == 0 {
 		t.Fatal("map engine not used")
 	}
 	binary.LittleEndian.PutUint32(gate, source.ID+1)
@@ -77,6 +80,7 @@ func assertBoostGuideClearSQL(t *testing.T, ctx context.Context, store *database
 	w := moonWorlds(t, 1)[0]
 	w.role = role
 	w.account = role.AccountID
+	w.store = store.Storage()
 	w.loot = &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: role.ConfigVersion}}}
 	w.professions = catalog.Characters{Professions: map[byte]catalog.Profession{role.Profession: {Job: "[swordman]"}}}
 	w.boostup = &boostup.Catalog{Town: 222, Steps: []boostup.Step{{Number: 1}, {Number: 2, Guide: "dungeon", Dungeon: 100004558}}}
@@ -94,7 +98,9 @@ func assertBoostGuideClearSQL(t *testing.T, ctx context.Context, store *database
 	}
 	deathPlan, e := w.monsterDeath(deathBody(4096, role.WireID), func(map[string]any) {})
 	must115(t, e)
-	if !d.Completed() || countPacket(deathPlan, 31) != 1 || countPacket(deathPlan, 115) != 0 {
+	// Current monster-death processing includes the confirmed boss marker;
+	// completion and N31 are already available without a later C117 request.
+	if !d.Completed() || countPacket(deathPlan, 31) != 1 || countPacket(deathPlan, 115) != 1 || countPacket(deathPlan, 39) != 1 {
 		t.Fatal("real training death did not enable clear without C117", deathPlan)
 	}
 	plan, e := w.completeBoostGuide()
@@ -115,16 +121,14 @@ func assertBoostGuideClearSQL(t *testing.T, ctx context.Context, store *database
 	}
 	w.resultSent = true
 	w.completionSent = true
-	plan, e = w.cardStage(69, nil)
-	must115(t, e)
-	if len(plan) != 1 {
-		t.Fatal("training score ack")
+	// Teaching runs have no owned card settlement. All three card commands
+	// must refuse rather than manufacturing an ordinary reward plan.
+	if plan, e = w.cardStage(69, nil); e == nil || len(plan) != 0 {
+		t.Fatal("training score stage manufactured a settlement")
 	}
 	w.cardScrolled = true
-	plan, e = w.cardStage(70, nil)
-	must115(t, e)
-	if len(plan) != 1 || plan[0].ID != 70 {
-		t.Fatal("training layout ack")
+	if plan, e = w.cardStage(70, nil); e == nil || len(plan) != 0 {
+		t.Fatal("training layout stage manufactured a settlement")
 	}
 	w.cardLayoutSent = true
 	// donor 基线的 cardSkip 不在本树：本树教学 run 结算不生成奖单（settlement_flow

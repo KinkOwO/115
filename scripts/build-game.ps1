@@ -35,6 +35,15 @@ function New-ServerModBuildOverlay([string]$ModuleRoot, [string]$BuildDir, [swit
             $owned = Test-Path -LiteralPath (Join-Path $directory.FullName '.modkit-owner') -PathType Leaf
             $manifest = Test-Path -LiteralPath (Join-Path $directory.FullName 'mod.json') -PathType Leaf
             if (-not $owned -and -not $manifest) { continue }
+            $goSources = @(Get-ChildItem -LiteralPath $directory.FullName -Filter '*.go' -File |
+                Where-Object { $_.Name -notlike '*_test.go' })
+            if ($goSources.Count -eq 0) {
+                if ($manifest) {
+                    throw ('mod 安装不完整：{0} 存在 mod.json，但包目录没有 Go 源码；请通过 mod 管理器重新安装或完整卸载。' -f $directory.FullName)
+                }
+                Write-Host ('[跳过] 残留 mod 安装标记：{0} 没有 Go 源码或 mod.json，不加入编译清单。' -f $directory.FullName) -ForegroundColor Yellow
+                continue
+            }
             if ($directory.Name -notmatch '^[A-Za-z0-9][A-Za-z0-9_.-]*$') {
                 throw ('已安装 mod 的目录名无法生成 Go import：{0}' -f $directory.Name)
             }

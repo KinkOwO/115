@@ -1,0 +1,108 @@
+{
+  "stage": "live-native-rollback-caller-confirmed",
+  "version": "0.3.19",
+  "authorization": "用户持续授权 DLL 排障；本轮用户已退出客户端",
+  "failedHypothesis": {
+    "version": "0.3.18",
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_004416_831212_next37",
+    "processId": 18240,
+    "runTick": 36306953,
+    "nativeBirthXYZ": [
+      1193,
+      242,
+      0
+    ],
+    "normalSceneAPCXYZ": [
+      0,
+      0,
+      0
+    ],
+    "normalScenePlayerXYZ": [
+      1093,
+      242,
+      0
+    ],
+    "scene": 6548257024,
+    "conclusion": "三名原生出生均成功，随后同一场景归零；出生早退补齐假设排除。尚未定位归零来源。"
+  },
+  "nativeEvidence": {
+    "database": ".tmp/adventure-elite/apc-path-ida/DFO.exe.i64",
+    "birthCall": "145B2531F / return145B25325 / virtual408=145B98210",
+    "conditionalComponentSetter": "145E0EC50: RCX=component, EDX=axis, R8D=int value; native owner1408/flags gate remains unchanged",
+    "unconditionalComponentSetter": "145E0CD40: assembly145E0CD60 reads R8D; converts to float XMM2 at145E0CE40 and tailcalls vector virtual16 at145E0CE61; IDB old two-argument pseudocode omits value",
+    "guard": "both function first32 bytes independently matched against current EXE by offline startup fixture",
+    "postBirthStatic": [
+      "virtual3544=145C9C2C0 ->145D57940 state change",
+      "virtual3576=145D6B180",
+      "145C710A0",
+      "145CA3EA0",
+      "145C70460"
+    ],
+    "staticLimitation": "仅静态多条写入引用，不认定任何一条已在失败现场命中。"
+  },
+  "implementation": {
+    "source": "client-patchs/adventure-elite/src/position-write-trace.h",
+    "mutation": "新增坐标观察不写内存、不修改参数/返回值、不补齐原生拒绝写入；移除0.3.18出生补齐，只保留原生出生观察",
+    "identity": "生命周期主人线程/频道/角色、原生与缓存主人引用、当前管理器完整精锐引用/编号/控制器绑定、原生登记锚点与组件指针；观测登记移除但不放行任何恢复",
+    "records": "DLL自身目录 adventure-elite-position-PID-runTick.jsonl；XYZ前后、轴和值、actor/component/scene、成员数、caller RVA、最多12层栈、zeroTransition",
+    "budget": "每场景每名首96次写入；其后非零到零变化仍记录；总4096条。只读诊断不调用额外A*、AI、登记或传送函数。",
+    "nativeForwarding": "原生调用只执行一次、保留完整64位返回/LastError/异常；诊断AV/inpagefault停用并写catchup异常记录"
+  },
+  "delivery": {
+    "candidateDirectory": "client-patchs/adventure-elite/dist/position-observer-0319",
+    "backupDirectory": ".tmp/adventure-elite/position-observer-backup-0318",
+    "status": "deployed-after-user-exit-and-no-DFO-process",
+    "dllBytes": 256000,
+    "dllSHA256": "23bb279c92ecd5832dc5e40c1b71101442a1961053c41aa734e61cb97fc12365",
+    "manifestPath": "client-patchs/adventure-elite/dist/adventure-elite-build.json",
+    "exesUnchanged": true,
+    "gameLaunched": false
+  },
+  "validation": {
+    "build": "passed: scripts/build-adventure-elite.ps1 -CandidateDirectory .../position-observer-0319 -ClientExe F:/wip/dof/115US/DFO.exe; MSVC /W4 /WX /O2 /MT; all14 mechanism programs; exit0; .tmp/adventure-elite/position-observer-build-delivery-0319.log",
+    "startupFixture": "passed: current EXE guards, native rejection retained, axis/value/64-bit result/error/SEH, 5 identity refusals, late zero reset recorded, zero extra path calls",
+    "captureFixture": "passed: scripts/test-adventure-elite-capture.ps1 exit0; 78 base fixtures plus existing extensions, path6, birth7 and position8; .tmp/adventure-elite/position-observer-capture-tests-final-0319.log",
+    "goBuildVetTest": "not-run: no Go source changes",
+    "modkit": "unavailable: verify/plan/install/uninstall not executed",
+    "liveAcceptance": "原生归零调用栈已取到；只读诊断完成，不表示修复或攻击验收",
+    "preflight": "passed: scripts/collect-adventure-elite.ps1 -CheckOnly exit0; DLL/server/launcher artifact identities match; .tmp/adventure-elite/position-observer-preflight-0319.log; runtime status remains previous session until user starts",
+    "sourceChecks": "git diff --check exit0; edited PS1 files UTF8 BOM/CRLF; taskJSON parse success",
+    "fixtureCorrections": [
+      "new identity fixture initially bound globalworld to loader context whose channel was absent; corrected to existing native globalworld, matching established source relation",
+      "PowerShell @($null).Count=1 initially admitted missing stack; added null check and reran complete capture suite"
+    ]
+  },
+  "nextManual": "本版不再需要重复实机；接续0.3.20候选",
+  "untouched": [
+    "Go服务端及启动器exe",
+    "DFO.exe",
+    "PVF/sk.dat",
+    "SQLite及玩家存档",
+    "CHANGELOG/confirmed baseline",
+    "其它工作区改动"
+  ],
+  "unclosed": [
+    "回退缓存0的前序写入与位置许可拒绝原因",
+    "攻击/跟随用户验收",
+    "绕过int setter直接float/vector写入的路径"
+  ],
+  "live": {
+    "session": "roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261012_011544_883614_next37",
+    "pid": 19816,
+    "runTick": 38190140,
+    "nativeBirth": [
+      1193,
+      242,
+      0
+    ],
+    "zeroTransitions": 6,
+    "callerRvas": [
+      "0x5C7710F",
+      "0x5C7712F"
+    ],
+    "function": "145C76FB0",
+    "cacheSource": "actor+100888 context+5408/+5412",
+    "conclusion": "六次条件坐标写入将三名已登记APC归零；原生回退读取缓存0。缓存此前何时写0及位置许可拒绝原因未动态闭环。",
+    "finalCapture": ".tmp/adventure-elite/position-observer-live-0319-collect-final.log"
+  }
+}

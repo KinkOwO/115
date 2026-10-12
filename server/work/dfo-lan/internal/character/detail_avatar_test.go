@@ -30,19 +30,19 @@ func TestAvatarDetailCandidateIsolation(t *testing.T) {
 		t.Fatal(e)
 	}
 	// The worn projection keeps avatar slot 3, now also carries the creature
-	// body slot 26 (native reader sub_1452C1540 has a dedicated creature row
-	// layout), and still drops weapon slot 12 and out-of-table slot 47.
-	block, e := protocol.DetailedEquipment([]protocol.DetailedWorn{{Slot: 3, Template: 40601, Durability: 9}, {Slot: 26, Template: 500991361}})
+	// body slot 26 and the ordinary weapon slot 12. Slot 47 stays excluded
+	// from this projection; its separate worn-container restore remains intact.
+	block, e := protocol.DetailedEquipment([]protocol.DetailedWorn{{Slot: 3, Template: 40601, Durability: 9}, {Slot: 12, Template: 101000013}, {Slot: 26, Template: 500991361}})
 	if e != nil {
 		t.Fatal(e)
 	}
 	// Delta over the empty 14-byte equipment block: avatar row 135 +
-	// creature row 132.
-	if len(modified)-len(baseline) != 267 || !bytes.Contains(modified, block) {
-		t.Fatal("avatar+creature mode1 projection mismatch or slot-12/47 row leaked")
+	// ordinary row 127 + creature row 132.
+	if len(modified)-len(baseline) != 394 || !bytes.Contains(modified, block) {
+		t.Fatal("avatar+weapon+creature mode1 projection mismatch")
 	}
-	if bytes.Contains(modified, binary32(101000013)) || bytes.Contains(modified, binary32(100610096)) {
-		t.Fatal("non-avatar non-creature worn row leaked into mode1")
+	if bytes.Contains(modified, binary32(100610096)) {
+		t.Fatal("unsupported slot-47 row leaked into mode1")
 	}
 	if !bytes.Equal(state, before) {
 		t.Fatal("read projection mutated stored items")

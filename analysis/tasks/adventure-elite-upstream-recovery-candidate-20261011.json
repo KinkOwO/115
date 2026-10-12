@@ -1,0 +1,156 @@
+{
+  "stage": "awaiting-manual-live",
+  "recoveryVersion": "0.3.21",
+  "upstreamHead": "6d734b003096910d1783f3b0a981cd2850c05734",
+  "confirmedBaseline": "db707d59e303b49426c62d9e35d14181e7823631",
+  "rollbackCommit": "7e9b2407",
+  "rootCause": "Upstream rollback removed confirmed random-option APC equipment projection and CMD2015 continuation handling; all four CMD1811 requests reject equipment field60 before squad creation.",
+  "failedSession": "server/work/dfo-lan/runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261011_214946_541128_next37",
+  "failedEventsSHA256": "e7b4e420771c81af49d2cbd6df59ebd6d04109c52b813af0876a20a0dc777399",
+  "failedLoads": [
+    {
+      "line": 188,
+      "accepted": false,
+      "reason": "精锐装备技能资料无法完整编码：队友装备101020323含尚未接入补充通知的实例字段60",
+      "channelType": 22
+    },
+    {
+      "line": 295,
+      "accepted": false,
+      "reason": "精锐装备技能资料无法完整编码：队友装备101020323含尚未接入补充通知的实例字段60",
+      "channelType": 22
+    },
+    {
+      "line": 526,
+      "accepted": false,
+      "reason": "精锐装备技能资料无法完整编码：队友装备101020323含尚未接入补充通知的实例字段60",
+      "channelType": 22
+    },
+    {
+      "line": 534,
+      "accepted": false,
+      "reason": "精锐装备技能资料无法完整编码：队友装备101020323含尚未接入补充通知的实例字段60",
+      "channelType": 22
+    }
+  ],
+  "recoveryScope": [
+    "Restore native random-option flag1 block, preserve unsupported branches and full saved records.",
+    "Restore CMD2015 frozen-identity validation then existing special-content dispatcher.",
+    "Restore previously authorized DLL0.3.15 source/build/collector support; installed DLL remains unchanged.",
+    "Reconcile candidate manifest server/current launcher fingerprints; launcher binary unchanged."
+  ],
+  "nativeContract": {
+    "readerChain": [
+      "145962410",
+      "1452C1540",
+      "1452C19F0",
+      "1451AA420"
+    ],
+    "savedRecordBlock": "60:76",
+    "currentReportedBlock": "0119000017000011000002ff00000000",
+    "nativeProjection": "0119171102ff",
+    "savedEquipment": 101020323,
+    "evidence": "analysis/tasks/adventure-elite-random-options-candidate-20261011.json",
+    "noNewBlindProtocolAttempt": true
+  },
+  "contentSource": {
+    "archive": "server/work/client-build/Script.inner.pvf",
+    "sha256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+    "equipmentPath": "equipment/character/swordman/weapon/club/101020323.equ",
+    "scriptSHA256": "e977e7fd290b3d4c0398aa60a2ba30012da68f016947931ff8dab3c02aef6899",
+    "tag": "[random option]=1",
+    "reader": "gamedata.Source.Equipment/RandomOptions -> existing inventory records -> character.TagCharacterSnapshot -> protocol.TagEquipment",
+    "noNewGameplayTable": true,
+    "preexistingSourceGaps": "Existing moon_solo_flow/internal/dungeon channel and floor linkage constants versus moonlake.cos remain; not expanded in this restoration."
+  },
+  "gates": {
+    "build": {
+      "command": "go build ./...",
+      "exitCode": 0,
+      "seconds": 13.08,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\upstream-elite-build.log",
+      "failures": []
+    },
+    "vet": {
+      "command": "go vet ./...",
+      "exitCode": 0,
+      "seconds": 22.69,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\upstream-elite-vet.log",
+      "failures": []
+    },
+    "test": {
+      "command": "go test ./... -count=1 -json",
+      "exitCode": 0,
+      "seconds": 96.59,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\upstream-elite-test.log",
+      "failures": [],
+      "passed": 4239,
+      "skipped": 276,
+      "baselineFailures": [],
+      "baseline": "analysis/tasks/adventure-elite-special-confirmed-20261010.json",
+      "newFailures": []
+    }
+  },
+  "targeted": {
+    "exitCode": 0,
+    "log": ".tmp/adventure-elite/upstream-elite-targeted.log",
+    "actualSelectedRoles": [
+      8,
+      5,
+      2
+    ],
+    "readOnlySQLiteExport": true,
+    "individualEncodingBytes": {
+      "2": 5029,
+      "5": 5036,
+      "8": 4435
+    }
+  },
+  "dllSourceCheck": {
+    "exitCode": 0,
+    "log": ".tmp/adventure-elite/upstream-elite-dll-source-check.log",
+    "candidateDirectory": "client-patchs/adventure-elite/dist/upstream-recovery-source-check-0315",
+    "installed": false,
+    "clientLaunched": false
+  },
+  "delivery": {
+    "before": {
+      "server": "a41599fb6ca09e1c8539ba280cd6274950de21932c83657959debf94580be17b",
+      "manifest": "8effe2a5cfd52b2167113ff5b0446757eb6a2b7141051808e3789f5065f3be08",
+      "dll": "8180378b06d0a106a95e75835bd4580a4d07d580d6f378a5629556a5f69244a5",
+      "isolatedDll": "8180378b06d0a106a95e75835bd4580a4d07d580d6f378a5629556a5f69244a5",
+      "launcher": "d7a6703e6bd0bbc4313151a445fae443bd46cab700275886ac3198b2ffce60a1",
+      "default": "a6f269603887f18fa8bb60814a655641f12c5eeaf1a07f89d840e166a393be6c"
+    },
+    "after": {
+      "server": "1a120001822090be9f53060b81a358d1845c4bd24b5ed1f1509b11c8bb50c185",
+      "manifest": "5b4f13293524c7956da9e20413d7ac5d57a6ea86900b3da141459e3d1575c03e",
+      "dll": "8180378b06d0a106a95e75835bd4580a4d07d580d6f378a5629556a5f69244a5",
+      "isolatedDll": "8180378b06d0a106a95e75835bd4580a4d07d580d6f378a5629556a5f69244a5",
+      "launcher": "d7a6703e6bd0bbc4313151a445fae443bd46cab700275886ac3198b2ffce60a1",
+      "default": "a6f269603887f18fa8bb60814a655641f12c5eeaf1a07f89d840e166a393be6c"
+    },
+    "candidateBytes": 31526400,
+    "backup": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\upstream-elite-delivery-backup",
+    "stage": "awaiting-manual-live"
+  },
+  "captureTests": {
+    "exitCode": 0,
+    "log": ".tmp/adventure-elite/upstream-elite-capture-tests.log",
+    "scope": "Existing capture fixtures through DLL0.3.15, including native retention schema2; no live acceptance inferred."
+  },
+  "preflight": {
+    "exitCode": 0,
+    "candidateValid": true,
+    "log": ".tmp/adventure-elite/upstream-elite-preflight.log",
+    "priorPidNotNewRunEvidence": true
+  },
+  "limitations": [
+    "No new live confirmation; prior confirmed evidence is historical.",
+    "Historical failed capture manifest mismatch retained; new manifest does not certify that old session.",
+    "Runtime client F:/wip/dof/115US and repository client reference identities remain distinct; no resource modification.",
+    "No SQLite schema or saved roster changes; existing saves preserved; no migration required.",
+    "No unrelated upstream rollback, no candidate EXE/DLL in Git, no commit before owner confirmation."
+  ],
+  "manualPlan": "One manual session with existing roster and --source-build: enter formerly failing map; if APC appear, cross a room/Elvenmere continuation when convenient then return and reenter once; stop on first error, exit. Collect roster/native preparation/registration/lifecycle/attack/continuation from same session."
+}

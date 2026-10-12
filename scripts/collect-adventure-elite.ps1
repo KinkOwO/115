@@ -43,7 +43,7 @@ function Read-Lines([string]$path, [System.Collections.Generic.List[string]]$err
     } finally { $reader.Dispose() }
     return ,$rows
 }
-$supportedVersions = @('0.3.1', '0.3.2', '0.3.3', '0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10')
+$supportedVersions = @('0.3.1', '0.3.2', '0.3.3', '0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')
 $build = Read-Json (Join-Path $PatchDirectory 'adventure-elite-build.json')
 $artifactChecks = @()
 $candidateValid = $null -ne $build -and $build.version -in $supportedVersions
@@ -105,6 +105,14 @@ foreach ($name in @('events.jsonl', 'client.log', 'helper.err', 'helper.out', 'r
     Copy-Item -LiteralPath $source -Destination (Join-Path $destination $name)
     $copied += $name
 }
+# Optional native/transport evidence is copied when available, without
+# requiring fixture-only sessions to invent these diagnostic files.
+foreach ($name in @('client_trace.txt','gateway.err','gateway.out','breakpoints.txt','ready.json','probe.json','responses.json','channelinfo.bin')) {
+    $source=Join-Path $SessionPath $name
+    if (!(Test-Path -LiteralPath $source -PathType Leaf)) {continue}
+    if ((Get-Item -LiteralPath $source).Length -gt 64MB) {$issues.Add('诊断文件超过64 MiB，保留原位：'+$source);continue}
+    Copy-Item -LiteralPath $source -Destination (Join-Path $destination $name);$copied += $name
+}
 foreach ($name in @('adventure-elite.status.json', 'adventure-elite.log', 'adventure-elite-build.json')) {
     $source = Join-Path $PatchDirectory $name
     if (Test-Path -LiteralPath $source -PathType Leaf) { Copy-Item -LiteralPath $source -Destination (Join-Path $destination $name); $copied += $name }
@@ -136,7 +144,7 @@ foreach ($group in ($native | Where-Object { $_.phase -ne 'trace-limit' } | Grou
 }
 $lifecycle = New-Object 'System.Collections.Generic.List[object]'
 $lifeName = [string]$status.lifecycleTraceFile
-if ($status.version -in @('0.3.2', '0.3.3', '0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10')) {
+if ($status.version -in @('0.3.2', '0.3.3', '0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')) {
     if (!$status.ordinaryLifecycleReady) { $issues.Add('生命周期采样未初始化。') }
     if ($lifeName -match '^adventure-elite-lifecycle-\d+-\d+\.jsonl$' -and (Test-Path -LiteralPath (Join-Path $PatchDirectory $lifeName))) {
         Copy-Item -LiteralPath (Join-Path $PatchDirectory $lifeName) -Destination (Join-Path $destination $lifeName)
@@ -150,7 +158,7 @@ if ($status.version -in @('0.3.2', '0.3.3', '0.3.4','0.3.5','0.3.6','0.3.7','0.3
     } elseif ($native.Count -gt 0) { $issues.Add('缺少本次生命周期采样日志；不得据此推断返回后存活。') }
 }
 $ownerSamples = @()
-if ($status.version -in @('0.3.3','0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10')) {
+if ($status.version -in @('0.3.3','0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')) {
     if ($status.lifecycleTraceVersion -ne 2) { $issues.Add('身份/主人采样版本不符。') }
     foreach ($row in $lifecycle) {
         $shapeValid = $row.traceVersion -eq 2
@@ -174,7 +182,7 @@ if ($status.version -in @('0.3.3','0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9
     }
 }
 $entry = New-Object 'System.Collections.Generic.List[object]'
-if ($status.version -in @('0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10')) {
+if ($status.version -in @('0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')) {
     if (!$status.ordinaryEntryTraceReady) { $issues.Add('首房只读观察钩子未初始化：' + $status.entryFailureSite) }
     $entryName = [string]$status.entryTraceFile
     if ($entryName -notmatch '^adventure-elite-entry-\d+-\d+\.jsonl$') { $issues.Add('首房日志名无效。') }
@@ -278,13 +286,13 @@ $freshServerEntries=@($events | Where-Object {($_.kind -eq 'adventure_elite_entr
 $entryBefore = @($entry | Where-Object { $_.phase -eq 'loader-before' })
 $entryAfter = @($entry | Where-Object { $_.phase -eq 'loader-after' })
 $entryGates = @($entry | Where-Object { $_.phase -eq 'registration-gate' -and $_.callerRva -eq 0x5B25191 })
-if ($status.version -in @('0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10') -and $entryDecision.Count -gt 0 -and (!$entryBefore.Count -or !$entryAfter.Count -or !$entryGates.Count)) { $issues.Add('首房已获服务端许可，但缺加载前后或精确注册门禁样本。') }
+if ($status.version -in @('0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25') -and $entryDecision.Count -gt 0 -and (!$entryBefore.Count -or !$entryAfter.Count -or !$entryGates.Count)) { $issues.Add('首房已获服务端许可，但缺加载前后或精确注册门禁样本。') }
 if ($entryBefore.Count -ne $entryAfter.Count) { $issues.Add('首房加载前后样本不配对，不能声称完整。') }
 $registrationScope = @($entry | Where-Object { $_.phase -in @('registration-scope-allowed','registration-scope-rejected','registration-scope-native') })
 $registrationAllowed = @($registrationScope | Where-Object { $_.phase -eq 'registration-scope-allowed' })
 $registrationChannel = @($entry | Where-Object { $_.phase -eq 'registration-channel-native' -and $_.callerRva -eq 0x5B251C3 })
 $registrationResults = @($entry | Where-Object { $_.phase -eq 'native-registration-result' -and $_.callerRva -eq 0x5B2529D })
-if ($status.version -in @('0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10')) {
+if ($status.version -in @('0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')) {
     if (!$status.ordinaryRegistrationReady) { $issues.Add('首房登记适配未初始化：' + $status.registrationFailureSite) }
     foreach ($row in $entry) {
         if (@($row.registrationChecks).Count -ne 11 -or @($row.registrationPlayerRef).Count -ne 2 -or @($row.registrationNativePlayerRef).Count -ne 2) { $issues.Add('首房登记条件/真人引用字段不完整。'); break }
@@ -307,7 +315,7 @@ if ($status.version -in @('0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10')) {
 # v0.3.9: correlate the fresh-dungeon loader and exact active getter consumer.
 $activeReentry=@($entry | Where-Object {$_.phase -eq 'registration-active-reentry'})
 $freshRegistrationCycles=@()
-if($status.version -in @('0.3.9','0.3.10')) {
+if($status.version -in @('0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')) {
     foreach($row in $entry) {
         if($null -eq $row.PSObject.Properties['loaderCallerRva'] -or $null -eq $row.PSObject.Properties['freshDungeonEntry']){$issues.Add('重复登记缺原生加载调用者字段。');break}
     }
@@ -335,8 +343,8 @@ $combat = New-Object 'System.Collections.Generic.List[object]'
 $combatIssues = New-Object 'System.Collections.Generic.List[string]'
 $combatLinks = @()
 $deathPackets = @()
-if ($status.version -in @('0.3.7','0.3.8','0.3.9','0.3.10')) {
-    if (!$status.ordinaryCombatTraceReady -or $status.combatTraceVersion -ne $(if($status.version -in @('0.3.8','0.3.9','0.3.10')){2}else{1})) { $combatIssues.Add('战斗归属观察未初始化或版本不符。') }
+if ($status.version -in @('0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')) {
+    if (!$status.ordinaryCombatTraceReady -or $status.combatTraceVersion -ne $(if($status.version -in @('0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')){2}else{1})) { $combatIssues.Add('战斗归属观察未初始化或版本不符。') }
     $combatName = [string]$status.combatTraceFile
     if ($combatName -notmatch '^adventure-elite-combat-\d+-\d+\.jsonl$' -or !(Test-Path -LiteralPath (Join-Path $PatchDirectory $combatName))) { $combatIssues.Add('缺少本次战斗归属日志。') }
     else {
@@ -357,13 +365,13 @@ if ($status.version -in @('0.3.7','0.3.8','0.3.9','0.3.10')) {
         if ($row.ordinal -ne $lastOrdinal+1 -or $seenTransactions.ContainsKey([string]$row.transaction)) { $combatIssues.Add('战斗日志序号缺失或事务重复。') }
         $lastOrdinal=$row.ordinal; $seenTransactions[[string]$row.transaction]=$true
         if (!$row.completed) { $combatIssues.Add('战斗原生调用未正常返回。') }
-        if($status.version -in @('0.3.8','0.3.9','0.3.10')) {
+        if($status.version -in @('0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')) {
             foreach($field in @('effectiveArgument','uniqueSource','controllerBound','controllerWire','combatGetterRva','roomSerial')) { if($null -eq $row.PSObject.Properties[$field]){$combatIssues.Add('归属候选新增字段缺失：'+$field)} }
             if($row.nativeWritesChanged -and ($row.phase -ne 'killer-write' -or $row.victimKind -ne 3 -or $row.eliteSlot -lt 0 -or $row.eliteSlot -ge 3 -or $row.readable[0] -ne 1 -or $row.stable[0] -ne 1 -or $row.sourceKind -ne 5 -or $row.sourceStrong -le 0 -or $row.sourceField[1] -ne $row.sourceId -or $row.callerRva -ne 0x5DD022B -or $row.parent -le 0 -or $row.argument -ne 65535 -or $row.effectiveArgument -ne $row.ownerId -or $row.ownerId -ne $row.ownerController -or $row.ownerMatches -ne 1 -or !$row.uniqueSource -or !$row.controllerBound -or $row.controllerWire -ne 65535 -or $row.sourceController -ne 65535 -or $row.combatGetterRva -ne 0x14CC20)) { $combatIssues.Add('击杀者改写缺少精确原生来源或主人条件。') }
         } elseif($row.nativeWritesChanged) { $combatIssues.Add('只读观察版本出现改写标记。') }
         if ($row.phase -notin @('source-assignment','killer-write','death-send')) { $combatIssues.Add('未知战斗观察阶段。') }
         if (0 -in $row.readable -or 0 -in $row.stable -or $row.victimId -lt 0) { $combatIssues.Add('战斗对象读取不完整、不稳定或身份无效。') }
-        if ($row.phase -eq 'killer-write' -and $row.killer[1] -ne ([uint32]([int64]$(if($status.version -in @('0.3.8','0.3.9','0.3.10')){$row.effectiveArgument}else{$row.argument}) -band 0xffffffffL))) { $combatIssues.Add('原生击杀者写入结果与参数不符。') }
+        if ($row.phase -eq 'killer-write' -and $row.killer[1] -ne ([uint32]([int64]$(if($status.version -in @('0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')){$row.effectiveArgument}else{$row.argument}) -band 0xffffffffL))) { $combatIssues.Add('原生击杀者写入结果与参数不符。') }
     }
     foreach ($row in @($combat | Where-Object { $_.phase -eq 'killer-write' -and $_.parent -gt 0 -and $_.callerRva -eq 0x5DD022B })) {
         $parents=@($combat | Where-Object { $_.phase -eq 'source-assignment' -and $_.transaction -eq $row.parent -and $_.victim -eq $row.victim -and $_.thread -eq $row.thread -and $_.input -eq $row.input -and $_.ordinal -gt $row.ordinal })
@@ -409,11 +417,11 @@ foreach($event in $events) {
     if($matches.Count){$ownedFresh+=$event}
 }
 $ownedIssues=New-Object 'System.Collections.Generic.List[string]'
-if($status.version -in @('0.3.8','0.3.9','0.3.10')) {
+if($status.version -in @('0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')) {
     if(!$ownedWrites.Count){$ownedIssues.Add('尚无符合来源条件的精锐击杀者改写样本。')}
     if(!$serverCombat.Count -or !$ownedFresh.Count){$ownedIssues.Add('缺服务端归属候选处理或归属新死亡记录。')}
     foreach($row in $serverCombat) {
-        if($row.candidate_version -notin @('0.3.8','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19') -or $row.frozen_owner -ne $row.character_id -or $row.frozen_channel -ne $row.channel_type -or $row.client_acceptance -ne 'pending'){$ownedIssues.Add('服务端候选版本/冻结身份字段不符。')}
+        if($row.candidate_version -notin @('0.3.8','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25') -or $row.frozen_owner -ne $row.character_id -or $row.frozen_channel -ne $row.channel_type -or $row.client_acceptance -ne 'pending'){$ownedIssues.Add('服务端候选版本/冻结身份字段不符。')}
     }
     foreach($issue in $ownedIssues){$issues.Add($issue)}
 }
@@ -441,18 +449,289 @@ foreach($decision in $reentryDecisions) {
     $reentryRuns += [pscustomobject]@{runId=$decision.run_id;entrySerial=$decision.entry_serial;dungeon=$decision.dungeon;sourceScript=$decision.source_script;sourceSha256=$decision.source_sha256;entryCommitted=($entryCommitted.Count -eq 1);ownedDeaths=@($ownedFresh | Where-Object {$_.before.run_id -eq $decision.run_id}).Count;deaths=@($rows | Where-Object {$_.id -eq 39 -and $_.processed}).Count;moves=@($rows | Where-Object {$_.id -eq 45 -and $_.processed}).Count;pickups=@($rows | Where-Object {$_.id -eq 43 -and $_.processed}).Count;results=@($rows | Where-Object {$_.id -eq 46 -and $_.processed}).Count;cards=@($rows | Where-Object {$_.id -in @(69,70,71) -and $_.processed}).Count;returnCommitted=($returns.Count -gt 0);refusals=@($rows | Where-Object {!$_.processed})}
 }
 $retryRuns=@();$freshRunIds=@{}
-for($i=0;$status.version -in @('0.3.9','0.3.10') -and $i -lt $freshServerEntries.Count;$i++) {
+for($i=0;$status.version -in @('0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25') -and $i -lt $freshServerEntries.Count;$i++) {
     $event=$freshServerEntries[$i];$retry=$event.kind -eq 'adventure_elite_dispatch_committed'
     $runId=if($retry){$event.after.run_id}else{$event.run_id}
     if(!$runId -or $freshRunIds.ContainsKey([string]$runId)){$issues.Add('新副本加载的RunID缺失或重复。')}
     if($runId){$freshRunIds[[string]$runId]=$true}
     if($retry){$retryRuns+=[pscustomobject]@{runId=$runId;originRunId=$event.origin_run_id;serverEntrySerial=$event.entry_serial;freshEntryIndex=$i+1;nativeLoaderOrdinal=$(if($i -lt $freshRegistrationCycles.Count){$freshRegistrationCycles[$i].loaderOrdinal}else{0});ownedDeaths=@($ownedFresh | Where-Object {$_.before.run_id -eq $runId}).Count}}
 }
+$catchup = New-Object 'System.Collections.Generic.List[object]'
+if ($status.version -in @('0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')) {
+    if (!$status.apcCatchupReady) { $issues.Add('APC补救传送未初始化：' + $status.apcCatchupFailureSite) }
+    $catchupName = [string]$status.apcCatchupTraceFile
+    if ($catchupName -notmatch '^adventure-elite-catchup-\d+-\d+\.jsonl$') { $issues.Add('APC补救传送日志名无效。') }
+    elseif (Test-Path -LiteralPath (Join-Path $PatchDirectory $catchupName)) {
+        Copy-Item -LiteralPath (Join-Path $PatchDirectory $catchupName) -Destination (Join-Path $destination $catchupName)
+        $copied += $catchupName
+        $catchup = Read-Lines (Join-Path $destination $catchupName) $issues
+        foreach ($row in $catchup) {
+            if ($row.traceVersion -ne $(if($status.version -in @('0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')){2}else{1}) -or $row.processId -ne $status.processId -or $row.runTick -ne $status.runTick) { $issues.Add('APC补救传送日志版本或进程/代次不符。') }
+            if ($row.reason -in @('runtime-memory-fault','position-write-runtime-memory-fault')) { $issues.Add('APC补救/坐标诊断出现内存异常并已停止。') }
+        }
+    }
+    else { $issues.Add('缺少本次APC补救传送日志，不能判断是否发生检测。') }
+}
 $entryCountValid=($entryDecision.Count -eq 1 -or ($reentryDecisions.Count -gt 0 -and $reentryDecisions.Count -eq $entryDecision.Count))
-$entryComplete = $pidMatch -and $candidateValid -and $status.version -in @('0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10') -and $entryCountValid -and $entryBefore.Count -gt 0 -and $entryBefore.Count -eq $entryAfter.Count -and $entryGates.Count -gt 0 -and $issues.Count -eq 0
+if ($status.version -in @('0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')) {
+    if ($null -eq $status.apcPathQueryEnabled -or $null -eq $status.nativePathAllocatorHooked -or
+        $status.apcPathQueryEnabled -ne $status.nativePathAllocatorHooked) {
+        $issues.Add('APC寻路隔离状态缺失或与原生分配器 hook 不一致。')
+    }
+    elseif (!$status.apcPathQueryEnabled) {
+        if ($status.apcCatchupCriterion -ne 'registration-loss-only') { $issues.Add('APC寻路关闭但补救条件不是仅登记丢失。') }
+        foreach ($row in $catchup) {
+            if ($null -eq $row.pathQueryEnabled -or $row.pathQueryEnabled -ne $false -or
+                $null -eq $row.nativePathQueries -or $row.nativePathQueries -ne 0 -or
+                $row.criterion -ne 'registration-loss-only' -or
+                $row.reason -in @('path-reachable','path-unreachable','path-unknown')) {
+                $issues.Add('APC寻路关闭但日志缺少零调用证据或出现寻路执行记录。')
+                break
+            }
+        }
+    }
+}
+$birthPositions = @($catchup | Where-Object { $_.reason -like 'birth-*' })
+if ($status.version -eq '0.3.18') {
+    if ($status.apcBirthPositionReady -ne $true -or $status.birthPositionFailureSite -ne 'ready') { $issues.Add('APC出生定位未初始化。') }
+    if ($freshRegistrationCycles.Count -gt 0 -and !$birthPositions.Count) { $issues.Add('APC出生定位缺少本次原生调用记录。') }
+    foreach ($row in $birthPositions) {
+        if ($row.reason -notin @('birth-native-position-ok','birth-position-corrected') -or $row.heightKnown -ne $true -or
+            $null -eq $row.beforeZ -or $null -eq $row.afterZ -or $row.afterZ -ne 0 -or
+            @($row.target).Count -ne 2 -or @($row.after).Count -ne 2 -or
+            $row.target[0] -ne $row.after[0] -or $row.target[1] -ne $row.after[1] -or $row.slot -notin @(0,1,2)) {
+            $issues.Add('APC出生定位结果缺少三轴证据、目标不符或失败。')
+        }
+    }
+}
+$positionWrites = @()
+if ($status.version -in @('0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')) {
+    if ($status.apcBirthPositionReady -ne $true -or $status.birthPositionFailureSite -ne 'ready' -or
+        ($freshRegistrationCycles.Count -gt 0 -and !$birthPositions.Count)) { $issues.Add('APC出生只读诊断未就绪或缺少调用记录。') }
+    if ($status.positionWriteTraceReady -ne $true -or $status.positionWriteFailureSite -ne 'ready' -or
+        $status.positionWriteReadOnly -ne $true -or $status.apcBirthCorrectionEnabled -ne $false) { $issues.Add('APC坐标写入只读诊断状态不完整。') }
+    $positionName=[string]$status.positionWriteTraceFile
+    if ($positionName -notmatch '^adventure-elite-position-\d+-\d+\.jsonl$') { $issues.Add('APC坐标写入日志名无效。') }
+    elseif (Test-Path -LiteralPath (Join-Path $PatchDirectory $positionName)) {
+        Copy-Item -LiteralPath (Join-Path $PatchDirectory $positionName) -Destination (Join-Path $destination $positionName)
+        $copied += $positionName
+        $positionWrites = Read-Lines (Join-Path $destination $positionName) $issues
+        foreach ($row in $positionWrites) {
+            if ($row.traceVersion -ne 1 -or $row.processId -ne $status.processId -or $row.runTick -ne $status.runTick -or
+                $row.readOnly -ne $true -or $row.slot -notin @(0,1,2) -or $row.axis -notin @(0,1,2) -or
+                @($row.before).Count -ne 3 -or @($row.after).Count -ne 3 -or $null -eq $row.argument -or
+                $row.setter -notin @('conditional','unconditional') -or !$row.actor -or !$row.component -or !$row.scene -or
+                !$row.callerRva -or !$row.stackRvas -or @($row.stackRvas).Count -eq 0 -or
+                $row.zeroTransition -ne ($row.before[$row.axis] -ne 0 -and $row.after[$row.axis] -eq 0)) { $issues.Add('APC坐标写入日志身份/三轴/调用栈不完整。') }
+        }
+    } else { $issues.Add('缺少APC坐标写入日志。') }
+    if (!$positionWrites.Count) { $issues.Add('APC坐标写入缺少本次调用样本。') }
+}
+$birthCacheRows=@($catchup | Where-Object { $_.reason -like 'birth-cache-*' })
+if ($status.version -in @('0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')) {
+    if ($status.apcBirthCacheSyncEnabled -ne $true) { $issues.Add('APC回退缓存同步状态缺失。') }
+    if ($freshRegistrationCycles.Count -gt 0 -and !$birthCacheRows.Count) { $issues.Add('APC回退缓存缺少本次出生样本。') }
+    foreach ($row in $birthCacheRows) {
+        if ($row.reason -notin @('birth-cache-synchronized','birth-cache-preserved') -or $row.cacheKnown -ne $true -or
+            !$row.cacheContext -or @($row.cacheBefore).Count -ne 2 -or @($row.cacheAfter).Count -ne 2 -or
+            $row.slot -notin @(0,1,2) -or $row.beforeZ -ne 0 -or $row.afterZ -ne 0 -or
+            @($row.target).Count -ne 2 -or @($row.before).Count -ne 2 -or @($row.after).Count -ne 2 -or
+            $row.before[0] -ne $row.target[0] -or $row.before[1] -ne $row.target[1] -or
+            $row.after[0] -ne $row.before[0] -or $row.after[1] -ne $row.before[1]) { $issues.Add('APC回退缓存身份/坐标证据不完整或同步失败。'); continue }
+        if ($row.reason -eq 'birth-cache-synchronized' -and
+            ($row.cacheBefore[0] -ne 0 -or $row.cacheBefore[1] -ne 0 -or
+             ($row.target[0] -eq 0 -and $row.target[1] -eq 0) -or
+             $row.cacheAfter[0] -ne $row.target[0] -or $row.cacheAfter[1] -ne $row.target[1])) { $issues.Add('APC回退缓存同步前后与原生出生目标不符。') }
+        if ($row.reason -eq 'birth-cache-preserved' -and
+            ($row.cacheBefore[0] -ne $row.cacheAfter[0] -or $row.cacheBefore[1] -ne $row.cacheAfter[1])) { $issues.Add('APC回退缓存保留记录发生意外改变。') }
+    }
+    foreach ($row in $positionWrites) {
+        if ($row.cacheKnown -ne $true -or !$row.cacheContext -or @($row.cacheBefore).Count -ne 2 -or
+            @($row.cacheAfter).Count -ne 2 -or @($row.bounds).Count -ne 4) { $issues.Add('APC回退缓存坐标写入观察缺少缓存或边界。') }
+    }
+}
+
+$birthLandingRows=@($catchup | Where-Object {$_.reason -like 'birth-landing-*'})
+if ($status.version -eq '0.3.24') {
+    if ($status.apcBirthLandingFallbackEnabled -ne $true) {$issues.Add('APC出生落点回退状态缺失。')}
+    if ($freshRegistrationCycles.Count -gt 0 -and !$birthLandingRows.Count) {$issues.Add('APC出生落点缺少原生检查样本。')}
+    foreach ($row in $birthLandingRows) {
+        $native=$row.reason -eq 'birth-landing-native-accepted'
+        $corrected=$row.reason -eq 'birth-landing-owner-corrected'
+        if ((!$native -and !$corrected) -or $row.birthLandingChecks -isnot [Array] -or @($row.birthLandingChecks).Count -ne 3 -or
+            ($native -and ($row.birthLandingChecks -join ',') -ne '1,-1,1') -or
+            ($corrected -and ($row.birthLandingChecks -join ',') -ne '0,1,1') -or
+            $row.slot -notin @(0,1,2) -or !$row.scene -or $row.heightKnown -ne $true -or $row.beforeZ -ne 0 -or $row.afterZ -ne 0 -or
+            @($row.before).Count -ne 2 -or @($row.target).Count -ne 2 -or @($row.after).Count -ne 2 -or
+            ($row.target -join ',') -ne ($row.after -join ',') -or
+            ($native -and ($row.before -join ',') -ne ($row.after -join ',')) -or
+            ($corrected -and ($row.playerZ -ne 0 -or @($row.player).Count -ne 2 -or ($row.player -join ',') -ne ($row.target -join ',')))) {
+            $issues.Add('APC出生落点检查/三轴证据缺失、拒绝或修正失败。')
+        }
+    }
+}
+
+if ($status.version -eq '0.3.25') {
+    if ($status.apcBirthLandingFallbackEnabled -ne $true -or $status.apcBirthLandingDeferred -ne $true) {$issues.Add('APC出生落点延后状态缺失。')}
+    $deferredBirths=@($birthLandingRows | Where-Object {$_.reason -eq 'birth-landing-deferred'})
+    $birthTerminals=@($birthLandingRows | Where-Object {$_.reason -in @('birth-landing-native-accepted','birth-landing-owner-corrected')})
+    if (@($birthCacheRows | Where-Object {$_.reason -eq 'birth-cache-synchronized'}).Count -gt 0 -and !$deferredBirths.Count) {$issues.Add('APC出生落点缺少延后登记样本。')}
+    foreach ($row in $birthLandingRows) {
+        if ($row.reason -in @('birth-landing-ground-wait','birth-landing-context-wait','birth-landing-manager-wait','birth-landing-apc-scene-wait','birth-landing-owner-scene-wait','birth-landing-actor-wait')) {continue}
+        $deferred=$row.reason -eq 'birth-landing-deferred'
+        $native=$row.reason -eq 'birth-landing-native-accepted'
+        $corrected=$row.reason -eq 'birth-landing-owner-corrected'
+        $badArray=$false
+        foreach ($field in @('before','target','after','cacheBefore','cacheAfter','anchorActor','anchorPlayer')) {
+            if ($row.$field -isnot [Array] -or @($row.$field).Count -ne 2 -or @($row.$field | Where-Object {$null -eq $_}).Count -gt 0) {$badArray=$true}
+        }
+        if ((!$deferred -and !$native -and !$corrected) -or $badArray -or !$row.roomSerial -or !$row.world -or
+            $row.world -ne $row.anchorWorld -or $row.scene -ne $row.anchorScene -or !$row.scene -or
+            !$row.anchorActor[0] -or $row.anchorActor[1] -lt 48 -or !$row.anchorPlayer[0] -or $row.anchorPlayer[1] -lt 48 -or
+            $null -eq $row.anchorObjectId -or $row.slot -notin @(0,1,2) -or !$row.thread -or
+            $row.cacheKnown -ne $true -or !$row.cacheContext -or $row.heightKnown -ne $true -or $row.beforeZ -ne 0 -or $row.afterZ -ne 0 -or
+            ($row.target -join ',') -ne ($row.after -join ',') -or $row.birthLandingChecks -isnot [Array] -or @($row.birthLandingChecks).Count -ne 3 -or
+            ($deferred -and (!$row.loaderContext -or ($row.birthLandingChecks -join ',') -ne '-1,-1,-1' -or ($row.cacheBefore -join ',') -ne '0,0' -or ($row.before -join ',') -ne ($row.after -join ','))) -or
+            (!$deferred -and ($row.worldMode -ne 3 -or $row.loaderContext -ne 0 -or ($row.cacheBefore -join ',') -ne ($row.before -join ','))) -or
+            ($row.cacheAfter -join ',') -ne ($row.after -join ',') -or
+            ($native -and (($row.birthLandingChecks -join ',') -ne '1,-1,1' -or ($row.before -join ',') -ne ($row.after -join ','))) -or
+            ($corrected -and (($row.birthLandingChecks -join ',') -ne '0,1,1' -or $row.playerZ -ne 0 -or @($row.player).Count -ne 2 -or ($row.player -join ',') -ne ($row.target -join ',')))) {
+            $issues.Add('APC出生落点延后身份/原生许可/缓存证据缺失或失败。')
+        }
+    }
+    foreach ($row in $deferredBirths) {
+        $same=@($birthTerminals | Where-Object {$_.slot -eq $row.slot -and $_.roomSerial -eq $row.roomSerial -and $_.world -eq $row.world -and $_.scene -eq $row.scene -and
+            $_.anchorObjectId -eq $row.anchorObjectId -and ($_.anchorActor -join ',') -eq ($row.anchorActor -join ',') -and ($_.anchorPlayer -join ',') -eq ($row.anchorPlayer -join ',')})
+        if ($same.Count -ne 1 -or $same[0].thread -ne $row.thread -or $same[0].tick -lt $row.tick -or $same[0].cacheContext -ne $row.cacheContext -or
+            ($same[0].before -join ',') -ne ($row.after -join ',')) {$issues.Add('APC出生落点延后缺少同代次唯一完成记录。')}
+    }
+    foreach ($row in $birthTerminals) {
+        $same=@($deferredBirths | Where-Object {$_.slot -eq $row.slot -and $_.roomSerial -eq $row.roomSerial -and $_.world -eq $row.world -and $_.scene -eq $row.scene -and
+            $_.anchorObjectId -eq $row.anchorObjectId -and ($_.anchorActor -join ',') -eq ($row.anchorActor -join ',') -and ($_.anchorPlayer -join ',') -eq ($row.anchorPlayer -join ',')})
+        if ($same.Count -ne 1) {$issues.Add('APC出生落点延后完成记录没有唯一出生来源。')}
+    }
+}
+
+$permissionRows=@();$permissionChecks=@()
+if ($status.version -in @('0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')) {
+    if ($status.permissionTraceReady -ne $true -or $status.permissionFailureSite -ne 'ready' -or
+        $status.permissionReadOnly -ne $true) { $issues.Add('APC位置许可只读观察状态不完整。') }
+    $permissionName=[string]$status.permissionTraceFile
+    if ($permissionName -ne ('adventure-elite-permission-{0}-{1}.jsonl' -f $status.processId,$status.runTick)) { $issues.Add('APC位置许可日志名与当前会话不符。') }
+    elseif (Test-Path -LiteralPath (Join-Path $PatchDirectory $permissionName)) {
+        Copy-Item -LiteralPath (Join-Path $PatchDirectory $permissionName) -Destination (Join-Path $destination $permissionName)
+        $copied += $permissionName
+        $permissionRows=Read-Lines (Join-Path $destination $permissionName) $issues
+        foreach ($row in $permissionRows) {
+            $badArray=$false
+            foreach ($shape in @(@('requested',2),@('pointRequested',2),@('before',3),@('cache',2),@('bounds',4),@('attachments',3),@('actorSceneRef',2))) {
+                $value=$row.($shape[0])
+                if ($value -isnot [Array] -or $value.Count -ne $shape[1] -or @($value | Where-Object {$null -eq $_}).Count -gt 0) { $badArray=$true }
+            }
+            if ($row.traceVersion -ne 1 -or $row.processId -ne $status.processId -or $row.runTick -ne $status.runTick -or
+                $row.readOnly -ne $true -or $row.slot -notin @(0,1,2) -or !$row.actor -or !$row.scene -or
+                !$row.ordinal -or !$row.thread -or !$row.callerRva -or $badArray -or $row.cacheKnown -ne $true -or !$row.cacheContext -or
+                $row.flagsKnown -ne $true -or $null -eq $row.blocked27859 -or $null -eq $row.enabled720 -or $null -eq $row.mapOverride -or
+                $row.phase -notin $(if($status.version -eq '0.3.25'){@('point','birth-point','map-gate','grid','effect-gate','motion-gate','collision','landing','derived-landing')}else{@('point','map-gate','grid','effect-gate','motion-gate','collision','landing','derived-landing')}) -or
+                $null -eq $row.result -or $null -eq $row.resultLow32 -or $null -eq $row.resultByte -or
+                $row.resultByte -lt 0 -or $row.resultByte -gt 255 -or $row.resultByte -ne ($row.resultLow32 -band 255) -or
+                $row.resultLow32 -ne ([uint64]$row.result -band 4294967295L) -or
+                ($row.phase -ne 'grid' -and $row.argumentObject -ne $row.actor)) { $issues.Add('APC位置许可身份/三轴/缓存/结果证据不完整。') }
+        }
+        foreach ($group in ($permissionRows | Group-Object ordinal)) {
+            $points=@($group.Group | Where-Object {$_.phase -eq 'point' -or ($status.version -eq '0.3.25' -and $_.phase -eq 'birth-point')})
+            $terminal=$group.Group | Select-Object -Last 1
+            if ($points.Count -ne 1 -or $terminal.phase -notin @('point','birth-point') -or
+                ($terminal.phase -eq 'point' -and @($group.Group | Where-Object {$_.phase -eq 'map-gate'}).Count -eq 0) -or
+                ($terminal.phase -eq 'birth-point' -and @($group.Group | Where-Object {$_.phase -in @('landing','derived-landing')}).Count -eq 0)) { $issues.Add('APC位置许可调用链缺少唯一终结记录或原生门禁。');continue }
+            $point=$points[0]
+            foreach ($row in $group.Group) {
+                if ($row.actor -ne $point.actor -or $row.slot -ne $point.slot -or $row.scene -ne $point.scene -or
+                    $row.thread -ne $point.thread -or (($row.pointRequested -join ',') -ne ($point.requested -join ','))) { $issues.Add('APC位置许可调用链身份或根请求不一致。') }
+            }
+            $permissionChecks += [pscustomobject]@{ ordinal=$point.ordinal;actor=$point.actor;scene=$point.scene;slot=$point.slot;
+                rootPhase=$point.phase;requested=$point.requested;resultByte=$point.resultByte;rows=$group.Count;phases=@($group.Group | Select-Object phase,resultByte,resultLow32,requested) }
+        }
+    } else { $issues.Add('缺少APC位置许可日志。') }
+    if (!$permissionRows.Count) { $issues.Add('APC位置许可缺少本次原生调用样本。') }
+}
+
+
+$collisionRows=@();$collisionRoots=@()
+if ($status.version -in @('0.3.22','0.3.23','0.3.24','0.3.25')) {
+    if ($status.collisionTraceReady -ne $true -or $status.collisionFailureSite -ne 'ready' -or $status.collisionReadOnly -ne $true) {$issues.Add('APC碰撞分支只读状态不完整。')}
+    $collisionName=[string]$status.collisionTraceFile
+    if ($collisionName -ne ('adventure-elite-collision-{0}-{1}.jsonl' -f $status.processId,$status.runTick)) {$issues.Add('APC碰撞分支日志名与会话不符。')}
+    elseif (Test-Path -LiteralPath (Join-Path $PatchDirectory $collisionName)) {
+        Copy-Item -LiteralPath (Join-Path $PatchDirectory $collisionName) -Destination (Join-Path $destination $collisionName)
+        $copied += $collisionName;$collisionRows=Read-Lines (Join-Path $destination $collisionName) $issues
+        foreach ($row in $collisionRows) {
+            $badArray=$false
+            foreach ($shape in @(@('arguments',3),@('xyz',3),@('actorBody',4),@('mapFields',18),@('fenceFields',4),@('variantFields',6),@('targetBody',4),@('rectangle',4))) {
+                $value=$row.($shape[0])
+                if ($value -isnot [Array] -or $value.Count -ne $shape[1] -or @($value | Where-Object {$null -eq $_}).Count -gt 0) {$badArray=$true}
+            }
+            if ($row.traceVersion -ne 1 -or $row.processId -ne $status.processId -or $row.runTick -ne $status.runTick -or
+                $row.readOnly -ne $true -or $row.actorKnown -ne $true -or $row.slot -notin @(0,1,2) -or !$row.actor -or !$row.scene -or
+                !$row.ordinal -or !$row.thread -or !$row.callerRva -or $badArray -or $null -eq $row.dropped -or $null -eq $row.leafRecords -or
+                $row.phase -notin @('collision-root','map-check','object-check','scene-index','scene-map','map-width','map-height','map-y-offset','map-columns','map-rows','map-tile','walk-rectangle','restricted-region','viewport-left','world-check-mode','viewport-mode-a','viewport-mode-b','viewport-mode-c','object-pair','coordinate-int-x','coordinate-int-y','coordinate-box-x','coordinate-box-y') -or
+                $null -eq $row.result -or $null -eq $row.resultLow32 -or $null -eq $row.resultByte -or
+                $row.resultByte -lt 0 -or $row.resultByte -gt 255 -or $row.resultByte -ne ($row.resultLow32 -band 255) -or
+                $row.resultLow32 -ne ([uint64]$row.result -band 4294967295L)) {$issues.Add('APC碰撞分支身份/形状/返回证据不完整。')}
+            if ($row.phase -eq 'map-check' -and ($row.mapKnown -ne $true -or $row.arguments[1] -ne $row.actor)) {$issues.Add('APC碰撞分支缺少实际地图快照。')}
+            if ($row.phase -eq 'walk-rectangle' -and $row.rectangleKnown -ne $true) {$issues.Add('APC碰撞分支缺少实际可行走矩形。')}
+            if ($row.phase -eq 'object-check' -and $row.result -ne 0 -and ($row.targetKnown -ne $true -or $row.target -ne $row.result)) {$issues.Add('APC碰撞分支缺少阻挡对象快照。')}
+        }
+        foreach ($group in ($collisionRows | Group-Object ordinal)) {
+            $roots=@($group.Group | Where-Object {$_.phase -eq 'collision-root'});$terminal=$group.Group | Select-Object -Last 1
+            if ($roots.Count -ne 1 -or $terminal.phase -ne 'collision-root') {$issues.Add('APC碰撞分支缺少唯一终结记录。');continue}
+            $root=$roots[0];$collisionRoots += $root
+            $outer=@($permissionRows | Where-Object {$_.ordinal -eq $root.ordinal -and $_.phase -eq 'collision'})
+            if ($root.dropped -ne 0 -or $root.leafRecords -ne ($group.Count-1)) {$issues.Add('APC碰撞分支记录被预算/锁/写入截断。')}
+            if ($outer.Count -ne 1 -or $outer[0].actor -ne $root.actor -or $outer[0].scene -ne $root.scene -or
+                $outer[0].result -ne $root.result -or $outer[0].requested[0] -ne $root.arguments[1] -or $outer[0].requested[1] -ne $root.arguments[2]) {$issues.Add('APC碰撞分支与原生位置许可根调用不一致。')}
+            foreach ($row in $group.Group) {
+                if ($row.actor -ne $root.actor -or $row.slot -ne $root.slot -or $row.scene -ne $root.scene -or $row.thread -ne $root.thread) {$issues.Add('APC碰撞分支调用链身份不一致。')}
+            }
+        }
+    } else {$issues.Add('缺少APC碰撞分支日志。')}
+    if (@($permissionRows | Where-Object {$_.phase -eq 'collision'}).Count -ne $collisionRoots.Count) {$issues.Add('APC碰撞分支与位置许可的调用数量不符。')}
+    if (!$collisionRoots.Count) {$issues.Add('APC碰撞分支缺少本次原生调用样本。')}
+}
+
+$firstChanceRows=@()
+if ($status.version -in @('0.3.23','0.3.24','0.3.25')) {
+    if ($status.firstChanceTraceReady -ne $true -or $status.firstChanceOnly -ne $true) {$issues.Add('精锐异常诊断未初始化为只读first-chance记录。')}
+    $exceptionName=[string]$status.firstChanceTraceFile
+    if ($exceptionName -ne ('adventure-elite-exception-{0}-{1}.jsonl' -f $status.processId,$status.runTick)) {$issues.Add('精锐异常诊断日志名与会话不符。')}
+    elseif (Test-Path -LiteralPath (Join-Path $PatchDirectory $exceptionName)) {
+        Copy-Item -LiteralPath (Join-Path $PatchDirectory $exceptionName) -Destination (Join-Path $destination $exceptionName)
+        $copied += $exceptionName;$firstChanceRows=Read-Lines (Join-Path $destination $exceptionName) $issues
+        if ($firstChanceRows.Count -gt 64) {$issues.Add('精锐异常诊断超出64条观察预算。')}
+        foreach ($row in $firstChanceRows) {
+            if ($row.traceVersion -ne 1 -or $row.processId -ne $status.processId -or $row.runTick -ne $status.runTick -or !$row.thread -or
+                $row.exceptionCode -notin @(3221225477L,3221225478L) -or $row.firstChanceOnly -ne $true -or $row.continueSearch -ne $true -or $row.readOnly -ne $true -or
+                !$row.imageBase -or !$row.dllBase -or $row.registers -isnot [Array] -or $row.registers.Count -ne 17 -or !$row.registers[0] -or
+                $row.stackWords -isnot [Array] -or $row.stackWords.Count -ne 16 -or $null -eq $row.stackKnown -or $null -eq $row.faultAddress) {$issues.Add('精锐异常诊断身份/寄存器/继续搜索证据不完整。')}
+        }
+    } elseif ($clientText -match 'SUMMARY exit=0xC000000[56]') {$issues.Add('精锐异常诊断缺少本次访问异常记录，不能推定崩溃位置。')}
+}
+
+$entryComplete = $pidMatch -and $candidateValid -and $status.version -in @('0.3.4','0.3.5','0.3.6','0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25') -and $entryCountValid -and $entryBefore.Count -gt 0 -and $entryBefore.Count -eq $entryAfter.Count -and $entryGates.Count -gt 0 -and $issues.Count -eq 0
 $summary = [ordered]@{
     session = $SessionPath; collectedAt = [DateTime]::UtcNow.ToString('o'); candidateValid = $candidateValid; artifacts = $artifactChecks
     resources = $resourceChecks
+    apcCatchupRecords = $catchup.Count; apcCatchupReasons = @($catchup | Group-Object reason | Select-Object Name, Count)
+    apcPathQueryEnabled = $status.apcPathQueryEnabled; nativePathAllocatorHooked = $status.nativePathAllocatorHooked
+    apcNativePathQueryCount = $(if ($catchup.Count -gt 0 -and $status.version -in @('0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25')) { ($catchup | Measure-Object nativePathQueries -Maximum).Maximum } else { $null })
+    apcPositionWrites = $positionWrites; apcPositionZeroTransitions = @($positionWrites | Where-Object {$_.zeroTransition}); apcPositionResetVerified = $false
+    apcBirthLandingRows = $birthLandingRows; apcBirthLandingVerified = $false
+    firstChanceExceptions = $firstChanceRows; exceptionRegisterOrder = @('RIP','RSP','RBP','RAX','RBX','RCX','RDX','RSI','RDI','R8','R9','R10','R11','R12','R13','R14','R15'); exceptionRecordsAreFirstChanceOnly = $true
+    apcCollisionRows = $collisionRows; apcCollisionRoots = $collisionRoots; apcCollisionVerified = $false
+    apcPermissionRows = $permissionRows; apcPermissionChecks = $permissionChecks; apcPermissionRejected = @($permissionChecks | Where-Object {$_.resultByte -eq 0}); apcPermissionVerified = $false
+    apcBirthCacheRows = $birthCacheRows; apcBirthCacheVerified = $false
+    apcBirthPositions = $birthPositions; apcBirthPositionVerified = $false
+    apcCatchupTeleports = @($catchup | Where-Object { $_.reason -eq 'teleport' }); apcCatchupVerified = $false
     status = $status; pidMatch = [bool]$pidMatch; progress = $progress; requests1811 = $requests.Count
     serverDecisions = $decisions; serverSentPackets = @($related | Where-Object { $_.kind -eq 'adventure_elite_packet_sent' }); nativeRecords = $native.Count; nativeReasons = @($native | Group-Object scopeReason | Select-Object Name, Count)
     nativeCompletion = $done; normalExitObserved = ($clientText -match 'SUMMARY exit=0x0'); copied = $copied; issues = @($issues)
@@ -471,11 +750,11 @@ $summary = [ordered]@{
     registrationScopeObservations = $registrationScope; registrationScopeAccepted = $registrationAllowed.Count -gt 0
     registrationChannelObservations = $registrationChannel; registrationResults = $registrationResults
     registrationActiveReentryObservations = $activeReentry; freshRegistrationCycles = $freshRegistrationCycles
-    allFreshEntriesRegistered = ($status.version -in @('0.3.9','0.3.10') -and $freshRegistrationCycles.Count -gt 0 -and @($freshRegistrationCycles | Where-Object {!$_.allRegistered -or !$_.adapterValid}).Count -eq 0 -and $issues.Count -eq 0)
+    allFreshEntriesRegistered = ($status.version -in @('0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25') -and $freshRegistrationCycles.Count -gt 0 -and @($freshRegistrationCycles | Where-Object {!$_.allRegistered -or !$_.adapterValid}).Count -eq 0 -and $issues.Count -eq 0)
     combatRecords = $combat.Count; combatNativeProvenance = $combatLinks; combatDeathPackets = $deathPackets; combatIssues = @($combatIssues)
-    combatCoverageComplete = ($status.version -in @('0.3.7','0.3.8','0.3.9','0.3.10') -and $pidMatch -and $candidateValid -and $combat.Count -gt 0 -and $combatIssues.Count -eq 0 -and $issues.Count -eq 0)
+    combatCoverageComplete = ($status.version -in @('0.3.7','0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25') -and $pidMatch -and $candidateValid -and $combat.Count -gt 0 -and $combatIssues.Count -eq 0 -and $issues.Count -eq 0)
     ownedCombatWrites = $ownedWrites; ownedCombatServerRequests = $serverCombat; ownedCombatFreshDeaths = $ownedFresh
-    ownedCombatIssues = @($ownedIssues); ownedCombatProcessedObserved = ($status.version -in @('0.3.8','0.3.9','0.3.10') -and $ownedFresh.Count -gt 0 -and $ownedIssues.Count -eq 0 -and $issues.Count -eq 0)
+    ownedCombatIssues = @($ownedIssues); ownedCombatProcessedObserved = ($status.version -in @('0.3.8','0.3.9','0.3.10','0.3.11','0.3.12','0.3.13','0.3.14','0.3.15','0.3.16','0.3.17','0.3.18','0.3.19','0.3.20','0.3.21','0.3.22','0.3.23','0.3.24','0.3.25') -and $ownedFresh.Count -gt 0 -and $ownedIssues.Count -eq 0 -and $issues.Count -eq 0)
     ordinaryBatchCoverage = [ordered]@{ deaths=$serverDeaths.Count; pickups=@($serverCombat | Where-Object {$_.id -eq 43 -and $_.processed}).Count; moves=@($serverCombat | Where-Object {$_.id -eq 45 -and $_.processed}).Count; results=@($serverCombat | Where-Object {$_.id -eq 46 -and $_.processed}).Count; cards=@($serverCombat | Where-Object {$_.id -in @(69,70,71) -and $_.processed}).Count; exits=@($serverCombat | Where-Object {$_.id -in @(42,72) -and $_.processed}).Count; refusals=@($serverCombat | Where-Object {!$_.processed}); roomLoadCycles=$entryAfter.Count; nativeRoomSerials=@($combat | Group-Object roomSerial | Select-Object Name,Count) }
     retryRuns = $retryRuns; freshServerEntryCount = $freshServerEntries.Count
     ordinaryReentryRuns = $reentryRuns; directMoveRuns = $directMoveRuns; directMoveRequests = @($related | Where-Object {$_.kind -eq 'client_frame' -and $_.id -eq 2062})

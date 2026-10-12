@@ -4,12 +4,11 @@ import (
 	"context"
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
-	"dfolan/internal/inventory"
 	"dfolan/internal/legion"
 	"dfolan/internal/loot"
+	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
-	"log"
 	"time"
 )
 
@@ -105,15 +104,16 @@ func (w *worldSession) apocalypseSettlementDue(now time.Time) ([]outboundPacket,
 	if pending == nil || pending.sent || now.Before(pending.at) {
 		return nil, nil
 	}
-	pending.sent = true
 	grant, err := w.apocalypseTerminalReward(pending.ackID, pending.ackName)
 	if err != nil {
+		pending.at = now.Add(5 * time.Second)
 		return nil, []map[string]any{{
 			"kind":   "apocalypse_reward_refused",
 			"reason": err.Error(),
 			"id":     pending.ackID,
 		}}
 	}
+	pending.sent = true
 	w.apocalypseGrant = &grant
 	return grant.Plan, grant.Events
 }
@@ -137,129 +137,36 @@ func (w *worldSession) apocalypseTerminalReward(id uint16, name string) (apocaly
 		})
 		return out, nil
 	}
-	table, err := legion.ApocalypseRewardFor(run.Choice)
+	frozen, err := w.apocalypseSourceRewards()
 	if err != nil {
 		return out, err
 	}
 	stage := run.Stage
-	if stage < 1 {
-		stage = 1
-	}
 	token, err := legion.ApocalypseStageToken(stage)
 	if err != nil {
 		return out, err
 	}
-
-	var plan []outboundPacket
-
-	// 随机装备行：抓包里固定材料之后是 7~8 行装备（1001/1002/1003 开头）。
-	//
-	// ★ 池子改用**末世录专用 115 级翻牌池**（业主 2026-10-08 方案 A）：
-	// `configs/apocalypse-flip-gear.generated.json`，由 `internal/toolcmd/flippool`
-	// 现场枚举内层 PVF 的 `list/equipment.lst` 生成，按 rarity 分三档：
-	//
-	//	rarity 2 = 魔法（50 件）  15%
-	//	rarity 3 = 神器（169 件） 35%
-	//	rarity 4 = 史诗（241 件） 50%
-	//
-	// 为什么不再用 `w.loot.Equipment.DropPool()`：那是普通掉落池，
-	// 高等级装备几乎全落在 `rarity=2` 一档，凑不出业主的三档口径；
-	// 而且它按物品等级筛会抽到等级 1~4 的低级装备
-	// （实机症状：翻牌开出「磨损的青铜护腰」那类普通物品）。
-	// 维纳斯那个池子也只有 rarity 2/3、**缺 SS(史诗)**，所以单建一份。
-	//
-	// 池子不可用时这一段为空，事件里 roll_gear 为 0，不会假装发过。
-	var flipGear []uint32
-	gearPoolStats := legion.ApocalypseFlipGearPoolStats(apocalypseFlipGearPool)
-	if len(apocalypseFlipGearPool.Tiers) > 0 {
-		slots := legion.ApocalypseFlipGearSlots(run.Choice)
-		flipGear = legion.ApocalypseRollFlipGearTiers(apocalypseFlipGearPool, slots)
-	}
-	// 第一件 = 源表 [reward data] 里本难度的 basic 奖励（也是抓包 N2252 头部那件）。
-	// 展示与发放同源：N2252 的行就是 Grant 列表（首件单独占位，避免重复）+ 随机装备。
-	var proof uint32
-	if len(table.Grant) > 0 {
-		proof = table.Grant[0].Template
-	}
-	items := table.Grant
-	if len(items) > 0 && items[0].Template == proof {
-		items = items[1:]
-	}
-	// 通关耗时毫秒：结算时刻 − 本局第一次进图时刻（规格 2252 的 @7760）。
-	// 写 0 时客户端把「通关时间」显示成 EMPTY，并连带不渲染奖励行。
-	var elapsedMS uint64
-	if !run.RunStartedAt.IsZero() {
-		if d := time.Since(run.RunStartedAt); d > 0 {
-			elapsedMS = uint64(d / time.Millisecond)
-		}
-	}
-	basic, err := legion.ApocalypseBasicClearReward(proof, items, flipGear, elapsedMS)
+	basic, err := legion.ApocalypseClearRewardItems(frozen.Reward, frozen.Additional, frozen.ElapsedMillis)
 	if err != nil {
 		return out, err
 	}
-	additional, err := legion.ApocalypseAdditionalClearReward()
-	if err != nil {
-		return out, err
-	}
+	additional := legion.ApocalypseNoAdditionalReward()
 	n31, err := legion.ApocalypseDungeonClearEnabled(stage, apocalypseRunNonce(run.ID, stage))
 	if err != nil {
 		return out, err
 	}
-
-	// 发放：Awarder 逐件入库，失败只记日志并保留在 Failed 里，不谎报成功。
-	if w.loot != nil {
-		awarder := &inventory.Awarder{
-			Catalog:   w.loot.Catalog,
-			Rules:     w.loot.BagRules,
-			Equipment: w.loot.Equipment,
-		}
-		before, _ := inventory.ReadBag(w.role.State)
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		for _, item := range table.Grant {
-			updated, _, gErr := awarder.Grant(w.role.State, item.Template, item.Amount)
-			if gErr != nil {
-				out.Failed = append(out.Failed, fmt.Sprintf("template=%d amount=%d error=%v", item.Template, item.Amount, gErr))
-				log.Printf("apocalypse terminal award failed: template=%d amount=%d error=%v", item.Template, item.Amount, gErr)
-				continue
-			}
-			w.role.State = updated
-			out.Granted = append(out.Granted, item)
-		}
-		// 随机装备行：与固定项同样走 Awarder 入库（装备数量恒为 1），失败只记日志。
-		for _, g := range flipGear {
-			updated, _, gErr := awarder.Grant(w.role.State, g, 1)
-			if gErr != nil {
-				out.Failed = append(out.Failed, fmt.Sprintf("gear template=%d error=%v", g, gErr))
-				log.Printf("apocalypse flip gear award failed: template=%d error=%v", g, gErr)
-				continue
-			}
-			w.role.State = updated
-			out.Granted = append(out.Granted, legion.ApocalypseRewardItem{Template: g, Amount: 1})
-		}
-		if w.store != nil {
-			key := "apocalypse-terminal:" + run.ID
-			_, _, _ = w.store.CommitCharacterEvent(ctx, w.account, w.role.ID, w.role.ConfigVersion,
-				key, "apocalypse-terminal-v1", func(current database.Character) (json.RawMessage, json.RawMessage, error) {
-					proofBody, _ := json.Marshal(map[string]any{
-						"run":       run.ID,
-						"choice":    run.Choice,
-						"stage":     stage,
-						"operation": apocalypseOperationIndex(run.Choice),
-						"items":     out.Granted,
-					})
-					return w.role.State, proofBody, nil
-				})
-		}
-		cancel()
-		// N14 物品台账刷新：让客户端立刻看到奖励进包（军团链首帧）。
-		if after, rErr := inventory.ReadBag(w.role.State); rErr == nil {
-			if updatePayload, uErr := protocol.InventoryUpdate(inventory.ChangedItemRows(before, after)); uErr == nil {
-				plan = append(plan, outboundPacket{
-					"apocalypse_committed_reward_inventory", 0, 14, updatePayload,
-				})
-			}
-		}
+	var flipGear []uint32
+	table := legion.ApocalypseRewardTable{Choice: run.Choice, Label: frozen.Reward.Label, GrantIsAuthoritative: true}
+	for _, item := range append([]legion.ClearReward{frozen.Reward}, frozen.Additional...) {
+		table.Grant = append(table.Grant, legion.ApocalypseRewardItem{Template: item.Template, Amount: item.Amount})
 	}
+	table.Show = append([]legion.ApocalypseRewardItem(nil), table.Grant...)
+	out.Granted = append([]legion.ApocalypseRewardItem(nil), table.Grant...)
+	snapshot, err := w.loot.Bootstrap(workflow.LootRole(w.role))
+	if err != nil {
+		return out, err
+	}
+	plan := []outboundPacket{{"apocalypse_committed_reward_inventory", 0, 13, snapshot}}
 	// ★ 冻结本局的翻牌卡组（与 freezeVenusCards 同款）：内容 = N2252 的奖励行。
 	//
 	// 不冻结的话客户端渲染出一张**空白的翻牌界面**（业主 2026-10-08：
@@ -267,13 +174,11 @@ func (w *worldSession) apocalypseTerminalReward(id uint16, name string) (apocaly
 	// 普通地下城的金币卡组，与军团翻牌不是同一套。
 	{
 		fctx, fcancel := context.WithTimeout(context.Background(), 5*time.Second)
-		if ferr := w.freezeApocalypseCards(fctx, table, flipGear); ferr != nil {
-			out.Events = append(out.Events, map[string]any{
-				"kind":   "apocalypse_card_freeze_failed",
-				"reason": ferr.Error(),
-			})
-		}
+		ferr := w.freezeApocalypseCards(fctx, table, flipGear)
 		fcancel()
+		if ferr != nil {
+			return out, ferr
+		}
 	}
 	run.Rewarded = true
 
@@ -370,11 +275,10 @@ func (w *worldSession) apocalypseTerminalReward(id uint16, name string) (apocaly
 		"granted_items":          len(out.Granted),
 		"grant_failed":           out.Failed,
 		"random_gear_slots":      table.RandomGearSlots,
-		"roll_gear_slots":        legion.ApocalypseFlipGearSlots(run.Choice),
+		"roll_gear_slots":        len(flipGear),
 		"roll_gear":              flipGear,
-		"gear_pool_stats":        gearPoolStats,
 		"grant_is_authoritative": table.GrantIsAuthoritative,
-		"reward_source":          "contents/system/legionsystem/legionsystem.cos [reward data] + capture 20261008-105227",
+		"reward_source":          "apocalypse.ctp operation reward + legionsystem.cos basic reward -> source booster products",
 	})
 	w.apocalypseGrant = &out
 	return out, nil
@@ -405,7 +309,7 @@ func apocalypseRewardItems(table legion.ApocalypseRewardTable, gear []uint32) []
 // **前 8 项**（与维纳斯一样按定长截断）——入库清单不依赖这里（走
 // apocalypseRewardItems 的全量）。
 func apocalypseCardPlan(choice byte, table legion.ApocalypseRewardTable, gear []uint32, runID, source string, level byte) loot.CardPlan {
-	plan := loot.CardPlan{Run: runID, Source: source, Model: "apocalypse-terminal-v1", Level: level}
+	plan := loot.CardPlan{Run: runID, Source: source, Model: "apocalypse-source-presentation-v1", Level: level}
 	copy(plan.Items[:], apocalypseRewardItems(table, gear))
 	return plan
 }

@@ -32,6 +32,8 @@
 
 `build-game.ps1` 的完整基础测试使用临时的干净 mod 加载器，保留“未安装 mod”的奖励基线；另行用已安装 mod 的加载器及实际启用名单核对声明与注册。两组测试都必须通过。全量 build/vet 和最终候选包含本机已安装 mod，生成物与 overlay 留在 `runtime/build-game/`，不改写或提交 `mods/zz_mods_gen.go`。
 
+mod 发现同时检查包目录中的非测试 Go 源码。仅剩 `.modkit-owner`、没有 `mod.json` 或 Go 源码的目录会明确提示并跳过，保留原目录；仍有 `mod.json` 却缺源码时报告安装不完整并停止构建。回归用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-build-game-mods.ps1`，只操作临时夹具，不启动游戏。
+
 ### 写 `.cmd` 的硬要求（2026-10-05 实机踩坑后定）
 
 1. **执行行保持纯 ASCII**：中文只放进 `rem`，需要中文提示就让带 BOM 的 `.ps1` 打印。
@@ -146,6 +148,8 @@
 
 #### 停止环境时的 SQLite 管理租约（2026-10-05）
 
+- `停止游戏环境.cmd` 交给 `storage-route.ps1 stop-environment`，自动以管理员身份运行 Go 停止链，输出留在原窗口，并记录到 `server/work/dfo-lan/runtime/storage/entry-stop-environment.log`。停止后再次检查活动档对应的管理租约：持有进程已退出就清理，仍活着、无法查询或 pid 无效则保留并返回失败。Go 停止器报错时仍检查残留租约；不会删除数据库、WAL 或 SHM。
+- `停止游戏环境.cmd --dry-run` 只列停止计划，不提权、不清租约。离线回归：`powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-stop-environment.ps1`，不操作真实进程或存档。
 - 强杀服务端会留下 `<db>.admin-guard` 租约，60 秒 TTL 内新服务端会被拒（实机：
   「已有 GM 写入正在进行…由进程 13248 持有」）。**停止链自己收**：SQLite 档下
   `dfolauncher stop` 在强杀之后读租约里记录的 pid，

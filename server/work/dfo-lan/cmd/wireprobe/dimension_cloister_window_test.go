@@ -61,14 +61,17 @@ func TestDimCloisterOperationAckMatchesProvenLayout(t *testing.T) {
 // TestDimCloisterOperationCloseSetsCloseBit 关窗应答 = 同样的 40B 形状 + 关闭位（@3=1）。
 func TestDimCloisterOperationCloseSetsCloseBit(t *testing.T) {
 	closeAck := legion.DimCloisterOperationClose()
-	if len(closeAck) != legion.DimCloisterOperationAckSize {
-		t.Fatalf("长度 %d, want %d", len(closeAck), legion.DimCloisterOperationAckSize)
+	if len(closeAck) != 20 {
+		t.Fatalf("长度 %d, want %d", len(closeAck), 20)
 	}
 	if closeAck[0] != 1 || closeAck[1] != 1 {
 		t.Fatalf("关窗应答头 %02x %02x, want 01 01", closeAck[0], closeAck[1])
 	}
-	if closeAck[3] != 1 {
-		t.Fatalf("关窗位 %02x, want 01", closeAck[3])
+	if closeAck[7] != 1 {
+		t.Fatalf("关窗位 %02x, want 01", closeAck[7])
+	}
+	if binary.LittleEndian.Uint32(closeAck[1:]) != 1 {
+		t.Fatal("close corrupted action")
 	}
 }
 
@@ -327,7 +330,7 @@ func TestDimCloisterOperationClearReplies(t *testing.T) {
 	if len(result.Packets) != 1 || result.Packets[0].ID != legion.CmdDimCloisterOperationClear {
 		t.Fatalf("关窗应答不对: %+v", result.Packets)
 	}
-	if result.Packets[0].Payload[3] != 1 {
+	if result.Packets[0].Payload[7] != 1 {
 		t.Fatalf("关窗位未置 1: %x", result.Packets[0].Payload)
 	}
 }
@@ -356,7 +359,7 @@ func TestDimCloisterWindowTimeoutQueuesClose(t *testing.T) {
 	if ev.kind != "dim_cloister_operation_window_timeout_closed" {
 		t.Fatalf("事件类型 %q", ev.kind)
 	}
-	if len(ev.packets) != 1 || ev.packets[0].Payload[3] != 1 {
+	if len(ev.packets) != 1 || ev.packets[0].Payload[7] != 1 {
 		t.Fatalf("到期关窗帧不对: %+v", ev.packets)
 	}
 	// 已经到期的那条必须能被 drain 出来。
@@ -453,7 +456,7 @@ func TestDimCloisterStartSendsOfficialPrologue(t *testing.T) {
 	if closeAck.Kind != 1 || closeAck.ID != legion.CmdDimCloisterOperationSelect {
 		t.Fatalf("兜底关窗帧 op/kind = %d/%d, want 1/%d", closeAck.ID, closeAck.Kind, legion.CmdDimCloisterOperationSelect)
 	}
-	if len(closeAck.Payload) != legion.DimCloisterOperationAckSize || closeAck.Payload[3] != 1 {
+	if len(closeAck.Payload) != 20 || closeAck.Payload[7] != 1 {
 		t.Fatalf("兜底关窗帧没有置关闭位: %x", closeAck.Payload)
 	}
 }
@@ -521,6 +524,9 @@ func TestDimCloisterAutoChoiceFollowsOfficialCadence(t *testing.T) {
 	if len(pk) != 1 || pk[0].Name != "dim_cloister_operation_choice_ack" {
 		t.Fatalf("到期下发 = %+v, want B 帧", pk)
 	}
+	if c.legionState.dimCloisterWindowAcked || !c.legionState.dimCloisterWindowDeadline.IsZero() {
+		t.Fatal("automatic choice retained open-window state")
+	}
 	for _, ev := range c.legionState.dimCloisterEvents {
 		if ev.kind == dimCloisterTimeoutCloseKind {
 			t.Fatalf("自动确认之后兜底关窗没被丢掉: %+v", ev)
@@ -551,5 +557,39 @@ func TestDimCloisterStartDoesNotReplayForeignWindowBytes(t *testing.T) {
 				t.Fatalf("窗口批次回放了不该发的帧 op=%d", pkt.ID)
 			}
 		}
+	}
+}
+
+func TestDimCloisterDuplicateOpenDoesNotSelectOrExtend(t *testing.T) {
+	s := &legionSession{channelType: legion.DimCloisterChannelType}
+	w := &worldSession{}
+	w.role.ID = 7
+	if _, err := s.dimCloisterSelect(w, decodeHex(t, realCmd2080a)); err != nil {
+		t.Fatal(err)
+	}
+	deadline, queued := s.dimCloisterWindowDeadline, len(s.dimCloisterEvents)
+	result, err := s.dimCloisterSelect(w, decodeHex(t, realCmd2080a))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.dimCloisterWindowAcked || !s.dimCloisterWindowDeadline.Equal(deadline) || len(s.dimCloisterEvents) != queued {
+		t.Fatal("duplicate open changed selection/timer state")
+	}
+	if len(result.Packets) != 1 || binary.LittleEndian.Uint32(result.Packets[0].Payload[1:]) != 1 || binary.LittleEndian.Uint32(result.Packets[0].Payload[12:]) != uint32(deadline.Unix()) {
+		t.Fatalf("duplicate open reply: %+v", result.Packets)
+	}
+	if _, err := s.dimCloisterOperationClear(w, nil); err != nil {
+		t.Fatal(err)
+	}
+	if s.dimCloisterWindowAcked || !s.dimCloisterWindowDeadline.IsZero() {
+		t.Fatal("close retained window state")
+	}
+	for _, e := range s.dimCloisterEvents {
+		if e.kind == dimCloisterAutoChoiceKind || e.kind == dimCloisterTimeoutCloseKind {
+			t.Fatal("close retained automatic choice")
+		}
+	}
+	if _, err := s.dimCloisterSelect(w, decodeHex(t, realCmd2080b)); err == nil {
+		t.Fatal("closed window accepted selection")
 	}
 }

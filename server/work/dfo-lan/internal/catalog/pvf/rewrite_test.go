@@ -90,3 +90,64 @@ func TestWriteEntryCopyPreservesSiblingChunksAndRefusesOverwrite(t *testing.T) {
 		t.Fatal("refused overwrite changed output")
 	}
 }
+
+func TestWriteEntryCopyTextTableKeepsSourceAndRejectsPartialCodeUnit(t *testing.T) {
+	raw := []byte{'o', 0, 'l', 0, 'd', 0, 'k', 0}
+	var compressed bytes.Buffer
+	z := zlib.NewWriter(&compressed)
+	if _, err := z.Write(raw); err != nil {
+		t.Fatal(err)
+	}
+	if err := z.Close(); err != nil {
+		t.Fatal(err)
+	}
+	body := compressed.Bytes()
+	decryptProtected("mAIn", body)
+	a := &Archive{format: FormatDFO20260901, bodyOff: headerSize + 2*fileItemSize + groupItemSize,
+		pathIdx: map[string]int{"strings.str": 0},
+		items:   []fileItem{{chunkIndex: 0, dataSize: 6, dataType: 3}, {chunkIndex: 0, dataOffset: 6, dataSize: 2, dataType: 3}},
+		files:   []File{{Index: 0, DataType: 3, ArchivePath: "strings.str"}},
+		groups:  []groupItem{{compressedSize: len(body), originalSize: len(raw)}}}
+	a.header.fileCount, a.header.groupCount, a.header.bodySize = 2, 1, len(body)
+	binary.LittleEndian.PutUint32(a.header.plain[32:], uint32(len(body)))
+	a.data = append(make([]byte, a.bodyOff), body...)
+	for i, f := range a.items {
+		row := a.data[headerSize+i*fileItemSize:]
+		binary.LittleEndian.PutUint32(row[12:], uint32(f.dataOffset))
+		binary.LittleEndian.PutUint32(row[16:], uint32(f.dataSize))
+		binary.LittleEndian.PutUint32(row[20:], 3)
+	}
+	before := append([]byte(nil), a.data...)
+	out := filepath.Join(t.TempDir(), "text.pvf")
+	if err := a.WriteEntryCopy(out, "strings.str", []byte{1}); err == nil {
+		t.Fatal("partial UTF-16 code unit accepted")
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatal("refusal created an output", err)
+	}
+	replacement := []byte{'%', 0, 'd', 0, '%', 0, 's', 0}
+	if err := a.WriteEntryCopy(out, "strings.str", replacement); err != nil {
+		t.Fatal(err)
+	}
+	p, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded := append([]byte(nil), p[a.bodyOff:]...)
+	decryptProtected("mAIn", encoded)
+	decoded, err := zlibBytes(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := p[headerSize:]
+	offset, size := binary.LittleEndian.Uint32(row[12:]), binary.LittleEndian.Uint32(row[16:])
+	if decodeUTF16LE(decoded[offset:offset+size]) != "%d%s" || !bytes.Equal(decoded[:len(raw)], raw) {
+		t.Fatal("text replacement or sibling content changed")
+	}
+	if !bytes.Equal(p[headerSize+fileItemSize:a.bodyOff-groupItemSize], before[headerSize+fileItemSize:a.bodyOff-groupItemSize]) || !bytes.Equal(a.data, before) {
+		t.Fatal("sibling record or loaded archive changed")
+	}
+	if err := a.WriteEntryCopy(out, "strings.str", replacement); err == nil {
+		t.Fatal("text output overwritten")
+	}
+}

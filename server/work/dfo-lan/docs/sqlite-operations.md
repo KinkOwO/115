@@ -116,6 +116,7 @@ $env:CGO_ENABLED='0'
      一律保留并说明原因（实现与判据见 `internal/launcher/adminlease.go`）。于是「停 → 立刻启」不再撞 60 秒 TTL。
   2. **手动收**：崩溃后没有走过停止链时，`scripts\storage-route.cmd clear-guard` 用同一套判据清一次；
      租约里读不出 pid（空文件/内容异常）时两条路都**不动**它，等 TTL 或由业主确认后手工删除。
+  `scripts\停止游戏环境.cmd` 自动提权运行停止链，随后再次检查活动档的租约；停止器失败时也执行检查。活持有者、查询失败或无效 pid 均保留租约并报错，避免仅凭端口已关闭就宣称停止成功。`--dry-run` 不提权、不清理；输出日志在 `runtime/storage/entry-stop-environment.log`。
   之所以不做「过期就自动抢锁」：守卫面对并发索取者必须假设最坏，误判会让两个管理员同时写。
   崩溃安全的方案（带心跳的租约行）记录在设计文档 §3.3。
 - **`NextMailID`**：改为**推进 `sqlite_sequence` 高水位**，因此「附件 id 先分配、与消息 id 共用号段」

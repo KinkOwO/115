@@ -53,7 +53,7 @@ func TestDetailedEquipmentPreservesAvatarBlobs(t *testing.T) {
 
 func TestDetailedEquipmentRejectsUnsupportedInstances(t *testing.T) {
 	cases := [][]DetailedWorn{
-		{{Slot: 12, Template: 1}}, {{Slot: 25, Template: 1}},
+		{{Slot: 30, Template: 1}}, {{Slot: 31, Template: 1}},
 		{{Slot: 48, Template: 1}}, {{Slot: 1}},
 		{{Slot: 1, Template: 1}, {Slot: 1, Template: 2}},
 		{{Slot: 1, Template: 1, Record: []byte{1}}},
@@ -61,6 +61,8 @@ func TestDetailedEquipmentRejectsUnsupportedInstances(t *testing.T) {
 		{{Slot: 26, Template: 1, AvatarOptions: []byte{1}}},
 		{{Slot: 27, Template: 1, AvatarSockets: []byte{1}}},
 		{{Slot: 26, Template: 1, HeaderTemplateA: 2}},
+		{{Slot: 12, Template: 1, AvatarOptions: []byte{1}}},
+		{{Slot: 25, Template: 1, HeaderTemplateB: 2}},
 	}
 	for _, rows := range cases {
 		if _, e := DetailedEquipment(rows); e == nil {

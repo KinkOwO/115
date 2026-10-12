@@ -1,5 +1,27 @@
 # SQLite 启动链与本机 mod 编译：确认基线
 
+## 后续上游更新与停止入口收口
+
+业主本轮确认：“确认能启动了，可以提交”。启动确认对应 `runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261011_233347_523876_next37/`，源码基线为 `dea70aff`，不是下文早期候选的身份。
+
+- `232453_156659_next37/gateway.err` 的最终原因是礼包 mod 声明未注册，并非 SQLite 打开失败。更新后 mod 源码和清单已恢复，但原候选仍为空加载器。使用现有安装 overlay 重建候选；此前仅有 `.modkit-owner` 的残留目录跳过逻辑继续保留，带清单缺源码仍阻断。
+- 成功会话 `ready.json`：PID23516，监听 `127.0.0.2:17726`，51个频道。`gateway.err:260` 打开同一 SQLite 存档；`:308` 礼包 mod 启动自检就绪；`:309` 已加载一个 mod、一个 boot 钩子、一个 console 钩子和一份奖励脚本。
+- 停止入口改用 `storage-route.ps1 stop-environment`，复用 Unicode 安全、隐藏子窗口、原窗口跟随日志的提权方式。执行 Go 停止链后再次检查活动档租约，只有明确的进程不存在错误才允许清理；存活、查询失败、无效 PID 均保留并失败。Go 停止器非零时仍检查残留租约；只读预检不提权、不清理。
+- 提交前复查 `runtime/storage/entry-stop-environment.log` 发现23:33:40的无参数调用被空字符串拒绝，已归一化空参数，并补实际 null 位置绑定和空字符串回归。该修正未要求用户重复启动游戏；尚无修正后的实机停止链成功日志，确认范围不扩展为该停止序列的实机验收。
+
+验证入口：`pwsh -NoProfile -File scripts/build-game.ps1`。`runtime/build-game/20261011-232925-997/` 保留日志、overlay、程序和旧文件备份。全量 build/vet（已安装 mod overlay）、完整基础 test（干净 overlay）均退出0，失败集合为空；独立 `TestLocalBuildInstalledModDeclarations` 退出0，注册名单为 `giveaway.random-equipment`，不执行 boot、不访问玩家库。wireprobe 测试71.558秒，catalog70.853秒。
+
+`powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-stop-environment.ps1` 退出0，覆盖无参数/null/空字符串、预检、已退出/存活/不可查询持有者、无效PID、停止器失败及存档夹具原文保持；包含真实 Windows 进程查询，但不停止真实进程。`scripts/test-build-game-mods.ps1` 退出0，覆盖残留标记、仅测试源码、清单缺源码、排序及原加载器保持。停止入口 `--dry-run`、候选 `check --root . --source-build`、编码/行尾及 `git diff --check` 均通过。
+
+| 当前产物 | 字节数 | SHA256 |
+| --- | ---: | --- |
+| `bin/wireprobe-handoff-source.exe` | 31693824 | `11dbb61118d1e4ad7d98f86037e2509e43891c81121a5bbc744482cebfd036c8` |
+| `bin/dfolauncher.exe`、`bin/dfolauncher-adventure-elite.exe` | 16979968 | `c331eb0ccb5020aee0628e478bbe03d4957114279dcc418b11e415f27594de01` |
+
+默认服务端保持 `a6f269603887f18fa8bb60814a655641f12c5eeaf1a07f89d840e166a393be6c`。本次未改 DLL、PVF、schema 或玩家存档，无迁移需求；未验证礼包实际领取及全部玩法。提交前尝试 fetch origin/fork（未配置，失败），实际 fetch gud 成功，HEAD 与 gud/main 差异0/0，无需合并。只提交本任务脚本、回归和文档。
+
+## 早期启动恢复确认
+
 业主确认原话：“确认能启动，可以提交”。确认范围为上游更新后的 SQLite 游戏启动恢复，以及已安装 mod 的编译、注册和启动自检；不扩大为全部玩法、礼包实际领取或精锐战斗验收。
 
 ## 问题与修复

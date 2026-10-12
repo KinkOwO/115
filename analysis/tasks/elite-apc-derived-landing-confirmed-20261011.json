@@ -1,0 +1,411 @@
+{
+  "status": "user-confirmed",
+  "version": "0.3.16",
+  "confirmedDate": "2026-10-11",
+  "userConfirmation": "确认修复，可以提交",
+  "scope": "本次艾尔文换层三名APC均出现；修正原生派生virtual632误拒绝",
+  "evidenceRecord": "analysis/tasks/elite-apc-derived-landing-fix-20261011.json",
+  "serverSession": "server/work/dfo-lan/runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261011_225911_434322_next37",
+  "captureDirectory": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261011_225911_434322_next37",
+  "processId": 20908,
+  "runTick": 29997781,
+  "ready": true,
+  "enabled": true,
+  "catchupReady": true,
+  "catchupLog": "client-patchs/adventure-elite/dist/adventure-elite-catchup-20908-29997781.jsonl",
+  "catchupReasonCounts": {
+    "started": 1,
+    "owner-not-armed": 16,
+    "world-mode-ineligible": 118,
+    "registration-anchored": 3,
+    "path-reachable": 339,
+    "registration-missing": 12,
+    "registration-restored": 6,
+    "registration-reactivated": 6,
+    "teleport": 6,
+    "path-unknown": 27
+  },
+  "teleports": [
+    {
+      "line": 39,
+      "tick": 30279062,
+      "slot": 0,
+      "scene": 6478486784,
+      "player": [
+        1047,
+        258
+      ],
+      "target": [
+        983,
+        258
+      ],
+      "after": [
+        983,
+        258
+      ]
+    },
+    {
+      "line": 43,
+      "tick": 30279125,
+      "slot": 1,
+      "scene": 6478486784,
+      "player": [
+        1047,
+        258
+      ],
+      "target": [
+        1047,
+        258
+      ],
+      "after": [
+        1047,
+        258
+      ]
+    },
+    {
+      "line": 47,
+      "tick": 30279203,
+      "slot": 2,
+      "scene": 6478486784,
+      "player": [
+        1047,
+        258
+      ],
+      "target": [
+        1111,
+        258
+      ],
+      "after": [
+        1111,
+        258
+      ]
+    },
+    {
+      "line": 188,
+      "tick": 30376015,
+      "slot": 0,
+      "scene": 6478486784,
+      "player": [
+        1024,
+        290
+      ],
+      "target": [
+        960,
+        290
+      ],
+      "after": [
+        960,
+        290
+      ]
+    },
+    {
+      "line": 191,
+      "tick": 30376078,
+      "slot": 1,
+      "scene": 6478486784,
+      "player": [
+        1024,
+        290
+      ],
+      "target": [
+        1024,
+        290
+      ],
+      "after": [
+        1024,
+        290
+      ]
+    },
+    {
+      "line": 194,
+      "tick": 30376140,
+      "slot": 2,
+      "scene": 6478486784,
+      "player": [
+        1024,
+        290
+      ],
+      "target": [
+        1088,
+        290
+      ],
+      "after": [
+        1088,
+        290
+      ]
+    }
+  ],
+  "activations": [
+    {
+      "line": 38,
+      "tick": 30279046,
+      "slot": 0,
+      "retentionBefore": 0,
+      "retentionAfter": 1
+    },
+    {
+      "line": 42,
+      "tick": 30279109,
+      "slot": 1,
+      "retentionBefore": 0,
+      "retentionAfter": 1
+    },
+    {
+      "line": 46,
+      "tick": 30279187,
+      "slot": 2,
+      "retentionBefore": 0,
+      "retentionAfter": 1
+    },
+    {
+      "line": 187,
+      "tick": 30376000,
+      "slot": 0,
+      "retentionBefore": 0,
+      "retentionAfter": 1
+    },
+    {
+      "line": 190,
+      "tick": 30376062,
+      "slot": 1,
+      "retentionBefore": 0,
+      "retentionAfter": 1
+    },
+    {
+      "line": 193,
+      "tick": 30376125,
+      "slot": 2,
+      "retentionBefore": 0,
+      "retentionAfter": 1
+    }
+  ],
+  "lastAllThreeAttachedSample": {
+    "traceVersion": 2,
+    "processId": 20908,
+    "runTick": 29997781,
+    "ordinal": 136,
+    "tick": 30526234,
+    "thread": 21624,
+    "cause": "native-flush",
+    "callerRva": 89986175,
+    "traceDropped": 0,
+    "traceLimit": 0,
+    "currentChannel": 22,
+    "currentOwner": 4,
+    "identityMatches": 1,
+    "available": 1,
+    "consistent": 1,
+    "weakAlive": 3,
+    "weakStrong": [
+      1,
+      1,
+      1
+    ],
+    "actorKind": [
+      5,
+      5,
+      5
+    ],
+    "controllerId": [
+      65535,
+      65535,
+      65535
+    ],
+    "controllerWire": [
+      65535,
+      65535,
+      65535
+    ],
+    "controllerBound": [
+      1,
+      1,
+      1
+    ],
+    "identityWords": [
+      [
+        522846808,
+        522847004
+      ],
+      [
+        522846809,
+        522847006
+      ],
+      [
+        522846810,
+        522847008
+      ]
+    ],
+    "identityValid": [
+      1,
+      1,
+      1
+    ],
+    "objectId": [
+      0,
+      1,
+      2
+    ],
+    "ownerStrong": [
+      1,
+      1,
+      1
+    ],
+    "ownerKind": [
+      5,
+      5,
+      5
+    ],
+    "ownerObjectId": [
+      4,
+      4,
+      4
+    ],
+    "ownerControllerId": [
+      4,
+      4,
+      4
+    ],
+    "ownerIdentityValid": [
+      1,
+      1,
+      1
+    ],
+    "sceneAttached": [
+      1,
+      1,
+      1
+    ],
+    "ownerMatchesCurrentPlayer": [
+      1,
+      1,
+      1
+    ],
+    "line": 136
+  },
+  "dllBytes": 245248,
+  "dllSha256": "549aee68f70392a65bb4bd97f296e758279e3a7d88ce262821d813f405107d0c",
+  "resources": [
+    {
+      "path": "client/DFO.exe",
+      "bytes": 246480896,
+      "sha256": "1d3948784e5e0f77ed744017bf82bf0c50de9421423f9e59f6f70aed609d8ffa"
+    },
+    {
+      "path": "client/Script.pvf",
+      "bytes": 760531281,
+      "sha256": "5dd03873edf2c1df7aea16db5ad146a776fb8461a947be73042cabd932e66f0a"
+    },
+    {
+      "path": "client/sk.dat",
+      "bytes": 2560,
+      "sha256": "59d78371335d22dae0eaeca2a827939576e85a5f5ede4ba286f0438d2fbc6eaf"
+    },
+    {
+      "path": "server/work/client-build/Script.inner.pvf",
+      "bytes": 771470242,
+      "sha256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+      "sha256": "549aee68f70392a65bb4bd97f296e758279e3a7d88ce262821d813f405107d0c"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+      "sha256": "1a120001822090be9f53060b81a358d1845c4bd24b5ed1f1509b11c8bb50c185"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe",
+      "sha256": "d7a6703e6bd0bbc4313151a445fae443bd46cab700275886ac3198b2ffce60a1"
+    }
+  ],
+  "nativeDerivedFunction": "0x1463DE5D0",
+  "nativeDerivedBytesMatched": 361,
+  "backupDirectory": ".tmp/adventure-elite/derived-landing-backup-0315",
+  "sourceIntegration": {
+    "remote": "gud/main",
+    "remoteCommit": "892aa5aa4db7fd5f746954a351bf83ac1e07003a",
+    "mergeCommit": "e0c6210cc4a5239e9d7e3a7fc621feca4dbfed67",
+    "originAndForkConfigured": false
+  },
+  "limitations": [
+    "本次仅确认三名APC换层出现；不扩大为所有剧情或不同scene恢复。",
+    "完整AI、死亡、击杀者归属与结算未在本次验收。",
+    "modkit verify/plan/install/uninstall未执行。",
+    "未改PVF、Go运行逻辑、SQLite/schema或玩家存档；日志和二进制不入库。"
+  ],
+  "logFingerprints": {
+    "adventure-elite-catchup-20908-29997781.jsonl": "e0178dfdf4790d26e7f1956d86d021466b321ad39fe90aa3bac84ceac2709004",
+    "adventure-elite-lifecycle-20908-29997781.jsonl": "3714901e981c9e1ecea7cb2b50a40fe564cb08730f06c18094ad90f354ba39c9",
+    "adventure-elite.status.json": "cd13a4659636dc25a4b0484d2498bb2d3d89c53b08645b1df4392b0f03f0c11d",
+    "adventure-elite-build.json": "947bdea8319d54d600d5f7ef30bcdb2040b576ae7afaa99e024b1736e35a84a9"
+  },
+  "closeoutRequested": true,
+  "capture": {
+    "exitCode": 0,
+    "candidateValid": true,
+    "apcCatchupVerified": false,
+    "battleVerified": false,
+    "issues": [
+      "缺少服务端会话文件：run.json",
+      "战斗日志进程/代次/版本不符、丢弃/上限或出现运行改写标记。",
+      "缺少原生死亡发送或服务端 CMD39 样本。",
+      "原生死亡发送与服务端 CMD39 数量不一致，不能声称覆盖完整。",
+      "尚无符合来源条件的精锐击杀者改写样本。",
+      "缺服务端归属候选处理或归属新死亡记录。"
+    ],
+    "summaryPath": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261011_225911_434322_next37/summary.json",
+    "summarySha256": "8eaeb53dbada3b7272bb08fdc4c5a33fa1c993ca5553943d6bfef6e7ce394538"
+  },
+  "postMergeDllBuild": {
+    "exitCode": 0,
+    "mechanismGroupsPassed": 14,
+    "dllPath": "client-patchs/adventure-elite/dist/landing-close-0316/AdventureElite.dll",
+    "bytes": 245248,
+    "sha256": "6eab970b7bfbca955416e37ddd359087c0955d91c8f82edeba65252ae3b57421",
+    "log": ".tmp/adventure-elite/derived-landing-close-dll-build.log",
+    "deployedDllUnchanged": true,
+    "rebuiltArtifactDeployed": false
+  },
+  "postMergeGoGates": {
+    "build": {
+      "command": "go build ./...",
+      "exitCode": 0,
+      "seconds": 127.56,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\derived-landing-close-go-build.log"
+    },
+    "vet": {
+      "command": "go vet ./...",
+      "exitCode": 0,
+      "seconds": 139.78,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\derived-landing-close-go-vet.log"
+    },
+    "test": {
+      "command": "go test ./... -count=1 -json",
+      "exitCode": 0,
+      "seconds": 261.93,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\derived-landing-close-go-test.log",
+      "passed": 4279,
+      "skipped": 278,
+      "failures": [],
+      "baselineFailures": [],
+      "newFailures": []
+    }
+  },
+  "postMergeCaptureTest": {
+    "exitCode": 0,
+    "log": ".tmp/adventure-elite/derived-landing-close-capture-test.log"
+  },
+  "closeoutPrecheck": {
+    "exitCode": 0,
+    "candidateValid": true,
+    "lastRunVersion": "0.3.16",
+    "lastRunPid": 20908,
+    "log": ".tmp/adventure-elite/derived-landing-close-precheck.json"
+  },
+  "hygieneBeforeStaging": {
+    "exitCode": 0,
+    "log": ".tmp/adventure-elite/derived-landing-close-hygiene-all.log"
+  }
+}

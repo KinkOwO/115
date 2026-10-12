@@ -1,0 +1,309 @@
+{
+  "stage": "confirmed-load-and-reentry-recovery",
+  "ownerConfirmation": "确认修复，可以提交",
+  "candidateEvidence": "analysis/tasks/adventure-elite-upstream-recovery-candidate-20261011.json",
+  "confirmationScope": "Restore whole-squad loading and first/repeated APC appearance after upstream rollback. This session contains two Elvenmere entries, not full death/settlement or all special-content acceptance.",
+  "session": "server/work/dfo-lan/runtime/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261011_221204_468996_next37",
+  "frozenCapture": "server/work/dfo-lan/runtime/adventure-elite-captures/roles_persist_select_actor_town_world_live_detail_dungeon_manual_20261011_221204_468996_next37",
+  "processId": 13044,
+  "runTick": 27206937,
+  "load": [
+    {
+      "line": 179,
+      "accepted": true,
+      "selected": [
+        8,
+        5,
+        2
+      ],
+      "owner": 4,
+      "recoveryVersion": "0.3.21",
+      "baseline": "db707d59",
+      "outputs": [
+        {
+          "bytes": 14492,
+          "id": 1382,
+          "sha256": "d412b175b7a8eeb1657654c7f4bbfeff5e88fb1885381ba410fad4bea8846663",
+          "type": 0
+        },
+        {
+          "bytes": 2,
+          "id": 1879,
+          "sha256": "99be5efb88ca2013bd8e4eb035fd42d5245468fe9afa70d8ba9c1c419a48c4e8",
+          "type": 0
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "client-patchs/adventure-elite/dist/AdventureElite.dll",
+      "exists": true,
+      "match": true,
+      "sha256": "8180378b06d0a106a95e75835bd4580a4d07d580d6f378a5629556a5f69244a5"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/wireprobe-handoff-source.exe",
+      "exists": true,
+      "match": true,
+      "sha256": "1a120001822090be9f53060b81a358d1845c4bd24b5ed1f1509b11c8bb50c185"
+    },
+    {
+      "path": "server/work/dfo-lan/bin/dfolauncher-adventure-elite.exe",
+      "exists": true,
+      "match": true,
+      "sha256": "d7a6703e6bd0bbc4313151a445fae443bd46cab700275886ac3198b2ffce60a1"
+    }
+  ],
+  "resources": [
+    {
+      "path": "client/DFO.exe",
+      "exists": true,
+      "sha256": "1d3948784e5e0f77ed744017bf82bf0c50de9421423f9e59f6f70aed609d8ffa",
+      "sameAsBuildInput": true
+    },
+    {
+      "path": "client/Script.pvf",
+      "exists": true,
+      "sha256": "5dd03873edf2c1df7aea16db5ad146a776fb8461a947be73042cabd932e66f0a",
+      "sameAsBuildInput": true
+    },
+    {
+      "path": "client/sk.dat",
+      "exists": true,
+      "sha256": "59d78371335d22dae0eaeca2a827939576e85a5f5ede4ba286f0438d2fbc6eaf",
+      "sameAsBuildInput": true
+    },
+    {
+      "path": "server/work/client-build/Script.inner.pvf",
+      "exists": true,
+      "sha256": "4d8c0c82192eb72806d4bec803f5ab638e91e24401d38110cb78fcb09f69e37f",
+      "sameAsBuildInput": true
+    }
+  ],
+  "nativeRecords": 12,
+  "nativeCompletion": [
+    {
+      "opcode": 1879,
+      "phase": "after",
+      "weakAlive": 3,
+      "readerSuccess": 1,
+      "exceptionCode": 0
+    }
+  ],
+  "freshRegistrationCycles": [
+    {
+      "loaderOrdinal": 1,
+      "endOrdinal": 8,
+      "thread": 18972,
+      "managerActive": 0,
+      "companions": 3,
+      "nativeResults": 3,
+      "activeAdaptations": 0,
+      "allRegistered": true,
+      "adapterValid": true
+    },
+    {
+      "loaderOrdinal": 9,
+      "endOrdinal": 17,
+      "thread": 18972,
+      "managerActive": 1,
+      "companions": 3,
+      "nativeResults": 3,
+      "activeAdaptations": 1,
+      "allRegistered": true,
+      "adapterValid": true
+    }
+  ],
+  "registrationResults": 6,
+  "runs": [
+    {
+      "runId": "7d54b8a4d924a73213abb01ebc2caf69",
+      "entrySerial": 1,
+      "dungeon": 100003126,
+      "sourceScript": "contents/2022/elvenmere/dungeon/elvenmere.dgn",
+      "sourceSha256": "6a27fc89a79ff2095f35d78712dc7f50979324ba170d489730888fd52763c637",
+      "entryCommitted": true,
+      "ownedDeaths": 0,
+      "deaths": 0,
+      "moves": 0,
+      "pickups": 0,
+      "results": 0,
+      "cards": 0,
+      "returnCommitted": true,
+      "refusals": []
+    },
+    {
+      "runId": "1574b6372d75ad40a5d33508f64b31b4",
+      "entrySerial": 2,
+      "dungeon": 100003126,
+      "sourceScript": "contents/2022/elvenmere/dungeon/elvenmere.dgn",
+      "sourceSha256": "6a27fc89a79ff2095f35d78712dc7f50979324ba170d489730888fd52763c637",
+      "entryCommitted": true,
+      "ownedDeaths": 0,
+      "deaths": 0,
+      "moves": 0,
+      "pickups": 0,
+      "results": 0,
+      "cards": 0,
+      "returnCommitted": false,
+      "refusals": []
+    }
+  ],
+  "catchupRecords": 317,
+  "catchupReasons": [
+    {
+      "Name": "dead-or-unsupported-actor",
+      "Count": 84
+    },
+    {
+      "Name": "owner-not-armed",
+      "Count": 16
+    },
+    {
+      "Name": "path-reachable",
+      "Count": 147
+    },
+    {
+      "Name": "path-unknown",
+      "Count": 1
+    },
+    {
+      "Name": "registration-anchored",
+      "Count": 6
+    },
+    {
+      "Name": "registration-missing",
+      "Count": 20
+    },
+    {
+      "Name": "registration-reactivated",
+      "Count": 12
+    },
+    {
+      "Name": "registration-restored",
+      "Count": 12
+    },
+    {
+      "Name": "started",
+      "Count": 1
+    },
+    {
+      "Name": "teleport",
+      "Count": 12
+    },
+    {
+      "Name": "world-mode-ineligible",
+      "Count": 6
+    }
+  ],
+  "normalExitObserved": true,
+  "captureIssues": [
+    "缺少原生死亡发送或服务端 CMD39 样本。",
+    "原生死亡发送与服务端 CMD39 数量不一致，不能声称覆盖完整。",
+    "尚无符合来源条件的精锐击杀者改写样本。",
+    "缺服务端归属候选处理或归属新死亡记录。"
+  ],
+  "battleVerified": false,
+  "logFingerprints": {
+    "adventure-elite-build.json": "5b4f13293524c7956da9e20413d7ac5d57a6ea86900b3da141459e3d1575c03e",
+    "adventure-elite-catchup-13044-27206937.jsonl": "27f704868506a524d437b9b175af967fa2e841d88f9af92ff244ac5a8cbdd8ed",
+    "adventure-elite-combat-13044-27206937.jsonl": "fcdc416f7742e29661d00f0055b5f97e4fbd54460434b7f1fd0ea8fc08c19095",
+    "adventure-elite-entry-13044-27206937.jsonl": "52656670efc5b6610fb954e82e13bef3675a022678190b07544135095e9cbe63",
+    "adventure-elite-lifecycle-13044-27206937.jsonl": "c3e613f7e66cad6ce677a5da497b78b4c28242477f683de16d5cab0cf702ba9c",
+    "adventure-elite-native-13044-27206937.jsonl": "84e33ff3f84036437599ef1eb274e47890782ed4e5f076c095a93d69788f72c1",
+    "adventure-elite.log": "0a3741b785dc17cecab931601aa1a1879d5cfc59a0ad08da1460b961d7b48a4e",
+    "adventure-elite.status.json": "bfb560463ac13ab403c85ad44d31e73ac392538b4eb0abe0da70bffca2dba315",
+    "client.log": "d1f7ae8d9d9e99dfccd192e1abb2ad466f0153c9bb0a27303a5fcd1d5b4b58b4",
+    "elite-events.jsonl": "336ba52c62a1a83f0c91dbe85a12c4da5a9b7ead87a211eed7f659f917b88195",
+    "events.jsonl": "a0a3903777ba142b7d8f60ab73239986af92cfa45244f5d84784a5765b2d511a",
+    "run.json": "776e513e525fdc4737a6a1547e31d009949cecd4d66372215485a91eaff5f359",
+    "summary.json": "8689a430a627352a1d72af433043449aa448a1e0e250143159236c41d8c97e23"
+  },
+  "sourceIntegration": {
+    "mergedRemote": "gud/main",
+    "remoteCommit": "296f2d65",
+    "mergeCommit": "04ee31163ece551f6e15a7a69c4023678eeb745f",
+    "originAndForkConfigured": false,
+    "liveCandidatePredatesUnrelatedHoneyTimeMerge": true
+  },
+  "limitations": [
+    "Four missing native death/killer ownership observations retained; no full battle/settlement certification.",
+    "Second run has no committed return sample; normal client exit is observed, not substituted for return completion.",
+    "CMD2015 continuation restoration has historical confirmation/regression tests, no new CMD2015 request in this session.",
+    "Merged upstream HoneyTime changes will have offline build/vet/test only; running confirmed APC candidate is not replaced.",
+    "Unsupported random-option special replacement branch remains refused; no PVF/schema/save migration.",
+    "No EXE, DLL, raw session logs, SQLite or unrelated untracked source committed."
+  ],
+  "postMergeGates": {
+    "build": {
+      "command": "go build ./...",
+      "exitCode": 0,
+      "seconds": 148.72,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\upstream-elite-close-build.log",
+      "failures": []
+    },
+    "vet": {
+      "command": "go vet ./...",
+      "exitCode": 0,
+      "seconds": 151.45,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\upstream-elite-close-vet.log",
+      "failures": []
+    },
+    "test": {
+      "command": "go test ./... -count=1 -json",
+      "exitCode": 0,
+      "seconds": 262.56,
+      "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\upstream-elite-close-test.log",
+      "failures": [],
+      "passed": 4279,
+      "skipped": 278,
+      "baselineFailures": [],
+      "baseline": "analysis/tasks/adventure-elite-special-confirmed-20261010.json",
+      "newFailures": []
+    }
+  },
+  "isolatedCommitSourceGates": {
+    "checkout": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\upstream-elite-close-source-only",
+    "baseCommit": "04ee31163ece551f6e15a7a69c4023678eeb745f",
+    "overlay": [
+      "server/work/dfo-lan/internal/game/protocol/tag_equipment.go",
+      "server/work/dfo-lan/internal/game/protocol/tag_random_options.go",
+      "server/work/dfo-lan/internal/game/protocol/tag_random_options_test.go",
+      "server/work/dfo-lan/cmd/wireprobe/adventure_elite_diagnostic.go",
+      "server/work/dfo-lan/cmd/wireprobe/adventure_elite_random_options_test.go",
+      "server/work/dfo-lan/cmd/wireprobe/adventure_elite_entry_probe.go",
+      "server/work/dfo-lan/cmd/wireprobe/adventure_elite_entry_probe_test.go",
+      "server/work/dfo-lan/cmd/wireprobe/adventure_elite_direct_move_test.go",
+      "server/work/dfo-lan/cmd/wireprobe/adventure_elite_elvenmere_test.go"
+    ],
+    "excludedUntrackedSource": true,
+    "testFixture": "server/work/dfo-lan/runtime/login_ok.bin",
+    "gates": {
+      "build": {
+        "command": "go build ./...",
+        "exitCode": 0,
+        "seconds": 53.58,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\upstream-elite-close-source-only-build.log"
+      },
+      "vet": {
+        "command": "go vet ./...",
+        "exitCode": 0,
+        "seconds": 46.9,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\upstream-elite-close-source-only-vet.log"
+      },
+      "test": {
+        "command": "go test ./... -count=1 -json",
+        "exitCode": 0,
+        "seconds": 97.07,
+        "log": "F:\\projects\\agents\\reverse\\115us\\.tmp\\adventure-elite\\upstream-elite-close-source-only-test.log",
+        "passed": 4220,
+        "skipped": 293,
+        "failures": [],
+        "baselineFailures": [],
+        "newFailures": []
+      }
+    }
+  },
+  "hygiene": "Required before staging and again against exact staged task scope; results recorded in commit message."
+}
