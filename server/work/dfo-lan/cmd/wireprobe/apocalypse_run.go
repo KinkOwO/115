@@ -205,8 +205,7 @@ func (s *legionSession) handleApocalypse(w *worldSession, p []byte, id uint16, a
 		if !run.Rewarded {
 			grant, gErr := w.apocalypseTerminalReward(legion.CmdRewardEnd, "apocalypse_reward_end")
 			if gErr != nil {
-				note["reward_chain"] = "refused"
-				note["reward_error"] = gErr.Error()
+				return legionResult{}, true, gErr
 			} else {
 				rewardPackets = grant.Plan
 				note["reward_chain"] = "delivered"
@@ -380,6 +379,16 @@ func (s *legionSession) apocalypseOperation(w *worldSession, p []byte) (legionRe
 		return legionResult{}, fmt.Errorf("legion operation channel %d, want %d", request.Channel, legion.OperationChannelCode)
 	}
 	run := s.apocalypseRun()
+	var selectedPlan *legion.RunPlan
+	if request.Action == 2 {
+		if run.Entered || run.Ended {
+			return legionResult{}, fmt.Errorf("apocalypse operation cannot change after admission")
+		}
+		selectedPlan, err = legion.PlanForChoice(s.catalog, s.clock, request.Auxiliary)
+		if err != nil {
+			return legionResult{}, err
+		}
+	}
 	// 选择难度窗的倒计时截止值（操作记录 byte@6..9 = 正文 @9..12）。
 	//
 	// 2026-10-08 修正：**必须下发**。此前按「时基未校准」暂不下发，实机表现是
@@ -442,10 +451,8 @@ func (s *legionSession) apocalypseOperation(w *worldSession, p []byte) (legionRe
 			return legionResult{}, fmt.Errorf("apocalypse difficulty refused: CMD2354 action2 carried no key (0xff)")
 		}
 		run.Choice = request.Auxiliary
-		plan, err := s.apocalypseOperationPlan()
-		if err != nil {
-			return legionResult{}, err
-		}
+		plan := selectedPlan
+		s.plan = plan
 		// 难度确认后客户端先收到难度态 NOTI2895，再收 2354 应答（抓包 39.62s）。
 		result.Packets = append([]outboundPacket{{
 			Name:    "legion_info",

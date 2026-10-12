@@ -971,6 +971,14 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 			if legionErr != nil {
 				client.event(map[string]any{"kind": "legion_reward_recovery_pending", "character_id": role.ID, "reason": legionErr.Error()})
 			}
+			apocalypseRewards := &workflow.ApocalypseRewardService{Store: client.gameStore, Awarder: legionRewards.Awarder}
+			apocalypseRecovered, apocalypseErr := apocalypseRewards.Recover(rewardCtx, role)
+			if apocalypseRecovered.ID != 0 {
+				role = apocalypseRecovered
+			}
+			if apocalypseErr != nil {
+				client.event(map[string]any{"kind": "apocalypse_reward_recovery_pending", "character_id": role.ID, "reason": apocalypseErr.Error()})
+			}
 
 			var raidRecovered database.Character
 			var raidErr error
