@@ -81,6 +81,9 @@ func (w *worldSession) dungeonGate(p []byte) ([]outboundPacket, error) {
 			if scene.QuestID > 65535 || !accepted[uint16(scene.QuestID)] {
 				return nil, fmt.Errorf("town arrival scene %d requires accepted source quest %d", requested, scene.QuestID)
 			}
+			if err := w.validateTownArrivalQuest(requested); err != nil {
+				return nil, err
+			}
 			return []outboundPacket{
 				{"town_arrival_scene_gate_ack", 1, 15, []byte{1}},
 				{"town_arrival_scene_selection_sent", 0, 27, protocol.EnterDungeonSelection()},
@@ -198,6 +201,9 @@ func (w *worldSession) selectDungeon(p []byte) (*dungeon.Session, []outboundPack
 		// become a private dungeon session through the following CMD16.
 		if r.Quest != scene.QuestID || w.state.Position.Town != scene.Town || w.state.Position.Area != scene.Area || !w.selectingDungeon || w.approvedDungeonGate != r.ID {
 			return nil, nil, fmt.Errorf("town arrival scene %d has no approved matching gate for quest %d at %d/%d", r.ID, r.Quest, w.state.Position.Town, w.state.Position.Area)
+		}
+		if err := w.validateTownArrivalQuest(r.ID); err != nil {
+			return nil, nil, err
 		}
 	}
 	if d, ok := w.dungeons.Dungeons[r.ID]; ok && d.Odyssey {

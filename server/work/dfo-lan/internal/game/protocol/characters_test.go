@@ -64,8 +64,27 @@ func TestEmptyListMatchesNativeAcceptedFixture(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if hex.EncodeToString(p) != "02000008000000000000000000000001000000000000000000" {
+	if hex.EncodeToString(p) != "02000008000800000000000000000001000000000000000000" {
 		t.Fatalf("%x", p)
+	}
+}
+
+func TestCharacterListRestoresCapacityWithoutNewExtension(t *testing.T) {
+	// 145637D52 forwards capacity - restored capacity to 140239B70.
+	// A roster snapshot restores both values, including purchased account slots.
+	for _, capacity := range []uint16{8, 9, 24} {
+		p, err := CharacterList(capacity, []CharacterRow{{Name: "LanTest01", Level: 1}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		current := binary.LittleEndian.Uint16(p[3:5])
+		restored := binary.LittleEndian.Uint16(p[5:7])
+		if current != capacity || restored != capacity {
+			t.Fatalf("capacity %d produces an extension delta: %d - %d", capacity, current, restored)
+		}
+		if count := binary.LittleEndian.Uint16(p[13:15]); count != 1 {
+			t.Fatalf("capacity snapshot changed row count: %d", count)
+		}
 	}
 }
 func TestNamePacketStrictPadding(t *testing.T) {

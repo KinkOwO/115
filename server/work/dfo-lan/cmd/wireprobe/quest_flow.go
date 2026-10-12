@@ -244,37 +244,8 @@ func (w *worldSession) questInteraction(p []byte) ([]outboundPacket, error) {
 		}
 	}
 	id := binary.LittleEndian.Uint16(p[2:])
-	if w.activeDungeon != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if scene, ok := w.townArrivalScenes[w.activeDungeon.Definition.ID]; ok && scene.QuestID == uint32(id) {
-			definition, ok := w.quests.Catalog.Quests[uint32(id)]
-			_, model, err := quest.InitialProgress(definition)
-			if ok && err == nil && model == quest.LookCinematic {
-				active, err := w.quests.Active(ctx, w.role)
-				if err != nil {
-					return nil, err
-				}
-				for _, q := range active {
-					if q.ID != id {
-						continue
-					}
-					if q.Progress != 0 {
-						return nil, fmt.Errorf("town arrival cinematic is unfinished")
-					}
-					plan, err := w.completeTownArrivalCinematic(q)
-					if err != nil {
-						return nil, err
-					}
-					ack, err := protocol.QuestTriggerUpdated(q)
-					if err != nil {
-						return nil, err
-					}
-					return append(plan, outboundPacket{"quest_interaction_accepted", 1, 33, ack}), nil
-				}
-				return nil, fmt.Errorf("town arrival cinematic quest is not owned")
-			}
-		}
+	if plan, handled, err := w.townArrivalCinematicInteraction(id); handled {
+		return plan, err
 	}
 	if w.activeDungeon != nil {
 		// A story scene ends with SET_QUEST_TRIGGER from its final layer map
