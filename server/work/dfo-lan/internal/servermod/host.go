@@ -36,7 +36,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"time"
 )
 
 // Host 操作的名单——与启动器侧 modkit.HostOpNames() 必须一致。
@@ -52,14 +51,6 @@ const (
 	// OpReplySend 是"按连接发一条报文"的操作名。它只对 protocol.request 钩子开放：
 	// 短路的 mod 必须能自己应答客户端，否则钩子等于残废（见 RequestContext.Reply）。
 	OpReplySend = "reply.send"
-	// 下面四个是"场景实体（Actor）"操作：mod 凭空造一个没有自己连接的角色，
-	// 让它在城镇里站着/走动，别人能看见它。它们只对 server.tick 与 console.command
-	// 开放 —— 实体是**长期存在的运行时状态**，只有持续调度（tick / 命令）才谈得上
-	// 造与毁；放在 server.boot 里造出来的东西没人推动，等于一个不会动的木桩。
-	OpActorSpawn   = "actor.spawn"
-	OpActorMove    = "actor.move"
-	OpActorDespawn = "actor.despawn"
-	OpActorList    = "actor.list"
 )
 
 // 钩子点名——与启动器侧 modkit.HookPoints 必须一致。
@@ -78,21 +69,17 @@ const (
 	//   - protocol.request  在**请求**入口短路，mod 自己产生应答 → 不走旁路改写；
 	//   - protocol.response 在**应答**出口只读观察，保住协议取证链。
 	HookProtocolRequest = "protocol.request"
-	// HookServerTick 是**周期调度**接入点：服务端以固定节奏调用一次。
+	// HookShutdown 是 server.boot 的**逆操作**：撤销 boot 改过的进程级状态
+	// （模式策略、全局表、后台 goroutine 等）。
 	//
-	// 为什么非有它不可：假人/AI 这类能力本质上是"没有客户端在推的东西"——
-	// 真实玩家每走一步都有 CMD 35 到服务端，而一个假人没有任何报文源，
-	// 只有服务端自己按节奏去推动它。没有 tick，mod 只能在"有人发报文时被顺带
-	// 叫一次"，做出来的东西必然是"玩家不动它就不动"。
+	// 为什么要有它：启用/禁用已经是运行期门禁，但"关掉一个 mod"如果只让它不再被调用，
+	// 它 boot 时改走的东西还留在进程里——玩家看到的是"关了但效果还在"。
+	// 只有注册了 shutdown 的 mod，宿主才敢在运行中把它**再打开**（重跑 boot 才有意义）；
+	// 没注册的，Reconcile 会拒绝热开并明确写成"需重启"，不假装能热切换。
 	//
-	// 周期由服务端决定（环境变量 DFO_MOD_TICK_MS，默认 1000ms），mod 拿到的
-	// TickContext 里有序号与时刻，便于自己做节流。
-	HookServerTick = "server.tick"
-	// HookShutdown 是**收摊**接入点：服务端停止服务前调用一次。
-	//
-	// tick 造出来的东西必须有地方收：进程退出时留下一堆"还在别人屏幕里站着"的
-	// 实体没有意义（进程都没了），但**顺序**有意义——先让 mod 把自己的实体撤干净，
-	// 再关监听，排查时日志才读得懂。
+	// 与 mod.json 的声明核对：本钩子**不参与** CheckDeclarations 的双向比对
+	// （它不是功能入口，而是 boot 的收尾），所以 mod 注册它不需要清单里先声明；
+	// 等启动器侧 modkit 的 HookPoints 白名单认了这个名字，再纳入核对。
 	HookShutdown = "server.shutdown"
 )
 
@@ -102,17 +89,6 @@ type BootContext struct {
 	Version string
 	// ChannelCount 是本进程将要开放的频道数（mod 只读）。
 	ChannelCount int
-	// RootDir 是服务端 Go 模块根（有 go.mod 且 module dfolan 的那个目录）。
-	//
-	// 为什么非给不可：mod 想带一份"运行中还能改"的外部配置时，它得知道服务端把自己的
-	// 东西放在哪里。**不能靠 os.Getwd() 猜** —— 启动器给网关进程的 cmd.Dir 是 <仓根>/server
-	// （见 internal/launcher/serverrun.go），而所有出厂相对路径实际以**模块根**为基准解析，
-	// 两者不是同一个目录，靠 cwd 推导必然踩坑。
-	//
-	// 主程序用既有的 serverModuleDir() 推导（工作目录 → exe 上两级 → 相对路径三级回退），
-	// 推导不出来时是 "." —— mod 应当在拿到 "." 时把自己降级为"只用内嵌默认值"，
-	// 而不是往某个猜出来的绝对路径里写文件。
-	RootDir string
 }
 
 // ConsoleCommand 是一条控制台命令。
@@ -130,6 +106,33 @@ type ConsoleCommand struct {
 // 返回 error 表示 mod 自检失败：宿主会**拒绝启动**（fail-closed）。这是刻意的：
 // 一个自检不过的 mod 安静地不生效，比启动失败更难查。
 type BootHook func(ctx *BootContext) error
+
+// ShutdownReason 说明为什么请 mod 收尾。
+type ShutdownReason string
+
+const (
+	// ReasonDisabled 是运行中被停用（enabled.json 取消勾选）。
+	ReasonDisabled ShutdownReason = "disabled"
+	// ReasonStopping 是服务端进程正在退出。
+	ReasonStopping ShutdownReason = "stopping"
+)
+
+// ShutdownContext 是 server.shutdown 钩子拿到的上下文。
+type ShutdownContext struct {
+	// Reason 是本次收尾的原因。
+	Reason ShutdownReason
+	// Version 与 BootContext.Version 同义，便于 mod 判断自己面对的是哪份服务端。
+	Version string
+}
+
+// ShutdownHook 是 server.shutdown 钩子签名，负责撤销 boot 改过的进程级状态。
+//
+// 它**不要求**mod 清理自己登记的钩子——那是宿主的事（宿主按 live 集合停止派发）。
+// mod 要清的是它 boot 时动过的外部状态：模式策略、注册过的内容、后台 goroutine。
+//
+// 返回 error：收尾失败不致命（服务端不能因为一个被关掉的 mod 退出），
+// 但一定记日志，并把该 mod 标成"boot 副作用可能未撤销"，提示重启收口。
+type ShutdownHook func(ctx *ShutdownContext) error
 
 // ConsoleHook 是 console.command 钩子签名。
 // 返回 handled=true 表示这条命令由该 mod 处理（宿主不再转发给其它 mod）。
@@ -174,31 +177,6 @@ type RequestContext struct {
 // 返回 error 表示处理失败：宿主记日志并把它算作该帧失败，不影响其它连接。
 type RequestHook func(ctx *RequestContext) (handled bool, err error)
 
-// TickContext 是 server.tick 钩子拿到的上下文。
-type TickContext struct {
-	// Seq 是本次是第几次 tick（从 1 开始）。mod 用它做节流：
-	// 例如"每 5 次才动一次"就写 `ctx.Seq%5 == 0`，不必自己记时间。
-	Seq uint64
-	// Now 是本轮的时刻。同一个 mod 在一轮里拿到的 Now 相同，便于多 mod 对齐。
-	Now time.Time
-	// SinceLast 是距离上一轮的时长（首轮为 0）。周期被改动时以它为准，
-	// 不要假设固定值。
-	SinceLast time.Duration
-}
-
-// TickHook 是 server.tick 钩子签名。
-//
-// 它在**服务端自己的 goroutine** 里被调用，不是在某条连接的读循环里。两条纪律：
-//  1. 不要阻塞太久 —— 一个 mod 卡住会推迟所有 mod 的这一轮；
-//  2. 不要 panic —— 宿主会捕获并记日志，但那一轮这个 mod 就没被调度到。
-type TickHook func(ctx TickContext)
-
-// ShutdownHook 是 server.shutdown 钩子签名。
-//
-// 它只在进程结束前跑一次，用来撤掉 tick 造出来的运行时状态（例如假人实体）。
-// 不做"必须成功"的保证：收摊阶段失败只能记日志，不能阻止退出。
-type ShutdownHook func()
-
 type bootReg struct {
 	modID string
 	order int
@@ -220,14 +198,8 @@ type requestReg struct {
 	fn    RequestHook
 }
 
-type tickReg struct {
-	modID string
-	fn    TickHook
-}
-
 type shutdownReg struct {
 	modID string
-	order int
 	fn    ShutdownHook
 }
 
@@ -238,8 +210,21 @@ var (
 	consoles  []consoleReg
 	responses []responseReg
 	requests  []requestReg
-	ticks     []tickReg
 	shutdowns []shutdownReg
+
+	// live 是运行期门禁的唯一判据："这个 mod 现在在不在跑"。
+	//
+	// 它与 enabled.json 的差别就在于**迁移可能被拒绝**：清单说启用，但这个 mod
+	// 的 boot 没有配 shutdown，宿主不敢重跑 boot，于是它"启用而未生效"。
+	// 首次登记时按清单初始化（见 markRegisteredLocked），之后只由 Reconcile 改。
+	live map[string]bool
+
+	// dirtyBoot 记下"关掉时没能撤销 boot 副作用"的 mod（没有注册 shutdown 的）。
+	// 它决定了热开方向要不要被拒绝：脏状态下重跑 boot 等于把状态改两遍。
+	dirtyBoot map[string]bool
+
+	// lastNote 是最近一次状态迁移的说明，随 mods-status.json 落盘，供界面显示。
+	lastNote map[string]string
 
 	// modValues 是 config.write 的进程内落地位置：键空间由白名单约束。
 	modValues = map[string]string{}
@@ -253,6 +238,69 @@ var (
 	consoleOut = func(s string) { fmt.Fprintln(os.Stdout, s) }
 )
 
+// markRegisteredLocked 登记"这个 mod 存在"，并在首次登记时按清单决定它的初始 live 状态。
+//
+// on 必须由调用方在**拿 mu 之前**从清单算好：Enabled() 用的是另一把锁，
+// 在持 mu 时调用会把锁序变成 mu→enabledMu，与 Reconcile 的 enabledMu→mu 相反。
+//
+// 调用方必须已持有 mu。
+func markRegisteredLocked(modID string, on bool) {
+	registeredIDs[modID] = true
+	if live == nil {
+		live = map[string]bool{}
+	}
+	if _, seen := live[modID]; !seen {
+		live[modID] = on
+	}
+}
+
+// RegisterShutdown 登记一个 server.shutdown 钩子（boot 的逆操作）。
+//
+// 一个 mod 最多登记一个：boot 的副作用只有它自己知道怎么撤销，登记两份只会让
+// 收尾顺序变成谜。重复登记且函数不同 = 作者错误，直接 panic（与其余 Register 一致）。
+func RegisterShutdown(modID string, fn ShutdownHook) {
+	if fn == nil {
+		panic("servermod: RegisterShutdown 收到 nil 回调")
+	}
+	if !validModID(modID) {
+		panic("servermod: 非法 mod id: " + modID)
+	}
+	on := Enabled(modID)
+	mu.Lock()
+	defer mu.Unlock()
+	for _, s := range shutdowns {
+		if s.modID == modID {
+			panic("servermod: mod " + modID + " 重复登记 server.shutdown 钩子")
+		}
+	}
+	shutdowns = append(shutdowns, shutdownReg{modID: modID, fn: fn})
+	markRegisteredLocked(modID, on)
+}
+
+// HasBoot 报告某个 mod 是否登记了 server.boot 钩子。
+func HasBoot(modID string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	for _, b := range boots {
+		if b.modID == modID {
+			return true
+		}
+	}
+	return false
+}
+
+// HasShutdown 报告某个 mod 是否登记了 server.shutdown（boot 的逆操作）。
+func HasShutdown(modID string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	for _, s := range shutdowns {
+		if s.modID == modID {
+			return true
+		}
+	}
+	return false
+}
+
 // RegisterBoot 登记一个 server.boot 钩子。mod 在自己的 Register() 里调用。
 //
 // modID 用 mod 自身常量传进来（引擎的 import 清单已经保证了"哪个包属于哪个 id"，
@@ -264,11 +312,12 @@ func RegisterBoot(modID string, fn BootHook) {
 	if !validModID(modID) {
 		panic("servermod: 非法 mod id: " + modID)
 	}
+	on := Enabled(modID)
 	mu.Lock()
 	defer mu.Unlock()
 	seq++
 	boots = append(boots, bootReg{modID: modID, order: seq, fn: fn})
-	registeredIDs[modID] = true
+	markRegisteredLocked(modID, on)
 }
 
 // RegisterConsole 登记一个 console.command 钩子。
@@ -279,10 +328,11 @@ func RegisterConsole(modID string, fn ConsoleHook) {
 	if !validModID(modID) {
 		panic("servermod: 非法 mod id: " + modID)
 	}
+	on := Enabled(modID)
 	mu.Lock()
 	defer mu.Unlock()
 	consoles = append(consoles, consoleReg{modID: modID, fn: fn})
-	registeredIDs[modID] = true
+	markRegisteredLocked(modID, on)
 }
 
 // RegisterResponse 登记一个 protocol.response 观察钩子。
@@ -293,10 +343,11 @@ func RegisterResponse(modID string, fn ResponseHook) {
 	if !validModID(modID) {
 		panic("servermod: 非法 mod id: " + modID)
 	}
+	on := Enabled(modID)
 	mu.Lock()
 	defer mu.Unlock()
 	responses = append(responses, responseReg{modID: modID, fn: fn})
-	registeredIDs[modID] = true
+	markRegisteredLocked(modID, on)
 }
 
 // RegisterRequest 登记一个 protocol.request 钩子。
@@ -310,45 +361,11 @@ func RegisterRequest(modID string, fn RequestHook) {
 	if !validModID(modID) {
 		panic("servermod: 非法 mod id: " + modID)
 	}
+	on := Enabled(modID)
 	mu.Lock()
 	defer mu.Unlock()
 	requests = append(requests, requestReg{modID: modID, fn: fn})
-	registeredIDs[modID] = true
-}
-
-// RegisterTick 登记一个 server.tick 钩子。
-//
-// 与 RegisterRequest 一样按**注册顺序**调用，保证多 mod 行为可复现。
-// 一个 mod 只应登记一次；需要不同节奏就在回调里按 ctx.Seq 自己分流。
-func RegisterTick(modID string, fn TickHook) {
-	if fn == nil {
-		panic("servermod: RegisterTick 收到 nil 回调")
-	}
-	if !validModID(modID) {
-		panic("servermod: 非法 mod id: " + modID)
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	ticks = append(ticks, tickReg{modID: modID, fn: fn})
-	registeredIDs[modID] = true
-}
-
-// RegisterShutdown 登记一个 server.shutdown 钩子。
-//
-// 收摊按**注册的逆序**跑（后装的先收）：装的时候是 A 依赖 B，收的时候应该
-// 先撤 A 再撤 B，这样"谁用了谁"的次序不会反过来。
-func RegisterShutdown(modID string, fn ShutdownHook) {
-	if fn == nil {
-		panic("servermod: RegisterShutdown 收到 nil 回调")
-	}
-	if !validModID(modID) {
-		panic("servermod: 非法 mod id: " + modID)
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	seq++
-	shutdowns = append(shutdowns, shutdownReg{modID: modID, order: seq, fn: fn})
-	registeredIDs[modID] = true
+	markRegisteredLocked(modID, on)
 }
 
 // Registered 返回已注册的 mod id（稳定排序），供启动日志与状态查询。
@@ -361,36 +378,6 @@ func Registered() []string {
 	}
 	sort.Strings(out)
 	return out
-}
-
-// Reset 清空本包的进程级注册状态：钩子、mod 清单、内容扩展声明、奖励规则脚本、启用清单。
-//
-// 为什么必须有：这些状态是**进程级单例**，而服务端实例（runGateway）可以在同一进程里
-// 被反复起停。上一台服务端注册的 mod 若不清掉，它的钩子和规则脚本会继续留在注册表里，
-// 影响之后的用例与下一台实例 —— 与 internal/modpolicy.Reset() 是同一条教训。
-func Reset() {
-	mu.Lock()
-	boots = nil
-	consoles = nil
-	responses = nil
-	requests = nil
-	ticks = nil
-	shutdowns = nil
-	modValues = map[string]string{}
-	configKeys = map[string]string{}
-	registeredIDs = map[string]bool{}
-	contentClaims = nil
-	mu.Unlock()
-
-	scriptMu.Lock()
-	modScripts = nil
-	scriptMu.Unlock()
-
-	enabledMu.Lock()
-	enabledPath = ""
-	disabledSet = map[string]bool{}
-	enabledLoadNote = ""
-	enabledMu.Unlock()
 }
 
 // SetEnvSnapshot 由 main 在装配完成后注入"环境变量只读快照"。
@@ -431,11 +418,17 @@ func SetConfigSnapshot(kv map[string]string) {
 
 // Boot 在服务端完成配置与存储初始化、开始监听之前调用。
 //
+// 只跑 live（= 清单里启用）的 mod；被禁用的 mod 的钩子本来就不该动全局状态。
 // 任何一个 mod 的 boot 钩子返回错误 → 整体返回错误 → 服务端拒绝启动。
 // 这是"宁可起不来也不要静默半残"的口径。
 func Boot(ctx *BootContext) error {
 	mu.RLock()
-	list := append([]bootReg(nil), boots...)
+	list := make([]bootReg, 0, len(boots))
+	for _, b := range boots {
+		if live[b.modID] {
+			list = append(list, b)
+		}
+	}
 	mu.RUnlock()
 	if len(list) == 0 {
 		return nil
@@ -450,78 +443,91 @@ func Boot(ctx *BootContext) error {
 	return nil
 }
 
-// Tick 走一轮周期调度：按注册顺序问每个 tick 钩子。
+// runBootHook 重跑某个 mod 的**全部** boot 钩子（按登记顺序）。
 //
-// 没有钩子时直接返回（每轮都会问，必须极便宜）。
-// 单个 mod 的 panic 会被接住并记日志，不会带崩服务端 —— tick 在服务端自己的
-// goroutine 里跑，崩了等于服务端整个没掉，代价不成比例。
-func Tick(ctx TickContext) {
+// 给 Reconcile 在运行中"打开一个 mod"时用。它刻意不整体替换 Boot()：
+// 启动期一个钩子失败要拒绝启动，运行期一个钩子失败只要把这个 mod 退回关闭状态，
+// 两者处置不同，但**跑的是同一份 mod 代码**。
+func runBootHook(modID string, ctx *BootContext) error {
 	mu.RLock()
-	if len(ticks) == 0 {
-		mu.RUnlock()
-		return
+	list := make([]bootReg, 0, 2)
+	for _, b := range boots {
+		if b.modID == modID {
+			list = append(list, b)
+		}
 	}
-	list := append([]tickReg(nil), ticks...)
 	mu.RUnlock()
-	for _, t := range list {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					Logf(t.modID, "%s 钩子 panic：%v", HookServerTick, r)
-				}
-			}()
-			t.fn(ctx)
-		}()
+	sort.Slice(list, func(i, j int) bool { return list[i].order < list[j].order })
+	for _, b := range list {
+		if err := b.fn(ctx); err != nil {
+			return fmt.Errorf("mod %s 的 %s 钩子失败：%w", modID, HookBoot, err)
+		}
 	}
+	return nil
 }
 
-// Shutdown 跑一遍收摊钩子（注册逆序），供服务端退出前调用。
-//
-// 只调用一次：第二次起直接返回，避免"defer 写两处"把收摊跑两遍。
-func Shutdown() {
-	mu.Lock()
-	if shutdownDone {
-		mu.Unlock()
-		return
-	}
-	shutdownDone = true
-	list := append([]shutdownReg(nil), shutdowns...)
-	mu.Unlock()
-	sort.Slice(list, func(i, j int) bool { return list[i].order > list[j].order })
-	for _, s := range list {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					Logf(s.modID, "%s 钩子 panic：%v", HookShutdown, r)
-				}
-			}()
-			s.fn()
-		}()
-		log.Printf("servermod: mod %s 已收摊（%s）", s.modID, HookShutdown)
-	}
-}
-
-// shutdownDone 保证收摊只跑一次（进程内单例，与 modpolicy 的口径一致）。
-var shutdownDone bool
-
-// HasTickHooks 报告是否登记了 tick 钩子。调用方据此决定要不要起周期调度
-// goroutine —— 一个 mod 都没装时不该白跑一个 ticker。
-func HasTickHooks() bool {
+// runShutdownHook 请某个 mod 撤销它的 boot 副作用（没有注册 shutdown 钩子时是空操作）。
+func runShutdownHook(modID string, ctx *ShutdownContext) error {
 	mu.RLock()
-	defer mu.RUnlock()
-	return len(ticks) > 0
+	list := make([]shutdownReg, 0, 1)
+	for _, s := range shutdowns {
+		if s.modID == modID {
+			list = append(list, s)
+		}
+	}
+	mu.RUnlock()
+	for _, s := range list {
+		if err := s.fn(ctx); err != nil {
+			return fmt.Errorf("mod %s 的 %s 钩子失败：%w", modID, HookShutdown, err)
+		}
+	}
+	return nil
+}
+
+// ShutdownLive 在服务端退出前请所有仍在跑的 mod 收尾（ReasonStopping）。
+//
+// 单个 mod 收尾失败只记日志、不阻断退出：进程正在关闭，把玩家卡在这里没有意义。
+// 与 Reconcile 共用一把串行锁，所以不会和运行中的状态迁移交叉跑钩子。
+func ShutdownLive(version string) {
+	transitionMu.Lock()
+	defer transitionMu.Unlock()
+	for _, modID := range liveModIDs() {
+		// 先停止派发，再收尾——与 disableMod 同一条顺序纪律：收尾期间不该还有
+		// 报文回调进这个 mod。进程本来也要退出了，但重复调用（defer + 显式收尾）
+		// 必须只会收尾一次，live 置假就是那个闩。
+		setLive(modID, false)
+		if err := runShutdownHook(modID, &ShutdownContext{Reason: ReasonStopping, Version: version}); err != nil {
+			log.Printf("servermod: mod %s 退出收尾失败：%v", modID, err)
+		}
+	}
 }
 
 // Console 把一条 `mod <id> <name> ...` 命令分发给已登记的 mod。
 // 返回 handled=false 表示没有 mod 认领（调用方可以打印帮助）。
+//
+// 被停用的 mod 不再被派发；但如果操作者点的**就是**这个 mod 的命令，这里明确报
+// "已停用"而不是"未被认领"——后者会让人以为命令名打错了，白查一轮。
 func Console(modID, name string, args []string) (bool, error) {
 	mu.RLock()
-	list := append([]consoleReg(nil), consoles...)
-	mu.RUnlock()
-	for _, c := range list {
+	list := make([]consoleReg, 0, len(consoles))
+	var stopped string
+	for _, c := range consoles {
 		if modID != "" && !strings.EqualFold(c.modID, modID) {
 			continue
 		}
+		if !live[c.modID] {
+			if stopped == "" {
+				stopped = c.modID
+			}
+			continue
+		}
+		list = append(list, c)
+	}
+	mu.RUnlock()
+	if stopped != "" && len(list) == 0 {
+		return true, fmt.Errorf("mod %s 已停用（enabled.json 的禁用名单），命令 %q 没有派发", stopped, name)
+	}
+	for _, c := range list {
 		handled, err := c.fn(ConsoleCommand{ModID: c.modID, Name: name, Args: args})
 		if err != nil {
 			return true, fmt.Errorf("mod %s 的 %s 命令 %q 执行失败：%w", c.modID, HookConsoleCommand, name, err)
@@ -564,10 +570,11 @@ func RegisterConsoleHelp(modID, usage string) {
 	if usage == "" {
 		return
 	}
+	on := Enabled(modID)
 	mu.Lock()
 	defer mu.Unlock()
 	consoleHelp = append(consoleHelp, modID+": "+usage)
-	registeredIDs[modID] = true
+	markRegisteredLocked(modID, on)
 }
 
 // RunConsoleOnce 执行一次"启动期命令"（由 main 从环境变量/参数取到后调用一次）。
@@ -617,40 +624,55 @@ func RunConsoleOnce(spec string) error {
 	return nil
 }
 
-// ObserveResponse 把一条即将写入客户端的报文副本交给所有响应观察者。
+// ObserveResponse 把一条即将写入客户端的报文副本交给已启用（live）的响应观察者。
 //
 // 这个函数在每条 S2C 报文上都会被调用一次，所以它必须**极便宜**：
-// 没有登记任何观察者时直接返回，不做任何分配。
+// 没有 live 观察者时直接返回，不做任何分配。被停用的 mod 不进这里（派发门禁）。
 func ObserveResponse(conn string, opcode uint16, body []byte) {
 	mu.RLock()
 	if len(responses) == 0 {
 		mu.RUnlock()
 		return
 	}
-	list := append([]responseReg(nil), responses...)
+	list := make([]responseReg, 0, len(responses))
+	for _, r := range responses {
+		if live[r.modID] {
+			list = append(list, r)
+		}
+	}
 	mu.RUnlock()
 	for _, r := range list {
 		r.fn(conn, opcode, body)
 	}
 }
 
-// HasObservers 报告是否有任何响应观察者（调用方据此决定要不要复制 body）。
+// HasObservers 报告是否有 **live** 的响应观察者（调用方据此决定要不要复制 body）。
 func HasObservers() bool {
 	mu.RLock()
 	defer mu.RUnlock()
-	return len(responses) > 0
+	for _, r := range responses {
+		if live[r.modID] {
+			return true
+		}
+	}
+	return false
 }
 
-// HasRequestHooks 报告是否登记了任何请求钩子。
+// HasRequestHooks 报告是否登记了任何 **live** 的请求钩子。
 //
 // 每帧都会问一次，所以它必须极便宜：没有钩子时调用方直接跳过，不做任何分配。
 func HasRequestHooks() bool {
 	mu.RLock()
 	defer mu.RUnlock()
-	return len(requests) > 0
+	for _, r := range requests {
+		if live[r.modID] {
+			return true
+		}
+	}
+	return false
 }
 
-// ObserveRequest 把一条**客户端请求**交给所有已登记的请求钩子。
+// ObserveRequest 把一条**客户端请求**交给所有已启用（live）的请求钩子。
 //
 // 返回 handled=true 表示某个 mod 接手了这条报文：调用方**必须跳过内置分发**。
 // 钩子返回 error 时记一行日志并继续问下一个——一个 mod 出错，不该让别的 mod
@@ -664,8 +686,16 @@ func ObserveRequest(conn string, typ byte, id uint16, raw, plaintext []byte, ver
 		mu.RUnlock()
 		return false
 	}
-	list := append([]requestReg(nil), requests...)
+	list := make([]requestReg, 0, len(requests))
+	for _, r := range requests {
+		if live[r.modID] {
+			list = append(list, r)
+		}
+	}
 	mu.RUnlock()
+	if len(list) == 0 {
+		return false
+	}
 	ctx := &RequestContext{
 		Conn: conn, Type: typ, ID: id, Raw: raw, Plaintext: plaintext,
 		Verified: verified, Reply: reply,
@@ -773,10 +803,13 @@ func ContentClaims() []string {
 // ---------------------------------------------------------------------------
 
 // Description 生成一段启动日志，列出本进程实际装载了哪些 mod 与钩子。
+//
+// "装载"（编进二进制并登记了钩子）与"在跑"（live）分开写：只写前者就会出现
+// "日志说已装载 1 个 mod，但它的规则一份都没生效"这种对不上的现场。
 func Description() string {
 	mu.RLock()
-	defer mu.RUnlock()
 	if len(registeredIDs) == 0 {
+		mu.RUnlock()
 		return "servermod: 未装载任何服务端 mod"
 	}
 	ids := make([]string, 0, len(registeredIDs))
@@ -784,29 +817,59 @@ func Description() string {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
+	var liveIDs, offIDs []string
+	nBoot, nConsole, nResp, nReq, nShutdown := 0, 0, 0, 0, 0
+	for _, r := range boots {
+		if live[r.modID] {
+			nBoot++
+		}
+	}
+	for _, r := range consoles {
+		if live[r.modID] {
+			nConsole++
+		}
+	}
+	for _, r := range responses {
+		if live[r.modID] {
+			nResp++
+		}
+	}
+	for _, r := range requests {
+		if live[r.modID] {
+			nReq++
+		}
+	}
+	for _, r := range shutdowns {
+		if live[r.modID] {
+			nShutdown++
+		}
+	}
+	for _, id := range ids {
+		if live[id] {
+			liveIDs = append(liveIDs, id)
+		} else {
+			offIDs = append(offIDs, id)
+		}
+	}
+	mu.RUnlock()
+
+	// 脚本注册表用的是自己的锁（见 scripts.go 的 scriptMu），必须在放掉 mu 之后再问。
+	scriptMu.RLock()
+	nScript := len(modScripts)
+	scriptMu.RUnlock()
+
 	var b strings.Builder
-	fmt.Fprintf(&b, "servermod: 已装载 %d 个服务端 mod：%s", len(ids), strings.Join(ids, ", "))
-	if len(boots) > 0 {
-		fmt.Fprintf(&b, "；boot 钩子 %d 个", len(boots))
+	fmt.Fprintf(&b, "servermod: 已装载 %d 个服务端 mod", len(ids))
+	if len(liveIDs) > 0 {
+		fmt.Fprintf(&b, "（在跑 %d：%s）", len(liveIDs), strings.Join(liveIDs, ", "))
+	} else {
+		b.WriteString("（一个都没在跑）")
 	}
-	if len(consoles) > 0 {
-		fmt.Fprintf(&b, "；console 钩子 %d 个", len(consoles))
+	if len(offIDs) > 0 {
+		fmt.Fprintf(&b, "；停用 %d：%s（钩子不派发）", len(offIDs), strings.Join(offIDs, ", "))
 	}
-	if len(responses) > 0 {
-		fmt.Fprintf(&b, "；response 观察者 %d 个", len(responses))
-	}
-	if len(requests) > 0 {
-		fmt.Fprintf(&b, "；request 钩子 %d 个", len(requests))
-	}
-	if len(ticks) > 0 {
-		fmt.Fprintf(&b, "；tick 钩子 %d 个", len(ticks))
-	}
-	if len(shutdowns) > 0 {
-		fmt.Fprintf(&b, "；shutdown 钩子 %d 个", len(shutdowns))
-	}
-	if n := len(modScripts); n > 0 {
-		fmt.Fprintf(&b, "；奖励规则脚本 %d 份", n)
-	}
+	fmt.Fprintf(&b, "；生效钩子：boot %d、console %d、response %d、request %d、shutdown %d、奖励脚本 %d",
+		nBoot, nConsole, nResp, nReq, nShutdown, nScript)
 	return b.String()
 }
 

@@ -59,6 +59,16 @@ type Options struct {
 	// (equip-slot padlocks, bag/avatar expansion tiers, revive coins).
 	Entitlements EntitlementFunc
 	Log          func(format string, args ...any)
+	// ScriptEnabled reports whether one rule script may run right now.
+	//
+	// It exists for mod enable/disable: a mod's Lua file is compiled into the
+	// LState once, at New, but the manager may switch that mod off afterwards.
+	// Checking the predicate per dispatch turns "disable" into a live operation
+	// without rebuilding the Lua state. nil means every script runs.
+	//
+	// The reverse direction (enabling a mod whose script was never compiled)
+	// still needs a restart; see internal/servermod.
+	ScriptEnabled func(name string) bool
 }
 
 // Service implements Notifier over one gopher-lua LState. All Lua execution is
@@ -72,7 +82,9 @@ type Service struct {
 	cera         CeraFunc
 	entitlements EntitlementFunc
 	log          func(format string, args ...any)
-	collector    *collector
+	// scriptEnabled gates one compiled script at dispatch time (see Options).
+	scriptEnabled func(name string) bool
+	collector     *collector
 	// pending collects the handlers a script registers through on() while that
 	// script is being loaded; it is only touched during New.
 	pending map[string]*lua.LFunction
@@ -100,7 +112,8 @@ func New(opts Options) (*Service, error) {
 	if len(files) == 0 {
 		return nil, fmt.Errorf("reward: no lua scripts")
 	}
-	s := &Service{grant: opts.Grant, mail: opts.Mail, cera: opts.Cera, entitlements: opts.Entitlements, log: opts.Log}
+	s := &Service{grant: opts.Grant, mail: opts.Mail, cera: opts.Cera, entitlements: opts.Entitlements,
+		log: opts.Log, scriptEnabled: opts.ScriptEnabled}
 	if s.log == nil {
 		s.log = func(string, ...any) {}
 	}
@@ -124,7 +137,9 @@ func (s *Service) CharacterCreate(ctx context.Context, r Recipient) {
 
 // dispatch runs each script's handler for the event, then executes the grants
 // and mails that handler collected. A missing handler is skipped; a runtime
-// error is logged and the remaining scripts still run.
+// error is logged and the remaining scripts still run. A script whose owner is
+// currently switched off (Options.ScriptEnabled) is skipped before its handler
+// is looked up, so no grants are collected or persisted for it.
 func (s *Service) dispatch(ctx context.Context, ev Event) {
 	if s == nil {
 		return
@@ -133,6 +148,9 @@ func (s *Service) dispatch(ctx context.Context, ev Event) {
 	defer s.mu.Unlock()
 	handler := string(ev.Type)
 	for _, sc := range s.scripts {
+		if s.scriptEnabled != nil && !s.scriptEnabled(sc.name) {
+			continue
+		}
 		fn := sc.handlers[handler]
 		if fn == nil {
 			continue

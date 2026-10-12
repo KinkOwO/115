@@ -42,6 +42,9 @@ func buildRewardService(store *database.Store, awarder *inventory.Awarder, skinU
 		Cera:         rewardCeraFunc(store),
 		Entitlements: rewardEntitlementFunc(store, awarder, skinUnlocks, vaultRules),
 		Log:          func(format string, args ...any) { log.Printf(format, args...) },
+		// 按 mod 停用 → 该 mod 的脚本不再派发。脚本在 New 时已编进 LState，
+		// 这里每次派发问一次，所以"关掉"是热生效的（反过来"打开"要重启）。
+		ScriptEnabled: servermod.RewardScriptEnabled,
 	})
 	if err != nil {
 		log.Printf("warning: reward rules disabled: %v", err)
