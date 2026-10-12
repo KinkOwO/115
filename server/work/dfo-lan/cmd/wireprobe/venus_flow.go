@@ -774,6 +774,9 @@ func (w *worldSession) venusRewardEnd(p []byte) ([]outboundPacket, []map[string]
 	if stage != run.stage {
 		return nil, nil, fmt.Errorf("venus reward end stage %d does not match the active stage %d", stage, run.stage)
 	}
+	if w.activeDungeon == nil || !w.activeDungeon.Completed() || w.activeDungeon.Definition.ID != legion.VenusStageDungeons[stage] {
+		return nil, nil, fmt.Errorf("venus reward end requires the owned completed stage %d", stage)
+	}
 	run.cleared[stage] = true
 	next := stage + 1
 	note := map[string]any{

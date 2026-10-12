@@ -236,7 +236,9 @@ func TestVenusRunFlowGuards(t *testing.T) {
 		t.Fatal("enter stage 3 with a normal choice must be refused")
 	}
 
-	// 阶段推进：CMD2046 权威记录通关并发布下一阶段状态。
+	// CMD2046 may acknowledge only a stage completed by the owned dungeon.
+	w.activeDungeon = &dungeon.Session{Definition: catalog.DungeonDefinition{ID: legion.VenusStageDungeons[0]}}
+	w.activeDungeon.MarkSceneCompleted()
 	w.venus.stage = 0
 	reward := venusEnvelopeWithContent(0, 0, 0, 0)
 	plan, _, err = w.handleVenusRequest(reward, legion.CmdRewardEnd)
