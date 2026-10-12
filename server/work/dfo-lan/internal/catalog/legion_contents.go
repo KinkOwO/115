@@ -85,6 +85,7 @@ type LegionEnterRow struct {
 
 // LegionRewardRow 是 [reward data]/[ting reward data] 的一行：难度、档位、权重、物品、数量。
 type LegionRewardRow struct {
+	PartyType  string  `json:"party_type,omitempty"`
 	Difficulty string  `json:"difficulty"`
 	Kind       string  `json:"kind"`
 	Values     []int64 `json:"values"`
@@ -420,29 +421,31 @@ func (b *legionBlock) enterRows() ([]LegionEnterRow, error) {
 }
 
 func (b *legionBlock) rewardRows(name string) ([]LegionRewardRow, error) {
-	c := b.child(name)
-	if c == nil {
-		return nil, nil
-	}
 	var out []LegionRewardRow
-	for _, section := range c.children {
-		if section.name != "data" {
+	for _, c := range b.children {
+		if c.name != name {
 			continue
 		}
-		for _, line := range section.lines {
-			f := strings.Fields(line)
-			if len(f) < 2 {
-				return nil, fmt.Errorf("[%s] row %q", name, line)
+		party, _ := c.stringField("party type")
+		for _, section := range c.children {
+			if section.name != "data" {
+				continue
 			}
-			row := LegionRewardRow{Difficulty: strings.Trim(f[0], "`"), Kind: strings.Trim(f[1], "`")}
-			for _, s := range f[2:] {
-				n, e := strconv.ParseInt(s, 10, 64)
-				if e != nil {
-					return nil, fmt.Errorf("[%s] value %q", name, s)
+			for _, line := range section.lines {
+				f := strings.Fields(line)
+				if len(f) < 2 {
+					return nil, fmt.Errorf("[%s] row %q", name, line)
 				}
-				row.Values = append(row.Values, n)
+				row := LegionRewardRow{PartyType: party, Difficulty: strings.Trim(f[0], "`"), Kind: strings.Trim(f[1], "`")}
+				for _, s := range f[2:] {
+					n, e := strconv.ParseInt(s, 10, 64)
+					if e != nil {
+						return nil, fmt.Errorf("[%s] value %q", name, s)
+					}
+					row.Values = append(row.Values, n)
+				}
+				out = append(out, row)
 			}
-			out = append(out, row)
 		}
 	}
 	return out, nil

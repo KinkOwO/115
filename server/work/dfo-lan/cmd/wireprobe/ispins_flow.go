@@ -5,6 +5,8 @@ import (
 	"dfolan/internal/game/protocol"
 	"dfolan/internal/inventory"
 	"dfolan/internal/legion"
+	"dfolan/internal/loot"
+	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -509,6 +511,9 @@ func decodeHexOrDie(s string) []byte {
 
 func appendIspinsAux(plan []outboundPacket, aux []ispinsAuxPacket) []outboundPacket {
 	for _, a := range aux {
+		if a.ID == 14 {
+			continue
+		} // Captured inventory belongs to another player.
 		plan = append(plan, outboundPacket{a.Name, 0, a.ID, a.Body})
 	}
 	return plan
@@ -616,12 +621,12 @@ var ispinsAuxPre115 = [4][]ispinsAuxPacket{
 // aux(2168) → N115 (stage0/3 only). The official N2/N9 bodies embed
 // official-session actor/role names and the new-client NOTI9 layout, so both
 // are locally rebuilt (protocol.IspinsSettlementCharacterInfo / SoloPartyInfo);
-// the reward items in the N14 echoes are not persisted in v1.
+// Reward displays come from frozen PVF plans; inventory is rebuilt after commit.
 func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 	if w.ispins != nil && !w.ispins.deadline.IsZero() && !time.Now().Before(w.ispins.deadline) {
 		return w.ispinsTimeout(time.Now())
 	}
-	if !w.activeDungeon.Completed() || w.completionSent {
+	if w.activeDungeon == nil || !w.activeDungeon.Completed() || w.completionSent {
 		return nil, nil
 	}
 	run := w.ispins
@@ -629,11 +634,26 @@ func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 		return nil, nil
 	}
 	stage := run.stage
-	basic, err := legion.IspinsBasicClearReward(stage)
+	if stage < 0 || stage >= len(run.cleared) {
+		return nil, fmt.Errorf("Ispins settlement stage out of range: %d", stage)
+	}
+	now := time.Now()
+	rewardService, rewardPlan, err := w.freezeIspinsRewards(now)
 	if err != nil {
 		return nil, err
 	}
-	additional, err := legion.IspinsAdditionalClearReward(stage)
+	elapsed := time.Duration(0)
+	if !w.activeDungeon.StartedAt.IsZero() {
+		elapsed = now.Sub(w.activeDungeon.StartedAt)
+	}
+	project := func(items []loot.Award) []legion.IspinsRewardItem {
+		out := make([]legion.IspinsRewardItem, 0, len(items))
+		for _, item := range items {
+			out = append(out, legion.IspinsRewardItem{Template: item.Template, Amount: item.Amount})
+		}
+		return out
+	}
+	basic, additional, err := legion.IspinsSourceRewardPayloads(project(rewardPlan.Basic), project(rewardPlan.Additional), elapsed, rewardPlan.Eligible)
 	if err != nil {
 		return nil, err
 	}
@@ -641,13 +661,9 @@ func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 	if err != nil {
 		return nil, err
 	}
-	if stage == 3 {
-		if err := w.recordIspinsFullClear(); err != nil {
-			return nil, err
-		}
-	}
-	run.cleared[stage] = true
-	entry, err := legion.IspinsEntryCharacterInfo(false, run.cleared, [5]byte{})
+	cleared := run.cleared
+	cleared[stage] = true
+	entry, err := legion.IspinsEntryCharacterInfo(false, cleared, [5]byte{})
 	if err != nil {
 		return nil, err
 	}
@@ -670,6 +686,13 @@ func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 	// next79 §30 stack proves it reads beyond that body. Refresh through the
 	// same native basic/detail encoders already accepted at party creation
 	// and dungeon entry, using this role's persisted data.
+	if w.loot != nil {
+		body, err := w.loot.Bootstrap(workflow.LootRole(w.role))
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, outboundPacket{"ispins_saved_inventory_refreshed", 0, 13, body})
+	}
 	if w.characters != nil {
 		basicInfo, err := w.characters.EntryBasicProbe(w.role, w.characters.ChannelContext)
 		if err != nil {
@@ -722,6 +745,15 @@ func (w *worldSession) completeIspinsStage() ([]outboundPacket, error) {
 			}
 		}
 	}
+	if err := w.claimIspinsRewards(rewardService, rewardPlan, plan); err != nil {
+		return nil, err
+	}
+	if stage == 3 {
+		if err := w.recordIspinsFullClear(); err != nil {
+			return nil, err
+		}
+	}
+	run.cleared = cleared
 	return plan, nil
 }
 

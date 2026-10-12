@@ -225,6 +225,7 @@ func (c *DungeonCatalog) DeclaredEnterFatigue() string {
 type DungeonCatalog struct {
 	Source           pvf.ArchiveSnapshot                  `json:"source"`
 	Dungeons         map[uint32]DungeonDefinition         `json:"dungeons"`
+	LegionContents   *LegionContents                      `json:"-"`
 	IspinsOperations map[uint16]IspinsOperationDefinition `json:"ispins_operations,omitempty"`
 	// Runtime imports retain map identity here; use MapScript to obtain cells.
 	Maps           map[uint32]ScriptRecord `json:"maps"`
@@ -714,6 +715,11 @@ func importDungeons(a *pvf.Archive, ids []uint32, lazyMaps bool) (DungeonCatalog
 			if err != nil {
 				return out, err
 			}
+			contents, err := ImportLegionContents(a)
+			if err != nil {
+				return out, err
+			}
+			out.LegionContents = &contents
 		}
 		importMap := func(mapID uint32) {
 			if _, ok := out.Maps[mapID]; ok {
