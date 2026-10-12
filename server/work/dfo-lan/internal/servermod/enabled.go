@@ -19,13 +19,19 @@ import (
 // 服务端 mod 是编译进二进制的（B 路线），如果启用/禁用要重编译，那每次勾选
 // 都等于重建服务端——玩家在管理器里点一下要等一次 go build，体验不可接受。
 //
-// 所以启用/禁用是**运行期门禁**：
-//   - 所有已安装的 mod 都会被编译进二进制（安装时决定）；
-//   - 启动时读一份清单，只让启用的 mod 真正注册钩子；
-//   - 被禁用的 mod 代码在里面，但 Register() 里会先问 Enabled()，直接跳过。
+// 所以启用/禁用是**运行期门禁**，门禁分两处，代价不同：
+//   - 所有已安装的 mod 都会被编译进二进制（安装时决定，改这一层要重编译）；
+//   - Register() 一律登记钩子，**派发**时才问"这个 mod 在不在跑"（Live()）——
+//     于是勾选/取消既不重编译，也不用等下一次启动；
+//   - 清单按文件指纹惰性重读（RefreshEnabledList），管理器在服务端运行中改
+//     enabled.json，下一次 Reconcile 就把状态迁移过去。
 //
-// 代价：二进制里始终带着被禁用 mod 的代码。收益：勾选/取消**立即生效**，
-// 不需要重编译、不需要重新安装。对"运营侧开关"这个用途，收益远大于代价。
+// 代价：二进制里始终带着被禁用 mod 的代码。收益：勾选/取消**立即生效**。
+// 对"运营侧开关"这个用途，收益远大于代价。
+//
+// 仍需重启的方向（Reconcile 会在 note 里点名，不静默）：
+//   - 把一个 mod **打开**，而它的 server.boot 副作用没有配 server.shutdown；
+//   - mod 提供奖励规则脚本（脚本要编译进 LState，只在启动时装载）。
 //
 // # 与 modkit 的关系
 //
@@ -55,10 +61,40 @@ type enabledState struct {
 var (
 	enabledMu       sync.RWMutex
 	enabledPath     string
+	enabledDir      string
 	disabledSet     map[string]bool
 	enabledLoaded   bool
 	enabledLoadNote string
+	// enabledStamp 是清单文件上次的指纹，RefreshEnabledList 用它判断要不要重读。
+	enabledStamp fileStamp
 )
+
+// fileStamp 是"文件变没变"的判据（存在性 + 大小 + mtime）。
+type fileStamp struct {
+	exists bool
+	size   int64
+	mod    time.Time
+}
+
+func stampOf(path string) fileStamp {
+	st, err := os.Stat(path)
+	if err != nil {
+		return fileStamp{}
+	}
+	return fileStamp{exists: true, size: st.Size(), mod: st.ModTime()}
+}
+
+// sameAs 报告磁盘上的清单与上次读到的那份是不是同一份。
+func (s fileStamp) sameAs(path string) bool {
+	cur := stampOf(path)
+	if s.exists != cur.exists {
+		return false
+	}
+	if !s.exists {
+		return true
+	}
+	return s.size == cur.size && s.mod.Equal(cur.mod)
+}
 
 // LoadEnabledList 读入启用清单。path 为空时用 <modsDir>/enabled.json。
 //
@@ -67,48 +103,106 @@ var (
 func LoadEnabledList(modsDir string) {
 	enabledMu.Lock()
 	defer enabledMu.Unlock()
+	enabledDir = modsDir
 	enabledPath = filepath.Join(modsDir, enabledFileName)
-	disabledSet = map[string]bool{}
+	disabledSet, enabledLoadNote = readDisabledSet(enabledPath)
 	enabledLoaded = true
-	enabledLoadNote = ""
+	enabledStamp = stampOf(enabledPath)
+}
 
-	b, err := os.ReadFile(enabledPath)
+// EnabledModsDir 返回当前清单所在的 mods 目录（状态文件与声明核对都按它扫）。
+func EnabledModsDir() string {
+	enabledMu.RLock()
+	defer enabledMu.RUnlock()
+	return enabledDir
+}
+
+// readDisabledSet 读一份清单，返回禁用集合与一条需要告示的问题（没有则空串）。
+// 缺失与损坏都退回"全部启用"，口径与 LoadEnabledList 一致。
+func readDisabledSet(path string) (map[string]bool, string) {
+	set := map[string]bool{}
+	b, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
-		enabledLoadNote = "没有 " + enabledFileName + "（按全部启用处理）"
-		return
+		return set, "没有 " + enabledFileName + "（按全部启用处理）"
 	}
 	if err != nil {
-		enabledLoadNote = fmt.Sprintf("读 %s 失败（按全部启用处理）：%v", enabledFileName, err)
-		return
+		return set, fmt.Sprintf("读 %s 失败（按全部启用处理）：%v", enabledFileName, err)
 	}
 	var st enabledState
 	if err := json.Unmarshal(b, &st); err != nil {
-		enabledLoadNote = fmt.Sprintf("%s 解析失败（按全部启用处理）：%v", enabledFileName, err)
-		return
+		return set, fmt.Sprintf("%s 解析失败（按全部启用处理）：%v", enabledFileName, err)
 	}
 	for _, id := range st.Disabled {
 		id = strings.TrimSpace(id)
 		if id != "" {
-			disabledSet[id] = true
+			set[id] = true
 		}
 	}
+	return set, ""
 }
 
-// Enabled 报告某个 mod 现在是否启用。
+// RefreshEnabledList 在服务端运行中重读启用清单（mod 管理器改过 enabled.json）。
+//
+// 只在文件指纹变化时才真的读盘解析，所以调用方可以放心按秒轮询。
+// 返回 changed 表示禁用名单与内存里的不一致（这时才需要做状态迁移）。
+//
+// 它不改任何钩子注册，只换这份名单：谁真的开/关由 host.go 的 live 集合与
+// Reconcile 决定，因此这里不能回调 mod 的钩子（会拿着锁重入）。
+func RefreshEnabledList() (changed bool, err error) {
+	enabledMu.Lock()
+	defer enabledMu.Unlock()
+	if !enabledLoaded || enabledPath == "" {
+		return false, nil
+	}
+	if enabledStamp.sameAs(enabledPath) {
+		return false, nil
+	}
+	set, note := readDisabledSet(enabledPath)
+	enabledStamp = stampOf(enabledPath)
+	if note != "" {
+		enabledLoadNote = note
+	}
+	if sameSet(set, disabledSet) {
+		return false, nil
+	}
+	disabledSet = set
+	return true, nil
+}
+
+// sameSet 比较两个禁用名单是否等价（只看键，不看顺序）。
+func sameSet(a, b map[string]bool) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k := range a {
+		if !b[k] {
+			return false
+		}
+	}
+	return true
+}
+
+// Enabled 报告某个 mod 现在是否启用（清单里被显式取消勾选才算禁用）。
+//
+// # 它不是"这个 mod 现在在不在跑"
+//
+// 运行中通过 Reconcile 打开一个没有 cleanup 的 mod 会被拒绝，那时它**已启用但仍未生效**。
+// 所以派发钩子、写 mods-status.json、判"要不要重启"都用 Live()，不要用本函数。
+// 本函数只表达清单意图，适合在 mod 的 Register() 里决定"这份脚本要不要装载"。
 //
 // 没有加载过清单（例如单元测试直接调 mod 的 Register）时**默认启用**，
 // 避免"测试里忘了加载清单导致 mod 静默不生效"。
-//
-// mod 的 Register() 应当在开头就判断它：
-//
-//	func Register() {
-//	    if !servermod.Enabled(modID) { return }
-//	    ...
-//	}
 func Enabled(modID string) bool {
 	enabledMu.RLock()
 	defer enabledMu.RUnlock()
 	return !disabledSet[modID]
+}
+
+// Live 报告某个 mod 现在是否真的在派发钩子（由 RegisterMods 初始化、Reconcile 迁移）。
+func Live(modID string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	return live[modID]
 }
 
 // EnabledInfo 返回启用清单的加载状态，供启动日志与 `mod help` 展示。
@@ -121,6 +215,12 @@ func EnabledInfo() (path string, disabled []string, note string) {
 	}
 	sort.Strings(out)
 	return enabledPath, out, enabledLoadNote
+}
+
+// DisabledSnapshot 返回当前禁用名单（稳定排序）。
+func DisabledSnapshot() []string {
+	_, out, _ := EnabledInfo()
+	return out
 }
 
 // SetModEnabled 写回启用清单（管理器勾选/取消勾选用）。

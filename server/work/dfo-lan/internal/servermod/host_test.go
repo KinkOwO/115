@@ -9,7 +9,33 @@ import (
 // reset 清空包级注册状态，让每个用例从零开始（这些状态是进程级单例）。
 func reset(t *testing.T) {
 	t.Helper()
-	Reset()
+	mu.Lock()
+	boots = nil
+	consoles = nil
+	responses = nil
+	requests = nil
+	shutdowns = nil
+	live = map[string]bool{}
+	dirtyBoot = map[string]bool{}
+	lastNote = map[string]string{}
+	consoleHelp = nil
+	registeredIDs = map[string]bool{}
+	modValues = map[string]string{}
+	configKeys = map[string]string{}
+	contentClaims = nil
+	mu.Unlock()
+	// 脚本注册表与启用清单各有自己的锁与状态，一并清掉，保证用例互不串味。
+	scriptMu.Lock()
+	modScripts = nil
+	scriptMu.Unlock()
+	enabledMu.Lock()
+	enabledPath = ""
+	enabledDir = ""
+	enabledLoaded = false
+	enabledStamp = fileStamp{}
+	disabledSet = map[string]bool{}
+	enabledLoadNote = ""
+	enabledMu.Unlock()
 }
 
 func TestRegisterAndBootRunsInOrder(t *testing.T) {
@@ -156,7 +182,7 @@ func TestDescriptionEmptyAndNonEmpty(t *testing.T) {
 	RegisterBoot("m1", func(*BootContext) error { return nil })
 	RegisterResponse("m1", func(string, uint16, []byte) {})
 	d := Description()
-	if !strings.Contains(d, "m1") || !strings.Contains(d, "boot 钩子 1 个") {
+	if !strings.Contains(d, "m1") || !strings.Contains(d, "生效钩子：boot 1、console 0、response 1") {
 		t.Fatalf("描述不对：%q", d)
 	}
 }
@@ -253,7 +279,7 @@ func TestRequestHookZeroCostWhenNone(t *testing.T) {
 	if !HasRequestHooks() {
 		t.Fatal("登记后 HasRequestHooks 必须为真")
 	}
-	if !strings.Contains(Description(), "request 钩子 1 个") {
+	if !strings.Contains(Description(), "生效钩子：boot 0、console 0、response 0、request 1") {
 		t.Fatalf("Description 应报出 request 钩子数：%q", Description())
 	}
 }
