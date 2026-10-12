@@ -108,6 +108,12 @@ func TestEntryBasicProbeCarriesWornAppearance(t *testing.T) {
 	if slot := int(got[at+1]); slot != 12 {
 		t.Fatalf("entry appearance slot=%d, want 12", slot)
 	}
+	if n := binary.LittleEndian.Uint32(got[at+6:]); n != 4 {
+		t.Fatalf("weapon binding length=%d, want 4", n)
+	}
+	if model := binary.LittleEndian.Uint32(got[at+10:]); model != 101010438 {
+		t.Fatalf("weapon binding=%d, want persisted template", model)
+	}
 }
 
 // A knight wears a [support weapon] shield on worn slot 24 next to the weapon
@@ -151,9 +157,8 @@ func TestEntryBasicProbeCarriesKnightShieldRow(t *testing.T) {
 	if count := int(got[at]); count != 2 {
 		t.Fatalf("entry appearance count=%d, want 2 (weapon and shield rows)", count)
 	}
-	// The entry projection carries the piece's item ID in the placeholder cell
-	// and declares a zero-length payload, i.e. "this row names the piece, it
-	// does not bind a model index". One such row is 35 bytes.
+	// Entry and the final actor rebuild must retain the real worn bindings;
+	// a zero-length payload clears the model index installed by the prelude.
 	want := []struct {
 		slot byte
 		item uint32
@@ -166,10 +171,33 @@ func TestEntryBasicProbeCarriesKnightShieldRow(t *testing.T) {
 		if item := binary.LittleEndian.Uint32(got[pos+1:]); item != w.item {
 			t.Fatalf("row %d item=%d, want %d", i, item, w.item)
 		}
-		if n := int(binary.LittleEndian.Uint32(got[pos+5:])); n != 0 {
-			t.Fatalf("row %d declares len=%d, want 0 on the entry projection", i, n)
+		if n := int(binary.LittleEndian.Uint32(got[pos+5:])); n != 4 {
+			t.Fatalf("row %d declares len=%d, want a bound template", i, n)
 		}
-		pos += 35
+		if model := binary.LittleEndian.Uint32(got[pos+9:]); model != w.item {
+			t.Fatalf("row %d binding=%d, want %d", i, model, w.item)
+		}
+		pos += 39
+	}
+}
+
+func TestEntryBasicProbeLeavesEmptyWeaponSlotEmpty(t *testing.T) {
+	state, err := inventory.SaveBag(json.RawMessage(`{"level":1}`), inventory.Bag{
+		Version: "ordinary-bag-v1",
+		Items:   []inventory.BagItem{{Slot: 12, Template: 101010438, Amount: 1}},
+		Worn:    []inventory.BagEquipment{{Slot: 14, Template: 400070177}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &Service{}
+	got, err := s.EntryBasicProbe(Character{WireID: 1, Name: "LanTest01", State: state}, [2]byte{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const at = 176 + len("LanTest01")
+	if got[at] != 1 || got[at+1] != 14 {
+		t.Fatalf("bag-only weapon acquired a worn binding: %x", got[at:at+2])
 	}
 }
 

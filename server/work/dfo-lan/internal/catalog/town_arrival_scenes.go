@@ -16,6 +16,29 @@ type TownArrivalScene struct {
 	DungeonID uint32
 }
 
+// QuestTownArrivalScene reads the quest's arrival rule without requiring a
+// world export. Entry still uses the fully validated whitelist below.
+func QuestTownArrivalScene(q QuestDefinition) (TownArrivalScene, bool) {
+	cells := q.Script.Cells
+	for i := 0; i < len(cells); i++ {
+		if cells[i].Type != 3 || cells[i].Text != "[move to dungeon]" {
+			continue
+		}
+		end := i + 1
+		for end < len(cells) && !(cells[end].Type == 3 && cells[end].Text == "[/move to dungeon]") {
+			end++
+		}
+		block := cells[i+1 : end]
+		i = end
+		if !hasArrivalInTown(block) {
+			continue
+		}
+		scene, err := parseTownArrivalScene(q.ID, block)
+		return scene, err == nil
+	}
+	return TownArrivalScene{}, false
+}
+
 // TownArrivalSceneWhitelist includes only complete quest rules whose source
 // town area and destination dungeon both exist in the same PVF export.
 // Unresolved rules are returned for audit rather than silently whitelisted.

@@ -214,12 +214,14 @@ type CharacterRow struct {
 	ContentClearFlags [28]byte
 }
 
-// Native list parser 0x145637a20, row parser 0x14563e280. Unknown scalar
-// fields are zero in this experimental baseline, recorded as such in evidence.
+// Native list parser 0x145637a20, row parser 0x14563e280. The first two
+// capacities are the current and restored slot counts: 145637D52 forwards
+// their difference to 140239B70 as newly granted slots. An ordinary roster
+// snapshot must restore both to the account's actual capacity.
 func CharacterList(capacity uint16, roles []CharacterRow) ([]byte, error) {
 	p := []byte{2, 0, 0}
 	p = add16(p, capacity)
-	p = add16(p, 0)
+	p = add16(p, capacity)
 	p = add16(p, 0)
 	p = add32(p, 0)
 	p = add16(p, uint16(len(roles)))

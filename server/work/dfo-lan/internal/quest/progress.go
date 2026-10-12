@@ -19,6 +19,7 @@ const ReachNPC = "alflyra-3252-reach-npc-remaining-v1"
 const SeekAndMeetNPC = "seek-items-and-meet-npc-remaining-v1"
 const SeekingItems = "seeking-items-remaining-v1"
 const LookCinematic = "look-cinematic-client-gated-v1"
+const TownArrivalCinematic = "town-arrival-cinematic-remaining-v1"
 const MonsterKillCheckpoint = "monster-kill-checkpoint-client-gated-v1"
 const SingleHuntEnemy = "single-hunt-enemy-remaining-v1"
 const SingleHuntMonster = "single-hunt-monster-remaining-v1"
@@ -257,14 +258,12 @@ func InitialProgress(d catalog.QuestDefinition) (uint32, string, error) {
 	if _, ok := ConditionUnderClearObjective(d); ok {
 		return 1, AllRoomsUnderClear, nil
 	}
-	// A [look cinematic] objective has no server-verifiable condition: the
-	// client plays the cutscene locally and only then lets the player submit.
-	// Progress 0 means the server accepts that submit; the single cell is the
-	// cinematic id, kept only to validate the source shape. This is the sole
-	// completion path a cinematic has, and it mints nothing beyond the quest's
-	// own configured reward. Without it the main story stalls at the first
-	// cutscene beat (quest 21029, level 22).
+	// An arrival cinematic is confirmed by CMD33 in its loaded quest maze.
+	// A standalone cinematic retains the existing client-gated submit policy.
 	if len(d.Pending) == 0 && d.Kind == "[look cinematic]" && len(d.ObjectiveCells) == 1 && d.ObjectiveCells[0].Type == 0 && d.ObjectiveCells[0].Value > 0 {
+		if _, ok := catalog.QuestTownArrivalScene(d); ok {
+			return 1, TownArrivalCinematic, nil
+		}
 		return 0, LookCinematic, nil
 	}
 	if MonsterKillCheckpointShape(d) {
@@ -426,6 +425,9 @@ func LegionContentClearShape(d catalog.QuestDefinition) bool {
 	return true
 }
 func (s *Service) Active(ctx context.Context, role character.Character) ([]protocol.ActiveQuest, error) {
+	if err := s.refreshTownArrivalCinematics(ctx, role); err != nil {
+		return nil, err
+	}
 	states, e := s.Store.Quests(ctx, role.AccountID, role.ID)
 	if e != nil {
 		return nil, e

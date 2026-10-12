@@ -16,6 +16,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -56,19 +57,40 @@ func townArrivalCompletionClient(t *testing.T) (*gameConnection, *[]map[string]a
 	})
 	require.Empty(t, issues)
 	room := catalog.DungeonRoom{Map: 100014294}
+	w.dungeons = &catalog.DungeonCatalog{Source: source, Dungeons: map[uint32]catalog.DungeonDefinition{100004400: {ID: 100004400, Mazes: []catalog.DungeonMaze{{Quest: 21029, Rooms: []catalog.DungeonRoom{room}}}}}}
+	w.quests.Dungeons = w.dungeons
+	time.Sleep(2 * time.Millisecond) // Separate SQLite's historical millisecond acceptance timestamp from run start.
 	w.pendingTownArrival = nil
 	w.activeDungeon = &dungeon.Session{
 		Definition: catalog.DungeonDefinition{ID: 100004400, BasisLevel: 1, NoFatigue: true},
 		Maze:       catalog.DungeonMaze{Quest: 21029, Rooms: []catalog.DungeonRoom{room}}, Room: room,
-		Loaded: true, RunID: strings.Repeat("b", 32), StartedAt: time.Now().Add(-time.Second),
+		Loaded: true, RunID: strings.Repeat("b", 32), StartedAt: time.Now(),
 		Visited: map[uint32][]protocol.DungeonMonster{room.Map: {}},
 	}
 	return client, events
 }
 
+func TestTownArrivalCinematicActiveMigratesNativeAcceptedState(t *testing.T) {
+	client, _ := townArrivalCompletionClient(t)
+	w := client.worldState
+	ctx := context.Background()
+	require.NoError(t, w.store.AbandonQuest(ctx, w.account, w.role.ID, 21029))
+	_, err := w.store.AcceptQuest(ctx, w.account, w.role.ID, 21029, w.role.ConfigVersion, 1, 115, nil, 0, quest.LookCinematic)
+	require.NoError(t, err)
+	active, err := w.quests.Active(ctx, w.role)
+	require.NoError(t, err)
+	require.Equal(t, []protocol.ActiveQuest{{ID: 21029, Progress: 1}}, active)
+	states, err := w.store.Quests(ctx, w.account, w.role.ID)
+	require.NoError(t, err)
+	require.Equal(t, quest.TownArrivalCinematic, states[0].ProgressModel)
+}
+
 func TestTownArrivalCinematicCompletionPrecedesQuestACKAndIsIdempotent(t *testing.T) {
 	client, events := townArrivalCompletionClient(t)
 	w := client.worldState
+	active, err := w.quests.Active(context.Background(), w.role)
+	require.NoError(t, err)
+	require.Equal(t, []protocol.ActiveQuest{{ID: 21029, Progress: 1}}, active)
 	request, err := hex.DecodeString("21002552000000000000000000000000") // GF index 19873.
 	require.NoError(t, err)
 	for attempt := 0; attempt < 2; attempt++ {
@@ -77,6 +99,7 @@ func TestTownArrivalCinematicCompletionPrecedesQuestACKAndIsIdempotent(t *testin
 		var names []any
 		for _, event := range (*events)[start:] {
 			require.NotEqual(t, "quest_interaction_refused", event["kind"], event)
+			require.NotContains(t, []string{"map_clear_quest_triggers", "act_quest_triggers_updated", "act_completed_quests_updated", "act_available_quests_updated"}, event["kind"])
 			names = append(names, event["kind"])
 		}
 		if attempt == 0 {
@@ -91,6 +114,9 @@ func TestTownArrivalCinematicCompletionPrecedesQuestACKAndIsIdempotent(t *testin
 		require.True(t, w.completionSent)
 		require.False(t, w.resultSent)
 		require.Nil(t, w.cardPlan)
+		active, err = w.quests.Active(context.Background(), w.role)
+		require.NoError(t, err)
+		require.Equal(t, []protocol.ActiveQuest{{ID: 21029, Progress: 0}}, active)
 	}
 }
 
@@ -148,6 +174,7 @@ func TestTownArrivalCinematicCompletionReachesOwnedSettlementAndTown(t *testing.
 	rules, err := character.LoadGrowthRules("../../configs/experience.compat90.json")
 	require.NoError(t, err)
 	w.progression = &character.ProgressionService{Store: w.store, Catalog: pc, Professions: professions, Rules: rules}
+	w.quests.Progression, w.quests.Professions = w.progression, professions
 	state := character.State{SourcePath: professions.Professions[0].Path, SourceSHA256: professions.Professions[0].RawSHA256, InitialSkills: professions.Professions[0].InitialSkills, Level: 22, Experience: pc.Thresholds[20], Attributes: professions.Professions[0].InitialAttributes}
 	raw, err := json.Marshal(state)
 	require.NoError(t, err)
@@ -195,4 +222,96 @@ func TestTownArrivalCinematicCompletionReachesOwnedSettlementAndTown(t *testing.
 	require.Nil(t, w.activeDungeon)
 	require.Equal(t, uint32(39), w.state.Position.Town)
 	require.Equal(t, uint32(1), w.state.Position.Area)
+	gate, err := hex.DecodeString("30f2f50500000000")
+	require.NoError(t, err)
+	_, err = w.dungeonGate(gate)
+	require.ErrorContains(t, err, "objective already completed")
+	w.selectingDungeon, w.approvedDungeonGate = true, 100004400
+	selection, err := hex.DecodeString("30f2f5050000000000ffff000000000025520000000000000000000000000000")
+	require.NoError(t, err)
+	_, _, err = w.selectDungeon(selection)
+	require.ErrorContains(t, err, "objective already completed")
+	active, err := w.quests.Active(context.Background(), w.role)
+	require.NoError(t, err)
+	require.Equal(t, []protocol.ActiveQuest{{ID: 21029, Progress: 0}}, active)
+	// The rejection is entry qualification, not forced quest submission.
+	// The ordinary reward transaction can still claim this completed objective.
+	finish, err := w.finishQuest(protocol.QuestSubmitRequest{ID: 21029, RewardSelection: 65535, Option: 1})
+	require.NoError(t, err)
+	var finishNames []string
+	for _, p := range finish {
+		finishNames = append(finishNames, p.Name)
+	}
+	require.Contains(t, finishNames, "quest_finished")
+	done, err := w.quests.Completed(context.Background(), w.role)
+	require.NoError(t, err)
+	require.Contains(t, done, uint32(21029))
+	finish, err = w.finishQuest(protocol.QuestSubmitRequest{ID: 21029, RewardSelection: 65535, Option: 1})
+	require.NoError(t, err)
+	for _, p := range finish {
+		require.NotEqual(t, "quest_finished", p.Name, "replay must not apply the quest reward again")
+	}
+}
+
+type failingArrivalMapClearStore struct {
+	*database.Store
+	fail bool
+}
+
+func (s *failingArrivalMapClearStore) RecordQuestMapClear(ctx context.Context, account, id int64, run string, mapID uint32, version, model string, ids []uint16) (bool, error) {
+	if s.fail {
+		s.fail = false
+		return false, errors.New("fixture map-clear write failure")
+	}
+	return s.Store.RecordQuestMapClear(ctx, account, id, run, mapID, version, model, ids)
+}
+
+func TestTownArrivalCinematicCompletionRetriesAfterCommittedObjective(t *testing.T) {
+	client, _ := townArrivalCompletionClient(t)
+	w := client.worldState
+	w.quests.Store = &failingArrivalMapClearStore{Store: w.store, fail: true}
+	r := uint16(21029)
+	plan, handled, err := w.townArrivalCinematicInteraction(r)
+	require.True(t, handled)
+	require.ErrorContains(t, err, "fixture map-clear write failure")
+	require.Empty(t, plan)
+	require.False(t, w.completionSent)
+	active, err := w.quests.Active(context.Background(), w.role)
+	require.NoError(t, err)
+	require.Equal(t, []protocol.ActiveQuest{{ID: 21029, Progress: 0}}, active, "objective commit survives failed follow-up")
+	plan, handled, err = w.townArrivalCinematicInteraction(r)
+	require.True(t, handled)
+	require.NoError(t, err)
+	require.Len(t, plan, 2)
+	require.Equal(t, "dungeon_clear_enabled", plan[0].Name)
+	require.Equal(t, "quest_interaction_accepted", plan[1].Name)
+	require.True(t, w.completionSent)
+}
+
+func TestTownArrivalCinematicConfirmationRequiresLoadedAcceptedLifetime(t *testing.T) {
+	for _, change := range []string{"town", "unloaded", "late-acceptance", "unowned"} {
+		t.Run(change, func(t *testing.T) {
+			client, events := townArrivalCompletionClient(t)
+			w := client.worldState
+			switch change {
+			case "town":
+				w.activeDungeon = nil
+			case "unloaded":
+				w.activeDungeon.Loaded = false
+			case "late-acceptance":
+				w.activeDungeon.StartedAt = time.Now().Add(-time.Hour)
+			case "unowned":
+				require.NoError(t, w.store.AbandonQuest(context.Background(), w.account, w.role.ID, 21029))
+			}
+			request, err := hex.DecodeString("21002552000000000000000000000000")
+			require.NoError(t, err)
+			require.Equal(t, dispatchHandled, client.dispatchWorldAndQuests(&clientRequest{frame: wire.Frame{Type: 1, ID: 33}, plaintext: request, verified: true}))
+			var names []any
+			for _, e := range *events {
+				names = append(names, e["kind"])
+			}
+			require.Contains(t, names, "quest_interaction_refused")
+			require.NotContains(t, names, "dungeon_clear_enabled")
+		})
+	}
 }
