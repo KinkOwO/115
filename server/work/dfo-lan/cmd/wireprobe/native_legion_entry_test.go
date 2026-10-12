@@ -53,7 +53,11 @@ func TestNativeLegionAllSourceBossEntries(t *testing.T) {
 			start := make([]byte, 17)
 			binary.LittleEndian.PutUint32(start[13:], content)
 			send(legion.CmdStart, start)
-			if plan, e := w.nativeLegionTick(s.nativeRun.ReadyAt); e != nil || len(plan) != 1 {
+			countdownPackets := 1
+			if name == "DuskyIsland" {
+				countdownPackets = 2
+			}
+			if plan, e := w.nativeLegionTick(s.nativeRun.ReadyAt); e != nil || len(plan) != countdownPackets {
 				t.Fatal("countdown", e)
 			}
 			selection := make([]byte, 19)

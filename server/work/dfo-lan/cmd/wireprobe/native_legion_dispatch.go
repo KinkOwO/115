@@ -220,7 +220,21 @@ func (w *worldSession) nativeLegionTick(now time.Time) ([]outboundPacket, error)
 	}
 	if r.Ready(now) {
 		info, e := r.Info(6, 0)
-		return []outboundPacket{{"native_legion_waiting", 0, notice, info}}, e
+		if e != nil {
+			return nil, e
+		}
+		plan := []outboundPacket{{"native_legion_waiting", 0, notice, info}}
+		if r.Source.Name == "DuskyIsland" {
+			// N2467/141c22e60 only refreshes an existing navigation window.
+			// C2143/141c28e90 calls the lazy factory 14667eb40 for window 0x289;
+			// action 1 with close=1 installs its normal navigation state (0),
+			// rather than opening the operation-selection state (1).
+			// Ready succeeds only once, so timers cannot reopen this UI or
+			// change an outstanding selection deadline on a later poll.
+			plan = append(plan, outboundPacket{"native_legion_navigation_initialized", 1, opcode,
+				legion.DuskySelectionAck(1, -1, true, 0, 0, int16(r.Reselections))})
+		}
+		return plan, nil
 	}
 	if r.Expire(now) {
 		info, e := r.Info(6, 0)
