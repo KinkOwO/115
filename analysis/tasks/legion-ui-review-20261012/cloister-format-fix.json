@@ -1,0 +1,67 @@
+{
+  "source_sha256": "d175ea7def414ec665f5052e90b82208786b7caae0d8d916470e1301bca50aca",
+  "exe_sha256": "515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb",
+  "installed": false,
+  "rows": [
+    {
+      "operation_index": 3,
+      "reference": "<20::DCMission_Content_003>",
+      "original": "对%s进行属性攻击时， 增加%d%%伤害",
+      "native_argument_order": [
+        "int32",
+        "wchar_t*"
+      ],
+      "native_fault": "exception: access violation reading 0x000000000000001E",
+      "replacement": "属性攻击伤害增加%d%%（目标：%s）",
+      "replacement_native_result": "属性攻击伤害增加30%（目标：测试目标）"
+    },
+    {
+      "operation_index": 5,
+      "reference": "<20::DCMission_Content_005>",
+      "original": "%s攻击力增加%d%%",
+      "native_argument_order": [
+        "int32",
+        "wchar_t*"
+      ],
+      "native_fault": "exception: access violation reading 0x000000000000001E",
+      "replacement": "攻击力增加%d%%（%s）",
+      "replacement_native_result": "攻击力增加30%（测试目标）"
+    },
+    {
+      "operation_index": 7,
+      "reference": "<20::DCMission_Content_007>",
+      "original": "%s的韧性条上限 + %d%%",
+      "native_argument_order": [
+        "int32",
+        "wchar_t*"
+      ],
+      "native_fault": "exception: access violation reading 0x000000000000001E",
+      "replacement": "韧性条上限 + %d%%（%s）",
+      "replacement_native_result": "韧性条上限 + 30%（测试目标）"
+    },
+    {
+      "operation_index": 1,
+      "reference": "<20::DCMission_Content_001>",
+      "original": "可使用2个复活币\\n 属性攻击%s时， 伤害 +<tst::glow_font::Legion_Beginner>%d%% <tst::default>",
+      "native_argument_order": [
+        "int32",
+        "wchar_t*"
+      ],
+      "native_fault": "exception: access violation reading 0x000000000000001E",
+      "replacement": "可使用2个复活币\\n 伤害 +<tst::glow_font::Legion_Beginner>%d%% <tst::default>（属性攻击目标：%s）",
+      "replacement_native_result": "可使用2个复活币\\n 伤害 +<tst::glow_font::Legion_Beginner>30% <tst::default>（属性攻击目标：测试目标）"
+    },
+    {
+      "operation_index": 1,
+      "reference": "<20::DCMission_Conten_Karon_001>",
+      "original": "在冒险家的墓碑上\\n灵魂永不枯竭。 属性攻击%s时， 伤害增加<tst::glow_font::Legion_Beginner>%d%% <tst::default>。",
+      "native_argument_order": [
+        "int32",
+        "wchar_t*"
+      ],
+      "native_fault": "exception: access violation reading 0x000000000000001E",
+      "replacement": "在冒险家的墓碑上\\n灵魂永不枯竭。 伤害增加<tst::glow_font::Legion_Beginner>%d%% <tst::default>（属性攻击目标：%s）。",
+      "replacement_native_result": "在冒险家的墓碑上\\n灵魂永不枯竭。 伤害增加<tst::glow_font::Legion_Beginner>30% <tst::default>（属性攻击目标：测试目标）。"
+    }
+  ]
+}
