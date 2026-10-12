@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"dfolan/internal/catalog/pvf"
 	"os"
 	"testing"
 )
@@ -24,6 +25,20 @@ func TestLegionNativeCurrentSource(t *testing.T) {
 			t.Fatal("missing native operations", name)
 		}
 		t.Logf("%s: phases=%d dungeons=%v modes=%v weekly=%v", name, x.LastPhase, x.Dungeons, x.NativeOperations.Modes, x.NativeOperations.WeeklyDungeons)
+		for index, definition := range x.NativeOperations.Definitions {
+			t.Logf("%s operation%d type=%d ranges=%+v strings=%+v", name, index, definition.Type, definition.Ranges, definition.Fields["[string data]"])
+			for _, token := range definition.Fields["[string data]"] {
+				if ref, ok := pvf.ParseLocalizedRef(token.Reference); ok {
+					text, found, err := a.LocalizedText(ref)
+					if err != nil {
+						t.Fatal(err)
+					}
+					t.Logf("%s operation%d ref=%s found=%v text=%q", name, index, token.Reference, found, text)
+				}
+			}
+
+		}
+
 	}
 	for _, name := range []string{"Venus Legion", "Apocalypse"} {
 		t.Logf("%s rewards=%+v", name, c.Contents[name].Rewards)
