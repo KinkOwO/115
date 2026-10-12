@@ -93,7 +93,7 @@ type DungeonDefinition struct {
 	// 率的量纲尚未定案，这里只记原值。
 	RewardDecls []DungeonRewardBlock `json:"reward_decls,omitempty"`
 	HellParty   *DungeonHellParty    `json:"hell_party,omitempty"`
-	Mazes      []DungeonMaze     `json:"mazes"`
+	Mazes       []DungeonMaze        `json:"mazes"`
 	// MazeChanceRates 非空表示这张副本按源里的 [maze chance rate] 掷骰选图，
 	// 而不是「同 quest 里 index 最小者」。
 	//
@@ -226,6 +226,7 @@ type DungeonCatalog struct {
 	Source           pvf.ArchiveSnapshot                  `json:"source"`
 	Dungeons         map[uint32]DungeonDefinition         `json:"dungeons"`
 	LegionContents   *LegionContents                      `json:"-"`
+	StackableLimits  *StackableDungeonLimits              `json:"-"`
 	IspinsOperations map[uint16]IspinsOperationDefinition `json:"ispins_operations,omitempty"`
 	// Runtime imports retain map identity here; use MapScript to obtain cells.
 	Maps           map[uint32]ScriptRecord `json:"maps"`
@@ -720,6 +721,10 @@ func importDungeons(a *pvf.Archive, ids []uint32, lazyMaps bool) (DungeonCatalog
 				return out, err
 			}
 			out.LegionContents = &contents
+			out.StackableLimits, err = importStackableDungeonLimits(a)
+			if err != nil {
+				return out, err
+			}
 		}
 		importMap := func(mapID uint32) {
 			if _, ok := out.Maps[mapID]; ok {

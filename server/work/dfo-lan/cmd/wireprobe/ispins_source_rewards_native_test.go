@@ -63,7 +63,7 @@ func TestIspinsCurrentSourceRewardWrappers(t *testing.T) {
 	}
 	bindings := 0
 	for index, op := range warm.IspinsOperations {
-		if op.Type != 6 || op.FixedValue == 0 {
+		if !catalog.IspinsOperationKindSupported(op.Type) || (op.Type == 6 && op.FixedValue == 0) {
 			continue
 		}
 		for _, id := range ids {
@@ -73,7 +73,7 @@ func TestIspinsCurrentSourceRewardWrappers(t *testing.T) {
 			bindings++
 		}
 	}
-	if bindings == 0 {
+	if bindings != len(warm.IspinsOperations)*len(ids) {
 		t.Fatal("no executable source reward binding")
 	}
 	t.Logf("cold/warm rules agree; %d source phase-operation bindings", bindings)

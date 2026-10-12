@@ -422,3 +422,17 @@ func hexNibble(c byte) (byte, bool) {
 	}
 	return 0, false
 }
+
+// Current N2256 reader142530eb0 consumes i16 operation + u8 success.
+// Consumer14252c460 ignores a result belonging to another operation.
+func IspinsSelectedOperationNotice(operation uint16, success bool) ([]byte, error) {
+	if operation == 0 || operation > 0x7fff {
+		return nil, fmt.Errorf("invalid Ispins operation index")
+	}
+	p := binary.LittleEndian.AppendUint16(nil, operation)
+	result := byte(0)
+	if success {
+		result = 1
+	}
+	return append(p, result), nil
+}

@@ -58,6 +58,10 @@ func RestoreRuntimeDungeons(a *pvf.Archive, c DungeonCatalog) (DungeonCatalog, e
 			return c, err
 		}
 		c.LegionContents = &contents
+		c.StackableLimits, err = importStackableDungeonLimits(a)
+		if err != nil {
+			return c, err
+		}
 	}
 	if err = c.attachMapScripts(a); err != nil {
 		return c, err

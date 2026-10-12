@@ -47,8 +47,8 @@ func IspinsPhaseRewards(contents *LegionContents, operations map[uint16]IspinsOp
 	if !ok || op.Difficulty == "" {
 		return r, fmt.Errorf("Ispins operation difficulty missing")
 	}
-	// Only the upstream time-limit operation has an established outcome executor.
-	if op.Type != 6 || op.FixedValue == 0 {
+	// Native effects consume the selected source card; server gates consumables and coins.
+	if !IspinsOperationKindSupported(op.Type) || (op.Type == 6 && op.FixedValue == 0) {
 		return r, fmt.Errorf("Ispins operation%d outcome executor is not bound (source type%d)", operation, op.Type)
 	}
 	r = LegionPhaseRewards{Content: content.Name, Checksum: contents.Source.Checksum, Dungeon: dungeon, WeeklyLimit: uint32(content.PhaseReward)}
