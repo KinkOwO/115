@@ -41,7 +41,8 @@ type attunementAdditional struct {
 // attunementHidden keeps the hidden tables verbatim. Key is the middle number of
 // a (tier, key, item) triple: in the fixed and additional tables that slot is a
 // weight, but here it runs 0,1,2,.. in step with the item ids, which no weight
-// can do. Nothing rolls these yet - see the note on Roll.
+// can do. The server does not roll them - the player picks one, see
+// HiddenSelection and CMD 2406.
 type attunementHiddenEntry struct {
 	Tier string `json:"tier"`
 	Key  uint32 `json:"key"`
@@ -312,6 +313,65 @@ func (a *AttunementRewards) RolledTemplates() []uint32 {
 		}
 	}
 	return out
+}
+
+// HiddenSelection is the [hidden drop table] cell the "Fate's Condensed Gear"
+// confirmation popup picked, kept as what the source says rather than as a
+// rolled reward: the player chooses it, so nothing here is random.
+//
+// The two subscripts are pinned by three live CMD 2406 bodies on 2026-10-12
+// (body = 4×u32, only the first two carry information):
+//
+//	(2,2) Accessory + Hideout's Endless Gold   14:36
+//	(2,3) Accessory + Dragon Arena Uprising    14:41
+//	(1,2) Armor    + Hideout's Endless Gold    15:36
+//
+// The part held still while the set moved, so the first u32 is the part and the
+// second is the set - not the other way round. Those two values also line up
+// with the client's own dropdown text (dstr 101038052..55, Weapon / Armor /
+// Accessory / Special Equipment = positions 0..3) and with [index] in the table,
+// which is 0 for the weapon row (one entry) and 1..3 for the rows that carry the
+// twelve sets.
+type HiddenSelection struct {
+	Maze  uint32 `json:"maze"`
+	Part  uint32 `json:"part"`
+	Set   uint32 `json:"set"`
+	Tier  string `json:"tier"`
+	Index uint32 `json:"index"`
+	// Carrier is the [booster] the row pays. It is a wrapper, so a caller that
+	// wants the item the player actually sees has to open one layer - which is
+	// what the drop path already does for every other attunement reward.
+	Carrier uint32 `json:"carrier"`
+}
+
+// HiddenSelection reads the one cell of the hidden table the popup selected.
+//
+// ok is false for a dungeon without a hidden table, for a part or set the row
+// does not declare, or for a row that does not use that subscript at all -
+// the weapon row has no set choice, so any non-zero set there is not found
+// rather than folded back onto entry 0.
+func (a *AttunementRewards) HiddenSelection(dungeon, maze, part, set uint32) (HiddenSelection, bool) {
+	if a == nil || !a.Enabled() {
+		return HiddenSelection{}, false
+	}
+	t, ok := a.byDungeon[dungeon]
+	if !ok {
+		return HiddenSelection{}, false
+	}
+	for _, h := range t.Hidden {
+		if h.Maze != maze || h.Index != part {
+			continue
+		}
+		for _, e := range h.Entries {
+			if e.Key != set {
+				continue
+			}
+			return HiddenSelection{Maze: h.Maze, Part: part, Set: set,
+				Tier: e.Tier, Index: h.Index, Carrier: e.Item}, true
+		}
+		return HiddenSelection{}, false
+	}
+	return HiddenSelection{}, false
 }
 
 // ValidateTemplates refuses a reward table whose items the running item catalog

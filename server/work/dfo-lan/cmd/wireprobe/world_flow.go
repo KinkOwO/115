@@ -292,6 +292,11 @@ type worldSession struct {
 	// 于是「客户端显示的那一档」与「服务端发的这一件」永远是同一档。
 	// 零值 = 非调律副本或调用方没接线，掉落退回内部预掷。
 	attunementRunTiers loot.RunTiers
+	// attuneHiddenRun 是本会话**已经确认过「命运的凝械」**（CMD 2406）的那一场 RunID。
+	// 一件只落地一次：该件还没跟着掉落帧出去时，重复确认按「改主意」顶掉前一次
+	// （弹窗原文 "Reselecting will reset the selected Part and Set"）；已经掉出去了
+	// 就绝不能再记第二件，那才是一次确认掉两件的真风险。
+	attuneHiddenRun string
 	// omenReported 是本会话已经记过事件的征兆结算序号（见 noteOmenClear）。
 	omenReported uint64
 	// scaleRun 是上面两张表所归属的副本运行号。同一会话里重进副本会把 entity 从

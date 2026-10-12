@@ -551,6 +551,10 @@ func (client *gameConnection) dispatchDungeon(requestData *clientRequest) dispat
 				}
 			case 2062:
 				pending, plan, e = client.worldState.directMoveDungeon(requestData.plaintext)
+			case 2406:
+				// 大深渊/调律之边界「选套装·部位」确认窗的 OK。必须回一帧同号、
+				// kind=1 的包，否则弹窗关不掉（取证见 attunement_reward.go）。
+				plan = client.worldState.answerAttuneConfirm(requestData.plaintext)
 			}
 		}
 		client.worldState.noteEliteCombatRequest(requestData.frame.ID, requestData.plaintext, eliteBefore, pending, plan, e, client.event)

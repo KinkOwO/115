@@ -1726,6 +1726,13 @@ func (w *worldSession) completeDungeon() ([]outboundPacket, error) {
 	if !w.activeDungeon.Completed() || w.completionSent {
 		return nil, nil
 	}
+	// 图内确认要掉的那一件是**搭下一次掉落帧**落地的（见 loot.Session.SetPendingDrop）。
+	// 结算了还没掉出去，说明这一场再没有一帧掉落 —— 必须说话，不能让「点了 OK 却
+	// 什么都没掉」再变成一次只能靠玩家肉眼发现的丢件。
+	if left := pendingAttuneHiddenDrop(w); len(left) > 0 {
+		log.Printf("attune hidden drop unpaid at clear: run %s still holds %v (no drop frame came after the confirm)",
+			w.activeDungeon.RunID, left)
+	}
 	if w.bleedingMineStart != nil {
 		return w.completeBleedingMineStage()
 	}
