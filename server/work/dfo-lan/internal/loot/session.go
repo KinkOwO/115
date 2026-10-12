@@ -49,7 +49,9 @@ type Session struct {
 	// attunementRolled 保证一轮只抽一次专属奖励：同一只源领主再被确认死亡
 	// （或同模板的第二只 rank3）都不会重复发奖。
 	attunementRolled bool
-	borderPlan       *borderRewardPlan
+	// pendingDrop 是**等下一次怪物死亡掉落帧带出去**的那一件，见 SetPendingDrop。
+	pendingDrop []Award
+	borderPlan  *borderRewardPlan
 	// omenRolled 与 attunementRolled 同理：同一场只推进一次征兆。
 	omenRolled bool
 	// oathTierRolled 与上面两个同理：同一场只按天平档位发一次罐子。
@@ -91,6 +93,37 @@ func preserveAbyssDrops(c catalog.LootCatalog, attunement *AttunementRewards, du
 // not exclude its ordinary run.
 func ordinaryDungeonRewards(d *dungeon.Session, c catalog.LootCatalog, attunement *AttunementRewards) bool {
 	return d != nil && !d.Definition.Odyssey && d.HellPosition == nil && !preserveAbyssDrops(c, attunement, d.Definition.ID)
+}
+
+// SetPendingDrop 记下一件要**搭本场下一次掉落帧**落地的奖励，替换而非累加。
+//
+// 为什么不是当场掉：地面掉落在本引擎里只有怪物死亡帧（noti 38）这一个载体，
+// 而「命运的凝械」那类图内确认（CMD 2406）发生在爆掉落**之前** —— 2026-10-12
+// 实机三场都是这个顺序（15:36:14 确认 → 15:36:32 掉落帧 → 15:36:33 起连续拾取）。
+// 搭这一帧就不用新造包，拾取也走已经验过的 CMD 43。
+//
+// 替换是刻意的：那个弹窗写着「Reselecting will reset the selected Part and Set」，
+// 同一场里再来一次 2406 就是玩家改了主意，最后一次算数；累加会变成一次确认掉两件。
+//
+// 记下的必须是**源给的载体**而不是成品：统一的那一层包装展开在 Death 里做
+// （见 OpenRewardBoxes 那一处），所以这里塞进去的和别的掉落走完全相同的路。
+func (s *Session) SetPendingDrop(a Award) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pendingDrop = []Award{a}
+}
+
+// PendingDrop reports what is still waiting for a drop frame.
+func (s *Session) PendingDrop() []Award {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]Award(nil), s.pendingDrop...)
 }
 
 func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop, error) {
@@ -359,6 +392,11 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 			result.NextSeed = next
 		}
 	}
+	// 图内确认要掉的那一件（CMD 2406「命运的凝械」）搭这一帧：排在末尾，
+	// 于是和别的掉落一样走下面那条统一的包装展开 + 耐久校验 + 落地编码。
+	// bossStart 在这里之后才算，所以黑鸦那批的下标簿记不受影响。
+	pending := s.pendingDrop
+	result.Awards = append(result.Awards, pending...)
 	// 包装展开：**所有来源统一在这里做一次** —— 通用掉落池、章节盒、调律专属奖励、征兆。
 	//
 	// 源自己写着「不实际发放礼盒，以开封状态发放」（这批盒子的客户端文案就是这个），
@@ -454,6 +492,8 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 		rows = append(rows, protocol.SceneDrop{Object: object, Item: item, Sentinel: 65535, Owner: s.Actor})
 	}
 	s.attunementRolled = s.attunementRolled || attunementPending
+	// 只在真的把行发出去之后才清：上面任何一步失败返回错误时，这一件还该等下一帧。
+	s.pendingDrop = nil
 	s.omenRolled = s.omenRolled || omenPending != nil
 	s.oathTierRolled = s.oathTierRolled || oathPending
 	s.seeds[d.Room.Map] = result.NextSeed

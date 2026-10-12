@@ -107,6 +107,18 @@ type RunTiers struct {
 	// 0 表示这张表没有可比较的保底（例如小深渊，它的 fixed 池从 normal 起）。
 	Floor      uint32
 	FloorLabel string
+	// OathTemplate / OathAmount 是 PlanRun 在 additional 里**已经掷定的那一支的条目**
+	// 与它的 `[drop count]`。
+	//
+	// 必须把条目本身带下来，而不能只带档位：大深渊一张表有 10~14 支，档位标签在
+	// 多支之间是**重复**的（epic 同时出现在涌起波动、同样的命运、祝福气息武器/首饰/
+	// 防具/特殊、神兵认主、宝匣上）。只带档位再反查会永远命中第一支，其余全被遮蔽 ——
+	// 实测 100005068 的 14 支里只有 3 支付得到东西。
+	//
+	// 零值 = 本场没有掷定条目（非调律副本、或 `-oath-grades` 那两条诊断覆盖只给了
+	// 档位数字），此时 RollPlanned 退回按档位反查，行为与旧版相同。
+	OathTemplate uint32
+	OathAmount   uint32
 }
 
 // PlanRun 在**进本时**预掷两条线的档位。
@@ -117,6 +129,8 @@ type RunTiers struct {
 //	oath  ：先按 [select prob] 掷 additional 的分支，再在该分支内按权重掷条目，
 //	        取该条目的 tier —— 分支 1 的唯一一个条目就是「本次没拿到誓约」的空奖，
 //	        它的 tier 是 normal ⇒ oath=40，与官方「没拿到誓约」同义。
+//	        掷中的**条目本身**与该支的 `[drop count]` 一起带在 OathTemplate/OathAmount
+//	        里交给掉落阶段；只带 tier 会让大深渊那 10~14 支被第一支全部遮蔽。
 //
 // 掉落阶段用 RollPlanned 按这两个档位选池，保证颜色与奖励一致。
 func (a *AttunementRewards) PlanRun(seed, dungeon, maze uint32) (RunTiers, uint32, error) {
@@ -150,6 +164,9 @@ func (a *AttunementRewards) PlanRun(seed, dungeon, maze uint32) (RunTiers, uint3
 			}
 			out.Oath = TierGradeValue(e.Tier)
 			out.OathLabel = e.Tier
+			// 掷中的那一支连同条目一起带下去，掉落阶段不再按档位反查重选。
+			out.OathTemplate = e.Item
+			out.OathAmount = branch.DropCount
 		}
 	}
 	return out, rng.Seed, nil
@@ -270,11 +287,13 @@ func pickWithinTier(rng *RNG, list []attunementEntry, tier string) (attunementEn
 	return in[len(in)-1], nil
 }
 
-// RollPlanned 按**预掷的档位**选池，是掉落阶段真正走的入口。
+// RollPlanned 按**预掷的结果**选池，是掉落阶段真正走的入口。
 //
-// 与旧的 Roll 相比只有一处不同：fixed 用 `tiers.Primer` 选定 tier 再在组内掷，
-// additional 用 `tiers.Oath` 选定条目 —— 于是「客户端显示的那一档」与
-// 「服务端发的这一件」永远是同一档。档位为 0（该线本场没有）时那条线不发东西。
+// fixed 用 `tiers.Primer` 选定 tier 再在组内掷；additional 直接付 `tiers.OathTemplate`
+// 那一条 × `OathAmount`（= 该支的 `[drop count]`）—— 于是「客户端显示的那一档」与
+// 「服务端发的这一件」永远是同一档，且**发的是进本时掷中的那一支**，不再按档位重选。
+// 档位为 0（该线本场没有）时那条线不发东西。
+// 只给了档位没给条目（诊断覆盖 `-oath-grades` / `--oath-from-gear`）时退回按档位反查。
 func (a *AttunementRewards) RollPlanned(seed, dungeon, maze uint32, tiers RunTiers) ([]Award, uint32, error) {
 	if !a.Enabled() {
 		return nil, seed, nil
@@ -295,14 +314,22 @@ func (a *AttunementRewards) RollPlanned(seed, dungeon, maze uint32, tiers RunTie
 		}
 	}
 	if tiers.Oath != 0 || tiers.OathLabel != "" {
-		branch, e, err := oathEntryByTier(t, plannedTier(tiers.Oath, tiers.OathLabel))
-		if err != nil {
-			return nil, seed, err
+		item, amount := tiers.OathTemplate, tiers.OathAmount
+		if item == 0 {
+			// 诊断覆盖只给了档位数字 ⇒ 退回按档位反查（与旧行为逐字节相同）。
+			branch, e, err := oathEntryByTier(t, plannedTier(tiers.Oath, tiers.OathLabel))
+			if err != nil {
+				return nil, seed, err
+			}
+			item, amount = e.Item, branch.DropCount
 		}
-		for i := uint32(0); i < branch.DropCount; i++ {
-			// DropCount 在本表恒为 1；多份时按**同一档**重复发，不再二次掷骰，
-			// 否则「显示一档、掉了另一档」会从这里漏回来。
-			out = append(out, Award{Template: e.Item, Amount: 1})
+		for i := uint32(0); i < amount; i++ {
+			// 多份时按**掷中的那一条**重复发，不再二次掷骰：源表的 `[drop count]`
+			// 是这一支要掉几件（涌起 3/5/10 次波动），而重掷会把档位改到
+			// 客户端天平上并没有显示的那一档（「显示一档、掉了另一档」从这里漏回来）。
+			// ⚠️ 仍未取证的一点：官方的「X 次」到底是同一件 ×X 还是对该列表掷 X 次，
+			// 这里按前者（与本仓旧实现对大深渊的实际行为一致）。
+			out = append(out, Award{Template: item, Amount: 1})
 		}
 	}
 	return out, rng.Seed, nil
