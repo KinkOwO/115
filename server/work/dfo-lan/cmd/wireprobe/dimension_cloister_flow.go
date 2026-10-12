@@ -266,21 +266,12 @@ func dimCloisterPartyMemoryRecords(cleared, members int) []dimCloisterMemoryReco
 	return records
 }
 
-// dimCloisterMemoryRecordsFor 是「这条连接当前该发哪组记忆」的唯一入口。
-//
-// ★ 2026-10-10 第五/六轮实机结论（会话 ..._150519_619864 与随后那次 1 条记录版本）：
-// 官服那份 `(1,0,37,1)(4,0,40,2)(7,0,150,3)` 会崩；**只发 1 条（槽位 1）同样崩**
-// （两次都是 `client.log exit=0xC0000005`，都在点右上角 UI 那一刻）⇒ 与条数/队伍人数无关。
-//
-// IDA 追到的崩点：operation 的文本 getter（如 type 1 的 `sub_1420A2910`）把表项里的
-// 字符串拼成**格式串**再喂 `vswprintf`，格式串是脏指针 ⇒ CRT `wcsnlen` 崩。
-// 而本客户端数据 `Contents/2022/DimensionCloister/Etc/MyresDimensionCloister.etc` 里
-// 9 个 operation 的 `[string data]` **全是空的**（国服那份不是），解析器
-// `sub_14209E7A0` 就是按这份字符串写进那张 16 位键 map 的 ⇒ **任何非零记录都会崩**。
-//
-// 结论：这是**客户端数据缺口**，服务端任何帧都补不上。所以在业主决定是否补客户端
-// 数据之前，这里**一律发全 0**（内容可用、不崩）；官服那三组只作为诊断入口
-// （DFO_CLOISTER_MEMORY_RECORDS）与文档目标保留。
+// dimCloisterMemoryRecordsFor retains the historical zero-card crash guard.
+// Earlier live sessions crashed with nonzero captured records. The old claim
+// that all source strings were empty was too broad: current PVF Type8 references
+// resolve titles and some descriptions, while some in-dungeon descriptions are
+// empty. Do not remove the guard until native format/operation consumption and
+// the actual client resource identity have been verified together.
 func dimCloisterMemoryRecordsFor(cleared int) []dimCloisterMemoryRecord {
 	if override := dimCloisterMemoryRecordsFromEnv(); override != nil {
 		return override
@@ -317,6 +308,10 @@ func dimCloisterProgressPackets(records []dimCloisterMemoryRecord, stage int) ([
 	if err != nil {
 		return nil, "", err
 	}
+	// N2314 reader 14209e590 copies the entire progress record on every frame.
+	// Reopening the window must preserve the phase and dungeon rows; replaying
+	// hallOptions verbatim would overwrite them with the initial phase zero.
+	copy(options[11:63], body[11:63])
 	return []outboundPacket{
 		{Name: "dim_cloister_info_" + name, Kind: 0, ID: legion.NotiDimCloisterInfo,
 			Payload: dimCloisterApplyMemoryRecords(body, records)},
@@ -810,21 +805,9 @@ func (s *legionSession) dimCloisterSelect(w *worldSession, p []byte) (legionResu
 			s.dimCloisterWindowDeadline = time.Time{}
 			s.dimCloisterDropWindowEvents()
 		} else {
-			// 本界进度态：还没进过图就是集结区「已选定」态，进过图就是本界记录态。
-			//
-			// ★★ 2026-10-11 第二十七轮：**下标必须是"已清界数"，不是"已清界数-1"**。
-			//
-			// 实机日志（会话 `..._20261010_220400_862970`）：
-			//
-			//	22:06:04 清关 → 发 dungeon1（@11=2）→ 客户端横幅+翻牌 ✓、发了 CMD2046 ✓
-			//	22:06:28 客户端回城后**打开了作战窗口**（CMD2080）
-			//	         我们回的是 **dungeon0（@11=1）** ← 又把进度倒回"第 1 界已清"
-			//
-			// 清关那条路（`dimCloisterAcknowledgeStage`）已经按"已清界数"当下标取帧，
-			// 而这里还传着 `cleared-1`（旧口径），于是回城开窗时客户端看到的记录
-			// 退回上一界 ⇒ 第 2 界仍不可选。两处口径必须一致。
+			// The captured dungeonN frame describes the clear of zero-based stage N.
 			if s.dimCloisterCleared > 0 {
-				if progress, _, err := dimCloisterProgressPackets(s.dimCloisterMemoryRecords(), s.dimCloisterCleared); err == nil {
+				if progress, _, err := dimCloisterProgressPackets(s.dimCloisterMemoryRecords(), s.dimCloisterCleared-1); err == nil {
 					plan = append(plan, progress...)
 				}
 			} else if picked, err := dimCloisterInfoPackets(s.dimCloisterMemoryRecords(), legion.DimCloisterInfoHallPicked); err == nil {
@@ -991,8 +974,11 @@ func (s *legionSession) dimCloisterLoadStage(w *worldSession, p []byte) (legionR
 	// 与"服务端帧没推进"的唯一直接证据。看清之后下一轮再决定是否照三家硬拒。
 	log.Printf("dim cloister enter request: requested_stage=%d cleared=%d stage_field=%d",
 		stage, s.dimCloisterCleared, s.dimCloisterStage)
-	s.dimCloisterStage = int(stage)
-	s.dimCloisterParty = party
+	if int(stage) != s.dimCloisterCleared {
+		return legionResult{}, fmt.Errorf("cloister stage %d is not next owned phase %d", stage, s.dimCloisterCleared)
+	}
+	// Publish the new phase only after dungeon preparation succeeds.
+
 	// ★★ 2026-10-10 第二十一轮：进图时**复位开窗状态**。
 	//
 	// 业主实机：「回到城镇后不能选下一界」。原因是 `dimCloisterWindowAcked` 在上一界
@@ -1002,13 +988,14 @@ func (s *legionSession) dimCloisterLoadStage(w *worldSession, p []byte) (legionR
 	// 下一界的关卡列表，就选不了下一界。
 	//
 	// 开窗状态是"一次窗口会话"的量，进图即结束，所以在这里和新一轮开始时都清掉。
-	s.dimCloisterWindowAcked = false
-	s.dimCloisterWindowDeadline = time.Time{}
-
 	plan, note, err := w.dimCloisterLoadStagePlan(int(stage), party, s.dimCloisterStageDungeon(int(stage)))
 	if err != nil {
 		return legionResult{}, err
 	}
+	s.dimCloisterWindowAcked = false
+	s.dimCloisterWindowDeadline = time.Time{}
+	s.dimCloisterStage = int(stage)
+	s.dimCloisterParty = party
 	// ★ 2026-10-10 业主实机报「进本后装备全没、打怪没伤害」。
 	//
 	// 这条内容按设计会切到「记忆负载」，负载为空 ⇒ 角色在副本内没有装备 ⇒ 没有伤害。
@@ -1051,12 +1038,14 @@ func (s *legionSession) dimCloisterLoadStage(w *worldSession, p []byte) (legionR
 		binary.LittleEndian.PutUint32(body[4:], uint32(time.Now().Unix()))
 		plan[i].Payload = body
 	}
-	progress, name, err := dimCloisterProgressPackets(s.dimCloisterMemoryRecords(), int(stage))
+	// Entry is not a boss clear. Keep the current row and do not reopen the
+	// operation window or send a captured post-clear outcome inside the room.
+	active, err := dimCloisterActiveInfo(s.dimCloisterMemoryRecords(), int(stage))
 	if err != nil {
 		return legionResult{}, err
 	}
-	plan = append(plan, progress...)
-	note["progress_info"] = name
+	plan = append(plan, outboundPacket{"dim_cloister_info_active", 0, legion.NotiDimCloisterInfo, active})
+	note["progress_info"] = "active"
 	note["frames"] = len(plan)
 	return legionResult{Packets: plan, Events: []map[string]any{note}}, nil
 }
@@ -1212,6 +1201,11 @@ func (s *legionSession) dimCloisterRewardEnd(w *worldSession, p []byte) (legionR
 	if stage < 0 {
 		stage = 0
 	}
+	if stage >= s.dimCloisterCleared {
+		if err := s.dimCloisterOwnedClear(w, stage); err != nil {
+			return legionResult{}, err
+		}
+	}
 	last := stage >= len(legion.DimCloisterStageDungeons)-1
 
 	result := legionResult{Packets: []outboundPacket{{
@@ -1270,33 +1264,13 @@ func (s *legionSession) dimCloisterAcknowledgeStage(w *worldSession, stage int) 
 		// 本界已经确认过 —— 不再重发 N2314（重发会让客户端再开一次翻牌）。
 		return legionResult{}
 	}
-	// ★★ 2026-10-10 第二十二轮（业主：「回城后不能选下一界」，日志证据见下）：
-	//
-	// 官服那两帧的进度位把答案写得很清楚：
-	//
-	//	dungeon0（官服 #897）@11 = 01   ← 官服在【第 1 界清关】之后发的
-	//	dungeon1（官服 #981）@11 = 02   ← 官服在【第 2 界清关】之后发的
-	//
-	// 也就是**第 N 界清关后要发 @11 = N+1 的那一帧**（"已经推进到第 N+1 界"）。
-	// 本仓此前传的是 `stage` 本身（第 1 界清完发 dungeon0/@11=1）——
-	// 等于把"进度"原地写了一遍，客户端的关卡列表里第 1 界仍然算没打过 ⇒
-	// 回城开窗时选不了下一界。
-	//
-	// 改成"用清关后的界数当帧下标"：第 1 界清完 `cleared`=1 ⇒ `dungeon1`（@11=2），
-	// 第 2 界清完 `cleared`=2 ⇒ `dungeon2`（@3=05 收尾帧）。
-	//
-	// 注意：这与本仓**既有的**一处口径一致 —— 回集结区开窗时
-	// （`dimCloisterOperationSelect` 里 `s.dimCloisterCleared > 0` 那一支）本来就是
-	// `dimCloisterProgressPackets(..., s.dimCloisterCleared-1)` 传"已清界数"当下标，
-	// 也就是把 `dungeon0` 当作"第 1 界已清"的记录。
-	newCleared := stage + 1
-	if newCleared > len(legion.DimCloisterStageDungeons) {
-		newCleared = len(legion.DimCloisterStageDungeons)
+	if err := s.dimCloisterOwnedClear(w, stage); err != nil {
+		return legionResult{Events: []map[string]any{{"kind": "dim_cloister_clear_refused", "error": err.Error()}}}
 	}
-	infoStage := newCleared
-	if infoStage >= len(legion.DimCloisterStageDungeons) {
-		infoStage = len(legion.DimCloisterStageDungeons) - 1
-	}
+	// Capture #897 advances to phase 1 after stage 0; #981 advances to phase 2
+	// after stage 1. Native 1420a07e0 uses this value directly as a row index.
+	// Adding one to the capture index skipped a stage and closed the UI early.
+	infoStage := stage
 	progress, name, err := dimCloisterProgressPackets(s.dimCloisterMemoryRecords(), infoStage)
 	if err != nil {
 		return legionResult{Events: []map[string]any{{
@@ -1508,4 +1482,34 @@ func (w *worldSession) dimCloisterLoadStagePlan(stage int, party byte, dungeonID
 		"party":            party,
 		"frames":           len(plan),
 	}, nil
+}
+
+// A result-window request is not proof of a boss kill. The source dungeon
+// session remains the owner even when the native presentation was sent early.
+func (s *legionSession) dimCloisterOwnedClear(w *worldSession, stage int) error {
+	if s == nil || w == nil || stage < 0 || stage >= dimCloisterStageCount || stage != s.dimCloisterCleared || w.activeDungeon == nil || w.activeDungeon.RunID == "" || !w.activeDungeon.Completed() || w.activeDungeon.Definition.ID != s.dimCloisterStageDungeon(stage) {
+		return fmt.Errorf("cloister reward end before owned sequential boss completion")
+	}
+	return nil
+}
+
+// dimCloisterActiveInfo retains the selected/current phase until a confirmed
+// boss death. N2314's phase is an array index in native 1420a07e0, not a count
+// to advance when loading a room.
+func dimCloisterActiveInfo(records []dimCloisterMemoryRecord, stage int) ([]byte, error) {
+	if stage < 0 || stage >= len(legion.DimCloisterStageDungeons) {
+		return nil, fmt.Errorf("invalid Cloister stage")
+	}
+	body, err := legion.DimCloisterInfoBody(legion.DimCloisterInfoHallPicked)
+	if err != nil {
+		return nil, err
+	}
+	if stage > 0 {
+		previous, _, err := legion.DimCloisterDungeonInfoBody(stage - 1)
+		if err != nil {
+			return nil, err
+		}
+		copy(body[11:63], previous[11:63])
+	}
+	return dimCloisterApplyMemoryRecords(body, records), nil
 }
