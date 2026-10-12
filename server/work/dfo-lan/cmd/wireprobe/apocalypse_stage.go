@@ -172,6 +172,16 @@ func (w *worldSession) apocalypseAdvanceDue(now time.Time) ([]outboundPacket, []
 	if !run.Entered || run.Ended {
 		return nil, nil
 	}
+	if run.Choice == 2 && pending.stage > 1 {
+		result, err := w.legion.apocalypseMasterMove(w, legion.ApocalypseStageDungeons[pending.stage])
+		if err != nil {
+			pending.done = false
+			pending.at = now.Add(time.Second)
+			return nil, []map[string]any{{"kind": "apocalypse_master_advance_refused", "error": err.Error()}}
+		}
+		// A timer has no C2062 to acknowledge. Send the prepared scene only.
+		return result.Packets[1:], result.Events
+	}
 	sel := protocol.DungeonSelection{ID: legion.ApocalypseStageDungeons[pending.stage], Difficulty: 0, Party: 65535}
 	sess, frames, err := w.apocalypseStageEntry(sel)
 	if err != nil {
@@ -255,6 +265,9 @@ func (w *worldSession) apocalypseAdvanceSweep(now time.Time) []map[string]any {
 	if !run.Entered || run.Ended || run.Rewarded {
 		return nil
 	}
+	if run.Choice == 2 {
+		return nil
+	} // Master follows its frozen branch route.
 	stage := legion.ApocalypseStageOfDungeon(w.activeDungeon.Definition.ID)
 	if stage < 0 {
 		return nil
@@ -342,6 +355,9 @@ func (w *worldSession) apocalypseStageProjection(event func(map[string]any)) []o
 		return []outboundPacket{{
 			"apocalypse_navigation_cleared", 0, legion.NotiLegionInfo, w.legion.apocalypseInfo(),
 		}}
+	}
+	if run.Choice == 2 {
+		return w.apocalypseMasterClear(stage, event)
 	}
 	next := stage + 1
 	// 某关清完后：Stage 推到「已打完的下一关」（客户端据此发 CMD2062 直进），

@@ -130,7 +130,7 @@ func (w *worldSession) apocalypseStoryPause(p []byte) ([]outboundPacket, []map[s
 		run.StoryFinished = true
 		plan = append(plan, outboundPacket{
 			"apocalypse_terminal_leave", 0, legion.NotiLegionInfo,
-			legion.ApocalypseInfo(legion.ApocalypseLeaveInfo(run.Choice, run.Stage-1)),
+			legion.ApocalypseInfo(legion.ApocalypseLeaveInfo(run.Choice, legion.ApocalypseEndpoint(run.Choice))),
 		})
 		notes = append(notes, map[string]any{
 			"kind": "apocalypse_clear_movie_finished", "character_id": w.role.ID,

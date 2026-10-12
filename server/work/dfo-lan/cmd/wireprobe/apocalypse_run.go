@@ -333,6 +333,15 @@ func (s *legionSession) apocalypseInfo() []byte {
 	for i := 1; i <= run.Cleared && i < 6; i++ {
 		state.TargetMarks[i] = 1
 	}
+	if run.Choice == 2 {
+		for i := range state.TargetMarks {
+			state.TargetMarks[i] = 0
+			if run.TargetCleared[i] {
+				state.TargetMarks[i] = 1
+			}
+			state.TargetElapsedMS[i] = run.ClearElapsedMS[i]
+		}
+	}
 	if run.Ended {
 		state.State = 0
 	} else {
@@ -795,6 +804,9 @@ func (s *legionSession) apocalypseDirectMove(w *worldSession, id uint32) (legion
 	}
 	if stage == 0 && run.Stage > 0 {
 		return legionResult{}, fmt.Errorf("apocalypse waiting room %d is not re-enterable once stage %d is active", id, run.Stage)
+	}
+	if run.Choice == 2 && stage > 1 {
+		return s.apocalypseMasterMove(w, id)
 	}
 	if stage > 0 && stage != run.PhaseCleared+1 {
 		// 阶段必须顺序推进：抓包两场都是 1→2→3→4→5。

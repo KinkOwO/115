@@ -80,7 +80,12 @@ func ApocalypseCombatStageDungeons() []uint32 {
 type ApocalypseRunState struct {
 	// Choice is the difficulty byte of the CMD2354 confirmation (255 = none
 	// selected). The client looks the CTP operation up as choice+1.
-	Choice byte
+	Choice             byte
+	MasterAwaitingGate bool
+	MasterGateBoard    [4]byte
+	MasterRoute        []byte
+	TargetCleared      [6]bool
+	ClearElapsedMS     [6]uint64
 	// Action is the last CMD2354 action (1 = open/refresh, 2 = confirm).
 	Action uint32
 	// Entered records that CMD2045 was answered for this run.
@@ -240,7 +245,7 @@ func ApocalypseEndpoint(choice byte) int {
 	switch choice {
 	case 0:
 		return 3
-	case 1:
+	case 1, 2:
 		return 5
 	}
 	return len(ApocalypseStageDungeons) - 1

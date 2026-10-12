@@ -30,7 +30,11 @@ func prepareApocalypseRewardFixture(t *testing.T, w *worldSession) {
 	if op == nil {
 		t.Fatal("fixture operation missing")
 	}
-	op.Reward.Values = []float64{22, 3, 1000000, float64(*op.Type), 1}
+	tier := float64(*op.Type)
+	if *op.Type == 3 {
+		tier = 1
+	}
+	op.Reward.Values = []float64{22, 3, 1000000, tier, 1}
 	w.dungeons.LegionContents.SHA256 = strings.Repeat("b", 64)
 	w.dungeons.LegionContents.Contents["Apocalypse"] = catalog.LegionContent{Name: "Apocalypse", Rewards: []catalog.LegionRewardRow{{PartyType: "solo", Difficulty: op.Reward.Label, Kind: "basic", Values: []int64{1000000, 77, 1}}}}
 	stage := legion.ApocalypseEndpoint(w.apocalypse.Choice)

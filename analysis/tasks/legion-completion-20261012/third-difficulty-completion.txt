@@ -1,0 +1,42 @@
+末世录第三档接通：源码与原生界面候选
+
+当前 US EXE SHA256 515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb
+当前源归档 SHA256 6f525953bf9d0da8ac70fc9bf00fd4c2bd3b3880e2d518cb4a2119feea9d2733
+
+入口：原生 C2354 key2 → CTP index3/type3/master；Current140699750
+使用 choice+1，Current140698520 将 choice1/2 终点设为5。
+客户端原数组仅2项；已准备 schema2 插件扩展到3项并整体迁移数组引用，
+确认窗口保留原布局。美术核对与原始 CN/US资源证据见 cn-third-card-artwork.txt。
+服务端不能替代客户端的创建/点击循环；插件只改内存且逐处核对指令。
+宿主加载过晚或指令不同会拒绝启用，不对已分配的小对象做强制扩容。
+客户端没有自动安装或运行，尚无第三卡实机点击/确认的动态证据。
+
+机制：当前 CTP index3 的 gate schedule、gateflow 已进入生产运行路径。
+首个BOSS服务端耗时冻结物理四门；快路径<45秒四门开放，45秒关闭直达终点，
+60秒再关闭直达源目标4的路，120秒再关闭直达源目标3的路。
+源门槽/目标关联见 internal/legion/physical_doors.go 与原 source action。
+玩家实际 C2062 目的地决定路线，禁止未杀 BOSS、关闭门、跨路线目标。
+自动推进只消费已经选定的后续路线，不能替玩家选门；第三档关卡禁复活
+来自其未声明 [allow coin] 的现行服主规则；阶段钟继续取源 PhaseClock。
+目标通关标记与毫秒耗时填入已有 N2895 的已确认字段，重放清场不重抽门表。
+只在真实终点BOSS完成后按 master 的 COS 基本礼包和 CTP 星石盒事务发奖。
+不能提前在其它 BOSS 或活怪存在时结算。
+
+结算：SQLite Freeze/Claim → 当前背包N13 → 终点状态 → N2252/N2253
+→ C2046确认及State3片尾 → C191恢复后的State5 → C72返回城镇并清本局。
+重复 C2046 只确认，不再次发奖或再次开片尾。
+修正片尾恢复的阶段：C2046已把run.Stage归零，原run.Stage-1为-1；
+现在按已选难度的原生终点5生成离场状态。
+
+验证：第三档四分支全链 SQLite 测试；关闭门拒绝与等待选择不自动推进；
+真实归档四路线加载/真实怪物死亡到终点；三种基本奖励礼包实际源展开/入包；
+原生第三卡内存机制自测、编译/资源来源审计、mod框架验证及还原。
+没有新的实机成功确认，不升级 confirmed baseline。
+可作为明确标注实机待验收的源码候选提交至现有草稿 MR223。
+C2062 第三档路由此次为源门表执行 attempt1/3，无新布局假设。
+
+全量验证：4311 pass / 295 skip / 0 fail，go vet与go build通过。
+补丁DLL /W4 /WX /MT 构建及独立机制测试通过；schema2 verify/plan/install/
+uninstall通过，隔离目录原有文件保持一致，新增DLL卸载后不存在。
+末世录normal/expert/master实际PVF基本礼包源展开与入包检查通过。
+候选mod包 SHA256 df6823c7bdd8cba8890b97fa2a199c73c0f1dfcf642dcf31b6b3c0b7ed82d003。
