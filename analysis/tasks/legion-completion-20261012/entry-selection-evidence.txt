@@ -1,0 +1,36 @@
+当前 US 字段核对与 CN 界面参照（2026-10-12）
+US PE SHA256: 515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb
+使用不可变原始 PE 离线反编译，未启动游戏、未宣称动态命中。
+
+回廊（承接第八节新证据阶段，attempt 2/3；不重置历史失败记录）：
+C2045 writer 1424fe290：13B envelope + content:u32@13 + phase:u32@17，logical21B。
+旧 decoder @16 将第二界1读成256。ACK reader1424fd160读success后的13B：error@1/content@5/phase@9/flag@13。
+C2080 reader1420a5390：success后19B，action:u32@1、selected:i16@5、close:u8@7、deadline:u32@12。
+旧关窗p[3]=1把action1破坏成65537。更正为20B逻辑应答、close@7。
+C2080 action1为开窗、action2为选择；重复action1不应按“第二次请求”确认，也不延长deadline。
+保留业主既定最高档与自动选择策略；不是将回廊捕获卡迁移到当前ETC的完成声明。
+旧C2081分支仅清理队列；没有找到当前US C2081 writer/command ACK reader，不能将旧处理器视为当前原生关窗契约。
+新增测试：非零phase、完整u32内容身份、重复开窗、关闭后队列清理、无窗口选择拒绝、自动确认后状态复位。
+
+幽暗岛：
+141c292f0发送C2143 logical19B：envelope13+action:u32+selected:i16；141c28e90接受action1/2/4。
+ACK logical20B：action@1、index@5、close@7、deadline@12、secondary@16、reselection:i16@18。
+N2467 reader141c29080读133B；141c22e60直接覆盖manager记录，源值@4作为signed short进入operation+0x108。
+新增有类型编码/请求解析和边界测试，不把N2895的content前缀或204B体套用到N2467。
+content103/C2143先于末世录路由拒绝未完成链，防止原先公共处理器创建末世录会话。
+这是分流修复与协议基础，不是幽暗岛可开团、可进图、可结算的实现；没有下发未验证N2467状态。
+当前普通模式不包含operation21(type4,1.5)，该值属于expert，不能用它证明普通模式全部不可用。
+普通operation7仍有5..10 step0；抽样粒度/概率未经当前消费链证实，不擅自改成步长1。
+type4虚表+28(141c28a10)使用source operation formula的name/value向量，不能只凭网络+108推断该效果。
+生产接线仍缺：当前US建队→开战/N2254/N2467消费顺序、选卡/重选费用与次数、阶段完成/退出/最终演出及源奖励事务。
+
+末世录：
+1406a8ce0点击、1406a94a0刷新只遍历2个选项；panel+3ec写0/1，1406a1fa0确认传给C2354 writer。
+第3个相邻字段不是同类选项槽，不能把循环界限2改3就交付。
+CN Game.dll的Cn115LegionPreparation接受choice0..2；仅能证明CN服务端允许三档。
+CN客户端 D:/115us/台改客户端/原版客户端/Client/地下城与勇士：创新世纪/DNF.exe
+SHA256 1dca338c5a7243cc664cbea52574aa59fcf5b49f6c552d91f7d46fa82debcfe9，278706808B。
+代码区.std RVA0x1000/163000320B熵7.99、受保护，入口RVA0x11d4b5cf。
+RTTI可见ApocalypseSelectOperationCardPannel与ApocalypseOperationCardSlot；不能据RTTI认定三按钮构造已还原。
+没有找到现成CN解包PE/IDB；未无人值守启动CN获取内存。
+客户端修改须根AGENTS §0第1条的明确授权；已提问，当前没有收到允许修改客户端的答复。
