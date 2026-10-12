@@ -21,15 +21,12 @@ import (
 )
 
 func TestCloneAvatarMigrationTransactionAndGuardedRollback(t *testing.T) {
-	for _, driver := range []string{database.DriverSQLite, database.DriverPostgres} {
-		t.Run(driver, func(t *testing.T) {
+	for _, setup := range []string{"sqlite", "sqlite-fixture"} {
+		t.Run(setup, func(t *testing.T) {
 			ctx := context.Background()
 			var store *database.Store
 			var err error
-			if driver == database.DriverPostgres {
-				if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-					t.Skip("dedicated PostgreSQL test DSN required")
-				}
+			if setup == "sqlite-fixture" {
 				fixture, err := database.OpenTestFixture(ctx)
 				require.NoError(t, err)
 				t.Cleanup(func() {
@@ -39,7 +36,7 @@ func TestCloneAvatarMigrationTransactionAndGuardedRollback(t *testing.T) {
 				})
 				store = fixture.Storage()
 			} else {
-				store, err = database.Open(ctx, database.Config{Driver: driver, SQLitePath: filepath.Join(t.TempDir(), "clone.sqlite")})
+				store, err = database.Open(ctx, database.Config{Driver: database.DriverSQLite, SQLitePath: filepath.Join(t.TempDir(), "clone.sqlite")})
 				require.NoError(t, err)
 				t.Cleanup(store.Close)
 			}

@@ -1,0 +1,77 @@
+295 项跳过测试的配置与复核（2026-10-12）
+
+复核原报告中的同一批 295 个 package/test 键，结果：258 通过，27 配置后失败，10 仍需特殊条件。
+258 包括把误标为 postgres 的分支替换为正确的 SQLite 临时夹具；不是验证 PostgreSQL。
+独立的模拟客户端进程用例即使在通用测试中随后因开关关闭而跳过，仍保留其实际专项通过证据。
+逐项结果见同目录 test-configuration-295-cases.txt。不能把 27 项失败当成通过或继续叫作未配置。
+
+本机已完成的配置
+
+当前服务端 inner PVF：D:/115us/02_服务端/server/work/client-build/Script.inner.pvf
+SHA256：6f525953bf9d0da8ac70fc9bf00fd4c2bd3b3880e2d518cb4a2119feea9d2733
+R7 inner PVF SHA256：4f6e315ba945ffb0d887797e0e14511a362492ffc9d85064a70814704af75f37
+本机配置：server/work/dfo-lan/runtime/test/native.local.json（已确认被 Git 忽略）。
+原生目录缓存：server/work/dfo-lan/runtime/pvf-cache。
+解析测试用源导出：runtime/test/source-exports，固定到同一 PVF SHA256；生产源仍只读 PVF。
+真实客户端三件套仅复制到 runtime/test/client-proof；往返剥壳/加壳逐字节一致，未改游戏目录。
+归档新增条目证明仅写 runtime/test/archive-proof；原有记录/哈希流/组表/body 不变量通过。
+所有数据库用例使用 OpenTestFixture 的临时 SQLite 文件，不读取或写入玩家数据库。
+环境变量只在本次脚本进程内设置，结束恢复；没有 setx 或系统环境修改。
+
+复现命令（在仓库根执行，已有上述本机 profile）
+
+pwsh -NoProfile -File scripts/test-native.ps1 -PrepareFixtures -JsonLog server/work/dfo-lan/runtime/test/native-tests.jsonl
+pwsh -NoProfile -File scripts/test-native.ps1 -ExtendedIntegration -JsonLog server/work/dfo-lan/runtime/test/extended-tests.jsonl
+pwsh -NoProfile -File scripts/test-native.ps1 -ArchiveMutationProof -ClientRoundTrip -Run 'TestRealAddEntry|TestWrapOuterReproducesRealClientOuter' -Packages ./internal/catalog/pvf
+
+第一、第二条不会保证全绿：当前源的已记录失败必须保留；脚本如实返回 go test 的非零退出码。
+默认包并发 1、单包超时 45 分钟，以控制大归档的内存占用。-Full 可开原有 exhaustive sweep，
+本轮未用穷举 sweep 代替已有的抽样与全目录校验。其他机器先复制 scripts/test-native.example.json
+到默认 profile 路径，填入本机归档路径、真实 SHA256 和 Go 路径。
+OldArchive/OldArchiveSHA256 可选：必须是真正不同的两个版本，不能把同一文件配成两份。
+ClientRoundTrip 可选：要求 WrapClientDirectory、WrapInner 及 WrapClientExeSHA256、
+WrapClientKeysSHA256、WrapOuterSHA256、WrapInnerSHA256 均为对应快照的真实值。
+
+测试夹具修复的依据与边界
+
+移除成长活动 VP、挑战、礼物测试上已经过时的 PostgreSQL 门控，使用现有临时 SQLite。
+世界/角色/训练副本、沉月湖的生命周期与回头路测试改读现有原生 reader，不恢复已退役 JSON。
+按 SaveIdentity 修复角色与事务版本；补齐世界会话的 store、基础世界、C15 选图许可、源属性。
+礼物测试的 0/1 是现有 inventory 的货币保留模板，改用纯礼物回归已经使用的合成模板 3。
+账号材料事务夹具明确返回角色原文与材料原文，避免把材料正文当角色存档。
+VP 的持久状态验证保持；回执使用当前 source/skills 契约，不要求不存在的 donor 可选字段。
+毕业邮件验证保持重复领取、崩溃恢复、两种邮件独立结算、源缺失重试；证明来自与发奖同事务的
+Training.Claimed[last]。只设置 Finished 而未设置 Claimed 的夹具必须不发邮件，并查库确认无资产。
+教学副本保留死亡 ACK、boss 标记和 N31 验证；教学本没有 CardPlan，C69/C70/C71 都必须拒绝，
+不能凭空制造普通翻牌奖单。当前源的第一房间可无怪，仍须有源地图、maze、RunID 和 N28/N29。
+以上是测试接入与夹具契约修正，本轮未修改生产玩法、奖励概率或协议处理器。
+
+27 个失败项的处理
+
+其中含固定 8b2a9f... 归档与整表指纹、历史目录行数/源身份不匹配。
+本机检查过 63 个 inner 归档，没有找到该 8b2a9f... 归档；不能拿当前源替代历史真值。
+也含需要继续审查的成长奖励闭合、奖励箱解包、调适掉落、终末各档奖品等失败。
+这些不是统一的配置缺失，不应仅改数量/哈希/奖品断言以变绿。逐项失败保留在 cases 文件。
+
+10 个仍跳过的条件
+
+1. TestStorageSyncBlockedByAdminLease：7001 正在监听，现有游戏会话不能停止来凑测试。
+2. TestLaunchServerRefusesWhenTheProbeFails：同样被 7001 占用的前置检查挡住。
+3. TestLiveLaunchClientBothPaths：需专用关闭服务的 Windows 测试树；该完整链会触及运行配置，
+   本轮只测了临时 cmd.exe 模拟客户端的两条进程链，不启动真实游戏。
+4. TestLiveWFPIsolation：会真实安装 WFP 过滤器，留给专用系统集成环境。
+5. TestAdventureEliteRandomOptionNativeSavedSnapshots：需要被报告账号的原始存档样本文件，不能造样本。
+6. TestCapturedAutoSetPersistence：需要历史 before-state 技能捕获文件与相配的技能夹具。
+7. TestPVFLootAndEquipmentSelectionPrepareWithoutLegacyBaselines：需要 SHA256 为 8b2a9f... 的归档。
+8. TestNativeWidenedCatalogKeepsDropPoolSane：同一历史归档与源门控。
+9. TestProbeEnvironmentTableMatchesTheProbe：channel_probe.py 已不在当前仓库，属于退役工具镜像检查。
+10. TestSQLiteGeneratedSignatureParity：278/283 方法已移植、5 个旧方法缺失及 40 个已列出的引擎差异，
+    是移植审计问题，不需要配置或安装 PostgreSQL。
+
+验证
+
+最终无额外源开关的 go test ./...：4298 PASS / 295 SKIP / 0 FAIL（这组 skip 与原 295 项不能混同）。
+原 295 项专项合并结果：258 PASS / 27 FAIL / 10 SKIP。新增加的版本组合等子测试不计入这个分母。
+go vet ./... 与源码候选 build 通过；候选 EXE 仍留在本机，未入库。
+原生全量、专项与扩展集成日志留在 G:/电脑问题/.tmp/legion-completion-20261012。
+配置和离线测试不是客户端实机验收，也未更新 confirmed baseline。

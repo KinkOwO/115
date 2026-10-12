@@ -56,8 +56,7 @@ func TestBoostGraduationCapturedReturnUsesOwnedOrigin(t *testing.T) {
 }
 
 func TestBoostTownAllSourceStepsHaveScopedPermissionAndAuthoredSpawn(t *testing.T) {
-	boostFixtureBaselines(t, "../../configs/world.generated.json")
-	wc, e := catalog.LoadWorld("../../configs/world.generated.json")
+	wc, e := catalog.ImportWorldRuntime(boostFixtureArchive(t))
 	must115(t, e)
 	base := &world.Service{Catalog: wc}
 	c := &boostup.Catalog{Town: 222}
@@ -143,13 +142,13 @@ func assertBoostWorldSQL(t *testing.T, ctx context.Context, store *database.Stor
 	base := &world.Service{Store: store, Catalog: boostTestWorldCatalog(role.ConfigVersion)}
 	c := &boostup.Catalog{Town: 222, Steps: []boostup.Step{{Number: 1, Area: 0}, {Number: 2, Area: 1}}}
 	origin := database.WorldPosition{Town: 38, Area: 1, X: 200, Y: 200}
-	w := &worldSession{service: base, account: role.AccountID, boostup: c}
+	w := &worldSession{service: base, boostWorldBase: base, store: store, account: role.AccountID, boostup: c}
 	must115(t, w.enter(role, origin))
 	if w.state.Position.Town != 222 || w.state.Position.Area != 0 {
 		t.Fatal("activation did not enter source event area")
 	}
 	oldRevision := w.state.Revision
-	again := &worldSession{service: base, account: role.AccountID, boostup: c}
+	again := &worldSession{service: base, boostWorldBase: base, store: store, account: role.AccountID, boostup: c}
 	must115(t, again.enter(role, origin))
 	if again.state.Revision != oldRevision {
 		t.Fatal("relogin rewrote identical event position")

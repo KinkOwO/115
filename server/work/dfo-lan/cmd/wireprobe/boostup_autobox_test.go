@@ -67,7 +67,7 @@ func assertBoostAutoSQL(t *testing.T, ctx context.Context, store *database.TestF
 		must115(t, err)
 		raw, err = boostup.WriteState(raw, boostup.State{Version: 1, Activated: true, Training: boostup.Training{Step: step, Phase: 1}})
 		must115(t, err)
-		r, err := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: name, Profession: 0, Request: []byte{0}, ConfigVersion: prof.Source.Checksum, State: raw}, 100)
+		r, err := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: name, Profession: 0, Request: []byte{0}, ConfigVersion: prof.Source.SaveIdentity(), State: raw}, 100)
 		must115(t, err)
 		return r
 	}
@@ -178,10 +178,10 @@ func assertBoostAutoSQL(t *testing.T, ctx context.Context, store *database.TestF
 		t.Fatal("shared reward duplicated")
 	}
 	// A late shared-ledger failure rolls back ordinary rewards and graduation.
-	// donor 基线的 CommitAccountMaterialEvent 回调可同事务改写角色状态；本树回调
-	// 只产（材料正文, 回执），此处 fixture 本就不动角色（返回 cur.State 原样）。
+	// Current callback returns character state and shared material state.
+	// Preserve the role while filling the shared ledger to its capacity.
 	overflowRole := create("boost-auto-overflow", 11, inventory.Bag{Version: "ordinary-bag-v1"})
-	_, _, _, e = store.CommitAccountMaterialEvent(ctx, account, overflowRole.ID, prof.Source.Checksum, "fixture-fill-shared", "fixture-v1", func(cur database.Character, raw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
+	_, _, _, e = store.CommitAccountMaterialEvent(ctx, account, overflowRole.ID, prof.Source.SaveIdentity(), "fixture-fill-shared", "fixture-v1", func(cur database.Character, raw json.RawMessage) (json.RawMessage, json.RawMessage, error) {
 		m, err := inventory.ReadAccountMaterials(raw)
 		if err != nil {
 			return nil, nil, err
@@ -191,7 +191,7 @@ func assertBoostAutoSQL(t *testing.T, ctx context.Context, store *database.TestF
 			return nil, nil, err
 		}
 		next, err := m.Save()
-		return next, json.RawMessage(`{}`), err
+		return cur.State, next, err
 	})
 	must115(t, e)
 	w.role = overflowRole

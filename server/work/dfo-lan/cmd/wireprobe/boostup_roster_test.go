@@ -7,8 +7,8 @@ import (
 	"dfolan/internal/character"
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
+	"dfolan/internal/savecontract"
 	"encoding/json"
-	"strings"
 	"testing"
 )
 
@@ -46,7 +46,7 @@ func assertBoostRosterSQL(t *testing.T, ctx context.Context, store *database.Sto
 			raw, e = boostup.WriteState(raw, state)
 			must115(t, e)
 		}
-		r, err := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: name, Profession: 0, Request: []byte{0}, ConfigVersion: strings.Repeat("a", 64), State: raw}, 100)
+		r, err := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: name, Profession: 0, Request: []byte{0}, ConfigVersion: savecontract.Identity(), State: raw}, 100)
 		must115(t, err)
 		return r
 	}

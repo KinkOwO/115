@@ -73,7 +73,10 @@ func TestWorldDropCompatibilityProbabilityAndNoRenormalization(t *testing.T) {
 }
 
 func TestCurrentPVFWorldDropDeathGrantAndDeferredModeIsolation(t *testing.T) {
-	p := filepath.Join("..", "..", "..", "client-build", "Script.inner.pvf")
+	p := os.Getenv("DFO_LOOT_PVF")
+	if p == "" {
+		p = filepath.Join("..", "..", "..", "client-build", "Script.inner.pvf")
+	}
 	if _, err := os.Stat(p); err != nil {
 		t.Skip("current PVF absent")
 	}

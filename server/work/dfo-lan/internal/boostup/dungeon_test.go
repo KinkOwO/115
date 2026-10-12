@@ -29,9 +29,9 @@ func TestBoostGuideProfessionSourceOverrides(t *testing.T) {
 }
 func TestBoostActualTrainingDungeonSelections(t *testing.T) {
 	root := os.Getenv("US115_TEST_BOOST_SOURCE")
-	path := os.Getenv("US115_TEST_BOOST_DUNGEONS")
+	path := os.Getenv("DFO_PVF_CORE_TEST_ARCHIVE")
 	if root == "" || path == "" {
-		t.Skip("explicit source tokens/full dungeon export required")
+		t.Skip("source tokens and DFO_PVF_CORE_TEST_ARCHIVE required")
 	}
 	read := func(name string) []pvf.Token {
 		b, e := os.ReadFile(filepath.Join(root, name))
@@ -45,10 +45,6 @@ func TestBoostActualTrainingDungeonSelections(t *testing.T) {
 		return out
 	}
 	c, e := Parse(read("01-boostup.evt.tokens.json"), read("00-eventgift.evt.tokens.json"))
-	if e != nil {
-		t.Fatal(e)
-	}
-	cat, e := catalog.LoadDungeons(path)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -66,6 +62,19 @@ func TestBoostActualTrainingDungeonSelections(t *testing.T) {
 			}
 			seen[id] = true
 		}
+	}
+	a, e := catalog.OpenTestArchiveCached(path, os.Getenv("DFO_PVF_CORE_TEST_SHA256"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer a.Close()
+	ids := make([]uint32, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	cat, e := catalog.ImportDungeons(a, ids)
+	if e != nil {
+		t.Fatal(e)
 	}
 	for id := range seen {
 		d, ok := cat.Dungeons[id]
