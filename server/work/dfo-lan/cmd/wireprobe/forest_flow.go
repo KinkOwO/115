@@ -66,6 +66,9 @@ func (w *worldSession) forestStandbyPartyHandle(id uint16, p []byte) (bool, []ou
 		w.forest = nil
 		return true, packets, nil
 	}
+	if w.activeDungeon != nil {
+		return fail(fmt.Errorf("cannot create forest party inside a dungeon"))
+	}
 	request, err := protocol.DecodeForestStandbyParty(p)
 	if err != nil {
 		return fail(err)
@@ -95,11 +98,15 @@ func (w *worldSession) forestStandbyPartyHandle(id uint16, p []byte) (bool, []ou
 	}
 	w.soloPartyReady = true
 	w.forestPartyHard = request.Hard
-	return true, []outboundPacket{
+	plan := []outboundPacket{
 		{"苏醒之森队长资料", 0, 2, basic},
 		{"苏醒之森队长详细资料", 0, 2, detail},
 		{"苏醒之森待机区队伍创建", 0, 9, party},
-	}, nil
+	}
+	if request.Hard {
+		plan = append(plan, outboundPacket{"forest_hard_party_ready", 0, legion.NotiForestHardInfo, legion.ForestHardPartyReadyInfo()})
+	}
+	return true, plan, nil
 }
 
 // forestRun 是一次苏醒之森挑战的会话状态。苏醒之森每关回城重选音符

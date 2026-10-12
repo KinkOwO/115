@@ -791,3 +791,13 @@ const forestAdditionalRewardHex = "012E179E000B000000030000000000000000000000000
 // ForestAdditionalClearReward returns the official N2253 second row verbatim
 // (raw 2405B — the transport shape proven on this client by venus).
 func ForestAdditionalClearReward() []byte { return forestInfo(forestAdditionalRewardHex) }
+
+// ForestHardPartyReadyInfo resets the shared mode's start gate after N9 creates
+// a new party. Current reader141d42030 forwards state@2 through142ac2290 to
+// mode+74; start142510a50 requires zero. Leave-idle14 only closes the old run.
+// Phase remains -1: consumer141d362a0 cannot take its -1 -> 0 auto-entry branch.
+func ForestHardPartyReadyInfo() []byte {
+	p := ForestHardIdleInfo()
+	binary.LittleEndian.PutUint32(p[2:], 0)
+	return p
+}
