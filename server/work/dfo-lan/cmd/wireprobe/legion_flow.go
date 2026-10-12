@@ -155,6 +155,16 @@ func (s *legionSession) handle(w *worldSession, p []byte, id uint16) (legionResu
 	if w == nil || w.role.ID == 0 {
 		return legionResult{}, fmt.Errorf("legion requires a selected character")
 	}
+	// Dusky owns content103 and C2143. Until its lifecycle is bound, never
+	// manufacture an Apocalypse session or N2895 for this native N2467 client.
+	if legion.DuskyRequest(id, p) {
+		if id == legion.CmdDuskyOperationSelect {
+			if _, err := legion.DecodeDuskySelection(p); err != nil {
+				return legionResult{}, err
+			}
+		}
+		return legionResult{}, fmt.Errorf("幽暗岛 content103/C2143 已识别；N2467 开战、阶段结算运行链尚未完成，拒绝转入末世录处理器")
+	}
 	inDungeon := w.activeDungeon != nil
 	side := sideOf(id)
 	switch side {

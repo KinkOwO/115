@@ -55,7 +55,7 @@ const EnvelopeSize = 13
 // has to guard on world state; this only answers "is it ours".
 func Requests(id uint16) bool {
 	switch id {
-	case CmdStart, CmdFail, CmdEnterDungeon, CmdRewardEnd, CmdOperationSelect, CmdRoleSelect:
+	case CmdStart, CmdFail, CmdEnterDungeon, CmdRewardEnd, CmdOperationSelect, CmdRoleSelect, CmdDuskyOperationSelect:
 		return true
 	default:
 		return false
