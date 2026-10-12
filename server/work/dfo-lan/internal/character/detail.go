@@ -139,16 +139,16 @@ func (s *Service) entryAdditionWithStats(role Character, state State, stats prot
 				// Avatar slots (<= 11) ride the avatar row layout; the creature
 				// body slot 26, creature gear slots 27..29 and the pet-skin slot 32
 				// ride the plain / creature-extension layouts (protocol.DetailedEquipment
-				// pins all of them against native reader sub_1452C1540). Slots 12..25
-				// stay excluded exactly as before: their window data already arrives
-				// via NOTI 13/14 and their mode-1 projection is a separate,
-				// unverified change.
+				// pins all of them against native reader sub_1452C1540). Ordinary
+				// slots 12..25 use its plain row as well. The reader deletes omitted
+				// worn objects; NOTI13/14 window rows and mode-0 appearances do not
+				// replace this authoritative snapshot for the equipment play guide.
 				//
 				// 实机 2026-09-27：幻化槽（32）原先被这条过滤挡掉，导致重登后
 				// 客户端手上没有槽 32 的物品，F6 幻化框拿不到模板而空白（同一次
 				// 登录里槽 26 的本体宠物因为被包含所以正常）。它是 [creature] 物品，
 				// 行布局与槽 26 同源。
-				if !(item.Slot <= 11 || (item.Slot >= 26 && item.Slot <= 29) || item.Slot == inventory.CreatureSkinSlot) {
+				if !(item.Slot <= 29 || item.Slot == inventory.CreatureSkinSlot) {
 					continue
 				}
 				var dw protocol.DetailedWorn
@@ -157,7 +157,7 @@ func (s *Service) entryAdditionWithStats(role Character, state State, stats prot
 				dw.Durability = item.Durability
 				dw.Record = item.Record
 				// 头像扩展（孔/徽章）**只有时装行有格子**：槽 ≤ 11 走 avatar 分支，
-				// 槽 12..25 不投影，槽 26~29 / 32 走原生 sub_1452C1540 的
+				// 槽 12..25、26~29 / 32 走原生 sub_1452C1540 的
 				// creature/普通分支，行里根本没有 u32len+blob 两格。
 				// 所以这里只给时装槽下传头像块；存档里若混进了这种块（2026-10-07
 				// 邮件补孔缺陷就写入过 30 字节全零块），丢掉它而不是让整包被拒 ——

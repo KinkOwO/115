@@ -61,7 +61,7 @@
 | 卡片 | CMD69 / CMD70 / CMD71 | 各自 ACK | `card_flow.go` |
 | 结算退出 / 下一房 | CMD72 | ACK72（+ 新副本会话） | `settlementExit` |
 | 放弃退本 | CMD42 | ACK42 + NOTI3 + NOTI23 + NOTI24 | `leaveDungeon` |
-| 选本态返回 | CMD132 | NOTI132 + 回城包 | `returnFromDungeonSelection` |
+| 选本态返回 | CMD132 | 国服 N23→N24 回城头，随后角色恢复；不发 N132/ACK42 | `returnFromDungeonSelection` |
 | 剧情暂停 | CMD191 | NOTI170 | `main.go` 内联 |
 | 交任务 | CMD34 | ACK34 + NOTI13 + NOTI37 + NOTI291 + NOTI342 + NOTI21 | `quest_flow.go` `finishQuest` |
 

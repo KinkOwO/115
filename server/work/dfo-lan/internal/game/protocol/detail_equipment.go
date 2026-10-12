@@ -5,9 +5,9 @@ import (
 	"fmt"
 )
 
-// DetailedWorn is the mode1/1452c1540 avatar representation, not NOTI13.
-// Only avatar slots are initialized here; other item types have different
-// template-dependent extensions. Rich records require a separate projection.
+// DetailedWorn is the mode1/1452c1540 worn-object representation, not NOTI13.
+// Ordinary equipment uses the plain row; avatars and creatures additionally
+// consume their template-dependent extensions. Rich records arrive via 13/14.
 type DetailedWorn struct {
 	Slot       uint16 `json:"slot"`
 	Template   uint32 `json:"template"`
@@ -64,7 +64,7 @@ func DetailedEquipment(rows []DetailedWorn) ([]byte, error) {
 	for _, v := range rows {
 		avatar := v.Slot <= detailedWornAvatarSlotMax
 		creature := v.Slot == detailedWornCreatureSlot || v.Slot == detailedWornCreatureSkinSlot
-		supported := avatar || (v.Slot >= detailedWornCreatureSlot && v.Slot <= detailedWornCreatureSlotMax) || v.Slot == detailedWornCreatureSkinSlot
+		supported := v.Slot <= detailedWornCreatureSlotMax || v.Slot == detailedWornCreatureSkinSlot
 		if !supported || v.Template == 0 || seen[v.Slot] {
 			return nil, fmt.Errorf("unsupported detailed equipment instance")
 		}

@@ -1336,8 +1336,13 @@ func (w *worldSession) returnFromDungeonSelection(p []byte) ([]outboundPacket, e
 	if e != nil {
 		return nil, e
 	}
-	plan[0] = outboundPacket{"dungeon_selection_return", 0, 132, protocol.DungeonSelectionReturn()}
-	return plan, nil
+	// GF115 C132 (wire 20628/31677/31831) is bodyless and has no same-ID
+	// response: N23 then N24 restores the owned town. N132 is a different
+	// selection-state notification (1452aee40 sets the selection object's
+	// state to 5/6); sending it here changes selection before the town load.
+	// Keep the shared actor/appearance restoration after the town head,
+	// without the C42 acknowledgement used by the in-dungeon give-up path.
+	return append([]outboundPacket{plan[2], plan[3], plan[1]}, plan[4:]...), nil
 }
 
 // fatalDropFailure classifies a failed drop roll for an already-confirmed death.
