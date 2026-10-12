@@ -46,7 +46,7 @@ func TestBoostSpecialProfessionsSourceAwakening(t *testing.T) {
 		if e = json.Unmarshal(raw, &before); e != nil {
 			t.Fatal(e)
 		}
-		role := Character{ID: 1, AccountID: 1, WireID: 503, Name: "SpecialBoost", Profession: v.job, ConfigVersion: s.Catalog.Source.Checksum, State: raw}
+		role := Character{ID: 1, AccountID: 1, WireID: 503, Name: "SpecialBoost", Profession: v.job, ConfigVersion: s.Catalog.Source.SaveIdentity(), State: raw}
 		role.Request = append(binary.LittleEndian.AppendUint32([]byte{v.job}, uint32(len(role.Name))), []byte(role.Name)...)
 		role.Request = append(role.Request, []byte{0, 0, 0, 0, 0, 0, 255, 0, 0, 0, 0, 0}...)
 		next, e := s.BoostLevel(role, g, 115)
@@ -83,4 +83,3 @@ func TestBoostSpecialProfessionsSourceAwakening(t *testing.T) {
 		}
 	}
 }
-

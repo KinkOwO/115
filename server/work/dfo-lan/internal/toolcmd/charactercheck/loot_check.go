@@ -20,6 +20,10 @@ func lootCheck(ctx context.Context, s *database.TestFixture, reopened *database.
 	if e != nil {
 		return e
 	}
+	var beforeState character.State
+	if e = json.Unmarshal(storedState, &beforeState); e != nil {
+		return e
+	}
 	beforeBag, e := inventory.ReadBag(storedState)
 	if e != nil {
 		return e
@@ -123,7 +127,7 @@ func lootCheck(ctx context.Context, s *database.TestFixture, reopened *database.
 			if e = json.Unmarshal(res.role.State, &state); e != nil {
 				return e
 			}
-			if state.Experience != 2490 || state.Level != 3 {
+			if state.Experience != beforeState.Experience || state.Level != beforeState.Level {
 				return fmt.Errorf("inventory overwrote experience")
 			}
 		}

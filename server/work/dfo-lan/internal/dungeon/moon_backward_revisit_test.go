@@ -3,7 +3,6 @@ package dungeon
 import (
 	"dfolan/internal/catalog"
 	"dfolan/internal/game/protocol"
-	"os"
 	"testing"
 	"time"
 )
@@ -22,14 +21,7 @@ import (
 // 断言用**包形态**而不是字节数猜测：ReuseRoom 走 protocol.StartMap 的
 // `append(p, 0, 0, 255)` 分支 ⇒ 尾部三字节恒为 `00 00 ff`，且长度远小于普通路径。
 func TestMoonSoloBackwardRevisitReusesCachedRoom(t *testing.T) {
-	path := os.Getenv("MOON_TEST_DUNGEONS")
-	if path == "" {
-		t.Skip("set MOON_TEST_DUNGEONS to a same-client complete export")
-	}
-	c, e := catalog.LoadDungeons(path)
-	if e != nil {
-		t.Fatal(e)
-	}
+	c := catalog.LoadNativeDungeons(t, 100004136, 100004137)
 	now := time.Unix(1800000000, 0)
 	r, e := NewMoonSolo(c, 115, 7, 0, now)
 	if e != nil {

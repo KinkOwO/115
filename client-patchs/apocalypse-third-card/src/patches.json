@@ -1,0 +1,177 @@
+[
+  {
+    "rva": 6950896,
+    "before": "488b8c33a0030000",
+    "after": "488b8c3328040000",
+    "instruction": "mov rcx, qword ptr [rbx + rsi + 0x3a0]",
+    "hook": 0
+  },
+  {
+    "rva": 6950919,
+    "before": "4889ac33a0030000",
+    "after": "4889ac3328040000",
+    "instruction": "mov qword ptr [rbx + rsi + 0x3a0], rbp",
+    "hook": 0
+  },
+  {
+    "rva": 6950933,
+    "before": "83ff02",
+    "after": "83ff03",
+    "instruction": "cmp edi, 2",
+    "hook": 0
+  },
+  {
+    "rva": 6953729,
+    "before": "ba28040000",
+    "after": "ba40040000",
+    "instruction": "mov edx, 0x428",
+    "hook": 0
+  },
+  {
+    "rva": 6976894,
+    "before": "4b899c3ca0030000",
+    "after": "4b899c3c28040000",
+    "instruction": "mov qword ptr [r12 + r15 + 0x3a0], rbx",
+    "hook": 0
+  },
+  {
+    "rva": 6977144,
+    "before": "4183fe02",
+    "after": "4183fe03",
+    "instruction": "cmp r14d, 2",
+    "hook": 0
+  },
+  {
+    "rva": 6981826,
+    "before": "488d99a0030000",
+    "after": "488d9928040000",
+    "instruction": "lea rbx, [rcx + 0x3a0]",
+    "hook": 0
+  },
+  {
+    "rva": 6981867,
+    "before": "83ff02",
+    "after": "83ff03",
+    "instruction": "cmp edi, 2",
+    "hook": 0
+  },
+  {
+    "rva": 6982993,
+    "before": "488db7a0030000",
+    "after": "488db728040000",
+    "instruction": "lea rsi, [rdi + 0x3a0]",
+    "hook": 0
+  },
+  {
+    "rva": 6983105,
+    "before": "83fb02",
+    "after": "83fb03",
+    "instruction": "cmp ebx, 2",
+    "hook": 0
+  },
+  {
+    "rva": 6985056,
+    "before": "4c8db7a0030000",
+    "after": "4c8db728040000",
+    "instruction": "lea r14, [rdi + 0x3a0]",
+    "hook": 0
+  },
+  {
+    "rva": 6985063,
+    "before": "bd02000000",
+    "after": "bd03000000",
+    "instruction": "mov ebp, 2",
+    "hook": 0
+  },
+  {
+    "rva": 6985266,
+    "before": "4c8db7a0030000",
+    "after": "4c8db728040000",
+    "instruction": "lea r14, [rdi + 0x3a0]",
+    "hook": 0
+  },
+  {
+    "rva": 6985331,
+    "before": "83fb02",
+    "after": "83fb03",
+    "instruction": "cmp ebx, 2",
+    "hook": 0
+  },
+  {
+    "rva": 6990572,
+    "before": "4c8db7a0030000",
+    "after": "4c8db728040000",
+    "instruction": "lea r14, [rdi + 0x3a0]",
+    "hook": 0
+  },
+  {
+    "rva": 6990679,
+    "before": "83fb02",
+    "after": "83fb03",
+    "instruction": "cmp ebx, 2",
+    "hook": 0
+  },
+  {
+    "rva": 6990756,
+    "before": "4c8db7a0030000",
+    "after": "4c8db728040000",
+    "instruction": "lea r14, [rdi + 0x3a0]",
+    "hook": 0
+  },
+  {
+    "rva": 6990819,
+    "before": "83fb02",
+    "after": "83fb03",
+    "instruction": "cmp ebx, 2",
+    "hook": 0
+  },
+  {
+    "rva": 6995158,
+    "before": "4881c3a0030000",
+    "after": "4881c328040000",
+    "instruction": "add rbx, 0x3a0",
+    "hook": 0
+  },
+  {
+    "rva": 6995191,
+    "before": "83ff02",
+    "after": "83ff03",
+    "instruction": "cmp edi, 2",
+    "hook": 0
+  },
+  {
+    "rva": 6999637,
+    "before": "488dbea0030000",
+    "after": "488dbe28040000",
+    "instruction": "lea rdi, [rsi + 0x3a0]",
+    "hook": 0
+  },
+  {
+    "rva": 6999666,
+    "before": "83fb02",
+    "after": "83fb03",
+    "instruction": "cmp ebx, 2",
+    "hook": 0
+  },
+  {
+    "rva": 7006891,
+    "before": "b928040000",
+    "after": "b940040000",
+    "instruction": "mov ecx, 0x428",
+    "hook": 0
+  },
+  {
+    "rva": 7006918,
+    "before": "e8551cffff",
+    "after": "e8551cffff",
+    "instruction": "call 0x1406a0720",
+    "hook": 1
+  },
+  {
+    "rva": 7006984,
+    "before": "e82389ffff",
+    "after": "e82389ffff",
+    "instruction": "call 0x1406a7430",
+    "hook": 2
+  }
+]

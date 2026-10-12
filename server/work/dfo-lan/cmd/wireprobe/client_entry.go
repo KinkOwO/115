@@ -963,6 +963,23 @@ func (client *gameConnection) dispatchCharacterEntry(requestData *clientRequest)
 		}
 		if client.lootService != nil {
 			rewardCtx, rewardCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			legionRewards := &workflow.LegionRewardService{Store: client.gameStore, Awarder: &inventory.Awarder{Catalog: client.lootService.Catalog, Rules: client.lootService.BagRules, Equipment: client.lootService.Equipment}}
+			legionRecovered, legionErr := legionRewards.Recover(rewardCtx, role)
+			if legionRecovered.ID != 0 {
+				role = legionRecovered
+			}
+			if legionErr != nil {
+				client.event(map[string]any{"kind": "legion_reward_recovery_pending", "character_id": role.ID, "reason": legionErr.Error()})
+			}
+			apocalypseRewards := &workflow.ApocalypseRewardService{Store: client.gameStore, Awarder: legionRewards.Awarder}
+			apocalypseRecovered, apocalypseErr := apocalypseRewards.Recover(rewardCtx, role)
+			if apocalypseRecovered.ID != 0 {
+				role = apocalypseRecovered
+			}
+			if apocalypseErr != nil {
+				client.event(map[string]any{"kind": "apocalypse_reward_recovery_pending", "character_id": role.ID, "reason": apocalypseErr.Error()})
+			}
+
 			var raidRecovered database.Character
 			var raidErr error
 			if client.bakalRewardService != nil {

@@ -37,6 +37,7 @@ func apocalypseRewardSession(t *testing.T, choice byte, stage int) *worldSession
 // 终局翻牌链的帧序与抓包/US-Local 事件一致，且每一帧的 opcode 都对得上。
 func TestApocalypseTerminalRewardChain(t *testing.T) {
 	w := apocalypseRewardSession(t, 0, 6)
+	prepareApocalypseRewardFixture(t, w)
 
 	grant, err := w.apocalypseTerminalReward(legion.CmdRewardEnd, "apocalypse_terminal_settlement")
 	if err != nil {
@@ -59,7 +60,7 @@ func TestApocalypseTerminalRewardChain(t *testing.T) {
 	for _, p := range grant.Plan {
 		ids = append(ids, p.ID)
 	}
-	wantPrefix := []uint16{legion.NotiLegionInfo, 31, legion.NotiLegionInfo, legion.NotiClearRewardBasic}
+	wantPrefix := []uint16{13, legion.NotiLegionInfo, 31, legion.NotiLegionInfo, legion.NotiClearRewardBasic}
 	if len(ids) < len(wantPrefix) {
 		t.Fatalf("chain too short: %v", ids)
 	}
@@ -114,8 +115,8 @@ func TestApocalypseTerminalRewardChain(t *testing.T) {
 	if note["reward_source"] == nil || note["difficulty"] != "normal" {
 		t.Fatalf("completion note %v", note)
 	}
-	if slots, ok := note["roll_gear_slots"].(int); !ok || slots != 8 {
-		t.Fatalf("roll_gear_slots = %v, want 8 for difficulty 1", note["roll_gear_slots"])
+	if slots, ok := note["roll_gear_slots"].(int); !ok || slots != 0 {
+		t.Fatalf("roll_gear_slots = %v, want 0: source bundles own every product", note["roll_gear_slots"])
 	}
 	if gear, ok := note["roll_gear"].([]uint32); !ok || len(gear) != 0 {
 		t.Fatalf("roll_gear = %v, want empty without a loot service", note["roll_gear"])
@@ -125,6 +126,7 @@ func TestApocalypseTerminalRewardChain(t *testing.T) {
 // 第二次调用不能再发一份奖励（run 已标记 Rewarded）。
 func TestApocalypseTerminalRewardIsIdempotent(t *testing.T) {
 	w := apocalypseRewardSession(t, 1, 6)
+	prepareApocalypseRewardFixture(t, w)
 	first, err := w.apocalypseTerminalReward(legion.CmdRewardEnd, "first")
 	if err != nil {
 		t.Fatal(err)
@@ -188,6 +190,7 @@ func TestCompleteApocalypseStageArmsOnlyTheTerminal(t *testing.T) {
 // 挂起任务到期后发出翻牌链，并且只能发一次。
 func TestApocalypseSettlementDueFiresOnce(t *testing.T) {
 	w := apocalypseRewardSession(t, 0, 6)
+	prepareApocalypseRewardFixture(t, w)
 	if !w.armApocalypseSettlement(legion.CmdRewardEnd, "terminal", 0) {
 		t.Fatal("the settlement was not armed")
 	}
@@ -364,7 +367,7 @@ func TestApocalypseCardPlanCarriesRewardRows(t *testing.T) {
 	}
 	gear := []uint32{100251140, 100323445}
 	plan := apocalypseCardPlan(1, table, gear, "run-abc", "fixture", 115)
-	if plan.Run != "run-abc" || plan.Model != "apocalypse-terminal-v1" {
+	if plan.Run != "run-abc" || plan.Model != "apocalypse-source-presentation-v1" {
 		t.Fatalf("plan identity = %+v", plan)
 	}
 	// 前 8 项 = 通关证明 + 固定材料 + 随机装备（按定长截断）。

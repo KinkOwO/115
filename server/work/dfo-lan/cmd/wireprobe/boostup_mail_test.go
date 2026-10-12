@@ -10,10 +10,10 @@ import (
 	"dfolan/internal/game/wire"
 	"dfolan/internal/inventory"
 	"dfolan/internal/loot"
+	"dfolan/internal/savecontract"
 	"dfolan/internal/workflow"
 	"encoding/binary"
 	"encoding/json"
-	"strings"
 	"testing"
 )
 
@@ -22,7 +22,7 @@ func assertBoostMailSQL(t *testing.T, ctx context.Context, store *database.Store
 	must115(t, store.MigrateMailbox(ctx))
 	account, e := store.DevelopmentAccount(ctx, "boost-mail-fixture")
 	must115(t, e)
-	version := strings.Repeat("a", 64)
+	version := savecontract.Identity()
 	intent := boostup.GraduationMail{Item: 590015954, Count: 1, Sender: "Starter Boost", Body: "earned reward"}
 	c := &boostup.Catalog{Town: 222, ReservedMail: &intent, Steps: []boostup.Step{{Number: 1, Area: 0, Guide: "normal", Mission: "none", Rewards: []boostup.Reward{{Item: 6001, Count: 1}}}}}
 	ls := &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: version}, Items: map[uint32]catalog.LootItem{6001: {ID: 6001, Kind: "stackable", StackableType: "[booster]", StackLimit: 10}, 590015954: {ID: 590015954, Kind: "stackable", StackableType: "[booster]", StackLimit: 10}}}, BagRules: inventory.BagRules{Source: version, Slots: map[string][2]uint16{"[booster]": {65, 67}}, MissingStackLimit: 10}}
@@ -30,7 +30,7 @@ func assertBoostMailSQL(t *testing.T, ctx context.Context, store *database.Store
 	create := func(name string, finished bool) database.Character {
 		st := boostup.State{Version: 1, Activated: true, PendingMail: &intent, Training: boostup.Training{Step: 1, Phase: 1}}
 		if finished {
-			st.Training = boostup.Training{Step: 2, Finished: true, Claimed: map[byte]bool{1: true}}
+			st.Training = boostup.Training{Step: 2, Finished: true}
 		}
 		raw, err := boostup.WriteState(json.RawMessage(`{"level":115,"untouched":42}`), st)
 		must115(t, err)
@@ -46,7 +46,7 @@ func assertBoostMailSQL(t *testing.T, ctx context.Context, store *database.Store
 	changed.Item = 999999
 	c.ReservedMail = &changed // should not rewrite a frozen intent
 	notified := 0
-	w := &worldSession{account: account, role: role, loot: ls, characters: &character.Service{Store: store}, boostup: c, state: database.WorldState{Position: database.WorldPosition{Town: 222}}, notifyBoostMail: func(id int64) {
+	w := &worldSession{account: account, role: role, loot: ls, store: store, characters: &character.Service{Store: store}, boostup: c, state: database.WorldState{Position: database.WorldPosition{Town: 222}}, notifyBoostMail: func(id int64) {
 		if id != role.ID {
 			t.Fatal("wrong notified owner")
 		}
@@ -139,8 +139,15 @@ func assertBoostMailSQL(t *testing.T, ctx context.Context, store *database.Store
 		t.Fatal("recovery did not clear pending state")
 	}
 	fake := create("boost-mail-no-proof", true)
-	if _, sent, e = lsvc.DeliverBoostGraduationMail(ctx, fake, c); e == nil || sent {
-		t.Fatal("finished flag without receipt granted mail")
+	// The current contract uses Claimed[last], committed atomically with the
+	// reward, as proof. A finished flag alone must not pay a frozen promise.
+	if _, sent, e = lsvc.DeliverBoostGraduationMail(ctx, fake, c); e != nil || sent {
+		t.Fatal("finished flag without durable claim granted mail", e)
+	}
+	fakeMail, e := store.Mailbox(ctx, account, fake.ID)
+	must115(t, e)
+	if len(fakeMail) != 0 {
+		t.Fatal("unearned mail persisted")
 	}
 	// Missing source holds a durable promise rather than consuming it.
 	pending := create("boost-mail-missing", false)
@@ -166,7 +173,7 @@ func assertBoostMailSQL(t *testing.T, ctx context.Context, store *database.Store
 		t.Fatal("level mail sent before training finished", e)
 	}
 	alarms := 0
-	w2 := &worldSession{account: account, role: graduate, loot: ls, characters: &character.Service{Store: store}, boostup: c, state: database.WorldState{Position: database.WorldPosition{Town: 222}}, notifyBoostMail: func(int64) { alarms++ }}
+	w2 := &worldSession{account: account, role: graduate, loot: ls, store: store, characters: &character.Service{Store: store}, boostup: c, state: database.WorldState{Position: database.WorldPosition{Town: 222}}, notifyBoostMail: func(int64) { alarms++ }}
 	_, e = w2.boostStepRequest(ctx, request, 680)
 	must115(t, e)
 	mails, e = store.Mailbox(ctx, account, graduate.ID)
@@ -219,7 +226,12 @@ func assertBoostMailSQL(t *testing.T, ctx context.Context, store *database.Store
 	if len(mails) != 1 {
 		t.Fatal("level bonus duplicated after crash")
 	}
-	if _, sent, e = lsvc.DeliverBoostLevelBonusMail(ctx, fake, c); e == nil || sent {
-		t.Fatal("bonus granted without graduation receipt")
+	if _, sent, e = lsvc.DeliverBoostLevelBonusMail(ctx, fake, c); e != nil || sent {
+		t.Fatal("bonus granted without durable graduation claim", e)
+	}
+	fakeMail, e = store.Mailbox(ctx, account, fake.ID)
+	must115(t, e)
+	if len(fakeMail) != 0 {
+		t.Fatal("unearned level bonus persisted")
 	}
 }

@@ -1,0 +1,632 @@
+原 295 个跳过用例逐项复核；PASS=通过，FAIL=已配置但失败，SKIP=条件仍缺失。
+证据日志目录：G:/电脑问题/.tmp/legion-completion-20261012。
+失败断言保持；SKIP 不覆盖专项实际执行的 PASS。
+
+[PASS] dfolan/cmd/admin/TestAdminNativeNonDropAndFullEquipment
+  evidence: configured-tests-first.jsonl
+[SKIP] dfolan/cmd/dfolauncher/TestStorageSyncBlockedByAdminLease
+  evidence: configured-tests-first.jsonl
+  detail: storagesync_test.go:76: 本机 7001 正在监听（有会话在跑），跳过租约断言：游戏服务端正在运行（端口 7001 在监听）：请先停止游戏再做备份/还原
+[FAIL] dfolan/cmd/gmtool/TestEquipmentTypeCellsInRealCatalog
+  evidence: configured-extended-integration.jsonl
+  detail: index_test.go:132: requires externally generated 19955-row equipment catalog; set DFO_EXTENDED_CATALOG_INTEGRATION=1 index_test.go:149: 装备目录行数 3174，期望 19955（变了就要重新核对 cell 枚举）
+[FAIL] dfolan/cmd/gmtool/TestNativeGMSourceOnly
+  evidence: configured-tests-first.jsonl
+  detail: pvf_test.go:52: native LIST scope changed 676442 pvf
+[PASS] dfolan/internal/boostup/TestBoostUpActualSelectedSource
+  evidence: configured-focused-second.jsonl
+[PASS] dfolan/internal/boostup/TestBoostChallengeActualNativeBuffSources
+  evidence: configured-focused-second.jsonl
+[PASS] dfolan/internal/boostup/TestBoostChallengeActualLevelMail
+  evidence: configured-focused-second.jsonl
+[PASS] dfolan/internal/boostup/TestBoostChallengeSourceAndLifecycle
+  evidence: configured-focused-second.jsonl
+[PASS] dfolan/internal/boostup/TestBoostActualTrainingDungeonSelections
+  evidence: configured-focused-second.jsonl
+[PASS] dfolan/cmd/wireprobe/TestAbyssTablesStayInsideTheirDungeons
+  evidence: configured-extended-integration.jsonl
+[PASS] dfolan/internal/catalog/TestAbyssHellDropTableIsImported
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestBakalBiddingBindsNativeNormalHardAndWeeklyPools
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestImportBakalRaidRules
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestBoosterFixedAvatarNativeArchive
+  evidence: configured-focused-second.jsonl
+[PASS] dfolan/internal/catalog/TestChannelDirectoryNative
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestChannelDirectoryDoesNotDeriveTypeFromSlotDungeon
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestChannelInfoNative
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestCurrentClearRewardSourceKeepsProfilesAndNestedBonuses
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/cashshop/TestAvatarPurchaseNativeSelectedOptions
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/cashshop/TestAvatarAndPackageCurrentCatalog
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/cashshop/TestCreatureCurrentSourceCatalog
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/cashshop/TestShopPilotCreatureEggPurchase
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/cashshop/TestShopDeliveryEquipmentGoesToEquipTab
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/cashshop/TestShopDeliveryCreatureRoutedByPath
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/cashshop/TestShopDeliveryUnknownStillEtc
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/cashshop/TestShopPilotPacksAndAtomicCapacity
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/cashshop/TestShopPilotSourceAndDelivery
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/cashshop/TestShopPilotCartAndSplitStacks
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/cashshop/TestShopPilotMaterialProductsAndCategories
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/cashshop/TestShopPilotPackageDelivery
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/cashshop/TestShopPilotLifeTokenPurchase
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/cashshop/TestShopPilotPVFCurrentCatalog
+  evidence: configured-tests-first.jsonl
+[FAIL] dfolan/internal/cashshop/TestShopPilotOpenAll
+  evidence: configured-tests-first.jsonl
+  detail: pvf_catalog_test.go:272: expected 17154 enabled products under DFO_SHOP_OPEN_ALL=1, got 20831
+[PASS] dfolan/internal/cashshop/TestShopStorageCatalogDepositsPurchasedKaleido
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestParseDungeonDropBlocksBorderOfAttunement
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestParseDungeonDropBlocksAcrossCatalog
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestNormalGroupIndexEncodingIsAmbiguous
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestAbandonedMineElevatorRoomDoesNotSpawnOffMapSentinel
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/pvf/TestRealAddEntryPreservesEveryOtherByte
+  evidence: configured-focused-second.jsonl
+[PASS] dfolan/internal/catalog/TestSiroccoBossEntranceConditionFromSource
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestDungeon27OpeningSceneIsNotCompletion
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestAPCBossCheckUsesClientBossRank
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestCompletedBossRoomsHaveEncodableIdentity
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestParseDungeonDropInfo
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestNormalDungeonIsNotAbyss
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestEquipmentAwakeningRulesNative
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestEquipmentAwakeningOptionsNative
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestParseEquipmentJournalRulesRealSource
+  evidence: configured-focused-second.jsonl
+[PASS] dfolan/internal/catalog/TestParseEquipmentTransformSystemRealSource
+  evidence: configured-focused-second.jsonl
+[PASS] dfolan/internal/catalog/TestCurrentHellEpicSourceKeepsAreaAndListBoundaries
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestCurrentHellPartyRulesAndPillarReferences
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestJointItemBasicsLocalArchiveParity
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestLayerRoomIsCinematicDistinguishesPlayableLayers
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestIspinsArenaBossCompletion
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestDungeon22CinematicActorDoesNotBlockBossCompletion
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestCreateTriggerOrdinalsFollowMonsterRows
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestCrescentMoonLayerExitUsesUnvisitedNeighbor
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestDelezieQuestWaitsForSourceClearMap
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestDungeon25DisplayBossWithoutCheckCompletesOnSourceMap
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestEscapeMineQuest3354EntersSourceMaze
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestCapturedTrombeHellSelectionUsesSourceSealRoom
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestLayerExitOnlyAtLastMap
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/pvf/TestMetadataCacheLocalArchiveParity
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestAzureMainChannelTownNative
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFAdventureLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFBlackPurgatoryLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFClearCubeLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFMineLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFOdysseyRoutesLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFOdysseyLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFRecommendedLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFRosterBackgroundsLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFSeasonLocalArchive
+  evidence: configured-tests-first.jsonl
+[FAIL] dfolan/internal/gamedata/TestPVFSelectionBoxesLocalArchive
+  evidence: configured-tests-first.jsonl
+  detail: catalogs_content_test.go:400: selection source range changed
+[PASS] dfolan/internal/gamedata/TestPVFAttunementLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFApocalypseLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFCoreCatalogsLocalArchive
+  evidence: configured-tests-first.jsonl
+[FAIL] dfolan/internal/gamedata/TestPVFItemCatalogsLocalArchive
+  evidence: configured-tests-first.jsonl
+  detail: catalogs_core_test.go:273: index not reused <nil>
+[PASS] dfolan/internal/gamedata/TestPVFCharactersLocalArchive
+  evidence: configured-tests-first.jsonl
+[FAIL] dfolan/internal/gamedata/TestPVFMigrationSourceOnlyLocalArchive
+  evidence: configured-tests-first.jsonl
+  detail: 100000084=8 100000085=8 100000086=8 100000087=8 100000088=8 100000089=8 100000090=8 100000091=8 100000092=8 100000093=8 100000094=8 100000095=8 100000096=8 100000097=8 100000098=8 100000099=8 100000100=8 100000101=8 100000102=8 100000103=8 100000104=8 100000105=8 100000106=8 100000107=8 100000108=8 100000109=8 100000110=8 100000111=8 100000112=8 100000113=8 100000114=8 100000115=8 100000116=8 100000117=8 100000118=8 100000119=8 100000120=8 100000121=8 100000122=8 100000123=8 100000124=8 100000125=8 100000126=8 100000127=8 100000128=8 100000129=8 100000130=8 100000131=8 100000132=8 100000133=8 100000134=8 100000135=8 100000136=8 100000137=8 100000138=8 100000139=8 100000140=8 100000141=8 100000142=8 100000143=8 100000144=8 100000145=8 100000
+[FAIL] dfolan/internal/gamedata/TestNativeDungeonsCurrentArchiveFingerprint
+  evidence: configured-tests-first.jsonl
+  detail: catalogs_dungeons_native_only_test.go:27: open inner PVF: inner PVF source mismatch: got 6f525953bf9d0da8ac70fc9bf00fd4c2bd3b3880e2d518cb4a2119feea9d2733 expected 8b2a9f83247e000a28acd5134b616da725f46def39980b5373030e8cbc5d0934
+[FAIL] dfolan/internal/gamedata/TestNativeEnhancementsCurrentArchiveFingerprint
+  evidence: configured-tests-first.jsonl
+  detail: catalogs_enhancements_native_test.go:26: open inner PVF: inner PVF source mismatch: got 6f525953bf9d0da8ac70fc9bf00fd4c2bd3b3880e2d518cb4a2119feea9d2733 expected 8b2a9f83247e000a28acd5134b616da725f46def39980b5373030e8cbc5d0934
+[PASS] dfolan/internal/catalog/pvf/TestCompressedPoolsLocalArchiveParity
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFBoxesSourceOnlyImportsItsOwnItemDependency
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFBoxesLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFCashShopLocalArchive
+  evidence: configured-tests-first.jsonl
+[FAIL] dfolan/internal/gamedata/TestPVFCommerceLocalArchive
+  evidence: configured-tests-first.jsonl
+  detail: catalogs_items_test.go:132: material runtime index []
+[FAIL] dfolan/internal/gamedata/TestPVFSourceOnlyLocalArchiveDoesNotReadSelectedJSON
+  evidence: configured-tests-first.jsonl
+  detail: catalogs_items_test.go:160: incomplete direct projection
+[PASS] dfolan/internal/gamedata/TestPVFDropLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFEquipmentSelectionLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFEnhancementsLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFEnhancementSourceOnlyLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFEquipmentRulesLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFEquipmentRulesSourceOnlyLocalArchive
+  evidence: configured-tests-first.jsonl
+[FAIL] dfolan/internal/gamedata/TestPVFFameLocalArchive
+  evidence: configured-tests-first.jsonl
+  detail: catalogs_items_test.go:362: fame source scope changed
+[PASS] dfolan/internal/gamedata/TestPVFItemShopsLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestPVFWorldIncludesNativeFavorRules
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestNativeLearningPreparationNeedsNoJSONBaseline
+  evidence: configured-tests-first.jsonl
+[FAIL] dfolan/internal/gamedata/TestNativeWorldQuestsCurrentArchiveFingerprint
+  evidence: configured-tests-first.jsonl
+  detail: catalogs_native_only_test.go:87: open inner PVF: inner PVF source mismatch: got 6f525953bf9d0da8ac70fc9bf00fd4c2bd3b3880e2d518cb4a2119feea9d2733 expected 8b2a9f83247e000a28acd5134b616da725f46def39980b5373030e8cbc5d0934
+[FAIL] dfolan/internal/gamedata/TestNativeItemEquipmentCurrentArchiveFingerprint
+  evidence: configured-tests-first.jsonl
+  detail: catalogs_native_only_test.go:127: open inner PVF: inner PVF source mismatch: got 6f525953bf9d0da8ac70fc9bf00fd4c2bd3b3880e2d518cb4a2119feea9d2733 expected 8b2a9f83247e000a28acd5134b616da725f46def39980b5373030e8cbc5d0934
+[FAIL] dfolan/internal/gamedata/TestNativeCommerceCurrentArchiveFingerprint
+  evidence: configured-tests-first.jsonl
+  detail: catalogs_native_only_test.go:151: open inner PVF: inner PVF source mismatch: got 6f525953bf9d0da8ac70fc9bf00fd4c2bd3b3880e2d518cb4a2119feea9d2733 expected 8b2a9f83247e000a28acd5134b616da725f46def39980b5373030e8cbc5d0934
+[PASS] dfolan/internal/gamedata/TestNativeProgressionPreparationNeedsNoJSONBaseline
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestNativeRulesIgnoreMissingCharacterBaseline
+  evidence: configured-tests-first.jsonl
+[FAIL] dfolan/internal/gamedata/TestPVFClosingScenesLocalArchive
+  evidence: configured-tests-first.jsonl
+  detail: 100000084=8 100000085=8 100000086=8 100000087=8 100000088=8 100000089=8 100000090=8 100000091=8 100000092=8 100000093=8 100000094=8 100000095=8 100000096=8 100000097=8 100000098=8 100000099=8 100000100=8 100000101=8 100000102=8 100000103=8 100000104=8 100000105=8 100000106=8 100000107=8 100000108=8 100000109=8 100000110=8 100000111=8 100000112=8 100000113=8 100000114=8 100000115=8 100000116=8 100000117=8 100000118=8 100000119=8 100000120=8 100000121=8 100000122=8 100000123=8 100000124=8 100000125=8 100000126=8 100000127=8 100000128=8 100000129=8 100000130=8 100000131=8 100000132=8 100000133=8 100000134=8 100000135=8 100000136=8 100000137=8 100000138=8 100000139=8 100000140=8 100000141=8 100000142=8 100000143=8 100000144=8 100000145=8 100000
+[PASS] dfolan/internal/gamedata/TestPVFLayerRevisitsLocalArchive
+  evidence: configured-tests-first.jsonl
+[FAIL] dfolan/internal/gamedata/TestPVFScenesLocalArchive
+  evidence: configured-tests-first.jsonl
+  detail: 100000084=8 100000085=8 100000086=8 100000087=8 100000088=8 100000089=8 100000090=8 100000091=8 100000092=8 100000093=8 100000094=8 100000095=8 100000096=8 100000097=8 100000098=8 100000099=8 100000100=8 100000101=8 100000102=8 100000103=8 100000104=8 100000105=8 100000106=8 100000107=8 100000108=8 100000109=8 100000110=8 100000111=8 100000112=8 100000113=8 100000114=8 100000115=8 100000116=8 100000117=8 100000118=8 100000119=8 100000120=8 100000121=8 100000122=8 100000123=8 100000124=8 100000125=8 100000126=8 100000127=8 100000128=8 100000129=8 100000130=8 100000131=8 100000132=8 100000133=8 100000134=8 100000135=8 100000136=8 100000137=8 100000138=8 100000139=8 100000140=8 100000141=8 100000142=8 100000143=8 100000144=8 100000145=8 100000
+[PASS] dfolan/internal/gamedata/TestPVFScriptWarpsLocalArchive
+  evidence: configured-tests-first.jsonl
+[SKIP] dfolan/internal/database/TestSQLiteGeneratedSignatureParity
+  evidence: configured-tests-first.jsonl
+  detail: generated_parity_test.go:355: 40 accepted engine divergence(s) among the 278 ported methods (each needs one hand-written adapter method): AdvanceTowerFloorParams:field.Floor (SQLite cannot reproduce PostgreSQL's explicit cast: a CAST target always infers int64, and a bare parameter only takes a width from a column it is compared with) AdvanceTowerFloorRow:field.Column2 (sqlc's sqlite engine drops RETURNING aliases and names the field ColumnN) AdvanceTowerFloorRow:field.EntryDay (sqlc's sqlite engine drops RETURNING aliases and names the field ColumnN; the PostgreSQL value semantics and type were kept) AdvanceTowerGriefParams:field.Floor (SQLite cannot reproduce PostgreSQL's explicit cast: a CAST target always infers int64, and a bare parame
+[PASS] dfolan/internal/dungeon/TestLayerSequenceFinalExitsWithoutClearingRoom
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestLazyMapEntryAndRoomLocalArchiveParity
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestMoonSoloBackwardRevisitReusesCachedRoom
+  evidence: configured-world-moon.jsonl
+[PASS] dfolan/internal/dungeon/TestMoonSoloSourceLifecycle
+  evidence: configured-world-moon.jsonl
+[PASS] dfolan/internal/legion/TestBakalBudgetUsesSourceAndPersistsBetweenRooms
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/legion/TestBakalBudgetEventCloneRollsBack
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/legion/TestBakalNativeThreeUnattendedLanesApplySourceEscapePenalties
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/legion/TestBakalNativeFinalSceneHasSourceSettlementDeadline
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/legion/TestBakalNewRunClearsPreviousLocationTableBeforeRoster
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/legion/TestBakalRecoverySourceLadderAndExactEntryDeadline
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/legion/TestBakalSourceNoPenaltyKickDoesNotAdvanceRecovery
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/legion/TestBakalChangedSourceRecoveryAndFailedEventRollback
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/legion/TestBakalRuntimeInitializationNeverPublishesDeadBoss
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/legion/TestBakalRuntimeNormalAndHardAwakeningSchedules
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/legion/TestBakalRuntimeRespawnBuffExpiryAndIdempotence
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/legion/TestBakalRuntimeMovingWaveAndRollback
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/legion/TestBakalRuntimeCommanderCooldownAndOwnedLease
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestRuntimeDetailsLocalArchiveParity
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestRuntimeDungeonsLocalArchiveParity
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestDerivedItemCacheLocalArchiveParity
+  evidence: configured-tests-first.jsonl
+[FAIL] dfolan/internal/gamedata/TestCurrentPVFItemContentHistoricalFieldParity
+  evidence: configured-tests-first.jsonl
+  detail: item_content_migration_test.go:47: migration witness must run against current PVF 8b2a9f83247e000a28acd5134b616da725f46def39980b5373030e8cbc5d0934, got "6f525953bf9d0da8ac70fc9bf00fd4c2bd3b3880e2d518cb4a2119feea9d2733"
+[FAIL] dfolan/internal/gamedata/TestJointComplexItemsLocalArchiveParity
+  evidence: configured-tests-first.jsonl
+  detail: item_joint_test.go:43: joint reward pool/order/weights/counts/sealed markers differ
+[FAIL] dfolan/internal/gamedata/TestItemIndexLocalArchive
+  evidence: configured-tests-first.jsonl
+  detail: items_test.go:26: open ../../configs/items.index.json: The system cannot find the file specified.
+[PASS] dfolan/internal/gamedata/TestOdysseyCompletionNativeStartup
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestOrdinaryPVFPreparation
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/gamedata/TestProjectionCachesLocalArchiveParity
+  evidence: configured-tests-first.jsonl
+[SKIP] dfolan/internal/gamedata/TestPVFLootAndEquipmentSelectionPrepareWithoutLegacyBaselines
+  evidence: configured-tests-first.jsonl
+  detail: retired_selection_test.go:95: set DFO_PVF_CORE_TEST_SHA256 to the current 8b2a archive for this parity gate
+[FAIL] dfolan/internal/gamedata/TestBoostUpFullSourceClosure
+  evidence: configured-tests-first.jsonl
+  detail: boostup_source_test.go:104: boost reward root 590015880 has no [booster] content
+[PASS] dfolan/internal/gamedata/TestBoostUpTeachingAPCSource
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestOdysseyRankZeroBossRoomCompletes
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/pvf/TestWrapOuterReproducesRealClientOuter
+  evidence: configured-wrap-runner.jsonl
+[PASS] dfolan/internal/loot/TestAbyss100005014TakesLegacyPath
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/loot/TestAbyss100005014ExcludeMarkers
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/loot/TestAzureMainClearRewardIsSourced
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/loot/TestAzureMainClearRewardsFromScript
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/loot/TestClearResultSectionAzureVsMoon
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/loot/TestClearResultRegion
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/loot/TestRollDungeonGroups
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/loot/TestDungeonGroupPathBoundary
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/loot/TestAbyss100005014DeclaresGroups
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/loot/TestAbyss100005068DeclaresPerDifficultyGroups
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/managementdata/TestNativeManagementCatalogParity
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/cmd/wireprobe/TestEliteOdysseyQuickNextCurrentPVFNativeTarget
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/internal/loot/TestCurrentPVFMonsterMaterialsAndConsumablesDeathGrantAndIsolation
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/launcher/TestLiveGoClientHostRunsAndReaps
+  evidence: configured-mock-host.jsonl
+[SKIP] dfolan/internal/launcher/TestLiveLaunchClientBothPaths
+  evidence: configured-tests-first.jsonl
+  detail: clienthost_live_test.go:191: 需要 DFO_CLIENT_HOST_LIVE_TEST=1（会真的拉起子进程）
+[PASS] dfolan/internal/launcher/TestLiveWrappedClientHostReportsClientPID
+  evidence: configured-mock-host.jsonl
+[PASS] dfolan/internal/loot/TestCurrentPVFOrdinaryCardsPlanAndGrant
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/character/TestBoostStarterEquipmentGroupBinding
+  evidence: configured-focused-second.jsonl
+[PASS] dfolan/internal/character/TestBoostSpecialProfessionsSourceAwakening
+  evidence: configured-focused-second.jsonl
+[PASS] dfolan/internal/loot/TestLevel115MonstersDropEquipment
+  evidence: configured-extended-integration.jsonl
+[PASS] dfolan/internal/loot/TestCurrentPVFWorldDropDeathGrantAndDeferredModeIsolation
+  evidence: configured-world-moon.jsonl
+[PASS] dfolan/internal/inventory/TestCompactEquipmentLocalArchiveParity
+  evidence: configured-tests-first.jsonl
+[FAIL] dfolan/internal/inventory/TestFullCatalogWearFamiliesIntegration
+  evidence: configured-extended-integration.jsonl
+  detail: equipment_full_test.go:109: set EQUIPMENT_INTEGRATION=1 for imported catalog equipment_full_test.go:114: equipment source mismatch
+[PASS] dfolan/internal/character/TestBuffEnhancementNativePVFSource
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/cmd/wireprobe/TestAdventureEliteMoonCurrentPVFChannelBinding
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestEliteOdysseyCurrentPVFJournalSourceAdmission
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/internal/character/TestEntrySkillsAcrossNativeClientVersions
+  evidence: configured-focused-second.jsonl
+[PASS] dfolan/cmd/wireprobe/TestAdventureElitePreparationNativeChannelSources
+  evidence: configured-wireprobe-final.jsonl
+[SKIP] dfolan/internal/wfpisolate/TestLiveWFPIsolation
+  evidence: configured-tests-first.jsonl
+  detail: live_windows_test.go:21: 需要 DFO_WFP_LIVE_TEST=1（真的会装 WFP 过滤器）
+[SKIP] dfolan/internal/launcher/TestProbeEnvironmentTableMatchesTheProbe
+  evidence: configured-tests-first.jsonl
+  detail: probeenv_test.go:24: channel_probe.py is not present (open ../../../dfo_probe_tools/channel_probe.py: The system cannot find the file specified.); the mirror cannot be checked
+[SKIP] dfolan/internal/launcher/TestLaunchServerRefusesWhenTheProbeFails
+  evidence: configured-tests-first.jsonl
+  detail: serverrun_test.go:162: 7001 已被占用，本次跳过：端口 7001 已在监听；请先检查现有会话再重试。
+[SKIP] dfolan/cmd/wireprobe/TestAdventureEliteRandomOptionNativeSavedSnapshots
+  evidence: configured-wireprobe-final.jsonl
+  detail: adventure_elite_random_options_test.go:62: set snapshot file and native archive for reported-account encoding check
+[PASS] dfolan/internal/quest/TestCurrentStoryUnderClearSourceAndRoute
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/workflow/TestAccountVaultPurchaseUsesSaveIdentity
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/workflow/TestVaultSourcePurchase
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/workflow/TestCloneAvatarMigrationTransactionAndGuardedRollback/postgres
+  evidence: configured-tests-first.jsonl
+  原 postgres 分支误标，已替换为 sqlite-fixture 并实际通过；不表示 PostgreSQL 通过。
+[PASS] dfolan/internal/inventory/TestEquipmentProjectionLocalArchiveParity
+  evidence: configured-tests-first.jsonl
+[FAIL] dfolan/internal/inventory/TestPVFEquipmentLocalArchive
+  evidence: configured-tests-first.jsonl
+  detail: equipment_pvf_test.go:119: compact equipment archive entries=475519 retained_heap_bytes=659070424 equipment_pvf_test.go:126: equipment index changed
+[PASS] dfolan/cmd/wireprobe/TestEliteStoryNative3146SourceAdmission
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/internal/dungeon/TestRoarRavineLiveSelectionResolvesAcceptedQuest
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestSceneEntryRecordIsRetained
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/cmd/wireprobe/TestApocalypseThreeSourceChoicesLoadNavigation
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/internal/quest/TestEpicHuntMonsterSourceRoutes
+  evidence: configured-tests-first.jsonl
+[FAIL] dfolan/internal/character/TestNativeLearningCurrentArchiveCompleteDetails
+  evidence: configured-tests-first.jsonl
+  detail: learning_native_archive_test.go:28: unexpected native source: 6f525953bf9d0da8ac70fc9bf00fd4c2bd3b3880e2d518cb4a2119feea9d2733
+[PASS] dfolan/internal/quest/TestSeekMeetBossClearLazyLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestMaxLevelRewardFollowsSourceBlock
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestCurrentPVFMonsterItemTablesContainMissingConsumables
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestCurrentPVFMonsterItemTablesUseRootLISTPaths
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestNPCFavorRulesLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestOathPointsRealCharacterOne
+  evidence: configured-focused-second.jsonl
+[PASS] dfolan/internal/catalog/TestParsePointRulesRealSource
+  evidence: configured-focused-second.jsonl
+[PASS] dfolan/internal/dungeon/TestStartLayerSceneDoorAdvancesNotBase
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestStartLayerRoomAdvancesInsteadOfLooping
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestStoryLayerCompletionOnRealCastellanChamber
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestYellowDragonCapturedEntry
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestDazzlementSourceEntry
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestTowerGriefSourceEntry
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestWhiteLandCapturedDownwardRoomMove
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestAzureMainMazeNative
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestHellPartyCurrentPVFEntryCoverage
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/dungeon/TestBakalHuntBossLastRoomNative
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestSelectionScopeAuditLocalArchive
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestSetPointAwakeningThreeFamiliesNative
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestSetPointsRealArchiveNative
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestSoleEquipmentRulesNative
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestSoleCreateMaterialsNative
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/quest/TestTournamentSceneTriggerWaitsForFourRoundsAndBossCheck
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/quest/TestSeekMeetBossClearRequiresOwnedSourceAndItems
+  evidence: configured-tests-first.jsonl
+[PASS] dfolan/internal/catalog/TestCurrentPVFWorldDropContainsLiveLevelMaterialsAndConsumables
+  evidence: configured-world-moon.jsonl
+[PASS] dfolan/internal/catalog/TestConfigCrossCatalogSweep
+  evidence: configured-extended-integration.jsonl
+[SKIP] dfolan/internal/inventory/TestNativeWidenedCatalogKeepsDropPoolSane
+  evidence: configured-tests-first.jsonl
+  detail: equipment_catalog37_test.go:21: set DFO_PVF_CORE_TEST_SHA256 to the current 8b2a archive for this integration gate
+[PASS] dfolan/internal/character/TestBoostVPSaveSQLSharesSkillCommit
+  evidence: configured-focused-second.jsonl
+[SKIP] dfolan/internal/character/TestCapturedAutoSetPersistence
+  evidence: configured-tests-first.jsonl
+  detail: skill_pipeline_test.go:20: DFO_TEST_SKILL_CAPTURE_FILE selects the historical before-state capture
+[PASS] dfolan/cmd/wireprobe/TestApocalypseBasicBundleNativeSource
+  evidence: configured-wireprobe-final.jsonl
+[FAIL] dfolan/cmd/wireprobe/TestAttunementBossPaysTheUnwrappedRewards
+  evidence: configured-extended-integration.jsonl
+  detail: attunement_reward_integration_test.go:49: set ATTUNEMENT_REWARD_INTEGRATION=1 to load the 295 MB dungeon catalog attunement_reward_integration_test.go:109: reward table names a wrapper the box catalog cannot open: attunement reward 10419721 is not a wrapper the box catalog can open
+[PASS] dfolan/cmd/wireprobe/TestAzureFlipPolicyFromSource
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalAlivePhaseCinematicLoadsSecondMapOnce
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalNativeSameGridPortalPreservesLivingBoss
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalFirstPhaseLivePortalThenArena
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalLiveWaitingRoomCreateAndDetails
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalLiveKingsroadExperienceAndDeath
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalFormationBeforeTownMoveSynchronizesMemberArea
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalRoomMovementAndRepeatedLoad
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalLiveNonzeroColumnPortals
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalClearedBossReturnsToDifferentSourceGrid
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalFieldBossDoesNotRespawnAfterNativeReturn
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalNativeDragonEntryAwakensAndSurvivesRoomSnapshot/sparazzi
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalNativeDragonEntryAwakensAndSurvivesRoomSnapshot/skasa
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalNativeDragonEntryAwakensAndSurvivesRoomSnapshot/hisma
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalRetreatUIBypassesOnlyRaidSettlementGate
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalNativeClearedRoomReturn
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalNativeDirectMoveAndOwnedDeath
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalNativeTwoPhasesLoadFinalDungeon
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalSettlementRetryPaysBeforeInventory
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalNativeBossOnlyInSourceArena
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalFailedRunCanRestartWithOwnedFormation
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalNativeMinionPresencePrecedesMapInitialization
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalNativeInitialReservationsDriveMinionPresence
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalNativeReservedLeaderHasOwnedSourceActor
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalCapturedPortalsEnterLivingSourceArenas
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalDefeatedPortalKeepsNormalRoom
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalRuntimeCommanderEnvelopeAndMemberOwnership
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalLoadRestoresCurrentCommanderStockOnce
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalDeathReturnsToCampWithRecoveryInsteadOfOrdinaryFailure
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalRevivalAndNoPenaltyKickCancelDeathSchedule
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalRecoveryRejectsPortalBeforeDecodeAndAllowsAtDeadline
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalRecoveryFinishPublishedOnceOnSerialTick
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalCommanderCampReturnDoesNotPenalizePendingDeath
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalStaleDeathRunDoesNotReturnNewDungeon
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalFailedRestartCreatesPreviouslyDefeatedGatekeeper
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalLifecyclePublishesNativeActiveDescriptorAndEnds
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalCapturedDefeatedBlonaArenaEntersNormalRoute
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalReviveBudgetBlocksBeforeSpendingCurrency
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalReviveBudgetSuccessFailureAndReplay
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalNativeRoomRoutesAfterClear
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBakalDragonDeathOpensNativeReturnWithoutGenericCompletion
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBoostAutoGrantsActualSource
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBoostCapsulePacketsPrimeAwakeningAndKeepConsumedSlotEmpty
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBoostChallengeSQLRealEntry
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBoostGuideActualGateAndSelectionUseExistingMapEngine
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBoostGiftSQLRealEntryReplayIsolationAndRollback
+  evidence: configured-gift-final5.jsonl
+[PASS] dfolan/cmd/wireprobe/TestBoostTownAllSourceStepsHaveScopedPermissionAndAuthoredSpawn
+  evidence: configured-wireprobe-final.jsonl
+[FAIL] dfolan/cmd/wireprobe/TestBorderOfAttunementPaysWithAGearPool
+  evidence: configured-extended-integration.jsonl
+  detail: border_drop_integration_test.go:33: set BORDER_DROP_INTEGRATION=1 to load the 295 MB dungeon catalog border_drop_integration_test.go:98: 60 runs of dungeon 100005068 paid only 0 drops (want >= 5): the gear pool is probably not wired into the loot session again
+[PASS] dfolan/cmd/wireprobe/TestBorderRewardsCurrentPVF
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestPVFLotteryLocalArchive
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestNativeLotteryDiscoveryCurrentArchive
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestNativeLotteryStartupWithoutExportedCatalogs
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestDimCloisterBossDeathCompletesTheStage
+  evidence: configured-wireprobe-final.jsonl
+[FAIL] dfolan/cmd/wireprobe/TestEndkeeperBossPaysTheUnwrappedRewards
+  evidence: configured-extended-integration.jsonl
+  detail: endkeeper_reward_integration_test.go:82: set ATTUNEMENT_REWARD_INTEGRATION=1 to load the 295 MB dungeon catalog endkeeper_reward_integration_test.go:123: reward table names a wrapper the box catalog cannot open: attunement reward 10419721 is not a wrapper the box catalog can open
+[PASS] dfolan/cmd/wireprobe/TestFatigueRunLoadingIntegration
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestIspinsNativeStagesUseOwnedClockAndSourceDoors
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestIspinsSelectedFourMinuteSourceClock
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestIspinsReturnUsesNativeCachedMapMode
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestIspinsPhase2NativeDoorMove
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestIspinsAllSourceOperationsEnterWithNativeCardAndPotionLimit
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestIspinsTimeoutRetryKeepsProgressAndRebuiltPartyCanEnter
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestMonsterDeathAfterAdvancementIntegration
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestMoonRewardPoolFromSource
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestConquestFlipPolicyFromSource
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestOmenStageIDsMatchTheOfficialBoxes
+  evidence: configured-extended-integration.jsonl
+[FAIL] dfolan/cmd/wireprobe/TestOmenStagesPayTheirOwnTier
+  evidence: configured-extended-integration.jsonl
+  detail: omen_reward_integration_test.go:80: set ATTUNEMENT_REWARD_INTEGRATION=1 to load the 295 MB dungeon catalog omen_reward_integration_test.go:134: stage 2 paid 100401604, which is not one of its own contents [1 x14]
+[PASS] dfolan/cmd/wireprobe/TestEndkeeperClearPaysTheOmenGuarantee
+  evidence: configured-extended-integration.jsonl
+[PASS] dfolan/cmd/wireprobe/TestQuest3939SceneCompletionWithoutBossIdentity
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestPublishRaidChannelsFromNativePVF
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestRolePVFPrewarmNativeArchive
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestSelectionBoxItemsAreGrantable
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestVaultPurchasePackets
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestShopPilotRequestToPackets
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestShopPilotCreatureEggPackets
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestShopPilotLifeTokenPackets
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestShopPilotDatabasePurchase
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestShopPilotContractCartPurchase
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestShopPilotNativeSaveIdentityPurchase
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestShopPilotNativeGoldPurchase
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestWestCoastSceneSelectsQuestMaze
+  evidence: configured-wireprobe-final.jsonl
+[PASS] dfolan/cmd/wireprobe/TestUnsealNativeSaveIdentity
+  evidence: configured-wireprobe-final.jsonl

@@ -1,0 +1,32 @@
+末世录第三卡：CN 原版美术来源核对
+
+用户要求：第三张调用 CN 美术资产，不自行制作美术资产。
+范围：本地原版 CN Script.pvf、ImagePacks2 与当前 US 相同资源的只读比较。
+CN PVF 使用配套 DNF115CN.Pvf.PvfArchive.OpenClient115 读取；未启动游戏或服务端。
+
+CN contents/2026/apocalypse/animation/card_2 下四个动画均引用
+Contents/2026/Apocalypse/UI/LevelSelect.img 的第 3 帧。
+OperationCard2.xui 引用 Interface2/Legion/LegionCommon/Symbol_Flat_L.img。
+CN 与 US 的 operation_2 均初始隐藏/禁用；US 原生代码只创建、遍历两卡。
+客户端候选补丁扩展原生三卡创建/访问，并开启第三卡显示和交互，不绘制美术。
+
+NPK：ImagePacks2/sprite_contents_2026_apocalypse_ui.NPK
+条目：sprite/contents/2026/apocalypse/ui/levelselect.img
+CN 整体条目 SHA256：3a1194a7253997cae0f041bb584995e4986e65848c946b4d22c450980192eabd
+US 整体条目 SHA256：1252c8a96f916f24bcc9e7faf5ac4f03bc63ab88b02db1080aaa6cbad6614f51
+第 3 帧：172×293，像素、格式、偏移和画布尺寸全部一致。
+双方解压像素 SHA256：19fc231ea409d54a7f8a6d239eeeff7a3ff5de7008a707d760fd3f08373bbb3b
+整体条目存在其它帧差异，不以整体文件不同推断第三卡不同。
+
+NPK：ImagePacks2/sprite_interface2_legion_legioncommon.NPK
+条目：sprite/interface2/legion/legioncommon/symbol_flat_l.img
+CN 与 US 整个条目逐字节一致，59442 字节。
+SHA256：8099ccca7d934251f2cee194a785f8129b1342eb3d7ebf69b576e882f8c75cff
+
+结论：直接调用 US 现有的、已核对与 CN 相同的原版第三卡美术。
+不生成替代美术，不覆盖其它帧，不直接复制带归档字符串池索引的编译 ANI。
+可复核工具：client-patchs/apocalypse-third-card/src/audit-resources.py。
+候选 mod 携带 artwork-provenance.json；不包含 CN/US 本机路径或整套资产。
+
+边界：资源来源核对已通过；原生界面的宿主加载时机、点击第三卡、确认及返回
+尚未取得手动实机结果。不得把资源一致性或机制自测写成完整玩法验收。

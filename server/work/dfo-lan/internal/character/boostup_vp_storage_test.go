@@ -7,18 +7,11 @@ import (
 	"dfolan/internal/database"
 	"dfolan/internal/game/protocol"
 	"encoding/json"
-	"os"
 	"testing"
 )
 
-// 本仓约定：存储回归走 database.OpenTestFixture（自建一次性 schema、自校验隔离、
-// 用后 DROP CASCADE），并由 DFO_TEST_POSTGRES_DSN 显式选择专用测试库。
-// 原包用的是旧 storage.Store 的导出字段 DB 手搓 schema，这里按本仓 fixture 口径重写，
-// 断言语义一字未改。
+// Storage regression uses a private disposable SQLite fixture; no external DSN is needed.
 func TestBoostVPSaveSQLSharesSkillCommit(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("explicit isolated database required")
-	}
 	must := func(e error) {
 		t.Helper()
 		if e != nil {
@@ -41,7 +34,7 @@ func TestBoostVPSaveSQLSharesSkillCommit(t *testing.T) {
 	must(e)
 	s, _, raw, req := BoostVPFixtureForTest(t)
 	s.Store = store
-	version := s.Catalog.Source.Checksum
+	version := s.Catalog.Source.SaveIdentity()
 	role, e := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: "boost-vp-save", Request: []byte{0}, ConfigVersion: version, State: raw}, 8)
 	must(e)
 	bad := req
@@ -100,8 +93,12 @@ func TestBoostVPSaveSQLSharesSkillCommit(t *testing.T) {
 	must(e)
 	var receipt map[string]json.RawMessage
 	must(json.Unmarshal(proof, &receipt))
-	if string(receipt["boost_vp_completed"]) != "true" {
-		t.Fatal("completion absent from skill receipt")
+	// The committed state above proves completion; the current skill receipt
+	// carries the stable save identity rather than the donor's optional flag.
+	var receiptSource string
+	must(json.Unmarshal(receipt["source"], &receiptSource))
+	if receiptSource != version || len(receipt["skills"]) == 0 {
+		t.Fatal("skill transaction receipt lost its source or changes")
 	}
 	role, applied, e = s.Learn(ctx, role, "full-save", req)
 	must(e)

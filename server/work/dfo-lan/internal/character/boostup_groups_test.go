@@ -8,7 +8,6 @@ package character
 
 import (
 	"dfolan/internal/catalog"
-	"dfolan/internal/catalog/pvf"
 	"os"
 	"slices"
 	"testing"
@@ -19,11 +18,12 @@ func TestBoostStarterEquipmentGroupBinding(t *testing.T) {
 	if path == "" {
 		t.Skip("explicit read-only source required")
 	}
-	a, e := pvf.LoadArchive(pvf.Options{Path: path, MaxBytes: 1 << 30})
+	a, e := catalog.OpenTestArchiveCached(path, os.Getenv("US115_TEST_BOOST_PVF_SHA256"))
 	if e != nil {
 		t.Fatal(e)
 	}
-	index, e := catalog.LoadItemIndex("../../configs/items.index.json")
+	defer a.Close()
+	index, e := catalog.ImportItemIndex(a)
 	if e != nil {
 		t.Fatal(e)
 	}

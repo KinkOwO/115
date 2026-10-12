@@ -102,11 +102,11 @@ func TestDimCloisterDecodeStageConfirmMatchesCapture(t *testing.T) {
 	if stage != 0 {
 		t.Fatalf("关卡下标 %d, want 0", stage)
 	}
-	// 第 2/3 轮：同一帧只把 @16 改成 1/2。
+	// 第 2/3 轮：同一帧只把 @17 改成 1/2。
 	base := decodeHex(t, officialCmd2045)
 	for want := uint32(1); want <= 2; want++ {
 		body := append([]byte(nil), base...)
-		body[16] = byte(want)
+		body[17] = byte(want)
 		_, got, err := legion.DecodeDimCloisterStageConfirm(body)
 		if err != nil {
 			t.Fatal(err)
@@ -148,7 +148,7 @@ func TestDimCloisterStartAckResultCodeIsOne(t *testing.T) {
 	}
 }
 
-// TestDimCloisterStageAckShape 钉住 CMD2045 应答：40 字节、成功字节 1、队伍 @5、关卡 @10。
+// TestDimCloisterStageAckShape 钉住 CMD2045 应答：14 字节、成功字节 1、内容 @5、关卡 @9。
 func TestDimCloisterStageAckShape(t *testing.T) {
 	ack := legion.DimCloisterStageAck(legion.DimCloisterPartyType, 2)
 	if len(ack) != legion.DimCloisterEnterAckSize {
@@ -157,7 +157,7 @@ func TestDimCloisterStageAckShape(t *testing.T) {
 	if ack[0] != 1 || ack[5] != legion.DimCloisterPartyType {
 		t.Fatalf("应答形状不对: %x", ack)
 	}
-	stage := uint32(ack[10]) | uint32(ack[11])<<8 | uint32(ack[12])<<16 | uint32(ack[13])<<24
+	stage := uint32(ack[9]) | uint32(ack[10])<<8 | uint32(ack[11])<<16 | uint32(ack[12])<<24
 	if stage != 2 {
 		t.Fatalf("关卡 %d, want 2", stage)
 	}

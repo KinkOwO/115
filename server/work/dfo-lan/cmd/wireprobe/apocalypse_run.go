@@ -205,8 +205,7 @@ func (s *legionSession) handleApocalypse(w *worldSession, p []byte, id uint16, a
 		if !run.Rewarded {
 			grant, gErr := w.apocalypseTerminalReward(legion.CmdRewardEnd, "apocalypse_reward_end")
 			if gErr != nil {
-				note["reward_chain"] = "refused"
-				note["reward_error"] = gErr.Error()
+				return legionResult{}, true, gErr
 			} else {
 				rewardPackets = grant.Plan
 				note["reward_chain"] = "delivered"
@@ -334,6 +333,15 @@ func (s *legionSession) apocalypseInfo() []byte {
 	for i := 1; i <= run.Cleared && i < 6; i++ {
 		state.TargetMarks[i] = 1
 	}
+	if run.Choice == 2 {
+		for i := range state.TargetMarks {
+			state.TargetMarks[i] = 0
+			if run.TargetCleared[i] {
+				state.TargetMarks[i] = 1
+			}
+			state.TargetElapsedMS[i] = run.ClearElapsedMS[i]
+		}
+	}
 	if run.Ended {
 		state.State = 0
 	} else {
@@ -380,6 +388,16 @@ func (s *legionSession) apocalypseOperation(w *worldSession, p []byte) (legionRe
 		return legionResult{}, fmt.Errorf("legion operation channel %d, want %d", request.Channel, legion.OperationChannelCode)
 	}
 	run := s.apocalypseRun()
+	var selectedPlan *legion.RunPlan
+	if request.Action == 2 {
+		if run.Entered || run.Ended {
+			return legionResult{}, fmt.Errorf("apocalypse operation cannot change after admission")
+		}
+		selectedPlan, err = legion.PlanForChoice(s.catalog, s.clock, request.Auxiliary)
+		if err != nil {
+			return legionResult{}, err
+		}
+	}
 	// 选择难度窗的倒计时截止值（操作记录 byte@6..9 = 正文 @9..12）。
 	//
 	// 2026-10-08 修正：**必须下发**。此前按「时基未校准」暂不下发，实机表现是
@@ -442,10 +460,8 @@ func (s *legionSession) apocalypseOperation(w *worldSession, p []byte) (legionRe
 			return legionResult{}, fmt.Errorf("apocalypse difficulty refused: CMD2354 action2 carried no key (0xff)")
 		}
 		run.Choice = request.Auxiliary
-		plan, err := s.apocalypseOperationPlan()
-		if err != nil {
-			return legionResult{}, err
-		}
+		plan := selectedPlan
+		s.plan = plan
 		// 难度确认后客户端先收到难度态 NOTI2895，再收 2354 应答（抓包 39.62s）。
 		result.Packets = append([]outboundPacket{{
 			Name:    "legion_info",
@@ -788,6 +804,9 @@ func (s *legionSession) apocalypseDirectMove(w *worldSession, id uint32) (legion
 	}
 	if stage == 0 && run.Stage > 0 {
 		return legionResult{}, fmt.Errorf("apocalypse waiting room %d is not re-enterable once stage %d is active", id, run.Stage)
+	}
+	if run.Choice == 2 && stage > 1 {
+		return s.apocalypseMasterMove(w, id)
 	}
 	if stage > 0 && stage != run.PhaseCleared+1 {
 		// 阶段必须顺序推进：抓包两场都是 1→2→3→4→5。

@@ -1,0 +1,43 @@
+继续审查证据（2026-10-12）
+当前 US PE SHA256=515fefa1c71577a15f90513f860270320f3502bc492ad596f10cf176b91c21eb
+当前内层 PVF SHA256=d175ea7def414ec665f5052e90b82208786b7caae0d8d916470e1301bca50aca
+下列均为当前 PE 离线静态证据，不冒充动态命中。既有C2S codec未改。
+
+伊斯：142530c30读取N2255；14252c240按选中源索引找对象，并从对应卡槽赋i16参数。
+14252a920工厂支持源中type3/6/8/11/13/22/23；14252e070等消费原生效果。
+N2256 142530eb0读i16索引+u8成功标志，14252c460只接受匹配当前对象的索引。
+本轮绑定源卡，限药N1584与数据库成功消费计数，源复活币限制；不新增第二套数值表。
+
+森林极难新假设 attempt 1/3：重建队伍恢复共享模式ready状态。
+与此前失败的N2254/781/782配额重发不同。旧退队N2565 state14只完成退出。
+当前141d42030把N2565@2交142ac2290，后者调用共享模式虚函数+20 ->142511820，写mode+0x74。
+当前142510a50开始按钮首先检查mode+0x74==0，不满足则不发送C2043。
+新建极难队伍后发N2565(state0, phase-1)，保留退出记录；不发已失败的配额三包。
+141d362a0仅在旧phase-1且新phase0时自动进图；新帧保持phase-1，无该触发。
+C2043其它leader/party/admission门禁仍存在，静态根因候选不能宣称实机重复开团已验收。
+
+回廊进度新假设 attempt 1/3（当前reader/index取证）：
+14209e590逐帧覆盖manager+0x6b(phase)、+0x77开始的5行；1420a07e0直接按phase索引行。
+官服已有#897 dungeon0 phase1、#981 dungeon1 phase2；旧代码stage0选dungeon1，stage1选关闭帧dungeon2。
+本轮按stage取对应clear帧；随后options保留phase与行，进图不再发送post-clear结果。
+C2045只接受已清界数对应阶段；C2046须该run对应副本确实完成。重复清关不推进。
+仍保留旧零卡保护和捕获布局，源周轮换、实际选卡、完整奖励链没有因此完成。
+当前PVF [string data]为Type8引用，Text字段空不能认定源字符串缺失。
+LocalizedText复核：DCMission_Title_001=明晰知觉，Content_001可解析；In_Dungeon_001为空。
+因此旧注释“9个operation的string data全空”不适用于本轮当前PVF，不据此修改客户端。
+
+末世录：1406a1fa0选项确认 ->14069b560(action2) ->C2354(1424fe3f0)。
+ACK reader1424fd320 ->14069a360在mode2、town允许、partyready后发C2045；没有读取ACK@7覆盖难度。
+当前PVF三档逐个进入真实导航房100005112且有N28/N29的测试通过。
+没有复现用户第三档UI失败，不能称入口已修；本轮不改ACK字段盲试。
+
+幽暗岛：N2467/141c22e60将10B记录@4的signed short赋operation+0x108。
+141c20f60是type工厂，141c26f50/141c27040等消费整数百分比参数。
+当前源operation21(type4)参数1.5；operation7/24(type7)非恒定范围step0。
+仅确认通用整数百分比不足以证明type4/7转换；不得直接截断1.5或将step0改1。
+生产入场/选卡/阶段/奖励接线仍未完成。
+
+参考版本差异（只作线索，不作为US协议真源）：
+https://www.dfoneople.com/news/notices/3895/Directors-Note-March-2024
+https://www.dfoneople.com/news/updates/4242/Content-Changes
+CN与R7仍只提供领域实现参照，源数据以当前PVF为准。

@@ -13,7 +13,6 @@ import (
 	"dfolan/internal/workflow"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -216,9 +215,6 @@ func TestBoostDisjointMissionProgressFrame(t *testing.T) {
 }
 
 func TestBoostGiftSQLRealEntryReplayIsolationAndRollback(t *testing.T) {
-	if os.Getenv("DFO_TEST_POSTGRES_DSN") == "" {
-		t.Skip("explicit isolated database required")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 	fixture, e := database.OpenTestFixture(ctx)
@@ -251,10 +247,12 @@ func TestBoostGiftSQLRealEntryReplayIsolationAndRollback(t *testing.T) {
 	assertBoostAutoSQL(t, ctx, fixture)
 	assertBoostMailSQL(t, ctx, store)
 	version := savecontract.Identity()
-	ls := &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: version}, Items: map[uint32]catalog.LootItem{1: {ID: 1, Kind: "stackable", StackableType: "[waste]", StackLimit: 1}}},
+	// Templates 0/1 are currencies in the current inventory contract; use
+	// the same synthetic stackable ID as the pure gift regression.
+	ls := &loot.Service{Catalog: catalog.LootCatalog{Source: pvf.ArchiveSnapshot{Checksum: version}, Items: map[uint32]catalog.LootItem{3: {ID: 3, Kind: "stackable", StackableType: "[waste]", StackLimit: 1}}},
 		BagRules: inventory.BagRules{Source: version, Slots: map[string][2]uint16{"[waste]": {65, 65}}, MissingStackLimit: 1}}
 	lsvc := &workflow.LootService{Store: store, Loot: ls}
-	gift := boostup.Gift{ID: 117, Event: 10017, Direct: true, Trigger: "click button", Items: []uint32{1}}
+	gift := boostup.Gift{ID: 117, Event: 10017, Direct: true, Trigger: "click button", Items: []uint32{3}}
 	create := func(name string, raw json.RawMessage) database.Character {
 		r, err := store.CreateCharacter(ctx, database.Character{AccountID: account, Name: name, Profession: 0, Request: []byte{0}, ConfigVersion: version, State: raw}, 100)
 		must115(t, err)
@@ -276,9 +274,9 @@ func TestBoostGiftSQLRealEntryReplayIsolationAndRollback(t *testing.T) {
 	bag, e := inventory.ReadBag(w.role.State)
 	must115(t, e)
 	if len(bag.Items) != 1 || bag.Items[0].Amount != 1 {
-		t.Fatal("duplicate grant")
+		t.Fatal("duplicate grant", bag.Items)
 	}
-	capsuleCatalog := &boostup.Catalog{GoalLevel: 115, UsableLevel: 115, Capsules: map[uint32]boostup.Capsule{1: {Item: 1, Variant: 0}}, Steps: []boostup.Step{{Number: 1, Guide: "none", Mission: "equip item"}}}
+	capsuleCatalog := &boostup.Catalog{GoalLevel: 115, UsableLevel: 115, Capsules: map[uint32]boostup.Capsule{3: {Item: 3, Variant: 0}}, Steps: []boostup.Step{{Number: 1, Guide: "none", Mission: "equip item"}}}
 	growCalls := 0
 	grow := func(r database.Character, target byte) (database.Character, error) {
 		growCalls++
@@ -317,7 +315,7 @@ func TestBoostGiftSQLRealEntryReplayIsolationAndRollback(t *testing.T) {
 		t.Fatal("capsule state/item not atomic")
 	}
 	capsuleCatalog.Town = 222
-	capsuleCatalog.Steps[0].Rewards = []boostup.Reward{{Item: 1, Count: 1}}
+	capsuleCatalog.Steps[0].Rewards = []boostup.Reward{{Item: 3, Count: 1}}
 	stepWorld := &worldSession{account: account, role: saved, loot: ls, store: store, boostup: capsuleCatalog, state: database.WorldState{Position: database.WorldPosition{Town: 222, Area: 0}}}
 	claimBody := []byte{0x96, 2, 0, 0, 1, 0, 0, 0}
 	stepPackets, e := stepWorld.boostStepRequest(ctx, claimBody, 680)
@@ -393,7 +391,7 @@ func TestBoostGiftSQLRealEntryReplayIsolationAndRollback(t *testing.T) {
 	queryState, e := boostup.WriteState(json.RawMessage(`{}`), boostup.State{Version: 1, Activated: true, Training: boostup.Training{Step: 1, Phase: 0}})
 	must115(t, e)
 	queryRole := create("boostquery", queryState)
-	queryCatalog := &boostup.Catalog{Town: 222, Steps: []boostup.Step{{Number: 1, Guide: "normal", Mission: "none", Rewards: []boostup.Reward{{Item: 1, Count: 1}}}}}
+	queryCatalog := &boostup.Catalog{Town: 222, Steps: []boostup.Step{{Number: 1, Guide: "normal", Mission: "none", Rewards: []boostup.Reward{{Item: 3, Count: 1}}}}}
 	queryWorld := &worldSession{account: account, role: queryRole, loot: ls, store: store, boostup: queryCatalog, state: database.WorldState{Position: database.WorldPosition{Town: 222, Area: 0}}}
 	queryPackets, e := queryWorld.boostStepRequest(ctx, claimBody, 681)
 	must115(t, e)
@@ -405,7 +403,7 @@ func TestBoostGiftSQLRealEntryReplayIsolationAndRollback(t *testing.T) {
 	if len(queryPackets) != 4 || queryPackets[1].ID != 2639 || queryPackets[2].ID != 2638 || queryPackets[2].Payload[0] != 2 || queryPackets[3].ID != 680 {
 		t.Fatal("final claim did not close training/update roster")
 	}
-	full, e := inventory.SaveBag(json.RawMessage(`{}`), inventory.Bag{Version: "ordinary-bag-v1", Items: []inventory.BagItem{{Slot: 65, Template: 1, Amount: 1}}})
+	full, e := inventory.SaveBag(json.RawMessage(`{}`), inventory.Bag{Version: "ordinary-bag-v1", Items: []inventory.BagItem{{Slot: 65, Template: 3, Amount: 1}}})
 	must115(t, e)
 	blocked := create("boostfull", full)
 	// 本树没有 inventory.ErrStackBagFull 哨兵：满包由 bag.go 的

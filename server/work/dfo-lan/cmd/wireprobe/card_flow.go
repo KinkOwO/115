@@ -57,6 +57,9 @@ func (w *worldSession) cardStage(id uint16, p []byte) ([]outboundPacket, error) 
 	return []outboundPacket{{"card_layout_ack", 1, 70, protocol.CardLayout()}}, nil
 }
 func (w *worldSession) grantFreeCard(index byte) ([]outboundPacket, error) {
+	if w.cardPlan != nil && w.cardPlan.Model == "apocalypse-source-presentation-v1" {
+		return w.apocalypseAcknowledgePaidCard(index)
+	}
 	// 蔚蓝号的奖单在 MoonRewardPlan 上（源驱动），领取走 ClaimMoonReward ——
 	// 与沉月湖同一个事务（按 run 幂等）。通用 PickCard 读的是 CardPlan，
 	// 那条路对蔚蓝号已经不适用（单子装不进 8 格）。
@@ -142,6 +145,9 @@ func (w *worldSession) cardPick(p []byte) ([]outboundPacket, error) {
 	return packets, nil
 }
 func (w *worldSession) settlementExit(p []byte) (*dungeon.Session, []outboundPacket, error) {
+	if w.ownsNativeLegion() {
+		return w.exitNativeLegion(p, time.Now())
+	}
 	r, e := protocol.DecodeSettlementExit(p)
 	if e != nil {
 		return nil, nil, e

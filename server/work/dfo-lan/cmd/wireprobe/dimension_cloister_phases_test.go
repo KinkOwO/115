@@ -179,6 +179,7 @@ func TestDimCloisterRewardEndPushesNextStageWindow(t *testing.T) {
 	s := &legionSession{channelType: legion.DimCloisterChannelType, dimCloisterStage: 0}
 	w := &worldSession{}
 	w.role.ID = 9
+	prepareCloisterCompletedTestStage(s, w)
 	result, err := s.dimCloisterRewardEnd(w, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -206,6 +207,7 @@ func TestDimCloisterFinalStageSendsVideoThenClose(t *testing.T) {
 	s := &legionSession{channelType: legion.DimCloisterChannelType, dimCloisterStage: 2}
 	w := &worldSession{}
 	w.role.ID = 9
+	prepareCloisterCompletedTestStage(s, w)
 	result, err := s.dimCloisterRewardEnd(w, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -513,6 +515,7 @@ func TestDimCloisterLoopWalksEveryStage(t *testing.T) {
 	bodies := make([][]byte, len(legion.DimCloisterStageDungeons))
 	for stage := 0; stage <= last; stage++ {
 		s.dimCloisterStage = stage
+		prepareCloisterCompletedTestStage(s, w)
 		result, err := s.dimCloisterRewardEnd(w, nil)
 		if err != nil {
 			t.Fatalf("第 %d 界结算: %v", stage, err)
@@ -537,14 +540,7 @@ func TestDimCloisterLoopWalksEveryStage(t *testing.T) {
 			// —— 客户端 `MyresDimensionCloister.etc` 的 `[string data]` 全空，
 			// 任何非零记录都会让客户端崩在文本构造里（第五/六轮实机，exit=0xC0000005）。
 			//
-			// ★ 第二十二轮：第 N 界清关后发的是"已清界数"当下标的那一帧
-			// （官服：第1界清完发 dungeon0/@11=01，第2界清完发 dungeon1/@11=02；
-			//  本仓下标 = 已清界数，第 0 界清完 cleared=1 ⇒ dungeon1）。
-			// 传 stage 本身等于把进度原地重写一遍，客户端会认为本界没打过 ⇒ 选不了下一界。
-			infoStage := stage + 1
-			if infoStage >= len(legion.DimCloisterStageDungeons) {
-				infoStage = len(legion.DimCloisterStageDungeons) - 1
-			}
+			infoStage := stage
 			want, _, err := legion.DimCloisterDungeonInfoBody(infoStage)
 			if err != nil {
 				t.Fatal(err)
@@ -560,6 +556,11 @@ func TestDimCloisterLoopWalksEveryStage(t *testing.T) {
 			}
 			if options := result.Packets[2]; options.Payload[3] != 0x06 {
 				t.Fatalf("第 %d 界开窗态 @3=%02x, want 06", stage, options.Payload[3])
+			}
+			for _, frame := range result.Packets[1:] {
+				if got := binary.LittleEndian.Uint32(frame.Payload[11:]); got != uint32(stage+1) {
+					t.Fatalf("stage %d phase reset/skipped: %d", stage, got)
+				}
 			}
 			if stage > 0 && bytes.Equal(bodies[stage], bodies[stage-1]) {
 				t.Fatalf("第 %d 界记录态与上一界逐字节相同（应各用官服那一帧）", stage)

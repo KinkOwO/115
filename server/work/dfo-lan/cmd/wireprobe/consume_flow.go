@@ -69,6 +69,23 @@ func (w *worldSession) useStackable(p []byte, event func(map[string]any)) ([]out
 			event(map[string]any{"kind": "bakal_consumable_budget", "raid": w.bakalRun, "coins": coins, "potions": potions})
 		}
 	}
+	if w.ispinsLimitedPotion(r) {
+		priorCheck, priorCommitted := check, committed
+		check = func() error {
+			if priorCheck != nil {
+				if err := priorCheck(); err != nil {
+					return err
+				}
+			}
+			return w.checkIspinsPotionUse()
+		}
+		committed = func() {
+			if priorCommitted != nil {
+				priorCommitted()
+			}
+			w.ispins.potionUsed++
+		}
+	}
 	saved, receipt, _, e := (&workflow.ItemService{Store: w.store, Items: w.items}).ConsumeChecked(ctx, w.role, r, check, committed)
 	if e != nil {
 		return nil, e
