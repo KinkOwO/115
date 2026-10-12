@@ -33,23 +33,24 @@ type LegionContents struct {
 }
 
 type LegionContent struct {
-	Name         string            `json:"name"`
-	LimitLevel   int64             `json:"limit_level"`
-	LastPhase    int64             `json:"last_phase"`
-	NeedFatigue  int64             `json:"need_fatigue"`
-	Recruiting   LegionAreaPoint   `json:"recruiting_area"`
-	Waiting      LegionAreaPoint   `json:"waiting_area"`
-	MovieTime    int64             `json:"movie_time"`
-	SelectLimit  int64             `json:"operation_select_limit_seconds"`
-	QuestIndex   []int64           `json:"quest_index"`
-	Dungeons     []LegionDungeon   `json:"dungeon_info_data"`
-	WeeklyEnter  int64             `json:"weekly_enter_count"`
-	PhaseReward  int64             `json:"phase_reward_count"`
-	EnterData    []LegionEnterRow  `json:"enter_data"`
-	InCountIndex int64             `json:"incount_dungeon_index"`
-	UIInts       map[string]int64  `json:"ui_int_list"`
-	Rewards      []LegionRewardRow `json:"reward_data"`
-	TingRewards  []LegionRewardRow `json:"ting_reward_data"`
+	NativeOperations *NativeLegionOperations `json:"native_operations,omitempty"`
+	Name             string                  `json:"name"`
+	LimitLevel       int64                   `json:"limit_level"`
+	LastPhase        int64                   `json:"last_phase"`
+	NeedFatigue      int64                   `json:"need_fatigue"`
+	Recruiting       LegionAreaPoint         `json:"recruiting_area"`
+	Waiting          LegionAreaPoint         `json:"waiting_area"`
+	MovieTime        int64                   `json:"movie_time"`
+	SelectLimit      int64                   `json:"operation_select_limit_seconds"`
+	QuestIndex       []int64                 `json:"quest_index"`
+	Dungeons         []LegionDungeon         `json:"dungeon_info_data"`
+	WeeklyEnter      int64                   `json:"weekly_enter_count"`
+	PhaseReward      int64                   `json:"phase_reward_count"`
+	EnterData        []LegionEnterRow        `json:"enter_data"`
+	InCountIndex     int64                   `json:"incount_dungeon_index"`
+	UIInts           map[string]int64        `json:"ui_int_list"`
+	Rewards          []LegionRewardRow       `json:"reward_data"`
+	TingRewards      []LegionRewardRow       `json:"ting_reward_data"`
 
 	// Complete/Missing 报告"入口侧消费需要的字段"是否齐全。源里各内容块的字段并不一致，
 	// 所以目录忠实取值、由使用方按 Complete 把关，而不是在这里假装整张表都齐。
@@ -133,6 +134,12 @@ func ImportLegionContents(a *pvf.Archive) (LegionContents, error) {
 		return out, e
 	}
 	out.Contents, e = ParseLegionContents(text)
+	if e == nil {
+		e = importNativeLegionOperations(a, out.Contents)
+	}
+	if e == nil {
+		e = importVenusOperations(a, out.Contents)
+	}
 	return out, e
 }
 
@@ -305,7 +312,11 @@ func (b *legionBlock) intField(name string) (int64, error) {
 	if !ok {
 		return 0, fmt.Errorf("missing [%s]", name)
 	}
-	return strconv.ParseInt(strings.Fields(v)[0], 10, 64)
+	fields := strings.Fields(v)
+	if len(fields) != 1 {
+		return 0, fmt.Errorf("[%s] needs one integer", name)
+	}
+	return strconv.ParseInt(fields[0], 10, 64)
 }
 
 func (b *legionBlock) optionalIntField(name string) (int64, error) {

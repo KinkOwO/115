@@ -88,12 +88,17 @@ func (s *LegionRewardService) resolve(pool []catalog.LegionOperationReward) (cat
 			return zero, nil, err
 		}
 		products, _, skipped := loot.OpenRewardBoxes(uint32(seed.Uint64()), s.Boxes, []loot.Award{{Template: row.Template, Amount: row.Amount}})
-		if len(skipped) > 0 || len(products) == 0 {
+		for _, reason := range skipped {
+			if reason != "attunement_empty_prize_4294967295" {
+				return zero, nil, fmt.Errorf("unresolved source legion wrapper: %s", reason)
+			}
+		}
+		if len(products) == 0 {
 			return zero, nil, fmt.Errorf("unresolved source legion wrapper: %v", skipped)
 		}
 		for _, a := range products {
 			item, ok := s.Awarder.Catalog.Items[a.Template]
-			if !ok || a.Amount == 0 || item.StackableType == "[booster]" || item.StackableType == "[virtual]" {
+			if !ok || a.Amount == 0 || item.StackableType == "[virtual]" {
 				return zero, nil, fmt.Errorf("invalid resolved legion product")
 			}
 		}
