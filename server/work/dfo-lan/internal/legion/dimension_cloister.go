@@ -258,37 +258,30 @@ func DimCloisterOperationClose() []byte {
 	return p
 }
 
-// DecodeDimCloisterOperation 解码 CMD2080（难度/关卡选择请求）。
-//
-// 实机原文（业主 2026-10-10 会话，点右上角 UI 时客户端发来，37B）：
-//
-//	90ae fd94 01000000 01000000 0101 000000 ffff 000000 0000
-//
-// 低版本（110 客户端）同一动作发的是 37B：
-//
-//	c03aba30 01000000 01000000 00010000 00ffff 000000 0000
-//
-// 两条形状一致：`u32@4` = action（1 = 开窗/选择），`@12..13` = ff ff。
-// 这里只解出 Action 用于日志与分支，不做门禁（开窗/确认两态都可能重发）。
+// DecodeDimCloisterOperation reads the current US C2080 writer's fields.
+// The captured open and select requests agree with 1420a5c50: action at 13,
+// signed operation index at 17; bytes 4/5 belong to the opaque envelope.
 type DimCloisterOperationRequest struct {
 	Action uint32
+	Index  int16
 	Close  bool
 	Body   []byte
 }
 
 func DecodeDimCloisterOperation(p []byte) (DimCloisterOperationRequest, error) {
-	if len(p) < 8 {
-		return DimCloisterOperationRequest{}, fmt.Errorf("次元回廊作战选择载荷 %d 字节，至少需要 8", len(p))
+	// Current native writer 1420a5c50 writes a 13-byte envelope followed
+	// by action:u32 and operation:i16 (19 bytes). Envelope bytes are opaque.
+	if len(p) < EnvelopeSize+6 {
+		return DimCloisterOperationRequest{}, fmt.Errorf("次元回廊作战选择载荷 %d 字节，至少需要 19", len(p))
 	}
 	req := DimCloisterOperationRequest{
-		Action: binary.LittleEndian.Uint32(p[4:]),
+		Action: binary.LittleEndian.Uint32(p[EnvelopeSize:]),
+		Index:  int16(binary.LittleEndian.Uint16(p[EnvelopeSize+4:])),
 		Body:   append([]byte(nil), p...),
-	}
-	if len(p) > 5 {
-		req.Close = p[5] != 0
 	}
 	return req, nil
 }
+
 // N28 的副本号换成该关的目标号。
 //
 // 抓包三关的进图帧列**除 N28 首 4 字节外逐字节相同**，所以保留官服原文、只改
