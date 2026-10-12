@@ -28,6 +28,12 @@
 
 `go build ./internal/... ./cmd/...` + `go vet` + `go test -p 1 -count=1 ./internal/... ./cmd/...` 全通过。新增测试：`internal/oracleresearch`（周起点 / 组装 / 原生配方）、`internal/extradrop`（解析 / 档位）、`internal/loot` 的固定掉落语义三条（结算才发 + 非结算不发 + 关掉回落稀有度表；并做了**反向对照**：判据改回 `len(result.Awards) > 0` 时第二条立刻变红）、`cmd/wireprobe` 的 1093 开关解析表。
 
+### 顺带：上游 main 编译修复
+
+本笔基于 `acc09302`（上游已前进 43 个提交）。合上来之后主干**编译不过**，根因在上游 `86c5e893`（mod 热开关 A+B 补完）：它重写 `internal/servermod` 时删掉了 `Reset` / `RegisterTick` / `Tick` / `HasTickHooks` / `Shutdown` 与 tick 注册表（`HookServerTick` / `TickContext` / `ticks`），却留下了两处引用 —— `cmd/wireprobe/main.go` 的 `servermod.Reset()` ×2（`fa174fb0` 加的）与 `internal/servermod/declarations.go` 的 `for _, t := range ticks` 反查循环。包级失败又掩盖了下游包的诊断，修掉第一处才露出第二处。
+
+按最小口径让主干可编译（**不恢复** `server.tick` 钩子：它的驱动侧 `DFO_MOD_TICK_MS` ticker 也一并被移除，只恢复一半会得到一个永远不会被调用的钩子，仓库里也没有任何 mod 注册它）：① `declarations.go` 删掉对 `ticks` / `HookServerTick` 的悬空引用（行为等价，那是死代码；若上游本意是保留该钩子，正确修法是恢复 `host.go` 的实现 —— 它在 `296f2d65` 里是完整的）；② `host.go` 按删掉之前的版本（`56124870`）恢复 `Reset()`，字段表对齐当前包（不含 `ticks`，补上当前包新增的 `live` / `dirtyBoot` / `lastNote` / `enabledDir` / `enabledLoaded` / `enabledStamp`）。
+
 ### 未闭环
 
 ① 赛丽亚房间的 NPC（Dr. Oracle = `100002479`）入口与其商店表尚未接线；② 1093 的 `drop item` 组（"观察到稀有度光柱"）判据未实现；③ 另外三个能量来源（每日任务盒「寻找每日搜索支持箱」、副本隐藏商店、活动商店）未接；④ `[max amount]` 封顶现为**会话内**，源要的「按天」需要角色级持久化；⑤ CMD680 领取段与 GM 工具未做；⑥ 2412 应答 `[4:8]` 目前放的是 `produced`，客户端弹窗里会显示成金币图标（无害，未改）；组装/分解的邮件文案仍走代码内文本，未改读 ctp `[production] [mail info]`。
