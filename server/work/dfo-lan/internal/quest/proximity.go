@@ -99,18 +99,14 @@ func holds(b inventory.Bag, need []ItemNeed) bool {
 	return true
 }
 
-// ProximityProgress settles the accepted objectives that are decided by where
-// the character now stands: reaching a source rectangle, and standing at the
-// NPC a quest names. The client's own conversation request (CMD33) remains
-// the primary path for [meet npc]; this walk is what keeps a chain moving
-// when that request is not observed, and it never invents a completion — the
-// character has to actually be at the source coordinates.
+// ProximityProgress settles only source geometry objectives. Keep meet-NPC
+// progress positive until the native conversation sends CMD33: the client
+// checks that live progress before dispatching its NPC dialogue trigger.
 func (s *Service) ProximityProgress(ctx context.Context, role character.Character, at Position, locate, phaseLocate NPCLocator) ([]uint16, error) {
 	states, e := s.Store.Quests(ctx, role.AccountID, role.ID)
 	if e != nil {
 		return nil, e
 	}
-	var bag inventory.Bag
 	x := s.Index()
 	var advanced []uint16
 	for _, q := range states {
@@ -123,8 +119,6 @@ func (s *Service) ProximityProgress(ctx context.Context, role character.Characte
 		}
 		satisfied := false
 		switch en.Model {
-		case SingleMeetNPC:
-			satisfied = nearNPC(en.NPC, at, locate)
 		case ReachNPC:
 			satisfied = nearNPCReach(en.NPCReach, at, locate)
 			// Phase-map NPCs are only usable for accepted range objectives;
@@ -134,13 +128,6 @@ func (s *Service) ProximityProgress(ctx context.Context, role character.Characte
 			}
 		case SingleReachRange:
 			satisfied = en.Range.Contains(at)
-		case SeekAndMeetNPC:
-			if bag.Version == "" {
-				if bag, e = inventory.ReadBag(role.State); e != nil {
-					return advanced, e
-				}
-			}
-			satisfied = holds(bag, en.Seek.Items) && nearNPC(en.NPC, at, locate)
 		}
 		if !satisfied {
 			continue
