@@ -78,11 +78,12 @@ func RegisteredHooks(modID string) []string {
 			seen[HookProtocolRequest] = true
 		}
 	}
-	for _, t := range ticks {
-		if t.modID == modID {
-			seen[HookServerTick] = true
-		}
-	}
+	// ⚠️ 这里**刻意不含** `server.tick`：上游 86c5e893（mod 热开关）把 host.go 里的 tick
+	// 实现（`HookServerTick` / `TickContext` / `RegisterTick` / `ticks` 注册表 / 驱动）
+	// 一并移除了，只留下本文件对 `ticks` 与 `HookServerTick` 的引用 ⇒ 主干编译不过。
+	// 本笔按最小口径删掉这个悬空引用（不恢复该钩子：连驱动侧都已不存在，
+	// 恢复一半只会得到一个永远不会被调用的钩子）。
+	// 若上游本意是保留 server.tick，修法应是恢复 host.go 的实现 —— 它在 `296f2d65` 里完整。
 	for _, s := range shutdowns {
 		if s.modID == modID {
 			seen[HookShutdown] = true

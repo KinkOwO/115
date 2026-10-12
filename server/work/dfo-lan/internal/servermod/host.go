@@ -380,6 +380,50 @@ func Registered() []string {
 	return out
 }
 
+// Reset 清空本包的进程级注册状态：钩子、mod 清单、live 门禁、内容扩展声明、奖励规则脚本、
+// 控制台帮助、启用清单。
+//
+// 为什么必须有：这些状态是**进程级单例**，而服务端实例（runGateway）可以在同一进程里
+// 被反复起停。上一台服务端注册的 mod 若不清掉，它的钩子和规则脚本会继续留在注册表里，
+// 影响之后的用例与下一台实例 —— 与 internal/modpolicy.Reset() 是同一条教训。
+//
+// ⚠️ 本函数是上游 `86c5e893`（mod 热开关）重写本包时漏掉的：实现被删掉，却留下了
+// `cmd/wireprobe/main.go` 里的两处调用 ⇒ 主干 `go build ./...` 报 `undefined: servermod.Reset`。
+// 本笔按删掉之前的版本（`56124870` 的 host.go）恢复，并把字段表对齐**当前**包：
+// 该版本里的 `ticks` 已随 `server.tick` 钩子一并移除，这里同样不含；
+// 而当前包新引入的 `live` / `dirtyBoot` / `lastNote` / `enabledDir` / `enabledLoaded` /
+// `enabledStamp` 也是按实例走的，一并清掉（原版没写它们，是因为那时还没有这些字段）。
+func Reset() {
+	mu.Lock()
+	boots = nil
+	consoles = nil
+	responses = nil
+	requests = nil
+	shutdowns = nil
+	live = map[string]bool{}
+	dirtyBoot = map[string]bool{}
+	lastNote = map[string]string{}
+	modValues = map[string]string{}
+	configKeys = map[string]string{}
+	registeredIDs = map[string]bool{}
+	consoleHelp = nil
+	contentClaims = nil
+	mu.Unlock()
+
+	scriptMu.Lock()
+	modScripts = nil
+	scriptMu.Unlock()
+
+	enabledMu.Lock()
+	enabledPath = ""
+	enabledDir = ""
+	disabledSet = map[string]bool{}
+	enabledLoaded = false
+	enabledLoadNote = ""
+	enabledStamp = fileStamp{}
+	enabledMu.Unlock()
+}
+
 // SetEnvSnapshot 由 main 在装配完成后注入"环境变量只读快照"。
 //
 // 为什么用环境变量而不是服务端 Config 结构体：mod 的 config.read/config.write 走的是
