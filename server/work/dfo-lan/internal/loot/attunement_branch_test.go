@@ -1,6 +1,9 @@
 package loot
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 // 大深渊（100005066/67/68）的 additional 一张表有 10~14 支，而**档位标签在多支之间重复**：
 // epic 同时挂在涌起波动、同样的命运、祝福气息武器/首饰/防具/特殊、神兵认主、宝匣上。
@@ -138,6 +141,80 @@ func TestRollPlannedWithoutTemplateStillFollowsTier(t *testing.T) {
 	for _, aw := range awards {
 		if aw.Template != 10419735 {
 			t.Fatalf("诊断覆盖 epic 档应发 10419735，实发 %v", awards)
+		}
+	}
+}
+
+// TestPlanRunCarriesTheBranchIdentity 钉住「掷中的是源表里哪一行」这件事本身。
+//
+// 业主 2026-10-12 的问题就是这一条：`[additional drop table]` 那 12 行（涌起 2/3/5/10 次
+// 波动、同样的命运、祝福气息武器/首饰/防具/特殊、神兵认主、虚无的气息×3、宝匣、希望之光）
+// 到底有没有触发？只带档位与模板号答不了这个问题 —— 涌起那四支**共用同一张 7 项清单**
+// （10419730..36），epic 这个标签又挂在 10 支上，所以「掷中哪一行」必须由 `[effect index]`
+// 与 `[select prob]` 认。虚无的气息在源里是**同一个 effect index 挂三条**（50000/100000/30000），
+// 因此这里按 (effect, prob) 认支，不按 index 单独认。
+func TestPlanRunCarriesTheBranchIdentity(t *testing.T) {
+	a, err := LoadAttunementRewards(attunementConfig)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	type key struct{ effect, prob uint32 }
+	for _, dg := range []uint32{100005066, 100005067, 100005068, 100005014} {
+		tbl := a.byDungeon[dg]
+		if tbl == nil || len(tbl.Additional) == 0 {
+			t.Fatalf("dungeon %d has no additional table", dg)
+		}
+		branches := map[key]*attunementAdditional{}
+		order := []key{}
+		for i := range tbl.Additional {
+			br := &tbl.Additional[i]
+			k := key{br.EffectIndex, br.SelectProb}
+			if _, dup := branches[k]; dup {
+				t.Fatalf("dungeon %d: (%d,%d) 这一支在源表里出现两次，认行的判据要重写", dg, k.effect, k.prob)
+			}
+			branches[k] = br
+			order = append(order, k)
+		}
+		seen := map[key]bool{}
+		seed := uint32(7)
+		for i := 0; i < 400000; i++ {
+			tiers, next, err := a.PlanRun(seed, dg, 0)
+			if err != nil {
+				t.Fatalf("dungeon %d PlanRun: %v", dg, err)
+			}
+			seed = next
+			if tiers.OathTemplate == 0 {
+				continue
+			}
+			k := key{tiers.OathEffect, tiers.OathProb}
+			br, ok := branches[k]
+			if !ok {
+				t.Fatalf("dungeon %d: 带下来的 (effect=%d, prob=%d) 不是源表里的任何一支", dg, k.effect, k.prob)
+			}
+			// 掷中的条目、份数都必须落在**这一支**上，不能只是档位像。
+			if tiers.OathAmount != br.DropCount {
+				t.Fatalf("dungeon %d 支 (effect=%d): drop count=%d，源表这支写的是 %d", dg, k.effect, tiers.OathAmount, br.DropCount)
+			}
+			hit := false
+			for _, e := range br.Entries {
+				if e.Item == tiers.OathTemplate {
+					hit = true
+					break
+				}
+			}
+			if !hit {
+				t.Fatalf("dungeon %d 支 (effect=%d, prob=%d) 的清单里没有条目 %d", dg, k.effect, k.prob, tiers.OathTemplate)
+			}
+			seen[k] = true
+		}
+		if len(seen) != len(order) {
+			var missing []string
+			for _, k := range order {
+				if !seen[k] {
+					missing = append(missing, fmt.Sprintf("effect %d/prob %d", k.effect, k.prob))
+				}
+			}
+			t.Fatalf("dungeon %d: 40 万个种子没掷到这些支 ⇒ 那些事件在游戏里一次都不会触发: %v", dg, missing)
 		}
 	}
 }

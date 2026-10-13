@@ -125,3 +125,32 @@ func TestBorderPlanRejectsRunMazeAndSourceChanges(t *testing.T) {
 		t.Fatal("endkeeper changed")
 	}
 }
+
+// TestDeathRecordsWhatTheBossActuallyPaid 钉住那条诊断日志唯一的数据来源：源领主死亡后
+// `Session.AttunementPaid` 必须等于**这一格实际付出去**的那一摞（统一展开之前的载体号），
+// 里面要能找到进本时掷定的那一条；重复死亡不重复记。
+//
+// 外层（网关）拿封包里的 entity 认不出「这是不是源领主」——那是实体序号，不是
+// Definition.SourceBoss 那个怪物模板号 —— 所以「实付」只能由掉落会话自己报。
+func TestDeathRecordsWhatTheBossActuallyPaid(t *testing.T) {
+	s, d := borderTestRun(t, 4)
+	s.Tiers = RunTiers{Floor: 44, Primer: 44, PrimerLabel: "epic", Oath: 44, OathLabel: "epic",
+		OathTemplate: 100, OathAmount: 2, OathEffect: 305, OathProb: 20000}
+	d.Loaded = true
+	if _, err := s.Death(d, 7); err != nil {
+		t.Fatal(err)
+	}
+	owed := false
+	for _, a := range s.AttunementPaid {
+		if a.Template == 100 && a.Amount == 1 {
+			owed = true
+		}
+	}
+	if !owed {
+		t.Fatalf("进本掷定的条目 100 不在实付清单里: %v", s.AttunementPaid)
+	}
+	before := len(s.AttunementPaid)
+	if _, err := s.Death(d, 7); err != nil || len(s.AttunementPaid) != before {
+		t.Fatalf("同一场重复死亡改写了实付记录 %d -> %d (%v)", before, len(s.AttunementPaid), err)
+	}
+}

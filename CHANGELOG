@@ -1,3 +1,44 @@
+## 2026-10-13 大深渊球色（noti 2756 第 2 格语义找回）+ 事件认账与「神兵认主」（源行 305）职业筛
+
+业主症状：「大深渊掉落太初装备，但球体颜色是史诗的」。判定口径是**本场有太初级物品 ⇒ 球色到太初**（明确否掉按 maze／异空间分档）。副本 100005066／100005067／100005068（Verge of Order／调律之边界）。
+
+### 根因在自家早期源码里，不是新的逆向结论
+
+noti 2756（`FORTIFIED_DISCIPLE_OF_DOOM_REWARD`）与 2859（`BOUNDARY_OF_ATTUNEMENT_REWARD`）注册的是**同一个 handler** `0x1406b18d0`，同一条 12 字节记录，三格分别落到调律共用模块的三个位移：word0 → `+0x58`（驱动客户端**四格掉落演出表** `Contents/2026/EndkeeperofOrder/Common/{Unique,Legendary,Epic,Primeval}Drop_0.ani`，值域 40..43）；word1／word2 → `+0x50`／`+0x54`（`getHellDungeonItemMaxRarity` 取两者的**较大值**，走 40..45 的档位阶梯，副本里那颗「球」的阶段分支读的就是它）。早期源码注释逐字写着客户端 ACT 走法：「44 史诗：球结束即掉落；45 太初：诺克斯之后再回到球阶段」，老实现是 `word0 = -1（模块构造初值）, word1 = grade(40..45), word2 = 40`。
+
+**2026-10-08 的回归**：为修「任一格越界 ⇒ 整帧兜底成太初（每次必定播太初）」，那次把三格统一填成了演出格（40..43）。于是 `getHellDungeonItemMaxRarity` 最大只能读到 43 = legendary，**45 从来没有上过线** ⇒ 太初的货、史诗的球。
+
+### 改法：两段值域分开
+
+`protocol.BorderRewardInfo(slot, maxRarity)` —— word0 = 演出格（40..43，由 `loot.AnimationGrade` 从档位阶梯换算，越界照旧拒绝）；word1 = **本场最高品质**（40..45）；word2 = 早期源码的常量下界 40（两段各自的值域都单独校验）。`borderRewardGrade`（进本那一帧）把本场档一起传下去并记下 `w.borderSphereGrade`；`raiseBorderSphereGrade`（「命运的凝械」进本**之后**加入更高一档时）两个值一起抬、**只抬不降**，贴在关窗应答（CMD2406 → noti 2406）后面重发一帧 2756。口径是**本场实付最高品质**（`PrepareBorderRewards` 的结果），不是进本预掷的那一档，两者不必相同。「没有可演出档位就不发」维持原样（normal／rare 换算不出演出格 ⇒ 不发，避免拿最近一格顶上让演出说谎）。另加 noti 2755（`protocol.RewardBoostTingInfo`，载荷定长 4 字节 = 副本号）：它与档位无关，组好后不再被「没有可演出档位」那条早退一起吞掉。
+
+### 同日两处加固（业主实机被卡加载界面两次的直接后果）
+
+① 诊断注入的 primer 低于该副本 fixed 池的**保底档**时，fixed 池里没有那一档的条目 ⇒ `RollPlanned` 报 `attunement tier "legendary" carries no entry`，而这条错误位于**副本加载应答**的 plan 里 ⇒ 整段应答发不出去、客户端卡在加载界面，且调用方把 error 存进局部变量、从不打印。新增 `loot.AttunementRewards.FixedFloor(dungeon, maze)` + `clampPrimerToPoolFloor()`：把注入的 primer 抬到本场保底档并**大声念出来**（oath 那条线不抬 —— 它走 additional 反查，40..45 每档都有条目）。
+
+② `finishDungeonLoading` 改命名返回值 + `defer`：失败必念 `CMD37 进本应答没能生成（客户端会卡在加载界面）：%v`。⇒ **进本那条 plan 里任何诊断通道都不该有能力把进本带走。**
+
+### 事件认账 +「神兵认主」（源行 305）
+
+业主问的「大深渊事件有没有触发」＝ `epic.ctp` 的 `[additional drop table]` 那 12 行（涌起 2/3/5/10 次波动、同样的命运、祝福气息武器／首饰／防具／特殊、神兵认主、虚无的气息×3、史诗中的宝匣、希望之光），**不是** maze 那一掷、也不是「命运的凝械」（CMD2406）。档位认不出行：`epic` 这个标签在大深渊一张表上同时挂着 10 支以上，而涌起 2/3/5/10 次波动四支**共用同一张 7 项清单**（`10419730..36`）；`voidsoul`／`primestella` 更是压根不在客户端那 8 档阶梯里。于是 `loot.RunTiers` 随掷中的那一支带下 `[effect index]` 与 `[select prob]`（**只用于认账，不参与掷骰**），进本多念一行 `attunement oath branch`；实付侧由 `Session.AttunementPaid` 记源领主那一格**实际付出去**的那一摞（展开前的载体号，一场只写一次）—— 封包里的 `entity` 是**实体序号**、与 `Definition.SourceBoss` 那个怪物模板号不是一个东西，外层拿它认不出「这是不是源领主」。
+
+缺陷：神兵认主（源行 `[effect index] 305`，载体 10409487 史诗／10409488 太初）此前直接交给统一开箱展开，落到的组 21377..21380 是 **42 件、权重全 0**，而 `poolWeight` 把 0 当 1 用 ⇒ 等于 42 件等概率、其中 37 件是别的职业的武器，每个角色约 **88%** 拿到一把用不了的（实机两场都掉成圣职者的 `Soul Hunter`／`Shooting Star Rosary`）。按业主口径这一行发的是**本基础职业那一把**，改为进本预掷之后、奖单冻结之前就用 `attuneWeaponTemplate` 换成成品 —— 与 CMD2406 武器格共用同一判别器 `loot.AttuneWeaponChoice`（先 `inventory.UsableByJob` 筛，与「戴得上」同一判据、不另立职业表，再在筛剩的 5 件里等概率），日志念出筛剩几件与给了哪件。**判据认源表行号 305、不认物品号** ⇒ 301「祝福气息的武器」保持不筛（那行按源就是随机武器，筛了反而偏离源），302／303／304 同理；测试里这条被单独钉住。
+
+### 诊断通道（不参与正常路径）
+
+`-omen-info`／`DFO_OMEN_INFO` 的值以 `@` 开头（`@<文件路径>`）时**每次进本重读**，换值不重启服务端；读不到、行写坏、载荷不合法都只念日志并「这一场不发」，**绝不向上抛 error**。配套 `omenInfoTrialPayload`。
+
+### 验证
+
+`go build ./internal/... ./cmd/...` 退出 0；`go vet` 退出 0；`go test -p 1 -count=1 ./internal/... ./cmd/...` 真实包全绿。两处**既有**红与本笔无关（均已在干净 HEAD 上复现）：`runtime/update-backup/**` 的历史模块副本被 `./...` 扫到报 `setup failed`；`internal/launcher` 的 `TestOverrideLoginResponseKeepsTheKeyOrder` 因用户名含非 ASCII 被 JSON 转义（`\u7693\u54e5`）而期望串用原文。
+
+点名用例：`TestBorderRewardInfoSplitsTheAnimationSlotFromTheRunGrade`、`TestBorderRewardInfoNeverEmitsTheNativeConstructorState`、`TestRewardBoostTingInfoIsOneLittleEndianU32`、`TestAttuneConfirmRaisesTheSphereToTheItemThatJoined`、`TestAttuneConfirmOnTheSameTierDoesNotResendTheSphere`、`TestOathOverrideBelowThePoolFloorIsRaisedNotFatal`、`TestOathOverrideAtOrAboveThePoolFloorIsLeftAlone`、`TestOmenInfoTrialFileIsReReadEveryEntry`、`TestOmenInfoTrialFileFailureSkipsOnlyTheFrame`、`TestFixedFloorIsThePoolFloor`、`TestPlanRunCarriesTheBranchIdentity`、`TestDeathRecordsWhatTheBossActuallyPaid`、`TestGuaranteedWeaponRowPaysAFinishedWeapon`。
+
+实机（业主手动操作，AI 只读日志）：100005068 maze 0 连刷 12 场判「完美」—— `grade=primeval(45) -> PrimevalDrop(43); payload 2b0000002d00000028000000`（青球 + 太初装备），史诗场 `2a0000002c00000028000000`；其中一场**预掷只有** `primer=epic(44) oath=normal(40)`，而冻结奖单里有一件太初 ⇒ `grade=primeval(45)`、球走太初，钉住了「报的是本场实付最高品质」这个口径。anim/接线背景见 `analysis/tasks/next176-大深渊动画接线缺口与掉落错位根因-20261007.md`。
+
+### 未闭环（不要当成已确认）
+
+2756 的 word2 为何是常量 40：只有早期源码那一行的写法背书，没有独立取证；「诺克斯之后再回到球阶段」这段太初分支在本仓是否完整，没有专门验过；noti 2755（事件游戏内通知）仍是 **attempt 1/3 否证** —— 帧宽 4 B 与 op 号已被实机证明正确，否证的是「载荷＝副本号」，要往下走需要一份含 2755 的官服样本；**305 的修复还没有实机命中**（那一行权重 2%，实机十五场一次都没掷到），目前只有单测与「与 2406 武器格共用同一函数、该函数实机三次都给了 `[swordman]` 筛剩的 101 系」背书；「MAZE=2 直接出球、没有怪物」是另一条问题，不在本笔。
 ## 2026-10-13 活动 685（装备模块研究）生产/组装/分解全链路 + 活动 1093（额外掉落奖励）能量掉落
 
 服务端自主实现 685 的「面板 → 生产 → 组装 → 分解 → 周限制」与 1093 的能量掉落，业主实机逐项验收：能量材料显示正确、图鉴点亮、9 格 3 类配方组装成品进背包、分解产物经系统邮件到账、小深渊每次通关固定掉 10 个神秘能量、周合成次数限制生效。逐轮取证见 `analysis/tasks/next201-奥拉蔻史诗装备模块研究-权威规格-20261012.md`、`next202-奥拉蔻685-面板费用显示修复-20261012.md`（§0–§23）。

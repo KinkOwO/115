@@ -119,6 +119,12 @@ type RunTiers struct {
 	// 档位数字），此时 RollPlanned 退回按档位反查，行为与旧版相同。
 	OathTemplate uint32
 	OathAmount   uint32
+	// OathEffect / OathProb 是掷中那一支的**源表身份**（`[effect index]` 与该支的
+	// `[select prob]`）。模板号本身不足以认行 —— 涌起 2/3/5/10 次波动四支共用同一张
+	// 7 项清单（`10419730..36`），只念模板号还是对不回「这场地上的那一件是第几行」。
+	// 这两格不参与掷骰，只给进本日志认账用。
+	OathEffect uint32
+	OathProb   uint32
 }
 
 // PlanRun 在**进本时**预掷两条线的档位。
@@ -167,9 +173,36 @@ func (a *AttunementRewards) PlanRun(seed, dungeon, maze uint32) (RunTiers, uint3
 			// 掷中的那一支连同条目一起带下去，掉落阶段不再按档位反查重选。
 			out.OathTemplate = e.Item
 			out.OathAmount = branch.DropCount
+			out.OathEffect = branch.EffectIndex
+			out.OathProb = branch.SelectProb
 		}
 	}
 	return out, rng.Seed, nil
+}
+
+// FixedFloor 是这座副本这一格 **fixed 池的保底档**（池子里最低那一档）。
+// ok=false = 这张表/这一格没有 fixed 池（非调律副本、maze 没有对应段）。
+//
+// 它存在的唯一理由是「别让人把进本弄挂」：诊断覆盖（-oath-grades / -oath-grades-from-gear）
+// 把 primer 压到保底以下时，fixed 池里**没有那一档的条目**，RollPlanned 直接报
+// `attunement tier "legendary" carries no entry`（实测 100005068 maze 0，注入 43/42 各一次），
+// 而这条错误位于**副本加载应答**的 plan 里，会把整段应答一起带走 —— 客户端的表现是
+// 卡在加载界面（实机 2026-10-12 21:49 与 22:08 两次），不是「球色不对」。
+// ⚠️ 只有 primer 这条线会：oath 走 additional 的反查，40..45 每一档都有条目。
+func (a *AttunementRewards) FixedFloor(dungeon, maze uint32) (uint32, bool) {
+	if a == nil || !a.Enabled() {
+		return 0, false
+	}
+	t, ok := a.byDungeon[dungeon]
+	if !ok {
+		return 0, false
+	}
+	fixed, ok := t.fixedFor(maze)
+	if !ok || len(fixed.Entries) == 0 {
+		return 0, false
+	}
+	grade, _ := fixedFloor(fixed.Entries)
+	return grade, grade != 0
 }
 
 // pickTier 在**整张 fixed 表**上按 tier 掷一次，返回该 tier 的标签。

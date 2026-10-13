@@ -242,12 +242,13 @@ func (w *worldSession) oathInfoPacketsCore() ([]outboundPacket, error) {
 	// 诊断注入（-oath-grades "primer,oath"）整对覆盖，不参与两条线的预掷。
 	// 穿戴装备那条诊断同理。两条诊断都只在启动时显式打开，正常档里 w.oathGrades 是零值。
 	if p, o := w.oathGrades[0], w.oathGrades[1]; p != 0 || o != 0 {
+		p, o = w.clampPrimerToPoolFloor(p, o)
 		w.attunementRunTiers = loot.RunTiers{Primer: uint32(p), Oath: uint32(o)}
 		w.oathTierRun = o
 		return []outboundPacket{{"oath_system_grades", 0, 2838, oathInfoPayload(p, o)}}, nil
 	}
 	if w.oathFromGear {
-		p, o := w.wornOathGrades()
+		p, o := w.clampPrimerToPoolFloor(w.wornOathGrades())
 		w.attunementRunTiers = loot.RunTiers{Primer: uint32(p), Oath: uint32(o)}
 		w.oathTierRun = o
 		return []outboundPacket{{"oath_system_grades", 0, 2838, oathInfoPayload(p, o)}}, nil
@@ -290,6 +291,28 @@ func (w *worldSession) oathInfoPacketsCore() ([]outboundPacket, error) {
 		oathInfoPayload(primer, oath)}}, nil
 }
 
+// clampPrimerToPoolFloor 把**诊断注入**的 primer 抬回这座副本 fixed 池的值域内。
+//
+// 2838 不是纯演出旋钮：同一个数字直接喂给掉落会话选池（`w.drops.Tiers`，见
+// border_reward_flow.go），而 fixed 池在保底档以下**没有条目** —— 注入一个更低的值不是
+// 「球色变低」，是 `RollPlanned` 报错、副本加载应答整段发不出去、客户端卡在加载界面
+// （实机 2026-10-12 21:49 与 22:08，`DFO_OATH_GRADES=43,43` 两次）。
+// 所以这里宁可把注入值抬到该下界并**大声念出来**：旋钮仍然能用（≥ 下界的每一档都试得动），
+// 只是不可能再拿它把进本弄挂。oath 那条线不抬：它走 additional 反查，40..45 每档都有条目。
+func (w *worldSession) clampPrimerToPoolFloor(primer, oath uint16) (uint16, uint16) {
+	if w == nil || w.loot == nil || w.loot.Attunement == nil || w.activeDungeon == nil {
+		return primer, oath
+	}
+	floor, ok := w.loot.Attunement.FixedFloor(w.activeDungeon.Definition.ID, uint32(w.activeDungeon.Maze.Index))
+	if !ok || uint32(primer) >= floor {
+		return primer, oath
+	}
+	log.Printf("oath grades: 注入的 primer=%d(%s) 低于本场 fixed 池的保底档 %d(%s)，已抬到该档 —— "+
+		"fixed 池在保底以下没有条目，放过去会让进本应答整段失败（客户端卡在加载界面）",
+		primer, loot.TierForGradeValue(uint32(primer)), floor, loot.TierForGradeValue(floor))
+	return uint16(floor), oath
+}
+
 // planAttunementRunTiers 在**进本时**预掷两条线的档位。
 //
 // 种子按时间取：这两条线与掉落的 RNG 链无关（掉落另有一条从进本种子开始的链），
@@ -318,6 +341,18 @@ func (w *worldSession) planAttunementRunTiers() (loot.RunTiers, error) {
 		dungeon, maze, loot.TierForGradeValue(tiers.Floor), tiers.Floor,
 		loot.TierForGradeValue(tiers.Primer), tiers.Primer,
 		loot.TierForGradeValue(tiers.Oath), tiers.Oath)
+	// 第二行念**掷中的是源表里的哪一行**：一个档位标签在大深渊一张表上挂着 10 支以上
+	// （`epic` 同时在涌起波动、同样的命运、祝福气息四件、神兵认主、宝匣上），只念
+	// `oath=epic(44)` 对不回 `[additional drop table]` 的那 12 行；而涌起 2/3/5/10 次波动
+	// 四支还共用同一张 7 项清单，连模板号都不足以认行 —— 所以把 `[effect index]` 一起念出来。
+	if tiers.OathTemplate != 0 {
+		log.Printf("attunement oath branch: dungeon %d maze %d -> effect index=%d select prob=%d drop count=%d item=%d tier=%s(%d)",
+			dungeon, maze, tiers.OathEffect, tiers.OathProb, tiers.OathAmount, tiers.OathTemplate,
+			tiers.OathLabel, tiers.Oath)
+	}
+	// 神兵认主（源行 305）在这里换成成品：奖单在加载应答里就要冻结，而它一旦交回通用
+	// 展开就是 42 件等概率。上面那行念的仍是**源给的载体**，两行加起来才是完整链条。
+	w.resolveAttuneGuaranteedWeapon(&tiers)
 	return tiers, nil
 }
 

@@ -303,6 +303,13 @@ type worldSession struct {
 	// （弹窗原文 "Reselecting will reset the selected Part and Set"）；已经掉出去了
 	// 就绝不能再记第二件，那才是一次确认掉两件的真风险。
 	attuneHiddenRun string
+	// borderSphereGrade 是本会话这一场**已经下发给客户端的球色档**（40..45，noti 2756
+	// 那一格）。球色报的是「本场最高的那一件」，而奖单会后进本再加入东西
+	// （命运的凝械），所以抬档时要知道现在报的是哪一档，见 raiseBorderSphereGrade。
+	borderSphereGrade uint32
+	// attuneGroundRun 是本会话**已经念过「实付 vs 落地」**的那一场 RunID（诊断行，
+	// 见 noteAttunementGroundDrops）：一场只念一次，源领主每次被确认死亡都再念会刷日志。
+	attuneGroundRun string
 	// omenReported 是本会话已经记过事件的征兆结算序号（见 noteOmenClear）。
 	omenReported uint64
 	// scaleRun 是上面两张表所归属的副本运行号。同一会话里重进副本会把 entity 从

@@ -395,12 +395,23 @@ func prepareRuntime(startup Config) (prepared *gatewayRuntime, cleanup func(), p
 	// 征兆队伍状态（noti 2836）的载荷。**在启动期校验**：以前这段在频道会话建立时
 	// （每个频道一次）才解析，写错一个字符就会在玩家"进频道"的那一刻 log.Fatalf，
 	// 现象是"启动游戏进不去频道"，而且加载日志已经刷完、错误行在最底下，极难定位。
-	omenInfoBytes, omenInfoErr := parseOmenInfo(startup.OmenInfo)
-	if omenInfoErr != nil {
-		return nil, nil, fmt.Errorf("bad -omen-info: %v", omenInfoErr)
-	}
-	if len(omenInfoBytes) > 0 {
-		log.Printf("omen info (noti 2836): injecting %d bytes: %s", len(omenInfoBytes), hex.EncodeToString(omenInfoBytes))
+	//
+	// `@文件` 是唯一例外：那个文件本来就是给人一边试一边改的，启动时不校验内容，
+	// 读不到或写坏了都在**每一次进本**那条路上自证并「这一场不发」，
+	// 既不挡启动也不把进本带走（见 omen_info.go 的 omenInfoTrialPayload）。
+	var omenInfoBytes []byte
+	if spec := strings.TrimSpace(startup.OmenInfo); strings.HasPrefix(spec, "@") {
+		omenInfoTrialSpec = spec
+		log.Printf("omen info (noti 2836): 每次进本重读试值文件 %s", strings.TrimPrefix(spec, "@"))
+	} else {
+		var omenInfoErr error
+		omenInfoBytes, omenInfoErr = parseOmenInfo(spec)
+		if omenInfoErr != nil {
+			return nil, nil, fmt.Errorf("bad -omen-info: %v", omenInfoErr)
+		}
+		if len(omenInfoBytes) > 0 {
+			log.Printf("omen info (noti 2836): injecting %d bytes: %s", len(omenInfoBytes), hex.EncodeToString(omenInfoBytes))
+		}
 	}
 	// 调律之边界的奖励通知（noti 2859）诊断注入。同样在启动期校验：
 	// 长度写错必须在这里就失败，而不是等到玩家进本那一刻。

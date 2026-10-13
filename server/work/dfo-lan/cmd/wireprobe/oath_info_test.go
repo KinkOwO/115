@@ -124,3 +124,41 @@ func TestOathInfoPacketsShape(t *testing.T) {
 		t.Fatalf("payload = %d bytes, want 8", len(p.Payload))
 	}
 }
+
+// ⚠️ 诊断注入**不是**「只改演出」的旋钮：同一个数字直接喂掉落选池（w.drops.Tiers），
+// 而 fixed 池在保底档以下没有条目 —— 注入更低的值以前会让**进本应答整段发不出去**，
+// 客户端卡在加载界面（实机 2026-10-12 21:49 与 22:08，`DFO_OATH_GRADES=43,43` 两次）。
+// 现在 primer 抬到本场保底档并念出来，**oath 那条线不动**（additional 反查 40..45 每档都有条目）。
+func TestOathOverrideBelowThePoolFloorIsRaisedNotFatal(t *testing.T) {
+	w := attuneConfirmSession(t, "run-clamp", 100005068, 0)
+	w.oathGrades = [2]uint16{43, 43}
+	plan, err := w.oathInfoPackets()
+	if err != nil {
+		t.Fatalf("a below-floor diagnostic must not fail the entry: %v", err)
+	}
+	if len(plan) == 0 || plan[0].ID != 2838 {
+		t.Fatalf("plan = %+v, want the noti 2838 frame first", plan)
+	}
+	if p, o := binary.LittleEndian.Uint32(plan[0].Payload[0:4]), binary.LittleEndian.Uint32(plan[0].Payload[4:8]); p != 44 || o != 43 {
+		t.Fatalf("payload primer=%d oath=%d, want 44/43", p, o)
+	}
+	if w.attunementRunTiers.Primer != 44 || w.attunementRunTiers.Oath != 43 {
+		t.Fatalf("run tiers = %+v, want the clamped primer with oath left alone", w.attunementRunTiers)
+	}
+}
+
+// 下界本身（44）与更高的档必须原样通过 —— 抬升只兜「不可能的那一端」，
+// 否则这个旋钮就废了（业主拿它扫的就是 40..45 每一档）。
+func TestOathOverrideAtOrAboveThePoolFloorIsLeftAlone(t *testing.T) {
+	for _, c := range [][2]uint16{{44, 40}, {45, 41}, {44, 45}} {
+		w := attuneConfirmSession(t, "run-passthrough", 100005068, 0)
+		w.oathGrades = c
+		plan, err := w.oathInfoPackets()
+		if err != nil {
+			t.Fatalf("%v: %v", c, err)
+		}
+		if p := binary.LittleEndian.Uint32(plan[0].Payload[0:4]); p != uint32(c[0]) {
+			t.Fatalf("%v: primer = %d, want it untouched", c, p)
+		}
+	}
+}

@@ -12,29 +12,38 @@ import (
 // （Unique / Legendary / Epic / Primeval）。
 const borderDropSlots = 4
 
-func TestBorderRewardInfoPinsOneSlotInAllThreeWords(t *testing.T) {
+func TestBorderRewardInfoSplitsTheAnimationSlotFromTheRunGrade(t *testing.T) {
 	for slot := uint32(40); slot < 40+borderDropSlots; slot++ {
-		p, err := BorderRewardInfo(slot)
+		grade := slot + 2 // 本仓档位阶梯比演出表晚两格：42 unique → 40，45 primeval → 43
+		p, err := BorderRewardInfo(slot, grade)
 		if err != nil {
 			t.Fatalf("slot %d: %v", slot, err)
 		}
 		if len(p) != 12 {
 			t.Fatalf("slot %d: %d bytes", slot, len(p))
 		}
-		for i := 0; i < 3; i++ {
-			// 三格填同一个值有两个理由：实测只确认了「word0 是驱动格」，填同值就
-			// 不必先知道客户端取哪一格；而三格是整帧校验的，任何一格越界都会让
-			// 整帧退化成 PrimevalDrop。
-			if got := binary.LittleEndian.Uint32(p[i*4:]); got != slot {
-				t.Fatalf("slot %d: word %d = %d", slot, i, got)
-			}
+		// 三段各有语义：word0 = 演出格（40..43）、word1 = 本场最高品质（40..45，
+		// getHellDungeonItemMaxRarity 与副本里那颗球的阶段分支都读它）、word2 = 常量下界。
+		// 2026-10-08 曾把三格统一填成演出格，于是 45 从来没有上过线（实机 2026-10-12）。
+		if got := binary.LittleEndian.Uint32(p[0:4]); got != slot {
+			t.Fatalf("slot %d: word0 = %d, want the animation slot", slot, got)
+		}
+		if got := binary.LittleEndian.Uint32(p[4:8]); got != grade {
+			t.Fatalf("slot %d: word1 = %d, want the run grade %d", slot, got, grade)
+		}
+		if got := binary.LittleEndian.Uint32(p[8:12]); got != 40 {
+			t.Fatalf("slot %d: word2 = %d, want 40", slot, got)
 		}
 	}
-	// 越界一律拒绝：-1 与 72 是模块构造初值（历史 bug 的两个来源），
-	// 44 / 45 是本仓档位阶梯的值，不是演出表的值。
+	// 越界一律拒绝：-1 与 72 是模块构造初值（历史 bug 的两个来源），而两段的值域不同。
 	for _, slot := range []uint32{0, 39, 44, 45, 72, 0xffffffff} {
-		if _, err := BorderRewardInfo(slot); err == nil {
+		if _, err := BorderRewardInfo(slot, 44); err == nil {
 			t.Fatalf("out-of-window slot %d accepted", slot)
+		}
+	}
+	for _, grade := range []uint32{0, 39, 46, 70, 72, 0xffffffff} {
+		if _, err := BorderRewardInfo(42, grade); err == nil {
+			t.Fatalf("out-of-window grade %d accepted", grade)
 		}
 	}
 }
@@ -75,7 +84,7 @@ func TestBorderRewardInfoNeverEmitsTheNativeConstructorState(t *testing.T) {
 		}
 	}
 	for slot := uint32(40); slot < 40+borderDropSlots; slot++ {
-		p, err := BorderRewardInfo(slot)
+		p, err := BorderRewardInfo(slot, 44)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -83,6 +92,21 @@ func TestBorderRewardInfoNeverEmitsTheNativeConstructorState(t *testing.T) {
 			if got := int32(binary.LittleEndian.Uint32(p[i*4:])); got == -1 {
 				t.Fatalf("slot %d word %d reproduced the native constructor state", slot, i)
 			}
+		}
+	}
+}
+
+// noti 2755 的 handler `sub_145310880` 是 `sub_146EA0BE0(&v4, 4)` —— **定长读 4 字节**。
+// 长度不对不会报错，只会让客户端从流里多读或少读，把后面那一帧整体错位
+// （2838 的 8 字节护栏在 2026-09-27 用 2839 撞过一次），所以这里把宽度钉死。
+func TestRewardBoostTingInfoIsOneLittleEndianU32(t *testing.T) {
+	for _, dungeon := range []uint32{100005066, 100005067, 100005068, 100004768} {
+		p := RewardBoostTingInfo(dungeon)
+		if len(p) != 4 {
+			t.Fatalf("dungeon %d: %d bytes, want the handler's fixed 4-byte read", dungeon, len(p))
+		}
+		if got := binary.LittleEndian.Uint32(p); got != dungeon {
+			t.Fatalf("dungeon %d encoded as %d", dungeon, got)
 		}
 	}
 }
