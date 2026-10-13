@@ -56,6 +56,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -236,19 +237,76 @@ func isOmenInfoHex(spec string) bool {
 	return true
 }
 
+// omenInfoTrialSpec 是 `-omen-info` 的 `@文件` 写法（空 = 这条通道没开）。
+//
+// 为什么做成进程级全局而不是会话字段：这一格是**试值**用的，2836 各字段的语义还没定，
+// 得一组组换着值发，而重启一次服务端要连带重启客户端（一轮三分钟）。与
+// `-attunement-reward` 同一套做法 —— **每次进本重读**：改完存盘，下一场就按新值发。
+// 它只在诊断里生效、不碰生产路径（同 bootstrap 里 equipmentTransformApply 那一类）。
+var omenInfoTrialSpec string
+
+// omenInfoTrialPayload 读一次试值文件并拼出 69 字节载荷；返回空 = 这一场不发。
+//
+// ⚠️ **任何失败都只念日志、不发这一帧，且不返回 error**：这条通知挂在副本加载应答的
+// 同一个 plan 里，一个给人手改、随时可能写坏的文件不该把进本整段带走 —— 2026-10-12 正是
+// 拿另一条会向上抛 error 的档位通道（noti 2838）试值，档位低于该副本的保底下界后
+// `PrepareBorderRewards` 失败，加载应答里没带上 NOTI29/30，客户端直接卡在加载界面。
+func omenInfoTrialPayload() []byte {
+	path := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(omenInfoTrialSpec), "@"))
+	if path == "" {
+		log.Printf("omen info (noti 2836): %q 的 @ 后面没有路径，这一场不发", omenInfoTrialSpec)
+		return nil
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		log.Printf("omen info (noti 2836): 读不到试值文件 %s（%v），这一场不发", path, err)
+		return nil
+	}
+	body := ""
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(strings.TrimSuffix(line, "\r"))
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		body = line
+		break
+	}
+	if body == "" {
+		// 空文件（或只有注释）= 关掉注入，这样「不发」也不用重启。
+		log.Printf("omen info (noti 2836): 试值文件 %s 没有内容，这一场不发", path)
+		return nil
+	}
+	payload, err := parseOmenInfo(body)
+	if err != nil {
+		log.Printf("omen info (noti 2836): 试值文件 %s 里 %q 解析失败（%v），这一场不发", path, body, err)
+		return nil
+	}
+	// 念「文件里那一行」而不只是十六进制：扫表时人要能对回自己写的是第几档。
+	log.Printf("omen info (noti 2836): 试值文件 %s -> %q，载荷 %s", path, body, hex.EncodeToString(payload))
+	return payload
+}
+
 // omenInfoPackets 在副本加载时把征兆队伍状态发下去。
 //
 // 时机与 oathInfoPackets 一致：都在 `dungeon_loading_ack` 之后、客户端开始读 getter 之前。
 // 客户端进 EOO 副本时自己已经把两个征兆窗开好了，所以这里只要把状态填进去。
 //
-// 两个来源，**显式注入优先**：
+// 三个来源，**显式注入优先**：
 //
+//   - -omen-info 给了 `@文件` -> **每次进本重读**那个文件（试值通道，见 omenInfoTrialPayload）；
 //   - -omen-info 给了载荷 -> 原样发（诊断通道，用来实测字段语义）；
 //   - 否则 -omen-state 开着且这个副本带征兆阶段表 -> 按本场刚读出的真实持有档数编码
 //     （loadOmenRunState 已经把存档读进 w.omenHeldRun，所以这里不再碰库）。
 //
 // 都不是就不发 —— 没状态就是空格子，客户端自己会清。
 func (w *worldSession) omenInfoPackets() ([]outboundPacket, error) {
+	if strings.HasPrefix(strings.TrimSpace(omenInfoTrialSpec), "@") {
+		payload := omenInfoTrialPayload()
+		if len(payload) == 0 {
+			return nil, nil
+		}
+		return []outboundPacket{{"omen_of_order_party_info", 0, omenInfoPacketID, payload}}, nil
+	}
 	if len(w.omenInfo) > 0 {
 		return []outboundPacket{{"omen_of_order_party_info", 0, omenInfoPacketID, w.omenInfo}}, nil
 	}

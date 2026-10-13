@@ -835,7 +835,15 @@ func (w *worldSession) seamlessRoomReset() (*dungeon.Session, []outboundPacket, 
 	return s, plan, nil
 }
 
-func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) {
+func (w *worldSession) finishDungeonLoading(p []byte) (plan []outboundPacket, e error) {
+	// ⚠️ 这条路径上任何 error 都等于「加载应答整段发不出去」，玩家看到的是**卡在加载界面**，
+	// 而调用方只把错误存进局部变量、从不打印（实机 2026-10-12 21:49 与 22:08 两次，
+	// 日志里最后一个字是 noti 2755 那行，查不到任何原因）。失败必须当场说话。
+	defer func() {
+		if e != nil {
+			log.Printf("CMD37 进本应答没能生成（客户端会卡在加载界面）：%v", e)
+		}
+	}()
 	if w == nil || w.activeDungeon == nil {
 		return nil, fmt.Errorf("loading without dungeon session")
 	}
@@ -860,7 +868,7 @@ func (w *worldSession) finishDungeonLoading(p []byte) ([]outboundPacket, error) 
 	}
 	// 官服巴卡尔军团段（20261002 抓包 21:42:19）：CMD37 ack 之后、N30 之前
 	// 下发 N1474 阶段倒计时（伊斯官服 timer_sync 回放同序）。非维纳斯零开销。
-	plan := []outboundPacket{{"dungeon_loading_ack", 1, 37, []byte{1}}, {"dungeon_actor_state", 0, 3, state}}
+	plan = []outboundPacket{{"dungeon_loading_ack", 1, 37, []byte{1}}, {"dungeon_actor_state", 0, 3, state}}
 	plan = append(plan, w.venusStageTimer(time.Now())...)
 	plan = append(plan, w.forestStageTimer(time.Now())...)
 	plan = append(plan, w.apocalypseStageTimer(time.Now())...)
@@ -1512,6 +1520,7 @@ func (w *worldSession) monsterDeath(p []byte, event func(map[string]any)) ([]out
 				w.noteDropGap(event, uint16(r.Entity), err)
 				rows = nil
 			}
+			w.noteAttunementGroundDrops(rows)
 			body, err = protocol.MonsterDeathDrops(uint16(r.Entity), rows)
 			if err != nil {
 				return nil, err

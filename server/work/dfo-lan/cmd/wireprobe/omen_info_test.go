@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -345,6 +348,63 @@ func TestOmenGradeIsTheMaxOfHeldAndOathTier(t *testing.T) {
 	for _, c := range cases {
 		if got := combine(c.held, c.tier); got != c.want {
 			t.Errorf("held=%d tier=%d: grade = %d, want %d", c.held, c.tier, got, c.want)
+		}
+	}
+}
+
+// 试值文件**每次进本重读**：2836 各字段的语义就是靠一组组换值试出来的，而换一个值
+// 重启一次服务端要连带重启客户端（一轮三分钟）。与 -attunement-reward 同一套做法。
+func TestOmenInfoTrialFileIsReReadEveryEntry(t *testing.T) {
+	const (
+		// 档数 = 记录里非零 u32 的个数；四个座位写同一份（客户端认哪个座位号不确定）。
+		// 四个预览模板号取自官方表：row1..4 = 10416150 / 10417545 / 10417552 / 10417571。
+		grade1 = "10416150,0,0,0,1;10416150,0,0,0,1;10416150,0,0,0,1;10416150,0,0,0,1"
+		grade4 = "10416150,10417545,10417552,10417571,1;10416150,10417545,10417552,10417571,1;" +
+			"10416150,10417545,10417552,10417571,1;10416150,10417545,10417552,10417571,1"
+	)
+	path := filepath.Join(t.TempDir(), "omen-grade.txt")
+	prev := omenInfoTrialSpec
+	omenInfoTrialSpec = "@" + path
+	t.Cleanup(func() { omenInfoTrialSpec = prev })
+	w := &worldSession{}
+	for _, body := range []string{grade1, grade4, grade1} {
+		if err := os.WriteFile(path, []byte("# 改完存盘，下一场就按这一行发\n"+body+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		plan, err := w.omenInfoPackets()
+		if err != nil {
+			t.Fatalf("%q: %v", body, err)
+		}
+		want, err := parseOmenInfo(body)
+		if err != nil {
+			t.Fatalf("want payload: %v", err)
+		}
+		if len(plan) != 1 || plan[0].ID != omenInfoPacketID || !bytes.Equal(plan[0].Payload, want) {
+			t.Fatalf("body %q -> %+v, want one noti %d with %d bytes", body, plan, omenInfoPacketID, omenInfoPayloadLen)
+		}
+	}
+}
+
+// ⚠️ 试值文件读不到/写坏只让**这一帧**不发，绝不能把进本带走：2836 挂在副本加载应答的
+// 同一个 plan 里，而 2026-10-12 那次实机踩到的正是「档位通道向上返回 error ⇒ 加载应答缺
+// NOTI29/30 ⇒ 客户端卡在加载界面」。
+func TestOmenInfoTrialFileFailureSkipsOnlyTheFrame(t *testing.T) {
+	broken := filepath.Join(t.TempDir(), "broken.txt")
+	if err := os.WriteFile(broken, []byte("1,2,3\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	prev := omenInfoTrialSpec
+	t.Cleanup(func() { omenInfoTrialSpec = prev })
+	// 会话里留着启动期解析好的载荷：试值通道失败时也不该退回它，那会让「空文件 = 不发」失效。
+	w := &worldSession{omenInfo: bytes.Repeat([]byte{0xAA}, omenInfoPayloadLen)}
+	for _, spec := range []string{"@" + filepath.Join(t.TempDir(), "nope.txt"), "@" + broken, "@", "@   "} {
+		omenInfoTrialSpec = spec
+		plan, err := w.omenInfoPackets()
+		if err != nil {
+			t.Fatalf("spec %q returned an error: %v", spec, err)
+		}
+		if len(plan) != 0 {
+			t.Fatalf("spec %q: %d frame(s), want this entry to carry no noti 2836", spec, len(plan))
 		}
 	}
 }

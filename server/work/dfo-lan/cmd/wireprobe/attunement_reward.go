@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"dfolan/internal/game/protocol"
 	"dfolan/internal/loot"
 )
 
@@ -110,10 +111,13 @@ func (w *worldSession) answerAttuneConfirm(plaintext []byte) []outboundPacket {
 	part := binary.LittleEndian.Uint32(plaintext[0:])
 	set := binary.LittleEndian.Uint32(plaintext[4:])
 	log.Printf("attune confirm (cmd 2406): body=%s part=%d set=%d", hex.EncodeToString(plaintext), part, set)
-	if err := w.armAttuneHiddenDrop(part, set); err != nil {
+	frames, err := w.armAttuneHiddenDrop(part, set)
+	if err != nil {
 		log.Printf("attune confirm (cmd 2406): part=%d set=%d not paid: %v", part, set, err)
+		return plan
 	}
-	return plan
+	// 那件比本场奖单高时，同一批里还要跟上一帧把球色抬上去（见 raiseBorderSphereGrade）。
+	return append(plan, frames...)
 }
 
 // pendingAttuneHiddenDrop 返回本场还没搭上下一次掉落帧的那一件（没有则 nil）。
@@ -130,31 +134,33 @@ func pendingAttuneHiddenDrop(w *worldSession) []loot.Award {
 // 另外三档（防具/首饰/特殊装备）记的是**源给的载体**，展开与掷哪一件都交给掉落
 // 那条统一的包装步骤；武器档要在这里就定成一件（见 loot.AttuneWeaponChoice），
 // 因为那张组 42 件权重全 0，走通用选择器会把所有人都发成同一把。
-func (w *worldSession) armAttuneHiddenDrop(part, set uint32) error {
+//
+// 返回的帧是「球色要抬到这一件的档位」那一帧（不需要抬就为空），调用方贴在关窗应答后面发。
+func (w *worldSession) armAttuneHiddenDrop(part, set uint32) ([]outboundPacket, error) {
 	if w.activeDungeon == nil || w.loot == nil || !w.loot.Attunement.Enabled() {
-		return fmt.Errorf("not inside a dungeon with an attunement table")
+		return nil, fmt.Errorf("not inside a dungeon with an attunement table")
 	}
 	dungeon := w.activeDungeon.Definition.ID
 	maze := uint32(w.activeDungeon.Maze.Index)
 	sel, ok := w.loot.Attunement.HiddenSelection(dungeon, maze, part, set)
 	if !ok {
-		return fmt.Errorf("hidden table has no cell for dungeon %d maze %d part %d set %d", dungeon, maze, part, set)
+		return nil, fmt.Errorf("hidden table has no cell for dungeon %d maze %d part %d set %d", dungeon, maze, part, set)
 	}
 	w.ensureDropSession()
 	if w.drops == nil {
-		return fmt.Errorf("drop session unavailable")
+		return nil, fmt.Errorf("drop session unavailable")
 	}
 	// 同一场的第二次确认**只在该件还没落地时**顶掉前一次：弹窗自己写着「Reselecting
 	// will reset the selected Part and Set」，所以改了主意要以最后一次为准；
 	// 而它已经跟着掉落帧掉出去了，就绝不能再记第二件 —— 那才是一次确认掉两件的真风险。
 	if w.attuneHiddenRun == w.activeDungeon.RunID && len(w.drops.PendingDrop()) == 0 {
-		return fmt.Errorf("already paid in this run")
+		return nil, fmt.Errorf("already paid in this run")
 	}
 	award := loot.Award{Template: sel.Carrier, Amount: 1}
 	if part == attuneHiddenWeaponPart {
 		template, err := w.attuneWeaponTemplate(sel.Carrier)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		award = loot.Award{Template: template, Amount: 1}
 	}
@@ -164,7 +170,34 @@ func (w *worldSession) armAttuneHiddenDrop(part, set uint32) error {
 	// 事后对不上账时这一行是唯一能说清「哪一格、哪一场、什么档」的记录。
 	log.Printf("attune hidden selected: dungeon %d maze %d part %d set %d tier=%s pays %d, waiting for the next drop frame",
 		dungeon, maze, part, set, sel.Tier, award.Template)
-	return nil
+	return w.raiseBorderSphereGrade(loot.TierGradeValue(sel.Tier)), nil
+}
+
+// attuneWeaponGuaranteedEffect 是 epic.ctp `[additional drop table]` 里**神兵认主**那一行的
+// `[effect index]`（源表的行号；只有 epic 那张表有这一行）。
+const attuneWeaponGuaranteedEffect = 305
+
+// resolveAttuneGuaranteedWeapon 把「神兵认主」掷中的那张**载体**就地换成本角色用得了的那一件。
+//
+// 这一行的载体与「命运的凝械」武器格是同一张（`10409487` 史诗 / `10409488` 太初），业主口径
+// 这一行发的就是**本基础职业那一把**。不换成就交给统一展开：它落到组 21377..21380 是 42 件、
+// 权重全 0，而 `poolWeight` 把 0 当 1 用 ⇒ 等于 42 件等概率、约 88% 发成别的职业的武器
+// （2026-10-12 实机两场 305 都掉成圣职者的 `Soul Hunter` / `Shooting Star Rosary`）。
+//
+// 判据认**源表的行号**而不是物品号：301「祝福气息的武器」按源就是随机武器，那行不筛。
+func (w *worldSession) resolveAttuneGuaranteedWeapon(tiers *loot.RunTiers) {
+	if tiers.OathEffect != attuneWeaponGuaranteedEffect || tiers.OathTemplate == 0 {
+		return
+	}
+	template, err := w.attuneWeaponTemplate(tiers.OathTemplate)
+	if err != nil {
+		// 走到这里最常见的是这个职业在那 42 件里筛剩 0 件。把玩家挡在副本外不是解决办法，
+		// 所以保留载体交给通用展开，但「为什么没筛」必须当场念出来。
+		log.Printf("attune guaranteed weapon (effect %d) kept carrier %d: %v",
+			attuneWeaponGuaranteedEffect, tiers.OathTemplate, err)
+		return
+	}
+	tiers.OathTemplate = template
 }
 
 // attuneWeaponTemplate 把武器格定成**这一角色的**那一件。
@@ -341,4 +374,42 @@ func logAttunementRewardInjection(spec string, raw []byte) {
 		return
 	}
 	log.Printf("attunement reward (noti 2859): injecting %s", describeAttunementReward(raw))
+}
+
+// noteAttunementGroundDrops 把**源领主死亡那一格**两头并排念出来：掉落会话实际付出去
+// 的那一摞（载体号）与落在地上的那些件（成品号）。
+//
+// 为什么非得加这一行：誓约/事件那一支是进本掷定、源领主死亡才落地的，中间要过统一
+// 开箱展开（载体 → 成品号），所以「进本日志念的模板号」和「地上出现的物品号」**天然不是
+// 同一个数字**，只靠档位那一行对不回 `[additional drop table]` 的 12 行。此前
+// 「天平亮了、地上什么都没有」那一族故障（`voidsoul`/`primestella` 被当档位 0 跳过）
+// 就是没有任何一行能证明这件东西到底落没落。
+//
+// 触发器用「本场第一次看到非空实付」而不是实体号比对：封包里的 entity 是实体序号，
+// 与 `Definition.SourceBoss`（怪物模板号）不是一个东西，外层比不出「这是不是源领主」。
+func (w *worldSession) noteAttunementGroundDrops(rows []protocol.SceneDrop) {
+	if w == nil || w.activeDungeon == nil || w.drops == nil || w.loot == nil ||
+		w.loot.Attunement == nil || !w.loot.Attunement.Enabled() {
+		return
+	}
+	paid := w.drops.AttunementPaid
+	run := w.activeDungeon.RunID
+	if len(paid) == 0 || w.attuneGroundRun == run {
+		return
+	}
+	w.attuneGroundRun = run
+	owed := w.drops.Tiers
+	out := make([]string, 0, len(paid))
+	for _, a := range paid {
+		out = append(out, fmt.Sprintf("%dx%d", a.Template, a.Amount))
+	}
+	ground := make([]string, 0, len(rows))
+	for _, d := range rows {
+		// 181 B 物品记录：+2 模板号，+6 数量（见 protocol.OrdinaryItem）。
+		ground = append(ground, fmt.Sprintf("%dx%d",
+			binary.LittleEndian.Uint32(d.Item[2:6]), binary.LittleEndian.Uint32(d.Item[6:10])))
+	}
+	log.Printf("attunement paid vs ground: dungeon %d owed effect=%d item=%d x%d tier=%s -> paid [%s] | ground %d item(s) [%s]",
+		w.activeDungeon.Definition.ID, owed.OathEffect, owed.OathTemplate, owed.OathAmount,
+		owed.OathLabel, strings.Join(out, " "), len(rows), strings.Join(ground, " "))
 }

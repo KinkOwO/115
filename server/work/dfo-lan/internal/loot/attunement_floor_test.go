@@ -232,3 +232,25 @@ func TestAnimationGradeFollowsTheClientTable(t *testing.T) {
 		}
 	}
 }
+
+// FixedFloor 念给诊断注入用（cmd/wireprobe/oath_info.go 的 clampPrimerToPoolFloor）。
+// 这条测试同时钉住它的**前提**：保底档以下的 primer 在真表上选不出池子。
+// 哪天源表多写了低档条目、这个前提不成立了，下面第二条会先红，注入侧的抬升就该撤掉。
+func TestFixedFloorIsThePoolFloor(t *testing.T) {
+	a, err := LoadAttunementRewards(attunementConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := a.FixedFloor(100005068, 0); !ok || got != 44 {
+		t.Fatalf("FixedFloor(100005068, maze 0) = %d/%v, want 44/true", got, ok)
+	}
+	if _, ok := a.FixedFloor(100009999, 0); ok {
+		t.Fatal("a dungeon with no table must report ok=false")
+	}
+	if _, _, err := a.RollPlanned(1, 100005068, 0, RunTiers{Primer: 43}); err == nil {
+		t.Fatal("below-floor primer still rolled a pool: the entry-side clamp is now dead weight")
+	}
+	if _, _, err := a.RollPlanned(1, 100005068, 0, RunTiers{Primer: 44, Oath: 40}); err != nil {
+		t.Fatalf("the floor itself must roll: %v", err)
+	}
+}

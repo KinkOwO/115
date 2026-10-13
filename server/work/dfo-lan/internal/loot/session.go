@@ -63,6 +63,13 @@ type Session struct {
 	// 之后。零值 = 没预掷（非调律副本、或调用方没接线），此时退回 Roll 的内部预掷，
 	// 行为与 2026-10-07 之前逐字节相同。
 	Tiers RunTiers
+	// AttunementPaid 是源领主死亡那一格**实际付出去**的那一摞奖（展开成成品之前的
+	// 载体号，含调律 fixed/additional、征兆与天平罐子）。同一场只写一次。
+	//
+	// 为什么要挂在掉落会话上而不是让网关自己判：封包里的 `entity` 是**实体序号**，
+	// 与怪物模板号（`Definition.SourceBoss`）不是一个东西，外层拿它认不出「这是不是
+	// 源领主」，也就念不出「进本掷的那一支到底付没付」。
+	AttunementPaid []Award
 	// attunementRolled 保证一轮只抽一次专属奖励：同一只源领主再被确认死亡
 	// （或同模板的第二只 rank3）都不会重复发奖。
 	attunementRolled bool
@@ -367,6 +374,7 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 	// 所以把触发器放宽到「任何声明了源领主的副本」不会给别的副本发奖。
 	if s.Attunement.Enabled() && d.Definition.SourceBoss != 0 &&
 		monster.Rank == 3 && monster.Template == d.Definition.SourceBoss && !s.attunementRolled {
+		paidFrom := len(result.Awards)
 		if s.borderPlan != nil {
 			if !s.borderPlanMatches(d) {
 				return nil, fmt.Errorf("border reward plan identity changed")
@@ -414,6 +422,7 @@ func (s *Session) Death(d *dungeon.Session, entity uint16) ([]protocol.SceneDrop
 			result.Awards = append(result.Awards, awards...)
 			result.NextSeed = next
 		}
+		s.AttunementPaid = append([]Award(nil), result.Awards[paidFrom:]...)
 	}
 	// 图内确认要掉的那一件（CMD 2406「命运的凝械」）搭这一帧：排在末尾，
 	// 于是和别的掉落一样走下面那条统一的包装展开 + 耐久校验 + 落地编码。
